@@ -8,8 +8,8 @@ services:
     ports:
       - "${PORT:-8000}:8000"
     # All runtime config (location, radius, weights, models, cadence) lives in
-    # config/config.yaml and is baked into the image. Rebuild (or re-run
-    # `docker compose up -d --build`) after changing it.
+    # weather.yaml at the repo root and is baked into the image. Rebuild (or
+    # re-run `docker compose up -d --build`) after changing it.
     # Optional: to override the published host port without editing the file,
     # run:  PORT=9000 docker compose up -d
     environment:
