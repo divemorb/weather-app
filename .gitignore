@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local state
+*.db
+*.sqlite3
+/data/
+
+# Local overrides (do not commit real secrets; this app uses none, but keep
+# host-specific tuning local)
+.env
+.env.local

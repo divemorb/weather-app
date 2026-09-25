@@ -1,0 +1,26 @@
+# Local weather app — run on your home network
+#   docker compose up -d --build
+#   open http://localhost:8000
+services:
+  weather:
+    build: .
+    container_name: weather-app
+    ports:
+      - "${PORT:-8000}:8000"
+    # All runtime config (location, radius, weights, models, cadence) lives in
+    # config/config.yaml and is baked into the image. Rebuild (or re-run
+    # `docker compose up -d --build`) after changing it.
+    # Optional: to override the published host port without editing the file,
+    # run:  PORT=9000 docker compose up -d
+    environment:
+      DATABASE_PATH: /data/weather.db
+    volumes:
+      - weather-data:/data
+    # The app schedules its own refreshes (radar 5 min, models hourly);
+    # keep the container alive and restart it on crash/host reboot.
+    restart: unless-stopped
+    # No privileged access needed; these are read-only public APIs.
+
+volumes:
+  weather-data:
+

@@ -1,0 +1,71 @@
+# Weather app configuration
+# All times are handled as UTC internally; the timezone is display-only
+# (the frontend converts for you).
+
+location:
+  latitude: 52.52   # your location (Berlin)
+  longitude: 13.405
+  timezone: Europe/Berlin        # display timezone for the frontend
+
+radar:
+  # Radius around the location (km) considered "local rain" for the
+  # next-hour rain probability. 2-5 km recommended.
+  radius_km: 5.0
+  # Radar grid is 1 km^2 with 5-minute steps; the nowcast extends ~2 h ahead.
+  grid_size_km: 1.0
+  step_minutes: 5
+
+probability:
+  # Weights for the combined next-hour rain probability (any positive
+  # numbers - they are normalized internally). Radar has the highest
+  # weight by design. Without radar coverage (e.g. outside Germany) the
+  # probability falls back to models + ensemble and these two weights
+  # are re-normalized automatically.
+  weights:
+    radar: 0.5
+    models: 0.3
+    ensemble: 0.2
+  # A model "votes rain" when it forecasts more than this amount
+  # of precipitation in the next 60 minutes (mm).
+  model_rain_threshold_mm: 0.1
+  # A radar grid cell counts as "rain" when the accumulated rain in the
+  # cell exceeds this amount in the 5-minute step (mm).
+  radar_cell_rain_threshold_mm: 0.05
+
+models:
+  # Open-Meteo forecast models compared for the next 24 h.
+  # Names are Open-Meteo `models=` values (underscores, verified live):
+  #   icon_d2        ICON-D2  (DWD, 2 km, Germany)
+  #   icon_eu        ICON-EU  (DWD, ~11 km, Europe)
+  #   ecmwf_ifs025   ECMWF IFS (~25 km, global)
+  #   gfs_seamless   GFS (NOAA, ~25 km, global)
+  #   arome_france   AROME (Meteo-France, ~1.5 km, France)
+  #   ukmo_seamless  UK Met Office UM (~2 km, UK/Europe)
+  # NOTE: "meteofrance" / "met_no" are NOT accepted by the API for the
+  # multi-model `models=` parameter (verified: 400). arome_france is the
+  # correct Météo-France identifier.
+  forecast:
+    - icon_d2
+    - icon_eu
+    - ecmwf_ifs025
+    - gfs_seamless
+    - arome_france
+    - ukmo_seamless
+  # Open-Meteo ensemble model used for the real precipitation probability:
+  # share of members forecasting > model_rain_threshold_mm in the next hour
+  # (ecmwf_ifs025 provides 50 members: precipitation_memberNN).
+  ensemble_model: "ecmwf_ifs025"
+
+scheduling:
+  # Cache refresh cadence. The app NEVER fetches per page load.
+  radar_interval_minutes: 5
+  models_interval_minutes: 60
+  # Age (minutes) after which a cached source is shown as stale in the UI.
+  stale_after_minutes:
+    radar: 10
+    models: 120
+
+api:
+  # Upstream endpoints (verified; overridable for tests/mocks).
+  # Bright Sky has no /v2
+
