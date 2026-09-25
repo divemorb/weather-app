@@ -14,8 +14,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Application code
 COPY app/ ./app/
-COPY config/ ./config/
 COPY weather.yaml ./weather.yaml
 
-# SQLite cache
+# SQLite cache lives here (mount a volume here to persist it)
+RUN mkdir -p /data
+ENV DATABASE_PATH=/data/weather.db
 
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
