@@ -48,7 +48,7 @@ All runtime settings live in **`weather.yaml`** (repo root). Key sections:
 | Key | Meaning | Default |
 | --- | --- | --- |
 | `location.*` | latitude / longitude / display timezone | your location, `Europe/Berlin` |
-| `radar.radius_km` | "local rain" radius around you | `5.0` |
+| `radar.radius_km` | "local rain" radius around you | `1.0` |
 | `probability.weights.{radar,models,ensemble}` | combination weights | `0.5 / 0.3 / 0.2` |
 | `probability.model_rain_threshold_mm` | model rain threshold | `0.1` |
 | `models.forecast` | Open-Meteo models to compare | 6 models |

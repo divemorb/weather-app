@@ -9,8 +9,8 @@ location:
 
 radar:
   # Radius around the location (km) considered "local rain" for the
-  # next-hour rain probability. 2-5 km recommended.
-  radius_km: 5.0
+  # next-hour rain probability.
+  radius_km: 1.0
   # Radar grid is 1 km^2 with 5-minute steps; the nowcast extends ~2 h ahead.
   grid_size_km: 1.0
   step_minutes: 5
