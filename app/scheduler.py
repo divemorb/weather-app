@@ -3,11 +3,13 @@
 Radar (Bright Sky): every N minutes (default 5) — never on page load.
 Models (Open-Meteo): every M minutes (default 60).
 
-Step 3 plugs the aggregator's refresh methods in; the structure here is
-final so main.py can already start/stop it.
+Each job runs the corresponding aggregator refresh as a task so a slow or
+failing upstream can't block the scheduler; the aggregator itself tolerates
+:exc:`SourceError` (keeps the stale cache, records the last error).
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -25,14 +27,11 @@ def build_scheduler(cfg: AppConfig, aggregator: Aggregator) -> AsyncIOScheduler:
 
     def _radar_job() -> None:
         log.info("scheduled radar refresh")
-        # TODO(step 3): run asyncio.ensure_future(aggregator.refresh_radar())
-        # with error handling so one failure never kills the scheduler.
-        raise NotImplementedError("step 3")
+        asyncio.ensure_future(_guarded(aggregator.refresh_radar, "radar"))
 
     def _models_job() -> None:
         log.info("scheduled models refresh")
-        # TODO(step 3): run asyncio.ensure_future(aggregator.refresh_models())
-        raise NotImplementedError("step 3")
+        asyncio.ensure_future(_guarded(aggregator.refresh_models, "models"))
 
     scheduler.add_job(
         _radar_job,
@@ -56,7 +55,22 @@ def build_scheduler(cfg: AppConfig, aggregator: Aggregator) -> AsyncIOScheduler:
 async def initial_refresh(aggregator: Aggregator) -> None:
     """Warm the cache once at startup (before the scheduler takes over).
 
-    TODO(step 3): run both refreshes concurrently (asyncio.gather with
-    return_exceptions=True) so a slow/failing source can't delay startup.
+    Both refreshes run concurrently; a slow/failing source can't delay
+    startup (each refresh already tolerates SourceError internally).
     """
-    raise NotImplementedError("step 3")
+    results = await asyncio.gather(
+        _guarded(aggregator.refresh_radar, "radar"),
+        _guarded(aggregator.refresh_models, "models"),
+        return_exceptions=True,
+    )
+    for name, res in zip(("radar", "models"), results):
+        if isinstance(res, Exception):
+            log.warning("initial %s refresh raised: %s", name, res)
+
+
+async def _guarded(coro_factory, label: str) -> None:
+    """Run a refresh, logging (not raising) on unexpected errors."""
+    try:
+        await coro_factory()
+    except Exception:
+        log.exception("unhandled error in %s refresh", label)
