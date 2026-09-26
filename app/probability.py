@@ -166,10 +166,17 @@ def model_rain_signal(
 # ---------------------------------------------------------------------------
 # Signal 3: ensemble probability
 # ---------------------------------------------------------------------------
-def _hour_index_containing(times: list[datetime], now: datetime) -> int | None:
-    """Index of the hourly step that contains ``now`` (start <= now < start+1h)."""
+def _hour_index_at_or_after(times: list[datetime], now: datetime) -> int | None:
+    """Index of the first hourly step stamped at or after ``now`` (or None).
+
+    Open-Meteo hourly precipitation is a *preceding-hour sum*: the value at
+    time ``t`` is the rain of the hour ``[t - 1 h, t)``. So the step that
+    describes the hour containing ``now`` is the first one whose timestamp is
+    at or after ``now``. Returns None when ``now`` is beyond the last step
+    (a stale series).
+    """
     for i, t in enumerate(times):
-        if t <= now < t + timedelta(hours=1):
+        if t >= now:
             return i
     return None
 
@@ -182,7 +189,7 @@ def ensemble_vote(
     longer covers the current hour (stale) or has no usable members."""
     if ensemble is None or ensemble.n_members == 0:
         return EnsembleVote(probability_pct=None, n_members=0, n_rain_members=0)
-    idx = _hour_index_containing(ensemble.hourly_time, now)
+    idx = _hour_index_at_or_after(ensemble.hourly_time, now)
     if idx is None:
         return EnsembleVote(
             probability_pct=None, n_members=ensemble.n_members, n_rain_members=0

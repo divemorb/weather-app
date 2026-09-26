@@ -6,11 +6,15 @@ library's response models):
   * Base URL has NO version prefix: ``https://api.brightsky.dev``
   * ``GET /current_weather?lat=..&lon=..`` -> ``{"weather": {...}}``
     (units: temperature °C, wind m/s, precipitation mm, pressure hPa)
-  * ``GET /radar?lat=..&lon=..`` ->
-      ``radar``: list of 25 frames (5-min steps, ~2 h nowcast)
-      ``geometry`` / ``bbox`` / ``latlon_position``
+  * ``GET /radar?lat=..&lon=..&date=..&last_date=..`` ->
+      ``radar``: list of 5-min frames, ``geometry`` / ``bbox`` / ``latlon_position``
     Each frame's ``precipitation_5`` is ``base64(zlib(row-major uint16 grid))``
     in units of **0.01 mm per 5 minutes** (per the library docs).
+    With **no** ``date``, the server returns the previous hour (all in the past)
+    — the nowcast is only returned when the requested window extends into the
+    future, so ``fetch_radar_payload`` requests ``[now, now+1h)`` explicitly.
+    Frames are returned oldest-first; the nowcast (frames beyond the newest
+    real observation, sharing its ``source``) sits at the *tail*.
 
 The parsers (:func:`parse_current_weather`, :func:`parse_radar`) are pure
 functions so they are unit-testable without any network. The client raises
@@ -23,20 +27,17 @@ import array
 import base64
 import binascii
 import zlib
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import httpx
 
 from .config import AppConfig
 from .models import CurrentConditions, RadarCell, RadarFrame, RadarNowcast
+from .times import utcnow
 
 #: Multiplier converting a raw radar uint16 value to millimetres (5-min step).
 RADAR_MM_PER_UNIT = 0.01
-
-#: Number of 5-minute frames to keep from the head of the radar response
-#: (the head is the "now"/nowcast — the freshest data). 12 x 5 min = 60 min.
-RADAR_WINDOW_FRAMES = 12
 
 
 class SourceError(Exception):
@@ -89,10 +90,7 @@ def _decode_grid(encoded: str) -> array.array:
     return grid
 
 
-def parse_radar(
-    payload: dict[str, Any],
-    window_frames: int = RADAR_WINDOW_FRAMES,
-) -> RadarNowcast:
+def parse_radar(payload: dict[str, Any]) -> RadarNowcast:
     """Parse a ``/radar`` payload into a :class:`RadarNowcast`.
 
     The response covers a 401x401 km sub-grid around the location with
@@ -100,6 +98,10 @@ def parse_radar(
     ``latlon_position`` = (x, y) of the requested position within the
     sub-grid. Grid cells are ~1 km. Raw values are 0.01 mm units, converted
     to millimetres here.
+
+    ``fetch_radar_payload`` bounds the request to the next-hour window, so we
+    keep *every* frame that comes back (oldest-first). The time-aware callers
+    (probability layer, UI bar) select the subset within ``[now, now + 1h)``.
     """
     frames_raw = payload.get("radar")
     if not isinstance(frames_raw, list) or not frames_raw:
@@ -124,7 +126,7 @@ def parse_radar(
     covered = 0 <= px < width and 0 <= py < height
 
     frames: list[RadarFrame] = []
-    for rec in frames_raw[:window_frames]:
+    for rec in frames_raw:
         grid = _decode_grid(rec["precipitation_5"])
         if len(grid) != n_cells:
             raise SourceError(
@@ -196,8 +198,33 @@ class BrightSkyClient:
         return await self._get("/current_weather", {"lat": self._lat, "lon": self._lon})
 
     async def fetch_radar_payload(self) -> dict[str, Any]:
-        """Raw ``/radar`` JSON (25 frames incl. ~2 h nowcast)."""
-        return await self._get("/radar", {"lat": self._lat, "lon": self._lon})
+        """Raw ``/radar`` JSON for the next-hour window.
+
+        Requests ``date``/``last_date`` explicitly so the response contains the
+        nowcast (frames at or after "now"). Without them the server returns the
+        *previous* hour (all in the past), which would make the radar signal
+        permanently dry.
+
+        The window is floored to the 5-minute grid: ``date = floor(now, 5min)``,
+        ``last_date = date + 60min``. This always contains ``[now, now+1h)`` (the
+        probability layer's scan window) regardless of the minute — the extra
+        past frame is simply filtered out downstream. Frames are returned
+        oldest-first.
+        """
+        now = utcnow()
+        # Floor to the 5-minute grid
+        date = now.replace(minute=(now.minute // 5) * 5, second=0, microsecond=0)
+        last_date = date + timedelta(hours=1)
+        fmt = "%Y-%m-%dT%H:%M:%S+00:00"
+        return await self._get(
+            "/radar",
+            {
+                "lat": self._lat,
+                "lon": self._lon,
+                "date": date.strftime(fmt),
+                "last_date": last_date.strftime(fmt),
+            },
+        )
 
     # -- parsed (convenience wrappers) ------------------------------------
     async def fetch_current(self) -> CurrentConditions:

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import pytest
 import httpx
+from datetime import datetime, timezone
 
 from app.brightsky_client import (
     BrightSkyClient,
@@ -67,14 +68,17 @@ def test_parse_radar_decodes_grid_and_unit():
     assert nc.covered is True
 
 
-def test_parse_radar_keeps_only_requested_window():
+def test_parse_radar_keeps_all_frames_in_window():
+    """The request window is bounded upstream (fetch_radar_payload), so the
+    parser keeps every frame it receives (oldest-first)."""
     frames = [
         {"timestamp": f"2026-09-25T06:{m:02d}:00+00:00", "grid": grid(5, 5)}
         for m in range(0, 30, 5)  # 6 frames
     ]
     payload = make_radar_payload(frames)
-    nc = parse_radar(payload, window_frames=2)
-    assert len(nc.frames) == 2
+    nc = parse_radar(payload)
+    assert len(nc.frames) == 6
+    assert [f.time_utc for f in nc.frames] == sorted(f.time_utc for f in nc.frames)
 
 
 def test_parse_radar_empty_frames_raises():
@@ -149,6 +153,32 @@ async def test_client_radar_endpoint():
     assert len(nc.frames) == 1
     assert "/radar" in seen["url"]
     await client.aclose()
+
+
+async def test_fetch_radar_requests_next_hour_window(monkeypatch):
+    """The radar request must cover [now, now+1h) so the response includes the
+    nowcast (frames at or after 'now'). Without it Bright Sky returns the
+    previous hour only (all in the past) and the radar signal stays dry."""
+    cfg = make_cfg()
+    monkeypatch.setattr(
+        "app.brightsky_client.utcnow",
+        lambda: datetime(2026, 9, 25, 6, 23, tzinfo=timezone.utc),
+    )
+    params: dict[str, str] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        params.update(request.url.params)
+        return httpx.Response(200, json=make_radar_payload([]))
+
+    client = BrightSkyClient(
+        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    )
+    await client.fetch_radar_payload()
+    await client.aclose()
+    # 'now' = 06:23 -> floored to 06:20, window covers [06:20, 07:20] which
+    # contains [06:23, 07:23).
+    assert params["date"] == "2026-09-25T06:20:00+00:00"
+    assert params["last_date"] == "2026-09-25T07:20:00+00:00"
 
 
 async def test_client_http_error_raises_source_error():

@@ -143,7 +143,9 @@ All timestamps are **UTC** in the API; the frontend converts to
       unit-tested parsers (37 tests). Radar grid decode (base64+zlib uint16,
       0.01 mm / 5 min), multi-model forecast, and 50-member ensemble verified
       against the live APIs.
-- [ ] **Step 3** — aggregation + rain-probability logic, with unit tests
+- [x] **Step 3** — aggregation + rain-probability logic, with unit tests
+      (radar nowcast window + ensemble hour selection verified against the
+      live APIs; graceful degradation when a source fails or coverage is missing)
 - [ ] **Step 4** — REST endpoints implemented (currently stubs returning 501)
 - [ ] **Step 5** — frontend: now tile, big rain-% display, 60-minute radar
       bar, 24 h model comparison chart, dark mode, mobile

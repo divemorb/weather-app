@@ -63,7 +63,7 @@ class RadarFrame:
 
 @dataclass
 class RadarNowcast:
-    """5-minute frames for the next ~60 minutes (head of the nowcast)."""
+    """5-minute frames spanning the next ~60 minutes, oldest first."""
 
     frames: list[RadarFrame]
     covered: bool = True          # False when location is outside the grid
