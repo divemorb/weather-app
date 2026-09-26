@@ -1,7 +1,7 @@
 """Pure (network-free) rain-probability logic for the next 60 minutes.
 
 Every *decision* the aggregator makes lives here as a plain function on the
-normalized dataclasses from ``app.models``. No I/O, no hidden clock: the
+normalized dataclasses from :mod:`app.models`. No I/O, no hidden clock: the
 aggregator pulls cached payloads, hands them to these functions, and
 publishes the results. Keeping the logic pure is what makes it unit-testable.
 
@@ -24,13 +24,8 @@ from .models import (
     EnsembleVote,
     ForecastBundle,
     ModelVote,
-    RadarCell,
-    RadarFrame,
     RadarNowcast,
 )
-
-#: WGS-84 mean Earth radius (km), used by the haversine distance.
-EARTH_RADIUS_KM = 6371.0
 
 #: Kilometres per degree latitude (and per degree longitude at the equator).
 KM_PER_DEG_LAT = 111.19
@@ -48,57 +43,49 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
         math.sin(dphi / 2.0) ** 2
         + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2.0) ** 2
     )
-    return 2.0 * EARTH_RADIUS_KM * math.asin(min(1.0, math.sqrt(a)))
+    return 2.0 * 6371.0 * math.asin(min(1.0, math.sqrt(a)))
 
 
-def cell_distance_km(lat: float, lon: float, dx: int, dy: int, cell_km: float) -> float:
-    """Distance (km) from the location to a radar cell offset (dx, dy).
+def cell_distance_km(lat: float, dx: float, dy: float, cell_km: float) -> float:
+    """Distance (km) from the location to a radar-cell offset (dx, dy).
 
-    ``(lat, lon)`` is the location; ``(dx, dy)`` the integer cell offset on
-    the ~1 km grid. The offset is converted to degrees and measured with a
-    plain Euclidean distance — accurate enough at this scale.
+    ``(dx, dy)`` is the cell offset in grid units (can be fractional, since
+    the location sits inside a cell). The offset is converted to degrees and
+    measured with a plain Euclidean distance — accurate at this scale.
+    ``lat`` is the location's latitude, used for the longitude cos factor.
     """
     dlat = dy * cell_km / KM_PER_DEG_LAT
     dlon = dx * cell_km / (KM_PER_DEG_LAT * math.cos(math.radians(lat)))
     return math.hypot(dlat, dlon)
 
 
-def cells_within_radius(
-    frame: RadarFrame,
-    bbox: tuple[int, int, int, int],
-    lat: float,
-    lon: float,
-    radius_km: float,
-    cell_km: float,
-) -> list[RadarCell]:
-    """Cells of one frame whose distance to the location is <= radius_km.
+def _location_full_xy(nowcast: RadarNowcast) -> tuple[float, float]:
+    """Location in full-grid (x, y) cell coordinates.
 
-    Cell coordinates are in full-grid units; the nowcast's ``bbox``
-    (top, left, bottom, right) is the full-grid position of the sub-grid's
-    origin, so the offset from the location is ``(x - left, y - top)``.
+    The sub-grid's origin is at ``bbox`` = (top, left, bottom, right); the
+    requested point is ``location_xy`` = (px, py) measured from that origin.
     """
-    top, left = bbox[0], bbox[1]
-    out: list[RadarCell] = []
-    for cell in frame.cells:
-        d = cell_distance_km(lat, lon, cell.x - left, cell.y - top, cell_km)
-        if d <= radius_km:
-            out.append(cell)
-    return out
+    top, left = nowcast.bbox[0], nowcast.bbox[1]
+    px, py = nowcast.location_xy
+    return left + px, top + py
 
 
 def radar_has_local_rain(
-    frames: list[RadarFrame],
-    bbox: tuple[int, int, int, int],
+    nowcast: RadarNowcast,
     lat: float,
-    lon: float,
     radius_km: float,
     cell_km: float,
     cell_rain_threshold_mm: float,
 ) -> bool:
-    """True if any cell within ``radius_km`` exceeds the rain threshold."""
-    for frame in frames:
-        for cell in cells_within_radius(frame, bbox, lat, lon, radius_km, cell_km):
-            if cell.mm > cell_rain_threshold_mm:
+    """True if any cell within ``radius_km`` of the location exceeds the
+    rain threshold in any frame of the nowcast window."""
+    loc_x, loc_y = _location_full_xy(nowcast)
+    for frame in nowcast.frames:
+        for cell in frame.cells:
+            dx = cell.x - loc_x
+            dy = cell.y - loc_y
+            d = cell_distance_km(lat, dx, dy, cell_km)
+            if d <= radius_km and cell.mm > cell_rain_threshold_mm:
                 return True
     return False
 
@@ -109,7 +96,6 @@ def radar_has_local_rain(
 def radar_rain_signal(
     nowcast: RadarNowcast | None,
     lat: float,
-    lon: float,
     radar_cfg: RadarConfig,
     prob_cfg: ProbabilityConfig,
 ) -> tuple[bool, bool | None]:
@@ -121,10 +107,8 @@ def radar_rain_signal(
     if nowcast is None or not nowcast.covered or not nowcast.frames:
         return False, None
     raining = radar_has_local_rain(
-        nowcast.frames,
-        nowcast.bbox,
+        nowcast,
         lat,
-        lon,
         radar_cfg.radius_km,
         radar_cfg.grid_size_km,
         prob_cfg.radar_cell_rain_threshold_mm,
@@ -140,22 +124,27 @@ def sum_next_hour(
     values: list[float | None],
     now: datetime,
 ) -> float | None:
-    """Sum of the 15-min steps that start inside the next 60 minutes.
+    """Sum of the 15-min steps starting in ``[now, now + 1 h)``.
 
-    Returns None when any involved value is missing: a model without data
-    does not vote "dry", it simply does not vote.
+    Returns None when no step falls in that window (stale/missing series) or
+    when any involved value is missing: a model without data does not vote
+    "dry", it simply does not vote.
     """
     if not min15_time:
         return None
     end = now + timedelta(hours=1)
     total = 0.0
+    count = 0
     for t, v in zip(min15_time, values):
+        if t < now:
+            continue
         if t >= end:
             break
         if v is None:
             return None
         total += v
-    return total
+        count += 1
+    return total if count else None
 
 
 def model_votes(bundle: ForecastBundle | None, now: datetime) -> list[ModelVote]:
@@ -188,20 +177,33 @@ def model_rain_signal(
 # ---------------------------------------------------------------------------
 # Signal 3: ensemble probability
 # ---------------------------------------------------------------------------
-def ensemble_vote(ensemble: EnsembleData | None, threshold_mm: float) -> EnsembleVote:
-    """Share of ensemble members with > ``threshold_mm`` in the next hour."""
+def _hour_index_containing(times: list[datetime], now: datetime) -> int | None:
+    """Index of the hourly step that contains ``now`` (start <= now < start+1h)."""
+    for i, t in enumerate(times):
+        if t <= now < t + timedelta(hours=1):
+            return i
+    return None
+
+
+def ensemble_vote(
+    ensemble: EnsembleData | None, threshold_mm: float, now: datetime
+) -> EnsembleVote:
+    """Share of ensemble members with > ``threshold_mm`` in the hour that
+    contains ``now``. Returns a None probability when the cached series no
+    longer covers the current hour (stale) or has no usable members."""
     if ensemble is None or ensemble.n_members == 0:
         return EnsembleVote(probability_pct=None, n_members=0, n_rain_members=0)
-    if not ensemble.hourly_time:
+    idx = _hour_index_containing(ensemble.hourly_time, now)
+    if idx is None:
         return EnsembleVote(
             probability_pct=None, n_members=ensemble.n_members, n_rain_members=0
         )
     n = 0
     n_rain = 0
     for member in ensemble.member_precip_mm:
-        if not member:
+        if idx >= len(member):
             continue
-        v = member[0]
+        v = member[idx]
         if v is None:
             continue
         n += 1
