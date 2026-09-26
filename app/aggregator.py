@@ -160,13 +160,14 @@ class Aggregator:
         a :class:`RainProbability` (0 % with a "no data" explanation when
         every signal is missing) so the UI degrades gracefully.
         """
+        now = utcnow()
         nowcast = await self.get_radar_nowcast()
         votes = await self.get_model_votes()
         evote = await self.get_ensemble_vote()
         prob_cfg = self._cfg.probability
 
         radar_available, radar_raining = radar_rain_signal(
-            nowcast, self._cfg.location.latitude, self._cfg.radar, prob_cfg
+            nowcast, now, self._cfg.radar, prob_cfg
         )
         model_pct, n_rain, n_total = model_rain_signal(
             votes, prob_cfg.model_rain_threshold_mm

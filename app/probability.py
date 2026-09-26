@@ -27,65 +27,52 @@ from .models import (
     RadarNowcast,
 )
 
-#: Kilometres per degree latitude (and per degree longitude at the equator).
-KM_PER_DEG_LAT = 111.19
-
 
 # ---------------------------------------------------------------------------
 # Geometry (radar grid is ~1 km per cell)
 # ---------------------------------------------------------------------------
-def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Great-circle distance between two WGS-84 points, in kilometres."""
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lon2 - lon1)
-    a = (
-        math.sin(dphi / 2.0) ** 2
-        + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2.0) ** 2
-    )
-    return 2.0 * 6371.0 * math.asin(min(1.0, math.sqrt(a)))
-
-
-def cell_distance_km(lat: float, dx: float, dy: float, cell_km: float) -> float:
-    """Distance (km) from the location to a radar-cell offset (dx, dy).
-
-    ``(dx, dy)`` is the cell offset in grid units (can be fractional, since
-    the location sits inside a cell). The offset is converted to degrees and
-    measured with a plain Euclidean distance — accurate at this scale.
-    ``lat`` is the location's latitude, used for the longitude cos factor.
-    """
-    dlat = dy * cell_km / KM_PER_DEG_LAT
-    dlon = dx * cell_km / (KM_PER_DEG_LAT * math.cos(math.radians(lat)))
-    return math.hypot(dlat, dlon)
-
-
 def _location_full_xy(nowcast: RadarNowcast) -> tuple[float, float]:
     """Location in full-grid (x, y) cell coordinates.
 
     The sub-grid's origin is at ``bbox`` = (top, left, bottom, right); the
-    requested point is ``location_xy`` = (px, py) measured from that origin.
+    requested point is ``location_xy`` = (px, py) measured from that origin
+    (fractional — the location sits inside a cell).
     """
     top, left = nowcast.bbox[0], nowcast.bbox[1]
     px, py = nowcast.location_xy
     return left + px, top + py
 
 
+def cell_distance_km(nowcast: RadarNowcast, cell_x: int, cell_y: int, cell_km: float) -> float:
+    """Distance (km) from the location to the radar cell (cell_x, cell_y).
+
+    The grid is a uniform ~1 km physical grid, so the cell offset in grid
+    units times the cell size is the physical offset; a plain Euclidean
+    distance is accurate at this scale.
+    """
+    loc_x, loc_y = _location_full_xy(nowcast)
+    return math.hypot((cell_x - loc_x) * cell_km, (cell_y - loc_y) * cell_km)
+
+
 def radar_has_local_rain(
     nowcast: RadarNowcast,
-    lat: float,
+    now: datetime,
+    horizon: timedelta,
     radius_km: float,
     cell_km: float,
     cell_rain_threshold_mm: float,
 ) -> bool:
     """True if any cell within ``radius_km`` of the location exceeds the
-    rain threshold in any frame of the nowcast window."""
-    loc_x, loc_y = _location_full_xy(nowcast)
+    rain threshold in any frame with ``now <= frame_time < now + horizon``.
+    """
+    end = now + horizon
     for frame in nowcast.frames:
+        if not (now <= frame.time_utc < end):
+            continue
         for cell in frame.cells:
-            dx = cell.x - loc_x
-            dy = cell.y - loc_y
-            d = cell_distance_km(lat, dx, dy, cell_km)
-            if d <= radius_km and cell.mm > cell_rain_threshold_mm:
+            if cell.mm <= cell_rain_threshold_mm:
+                continue
+            if cell_distance_km(nowcast, cell.x, cell.y, cell_km) <= radius_km:
                 return True
     return False
 
@@ -95,9 +82,10 @@ def radar_has_local_rain(
 # ---------------------------------------------------------------------------
 def radar_rain_signal(
     nowcast: RadarNowcast | None,
-    lat: float,
+    now: datetime,
     radar_cfg: RadarConfig,
     prob_cfg: ProbabilityConfig,
+    horizon: timedelta = timedelta(hours=1),
 ) -> tuple[bool, bool | None]:
     """Return ``(radar_available, raining)``.
 
@@ -108,7 +96,8 @@ def radar_rain_signal(
         return False, None
     raining = radar_has_local_rain(
         nowcast,
-        lat,
+        now,
+        horizon,
         radar_cfg.radius_km,
         radar_cfg.grid_size_km,
         prob_cfg.radar_cell_rain_threshold_mm,
