@@ -25,6 +25,7 @@ from app.probability import (
     cell_distance_km,
     combine_signals,
     ensemble_vote,
+    max_local_rain_mm,
     model_rain_signal,
     model_votes,
     radar_has_local_rain,
@@ -97,6 +98,34 @@ def test_cell_distance_diagonal():
 def test_cell_distance_uses_cell_size():
     nc = _nowcast([_frame(0, [])])
     assert cell_distance_km(nc, 6, 5, 2.0) == pytest.approx(2.0)
+
+
+# ---------------------------------------------------------------------------
+# max local rain per frame (feeds the next-hour bar)
+# ---------------------------------------------------------------------------
+def test_max_local_rain_strongest_in_radius():
+    nc = _nowcast([_frame(0, [])])
+    frame = _frame(0, [_cell(5, 5, 0.1), _cell(6, 5, 0.3), _cell(5, 6, 0.2)])
+    assert max_local_rain_mm(nc, frame, 5.0, 1.0, 0.05) == pytest.approx(0.3)
+
+
+def test_max_local_rain_ignores_outside_radius():
+    nc = _nowcast([_frame(0, [])])
+    # 0.5 mm at (20,5) is 15 km away (> 5 km radius); 0.2 at location stays
+    frame = _frame(0, [_cell(5, 5, 0.2), _cell(20, 5, 0.5)])
+    assert max_local_rain_mm(nc, frame, 5.0, 1.0, 0.05) == pytest.approx(0.2)
+
+
+def test_max_local_rain_ignores_below_threshold():
+    nc = _nowcast([_frame(0, [])])
+    # 0.04 <= threshold 0.05 must not count even though it's at the location
+    frame = _frame(0, [_cell(5, 5, 0.04)])
+    assert max_local_rain_mm(nc, frame, 5.0, 1.0, 0.05) == 0.0
+
+
+def test_max_local_rain_empty_frame_is_zero():
+    nc = _nowcast([_frame(0, [])])
+    assert max_local_rain_mm(nc, _frame(0, []), 5.0, 1.0, 0.05) == 0.0
 
 
 # ---------------------------------------------------------------------------

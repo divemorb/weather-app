@@ -332,3 +332,30 @@ async def test_get_radar_nowcast_parses_frames(store, all_payloads):
     assert nowcast.covered is True
     assert len(nowcast.frames) == 1
     assert nowcast.frames[0].max_mm == pytest.approx(0.2)
+
+
+async def test_get_radar_next_hour_builds_bar(store, frozen_now):
+    # rain (0.3 mm) only in the +5 min frame, at the location
+    bs = {
+        "current": current_payload(),
+        "radar": radar_payload([
+            ("2025-01-01T12:00:00Z", []),
+            ("2025-01-01T12:05:00Z", [(5, 5, 30)]),
+        ]),
+    }
+    agg = make_aggregator(make_cfg(), store, bs, None)
+    await agg.refresh_radar()
+    bar = await agg.get_radar_next_hour()
+    assert bar["available"] is True
+    assert len(bar["steps"]) == 12
+    assert bar["steps"][0]["precip_mm"] == 0.0
+    assert bar["steps"][1]["precip_mm"] == pytest.approx(0.3)
+    assert bar["steps"][1]["start_utc"] == "2025-01-01T12:05:00Z"
+
+
+async def test_get_radar_next_hour_empty_cache(store):
+    agg = make_aggregator(make_cfg(), store)
+    bar = await agg.get_radar_next_hour()
+    assert bar["available"] is False
+    assert len(bar["steps"]) == 12
+    assert all(s["precip_mm"] == 0.0 for s in bar["steps"])

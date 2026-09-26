@@ -24,6 +24,7 @@ from .models import (
     EnsembleVote,
     ForecastBundle,
     ModelVote,
+    RadarFrame,
     RadarNowcast,
 )
 
@@ -75,6 +76,29 @@ def radar_has_local_rain(
             if cell_distance_km(nowcast, cell.x, cell.y, cell_km) <= radius_km:
                 return True
     return False
+
+
+def max_local_rain_mm(
+    nowcast: RadarNowcast,
+    frame: RadarFrame,
+    radius_km: float,
+    cell_km: float,
+    threshold_mm: float,
+) -> float:
+    """Strongest rain (max mm) within ``radius_km`` of the location in one frame.
+
+    Only cells whose 5-minute amount exceeds ``threshold_mm`` count (consistent
+    with the radar signal's definition of "rain"), so the next-hour bar and the
+    binary radar vote agree on what counts as local rain. Returns 0.0 when no
+    qualifying cell lies within the radius.
+    """
+    best = 0.0
+    for cell in frame.cells:
+        if cell.mm <= threshold_mm or cell.mm <= best:
+            continue
+        if cell_distance_km(nowcast, cell.x, cell.y, cell_km) <= radius_km:
+            best = cell.mm
+    return best
 
 
 # ---------------------------------------------------------------------------

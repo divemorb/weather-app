@@ -31,7 +31,7 @@ from .probability import (
     model_votes,
     radar_rain_signal,
 )
-from .series import build_24h_series, build_forecast_history_rows
+from .series import build_24h_series, build_forecast_history_rows, build_radar_next_hour_bar
 from .store import Store
 from .times import utcnow
 
@@ -138,6 +138,23 @@ class Aggregator:
         except SourceError:
             return None
 
+    async def get_radar_next_hour(self) -> dict[str, Any]:
+        """12 x 5-min local-rain bar for the next hour (radar nowcast).
+
+        Radius filtering + the rain threshold come from the config, so the bar
+        and the radar vote agree on "local rain". Returns the shaped series
+        (see :func:`build_radar_next_hour_bar`).
+        """
+        nowcast = await self.get_radar_nowcast()
+        return build_radar_next_hour_bar(
+            nowcast,
+            utcnow(),
+            self._cfg.radar.radius_km,
+            self._cfg.radar.grid_size_km,
+            self._cfg.probability.radar_cell_rain_threshold_mm,
+            n_steps=12,
+        )
+
     async def get_model_votes(self) -> list[ModelVote]:
         """Each configured model's next-60-min precipitation (minutely_15)."""
         return model_votes(await self._get_forecast_bundle(), utcnow())
@@ -210,19 +227,31 @@ class Aggregator:
     async def get_source_status(self) -> dict[str, dict[str, Any]]:
         """Per-source cache age + staleness + last error, for the UI."""
         out: dict[str, dict[str, Any]] = {}
-        for source, (upstream, stale_attr) in _SOURCES.items():
-            _payload, age = await self._store.get_cache(source)
-            stale_minutes = getattr(self._cfg.scheduling, stale_attr)
+        for source, (upstream, _stale_attr) in _SOURCES.items():
+            meta = await self.cache_meta(source)
             out[source] = {
                 "upstream": upstream,
-                "available": age is not None,
-                "age_seconds": round(age) if age is not None else None,
-                "stale": age is None or age > stale_minutes * 60,
                 "last_error": self._last_error.get(source),
+                **meta,
             }
         return out
 
     # -- helpers --------------------------------------------------------------
+    async def cache_meta(self, source: str) -> dict[str, Any]:
+        """Cache ``available`` / ``age_seconds`` / ``stale`` for one source.
+
+        ``age_seconds`` is None when the source has never been fetched. Used
+        both by :meth:`get_source_status` and by the API endpoints that
+        attach a data-age badge to a single source's payload.
+        """
+        _payload, age = await self._store.get_cache(source)
+        stale_minutes = getattr(self._cfg.scheduling, _SOURCES[source][1])
+        return {
+            "available": age is not None,
+            "age_seconds": round(age) if age is not None else None,
+            "stale": age is None or age > stale_minutes * 60,
+        }
+
     async def _get_forecast_bundle(self) -> ForecastBundle | None:
         payload, _age = await self._store.get_cache("forecast")
         if payload is None:

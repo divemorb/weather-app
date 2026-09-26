@@ -19,12 +19,17 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .aggregator import Aggregator
+from .api_serializers import (
+    serialize_models_24h,
+    serialize_now,
+    serialize_radar_next_hour,
+    serialize_rain_probability,
+)
 from .brightsky_client import BrightSkyClient
 from .config import AppConfig, load_config
 from .openmeteo_client import OpenMeteoClient
@@ -73,18 +78,14 @@ app.add_middleware(
 )
 
 
-def _not_implemented() -> JSONResponse:
-    return JSONResponse({"error": "not implemented yet (see step 3/4)"}, status_code=501)
-
-
 @app.get("/healthz")
 async def healthz() -> dict:
     return {"status": "ok"}
 
 
 @app.get("/api/config")
-async def api_config() -> dict:
-    cfg: AppConfig = app.state.cfg
+async def api_config(request: Request) -> dict:
+    cfg: AppConfig = request.app.state.cfg
     return {
         "location": {
             "latitude": cfg.location.latitude,
@@ -102,33 +103,42 @@ async def api_config() -> dict:
 
 
 @app.get("/api/now")
-async def api_now():
-    # step 4: return await app.state.aggregator.get_current_conditions()
-    return _not_implemented()
+async def api_now(request: Request) -> dict:
+    agg: Aggregator = request.app.state.aggregator
+    conditions = await agg.get_current_conditions()
+    meta = await agg.cache_meta("current")
+    return serialize_now(conditions, meta)
 
 
 @app.get("/api/rain-probability")
-async def api_rain_probability():
-    # step 4: return await app.state.aggregator.get_rain_probability()
-    return _not_implemented()
+async def api_rain_probability(request: Request) -> dict:
+    agg: Aggregator = request.app.state.aggregator
+    rain = await agg.get_rain_probability()
+    radar_meta = await agg.cache_meta("radar")
+    models_meta = await agg.cache_meta("forecast")
+    return serialize_rain_probability(rain, radar_meta, models_meta)
 
 
 @app.get("/api/radar/next-hour")
-async def api_radar_next_hour():
-    # step 4: 12 five-minute steps from the radar nowcast
-    return _not_implemented()
+async def api_radar_next_hour(request: Request) -> dict:
+    agg: Aggregator = request.app.state.aggregator
+    bar = await agg.get_radar_next_hour()
+    meta = await agg.cache_meta("radar")
+    return serialize_radar_next_hour(bar, meta)
 
 
 @app.get("/api/models/24h")
-async def api_models_24h():
-    # step 4: hourly precipitation series per model
-    return _not_implemented()
+async def api_models_24h(request: Request) -> dict:
+    agg: Aggregator = request.app.state.aggregator
+    series = await agg.get_24h_model_comparison()
+    meta = await agg.cache_meta("forecast")
+    return serialize_models_24h(series, meta)
 
 
 @app.get("/api/sources")
-async def api_sources():
-    # step 4: per-source cache age, staleness, last error
-    return _not_implemented()
+async def api_sources(request: Request) -> dict:
+    agg: Aggregator = request.app.state.aggregator
+    return await agg.get_source_status()
 
 
 if _STATIC_DIR.exists():

@@ -26,7 +26,7 @@ Build a local web app that aggregates weather data from multiple sources and dis
 
 ## Rain probability (next 60 min)
 
-- Radar nowcast: rain within a 2–5 km radius around the location? (highest weight)
+- Radar nowcast: rain within a 1 km radius around the location (highest weight)
 
 - Models: share of models predicting > 0.1 mm
 
