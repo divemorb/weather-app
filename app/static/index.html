@@ -1,21 +1,83 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Weather</title>
-  <style>
-    :root { color-scheme: dark light; }
-    body { font-family: system-ui, sans-serif; display: grid; place-items: center; min-height: 100vh; margin: 0; }
-    .card { max-width: 420px; text-align: center; padding: 2rem; border: 1px solid #8884; border-radius: 12px; }
-    code { background: #8882; padding: 0.1em 0.4em; border-radius: 4px; }
-  </style>
+  <title>Local Rain Forecast</title>
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%A6%3C/text%3E%3C/svg%3E" />
 </head>
 <body>
-  <div class="card">
-    <h1>🌦 Weather app</h1>
-    <p>Backend is up — frontend lands in <strong>step 5</strong>.</p>
-    <p>API: <a href="/docs">/docs</a> · <a href="/healthz">/healthz</a></p>
+  <div class="wrap">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">🌦</span>
+        <div>
+          <h1>Local Rain Forecast</h1>
+          <p class="sub" id="subtitle">loading location…</p>
+        </div>
+      </div>
+      <div class="actions">
+        <span class="badge" id="refresh-badge" hidden>—</span>
+        <button id="theme-toggle" class="btn" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">🌙</button>
+      </div>
+    </header>
+
+    <!-- Headline: rain probability in the next 60 minutes -->
+    <section class="card hero" id="hero-card">
+      <div class="hero-value" id="hero-value">–</div>
+      <div class="hero-label">% chance of rain in the next 60 min</div>
+      <p class="hero-explain muted" id="hero-explain">Waiting for the first cached forecast…</p>
+      <div class="chips" id="hero-chips"></div>
+    </section>
+
+    <!-- Current conditions tile -->
+    <section class="card">
+      <div class="card-head">
+        <h2>Now</h2>
+        <span class="badge" id="now-badge" hidden>—</span>
+      </div>
+      <div class="now-grid" id="now-grid"><span class="muted">loading…</span></div>
+    </section>
+
+    <!-- 60-minute radar nowcast (12 x 5 min) -->
+    <section class="card">
+      <div class="card-head">
+        <h2>Next 60 min · DWD radar</h2>
+        <span class="badge" id="radar-badge" hidden>—</span>
+      </div>
+      <div class="radar-bar" id="radar-bar" hidden></div>
+      <p class="muted" id="radar-note">Waiting for radar…</p>
+      <div class="radar-scale" id="radar-scale" hidden>
+        <span id="radar-scale-min">now</span>
+        <span id="radar-scale-max">+60 min</span>
+      </div>
+    </section>
+
+    <!-- 24 h model comparison -->
+    <section class="card chart">
+      <div class="card-head">
+        <h2>Next 24 h · model comparison</h2>
+        <span class="badge" id="chart-badge" hidden>—</span>
+      </div>
+      <div id="chart"><span class="muted">Waiting for models…</span></div>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <!-- Per-source status -->
+    <section class="card">
+      <div class="card-head"><h2>Data sources</h2></div>
+      <div class="sources" id="sources"><span class="muted">loading…</span></div>
+      <p class="attr">
+        Data: <a href="https://www.dwd.de" target="_blank" rel="noopener">DWD</a> via
+        <a href="https://brightsky.dev" target="_blank" rel="noopener">Bright Sky</a> ·
+        <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> —
+        non-commercial use only.
+      </p>
+    </section>
   </div>
+
+  <script src="/chart.js"></script>
+  <script src="/app.js"></script>
 </body>
 </html>

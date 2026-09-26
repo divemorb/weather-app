@@ -113,7 +113,10 @@ app/
   api_serializers.py      # pure dataclass -> JSON serializers (step 4)
   scheduler.py            # APScheduler refresh jobs
   models.py               # normalized dataclasses / API contract
-  static/index.html       # frontend (step 5)
+  static/index.html       # frontend markup (step 5)
+  static/style.css        # frontend styling + dark mode (step 5)
+  static/app.js           # frontend logic: fetch + render (step 5)
+  static/chart.js         # 24 h model comparison SVG chart (step 5)
 tests/
   conftest.py
   helpers.py              # synthetic payload builders for tests
@@ -239,7 +242,12 @@ A bucket with no radar frame yet (nowcast does not reach that far) is `0.0`.
       (`app/api_serializers.py`) and unit tests for every endpoint (including
       the 60-minute local-rain bar, `GET /api/radar/next-hour`). Live smoke
       test against Bright Sky + Open-Meteo passes.
-- [ ] **Step 5** — frontend: now tile, big rain-% display, 60-minute radar
-      bar, 24 h model comparison chart, dark mode, mobile
+- [x] **Step 5** — frontend (`app/static/`, no build step, no external
+      CDN): prominent next-60-min rain-% headline with per-source
+      derivation, "Now" tile, 60-minute radar bar, 24 h multi-model SVG
+      chart, data-source status with age/stale badges, dark mode (default)
+      with a light toggle, mobile-responsive. Reads the REST API (UTC) and
+      converts to the configured display timezone; auto-refreshes every
+      60 s.
 - [ ] **Step 6 (optional)** — forecast history vs. observations, per-model
       accuracy, automatic weighting
