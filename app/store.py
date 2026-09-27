@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS forecast_history (
     observed_mm    REAL,            -- NULL until an observation is compared
     created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
-CREATE INDEX IF NOT EXISTS idx_fh_model_hour ON forecast_history (model, valid_from);
+-- NOTE: the unique index on (model, valid_from) is created in
+-- _migrate_forecast_history(), *after* the one-time cleanup of old rows.
 
 CREATE TABLE IF NOT EXISTS model_accuracy (
     model        TEXT PRIMARY KEY,
@@ -63,7 +64,36 @@ class Store:
         self._db = await aiosqlite.connect(self._db_path)
         self._db.row_factory = aiosqlite.Row
         await self._db.executescript(_SCHEMA)
+        await self._migrate_forecast_history()
         await self._db.commit()
+
+    async def _migrate_forecast_history(self) -> None:
+        """One-time migration to schema version 2 (tracked in ``app_meta``).
+
+        v2: ``forecast_history`` rows are unique per ``(model, valid_from)``
+        (upserted, see :meth:`add_forecasts`) and labelled by hour start.
+        All rows written before that are mislabelled, so the table is emptied
+        once. Tracked in ``app_meta`` so this is a no-op on every later
+        startup. The unique index must only exist once the old rows are gone,
+        hence it is created here rather than in ``_SCHEMA``.
+        """
+        assert self._db is not None
+        async with self._db.execute(
+            "SELECT value FROM app_meta WHERE key = 'forecast_history_version'"
+        ) as cur:
+            row = await cur.fetchone()
+        if row is not None and row["value"] == "2":
+            return
+        await self._db.execute("DELETE FROM forecast_history")
+        await self._db.execute("DROP INDEX IF EXISTS idx_fh_model_hour")
+        await self._db.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS ux_fh_model_from"
+            " ON forecast_history (model, valid_from)"
+        )
+        await self._db.execute(
+            "INSERT INTO app_meta (key, value) VALUES ('forecast_history_version', '2')"
+            " ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+        )
 
     async def close(self) -> None:
         if self._db is not None:
@@ -101,6 +131,13 @@ class Store:
 
     # -- history (extension) ---------------------------------------------------
     async def add_forecasts(self, rows: list[dict[str, Any]]) -> None:
+        """Upsert this hour's forecasts (idempotent per ``model + valid_from``).
+
+        Re-running the same refresh updates the row in place, keeping the
+        *latest* forecast issued before the hour started (the shortest lead
+        time — what the next-hour vote uses). A row that already has an
+        observation is never touched.
+        """
         if not rows:
             return
         assert self._db is not None
@@ -109,6 +146,11 @@ class Store:
             INSERT INTO forecast_history
                 (model, issued_at, valid_from, valid_to, precip_mm)
             VALUES (:model, :issued_at, :valid_from, :valid_to, :precip_mm)
+            ON CONFLICT(model, valid_from) DO UPDATE SET
+                issued_at = excluded.issued_at,
+                precip_mm = excluded.precip_mm,
+                valid_to  = excluded.valid_to
+            WHERE forecast_history.observed_mm IS NULL
             """,
             rows,
         )

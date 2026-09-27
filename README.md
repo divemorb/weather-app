@@ -113,6 +113,15 @@ everything to UTC and follows these rules (verified against the live APIs):
   `[now, now+1h)` when `now < t <= now + 1h`. A step stamped exactly `now`
   is already in the past.
 
+### Forecast history (accuracy extension)
+
+`forecast_history` stores one row per `(model, valid_from)` (unique index).
+Every hourly refresh *upserts* the rows for the next 24 hours: the latest
+forecast issued before the hour started (shortest lead time) wins, and a row
+that already has an observation is never overwritten. A one-time migration
+(tracked in `app_meta`, key `forecast_history_version`) empties the table and
+adds the unique index on the first startup after this change, then is a no-op.
+
 ## Project layout
 
 ```
