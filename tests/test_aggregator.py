@@ -109,17 +109,23 @@ def current_payload() -> dict:
 
 
 def forecast_payload() -> dict:
-    """icon_d2 rains 0.4 mm in the next hour; icon_eu stays dry.
+    """icon_d2 rains 0.4 mm in the next hour; icon_eu stays dry; gfs null.
 
     The minutely_15 steps are stamped 12:15..13:00, i.e. strictly inside
     ``[NOW, NOW+1h)`` (a minutely_15 value at t covers [t-15min, t)), so at
     now = 12:00 all four steps fall in the next-hour window.
+
+    The hourly axis is stamped NOW..NOW+71h (3-day fetch, see step 6b): with
+    now = 12:00 the first *future* stamp is 13:00 (rain of 12:00-13:00), so
+    icon_d2's 0.4 mm lands in the chart's first hour (labelled 12:00) and in
+    the next-hour sum. gfs carries all-null precipitation to cover the
+    "model with null data is skipped" path.
     """
     m15 = [
         (NOW + timedelta(minutes=15 + 15 * i)).strftime("%Y-%m-%dT%H:%M:%SZ")
         for i in range(4)
     ]
-    h24 = [(NOW + timedelta(hours=i)).strftime("%Y-%m-%dT%H:%M:%SZ") for i in range(24)]
+    h72 = [(NOW + timedelta(hours=i)).strftime("%Y-%m-%dT%H:%M:%SZ") for i in range(72)]
     return {
         "minutely_15": {
             "time": m15,
@@ -127,17 +133,18 @@ def forecast_payload() -> dict:
             "precipitation_icon_eu": [0.0, 0.0, 0.0, 0.0],
         },
         "hourly": {
-            "time": h24,
-            "precipitation_icon_d2": [0.4] + [0.0] * 23,
-            "precipitation_icon_eu": [0.0] * 24,
-            "temperature_2m_icon_d2": [5.0] * 24,
-            "apparent_temperature_icon_d2": [3.5] * 24,
-            "wind_speed_10m_icon_d2": [10.0] * 24,
-            "cloud_cover_icon_d2": [70.0] * 24,
-            "temperature_2m_icon_eu": [4.0] * 24,
-            "apparent_temperature_icon_eu": [2.0] * 24,
-            "wind_speed_10m_icon_eu": [8.0] * 24,
-            "cloud_cover_icon_eu": [60.0] * 24,
+            "time": h72,
+            "precipitation_icon_d2": [0.0] + [0.4] + [0.0] * 70,
+            "precipitation_icon_eu": [0.0] * 72,
+            "precipitation_gfs": [None] * 72,
+            "temperature_2m_icon_d2": [5.0] * 72,
+            "apparent_temperature_icon_d2": [3.5] * 72,
+            "wind_speed_10m_icon_d2": [10.0] * 72,
+            "cloud_cover_icon_d2": [70.0] * 72,
+            "temperature_2m_icon_eu": [4.0] * 72,
+            "apparent_temperature_icon_eu": [2.0] * 72,
+            "wind_speed_10m_icon_eu": [8.0] * 72,
+            "cloud_cover_icon_eu": [60.0] * 72,
         },
     }
 
@@ -213,12 +220,21 @@ async def test_refresh_radar_tolerates_one_failing_source(store, all_payloads):
     assert status["radar"]["stale"] is False
 
 
-async def test_refresh_models_writes_forecast_history(store, all_payloads):
+async def test_refresh_models_writes_forecast_history(store, all_payloads, frozen_now):
     agg = make_aggregator(make_cfg(), store, all_payloads, all_payloads)
     await agg.refresh_models()
-    async with store._db.execute("SELECT COUNT(*) AS n FROM forecast_history") as cur:
-        row = await cur.fetchone()
-    assert row["n"] == 48  # 2 models x 24 hourly steps
+    async with store._db.execute(
+        "SELECT model, valid_from, valid_to FROM forecast_history"
+    ) as cur:
+        rows = await cur.fetchall()
+    # icon_d2 + icon_eu: 24 *future* hours each (gfs has null data -> 0 rows);
+    # the hour ending at NOW (11:00-12:00, stamp 12:00) is past and not stored
+    assert len(rows) == 48
+    assert {r["model"] for r in rows} == {"icon_d2", "icon_eu"}
+    for r in rows:
+        # each row covers one hour that has not started yet at issued_at
+        assert r["valid_from"] >= "2025-01-01T12:00:00Z"
+        assert r["valid_to"] > r["valid_from"]
 
 
 async def test_refresh_models_tolerates_ensemble_failure(store, all_payloads):
@@ -323,17 +339,23 @@ async def test_get_ensemble_vote(store, all_payloads, frozen_now):
     assert (vote.n_members, vote.n_rain_members) == (2, 1)
 
 
-async def test_get_24h_model_comparison(store, all_payloads):
+async def test_get_24h_model_comparison(store, all_payloads, frozen_now):
     agg = make_aggregator(make_cfg(), store, None, all_payloads)
     await agg.refresh_models()
     series = await agg.get_24h_model_comparison()
+    # the axis is relative to now: first hour = current hour (12:00),
+    # 24 entries; the model with null data (gfs) is skipped
     assert len(series["hours"]) == 24
     assert series["hours"][0] == "2025-01-01T12:00:00Z"
+    assert series["hours"][1] == "2025-01-01T13:00:00Z"
     assert series["n_models"] == 2
     names = {m["name"] for m in series["models"]}
     assert names == {"icon_d2", "icon_eu"}
     icon_d2 = next(m for m in series["models"] if m["name"] == "icon_d2")
+    # the value at hour 12:00 comes from the stamp at 13:00 (rain of
+    # 12:00-13:00) -> the 0.4 mm is in the first bucket
     assert icon_d2["precipitation_mm"][0] == pytest.approx(0.4)
+    assert icon_d2["precipitation_mm"][1] == pytest.approx(0.0)
 
 
 async def test_get_radar_nowcast_parses_frames(store, all_payloads):

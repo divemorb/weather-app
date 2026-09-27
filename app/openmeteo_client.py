@@ -163,7 +163,9 @@ class OpenMeteoClient:
             "models": ",".join(self._forecast_models),
             "minutely_15": "precipitation",
             "hourly": ",".join(HOURLY_VARS),
-            "forecast_days": 2,
+            # 3 days: with 2, fewer than 24 *future* hours (t > now) would
+            # remain late in the UTC day, shortening the 24 h chart.
+            "forecast_days": 3,
             "timezone": "UTC",
         }
         return await self._get(f"{self._forecast_base}/forecast", params)

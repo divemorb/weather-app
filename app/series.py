@@ -17,9 +17,18 @@ from .times import to_iso
 
 
 def build_24h_series(
-    bundle: ForecastBundle | None, n_hours: int = 24
+    bundle: ForecastBundle | None, now: datetime, n_hours: int = 24
 ) -> dict[str, Any]:
     """Hourly precipitation per model for the next ``n_hours`` hours.
+
+    The axis is relative to ``now``, not the UTC calendar day: only stamps
+    ``t > now`` are kept, so the first entry is always the *current* hour.
+
+    Precipitation convention: the hourly value at stamp ``t`` is the rain of
+    the preceding hour ``[t-1h, t)``. ``hours[i]`` therefore carries the
+    **start** of the hour (``t - 1h``) whose precipitation is
+    ``precipitation_mm[i]`` — the value plotted at hour 10:00 comes from the
+    stamp at 11:00.
 
     All models from one Open-Meteo call share the same hourly axis, so the
     grid is taken from the first model with data; a model whose axis does
@@ -35,20 +44,34 @@ def build_24h_series(
     if reference is None:
         return {"hours": [], "models": [], "n_models": 0}
 
-    hours = reference.hourly_time[:n_hours]
-    n = len(hours)
+    stamps = [t for t in reference.hourly_time if t > now][:n_hours]
+    n = len(stamps)
+    if n == 0:
+        return {"hours": [], "models": [], "n_models": 0}
+    # the window starts at an arbitrary offset into the axis (it is relative
+    # to now, not to the start of the axis); align every model at the same
+    # offset as the reference model
+    offset = reference.hourly_time.index(stamps[0])
     models: list[dict[str, Any]] = []
     for m in bundle.models:
-        if not m.hourly_time or m.hourly_time[:n] != hours:
+        if not m.hourly_time or len(m.hourly_time) < offset + n:
             continue
+        if m.hourly_time[offset : offset + n] != stamps:
+            continue
+        values = list(m.hourly_precip_mm[offset : offset + n])
+        if all(v is None for v in values):
+            continue  # model with null data draws nothing -> skip
         models.append(
             {
                 "name": m.name,
-                "precipitation_mm": list(m.hourly_precip_mm[:n]),
+                "precipitation_mm": values,
             }
         )
+    if not models:  # every model has null data -> same empty shape as no bundle
+        return {"hours": [], "models": [], "n_models": 0}
+    # label each hour by its START (the value at stamp t covers [t-1h, t))
     return {
-        "hours": [to_iso(t) for t in hours],
+        "hours": [to_iso(t - timedelta(hours=1)) for t in stamps],
         "models": models,
         "n_models": len(models),
     }
@@ -104,25 +127,43 @@ def build_radar_next_hour_bar(
 def build_forecast_history_rows(
     bundle: ForecastBundle, issued_at: datetime, n_hours: int = 24
 ) -> list[dict[str, Any]]:
-    """One row per model per hour for the next ``n_hours`` hours.
+    """One row per model per hour that has *not started yet* at ``issued_at``.
+
+    Precipitation convention: the hourly value at stamp ``t`` covers the
+    preceding hour ``[t-1h, t)`` — so ``valid_from = t - 1h`` and
+    ``valid_to = t`` (not ``t + 1h``, which would be one hour late). Only
+    rows with ``valid_from >= issued_at`` are kept: an hour that is already
+    in progress is not a forecast, and its value would be partially
+    observed, so storing it would bias the accuracy comparison.
 
     Rows with null precipitation are skipped (nothing to verify later).
     ``issued_at`` is the moment the forecast was fetched.
+
+    The cap is on *future* hours: with the 3-day forecast axis, the raw
+    slice would drop next-day hours when issued late in the UTC day, so we
+    filter first and keep the first ``n_hours`` remaining rows per model.
     """
     rows: list[dict[str, Any]] = []
     for m in bundle.models:
         if not m.hourly_time:
             continue
-        for t, v in zip(m.hourly_time[:n_hours], m.hourly_precip_mm[:n_hours]):
+        model_rows: list[dict[str, Any]] = []
+        for t, v in zip(m.hourly_time, m.hourly_precip_mm):
             if v is None:
                 continue
-            rows.append(
+            valid_from = t - timedelta(hours=1)
+            if valid_from < issued_at:
+                continue  # hour already started: not a (future) forecast
+            model_rows.append(
                 {
                     "model": m.name,
                     "issued_at": to_iso(issued_at),
-                    "valid_from": to_iso(t),
-                    "valid_to": to_iso(t + timedelta(hours=1)),
+                    "valid_from": to_iso(valid_from),
+                    "valid_to": to_iso(t),
                     "precip_mm": float(v),
                 }
             )
+            if len(model_rows) == n_hours:
+                break
+        rows.extend(model_rows)
     return rows

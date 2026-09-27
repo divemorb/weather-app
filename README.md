@@ -235,6 +235,12 @@ A bucket with no radar frame yet (nowcast does not reach that far) is `0.0`.
 }
 ```
 
+`hours[i]` is the UTC **start** of the hour whose precipitation is
+`precipitation_mm[i]` (an hourly value at stamp `t` covers `[t-1h, t)`).
+The window is relative to *now*, not the UTC calendar day: the first entry
+is always the current hour, so `hours` spans from now to now + 23 h
+(e.g. 10:20 UTC → 10:00, 11:00, …, next day 09:00).
+
 **`GET /api/sources`** — one entry per source (`radar`, `current`, `forecast`,
 `ensemble`):
 

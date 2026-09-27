@@ -221,8 +221,12 @@ class Aggregator:
         )
 
     async def get_24h_model_comparison(self) -> dict[str, Any]:
-        """Hourly precipitation per model for the next 24 h (chart data)."""
-        return build_24h_series(await self._get_forecast_bundle())
+        """Hourly precipitation per model for the next 24 h (chart data).
+
+        The window is relative to *now* (first hour = current hour), not the
+        UTC calendar day — see :func:`build_24h_series`.
+        """
+        return build_24h_series(await self._get_forecast_bundle(), utcnow())
 
     async def get_source_status(self) -> dict[str, dict[str, Any]]:
         """Per-source cache age + staleness + last error, for the UI."""
