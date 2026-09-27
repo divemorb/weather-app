@@ -73,6 +73,34 @@ def make_current_payload(weather: dict[str, Any] | None = None) -> dict[str, Any
     return {"weather": w, "sources": []}
 
 
+def make_weather_payload(
+    weather: list[dict[str, Any]] | None = None,
+    sources: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """A /weather payload mirroring the verified response shape.
+
+    Default data: observation station 1002 ("current") with a dry hour at
+    16:00, a null-precipitation hour at 17:00 and 0.4 mm at 18:00 (covering
+    [17:00, 18:00)); MOSMIX source 1001 ("forecast") with 19:00 and 21:00
+    records that must never be treated as observations.
+    """
+    w = [
+        {"timestamp": "2026-09-27T16:00:00+00:00", "source_id": 1002, "precipitation": 0.0},
+        {"timestamp": "2026-09-27T17:00:00+00:00", "source_id": 1002, "precipitation": None},
+        {"timestamp": "2026-09-27T18:00:00+00:00", "source_id": 1002, "precipitation": 0.4},
+        {"timestamp": "2026-09-27T19:00:00+00:00", "source_id": 1001, "precipitation": 1.2},
+        {"timestamp": "2026-09-27T21:00:00+00:00", "source_id": 1001, "precipitation": 2.0},
+    ]
+    s = [
+        {"id": 1002, "observation_type": "current",
+         "station_name": "BERLIN", "distance": 5000.0},
+        {"id": 1001, "observation_type": "forecast",
+         "station_name": "BERLIN", "distance": 3000.0},
+    ]
+    return {"weather": w if weather is None else weather,
+            "sources": s if sources is None else sources}
+
+
 def _encode_grid(grid: list[list[int]]) -> str:
     """Row-major uint16 grid -> base64(zlib(bytes)), as Bright Sky sends it."""
     flat = array.array("H")

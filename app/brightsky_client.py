@@ -15,8 +15,16 @@ library's response models):
     future, so ``fetch_radar_payload`` requests ``[now, now+1h)`` explicitly.
     Frames are returned oldest-first; the nowcast (frames beyond the newest
     real observation, sharing its ``source``) sits at the *tail*.
+  * ``GET /weather?lat=..&lon=..&date=..&last_date=..&tz=UTC`` ->
+      ``weather``: list of hourly records, ``sources``: one entry per
+      ``source_id`` with ``observation_type`` — ``"current"`` /
+      ``"historical"`` are real observations, ``"forecast"`` is the MOSMIX
+      forecast. ``precipitation`` at timestamp ``T`` is the rain of the
+      *preceding* hour ``[T-1h, T)`` (same convention as Open-Meteo hourly).
+      Used for the hourly observation backfill (step 6d).
 
-The parsers (:func:`parse_current_weather`, :func:`parse_radar`) are pure
+The parsers (:func:`parse_current_weather`, :func:`parse_radar`,
+:func:`parse_hourly_observations`) are pure
 functions so they are unit-testable without any network. The client raises
 :exc:`SourceError` on any failure so the aggregator can degrade gracefully
 (a failing source must never block the app).
@@ -34,7 +42,7 @@ import httpx
 
 from .config import AppConfig
 from .models import CurrentConditions, RadarCell, RadarFrame, RadarNowcast
-from .times import utcnow
+from .times import parse_iso, utcnow
 
 #: Multiplier converting a raw radar uint16 value to millimetres (5-min step).
 RADAR_MM_PER_UNIT = 0.01
@@ -164,6 +172,50 @@ def parse_radar(payload: dict[str, Any]) -> RadarNowcast:
     )
 
 
+def parse_hourly_observations(
+    payload: dict[str, Any], now: datetime
+) -> list[tuple[datetime, float]]:
+    """Extract hourly *observations* from a ``/weather`` payload.
+
+    Returns ``(hour_start, mm)`` pairs (ascending) where ``hour_start =
+    timestamp - 1h``, because a record stamped ``T`` holds the rain of the
+    preceding hour ``[T-1h, T)``. Only records are kept whose source has
+    ``observation_type != "forecast"`` (real observations, not MOSMIX), whose
+    ``timestamp <= now`` (no future hours), and whose ``precipitation`` is not
+    None. Records from unknown sources are skipped too (no way to verify they
+    are real observations).
+    """
+    observation_types = {
+        s.get("id"): s.get("observation_type")
+        for s in payload.get("sources") or []
+        if isinstance(s, dict)
+    }
+    out: list[tuple[datetime, float]] = []
+    for rec in payload.get("weather") or []:
+        if not isinstance(rec, dict):
+            continue
+        source_id = rec.get("source_id")
+        if source_id not in observation_types:
+            continue
+        if observation_types[source_id] == "forecast":
+            continue
+        precip = rec.get("precipitation")
+        if precip is None:
+            continue
+        ts = rec.get("timestamp")
+        if not isinstance(ts, str):
+            continue
+        try:
+            stamp = parse_iso(ts)
+        except ValueError:
+            continue
+        if stamp > now:
+            continue
+        out.append((stamp - timedelta(hours=1), float(precip)))
+    out.sort(key=lambda item: item[0])
+    return out
+
+
 # ---------------------------------------------------------------------------
 # HTTP client
 # ---------------------------------------------------------------------------
@@ -223,6 +275,26 @@ class BrightSkyClient:
                 "lon": self._lon,
                 "date": date.strftime(fmt),
                 "last_date": last_date.strftime(fmt),
+            },
+        )
+
+    async def fetch_weather_payload(self, start: datetime, end: datetime) -> dict[str, Any]:
+        """Raw ``/weather`` JSON for hourly records in ``[start, end]``.
+
+        Used by the aggregator's observation backfill (step 6d): the response
+        carries both real observations (``observation_type``
+        ``"current"``/``"historical"``) and MOSMIX forecasts (``"forecast"``);
+        :func:`parse_hourly_observations` keeps only the real ones.
+        """
+        fmt = "%Y-%m-%dT%H:%M:%SZ"
+        return await self._get(
+            "/weather",
+            {
+                "lat": self._lat,
+                "lon": self._lon,
+                "date": start.strftime(fmt),
+                "last_date": end.strftime(fmt),
+                "tz": "UTC",
             },
         )
 

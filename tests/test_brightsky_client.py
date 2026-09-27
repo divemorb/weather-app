@@ -13,9 +13,16 @@ from app.brightsky_client import (
     BrightSkyClient,
     SourceError,
     parse_current_weather,
+    parse_hourly_observations,
     parse_radar,
 )
-from tests.helpers import make_cfg, make_current_payload, make_radar_payload, grid
+from tests.helpers import (
+    make_cfg,
+    make_current_payload,
+    make_radar_payload,
+    make_weather_payload,
+    grid,
+)
 
 
 def test_parse_current_weather_maps_fields():
@@ -112,6 +119,100 @@ def test_parse_radar_location_outside_grid_marks_uncovered():
     )
     nc = parse_radar(payload)
     assert nc.covered is False
+
+
+NOW_WEATHER = datetime(2026, 9, 27, 20, 0, tzinfo=timezone.utc)
+
+
+def test_parse_hourly_observations_keeps_real_past_hours():
+    """Only real-observation records (observation_type != 'forecast') with a
+    past timestamp and a non-null precipitation are kept, labelled by hour
+    start (timestamp - 1h, since the value covers [T-1h, T))."""
+    obs = parse_hourly_observations(make_weather_payload(), NOW_WEATHER)
+    assert obs == [
+        (datetime(2026, 9, 27, 15, 0, tzinfo=timezone.utc), 0.0),  # 16:00 stamp
+        (datetime(2026, 9, 27, 17, 0, tzinfo=timezone.utc), 0.4),  # 18:00 stamp
+    ]
+
+
+def test_parse_hourly_observations_drops_forecast_null_and_future():
+    """Forecast records, null precipitation and future timestamps are skipped
+    even when their precipitation is set."""
+    obs = parse_hourly_observations(make_weather_payload(), NOW_WEATHER)
+    stamps = [t for t, _ in obs]
+    # 17:00 (null precip), 19:00 (MOSMIX forecast), 21:00 (forecast AND future)
+    assert datetime(2026, 9, 27, 16, 0, tzinfo=timezone.utc) not in stamps
+    assert datetime(2026, 9, 27, 18, 0, tzinfo=timezone.utc) not in stamps
+    assert datetime(2026, 9, 27, 20, 0, tzinfo=timezone.utc) not in stamps
+
+
+def test_parse_hourly_observations_at_boundary_timestamp():
+    """A record stamped exactly ``now`` covers [now-1h, now): it is complete
+    and must be kept."""
+    payload = make_weather_payload(
+        weather=[{"timestamp": "2026-09-27T20:00:00+00:00",
+                  "source_id": 1002, "precipitation": 0.2}],
+    )
+    obs = parse_hourly_observations(payload, NOW_WEATHER)
+    assert obs == [(datetime(2026, 9, 27, 19, 0, tzinfo=timezone.utc), 0.2)]
+
+
+def test_parse_hourly_observations_unknown_source_and_bad_timestamp():
+    payload = make_weather_payload(
+        weather=[
+            {"timestamp": "2026-09-27T16:00:00+00:00", "source_id": 999,
+             "precipitation": 1.0},
+            {"timestamp": "not-a-timestamp", "source_id": 1002,
+             "precipitation": 1.0},
+        ]
+    )
+    assert parse_hourly_observations(payload, NOW_WEATHER) == []
+
+
+def test_parse_hourly_observations_empty_payload():
+    assert parse_hourly_observations({}, NOW_WEATHER) == []
+    assert parse_hourly_observations({"weather": None, "sources": None}, NOW_WEATHER) == []
+
+
+async def test_client_fetch_weather_payload_requests_window():
+    cfg = make_cfg()
+    seen: dict[str, str] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["url"] = str(request.url)
+        return httpx.Response(200, json=make_weather_payload())
+
+    client = BrightSkyClient(
+        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    )
+    payload = await client.fetch_weather_payload(
+        datetime(2026, 9, 27, 12, 0, tzinfo=timezone.utc),
+        datetime(2026, 9, 27, 20, 0, tzinfo=timezone.utc),
+    )
+    await client.aclose()
+    assert payload["weather"][0]["source_id"] == 1002
+    assert "/weather" in seen["url"]
+    assert "date=2026-09-27T12%3A00%3A00Z" in seen["url"]
+    assert "last_date=2026-09-27T20%3A00%3A00Z" in seen["url"]
+    assert "tz=UTC" in seen["url"]
+    assert "lat=52.0" in seen["url"] and "lon=13.0" in seen["url"]
+
+
+async def test_client_fetch_weather_payload_http_error():
+    cfg = make_cfg()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, json={"detail": "boom"})
+
+    client = BrightSkyClient(
+        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    )
+    with pytest.raises(SourceError):
+        await client.fetch_weather_payload(
+            datetime(2026, 9, 27, 12, 0, tzinfo=timezone.utc),
+            datetime(2026, 9, 27, 20, 0, tzinfo=timezone.utc),
+        )
+    await client.aclose()
 
 
 async def test_client_fetch_current_uses_correct_endpoint():

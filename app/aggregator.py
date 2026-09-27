@@ -12,7 +12,13 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Awaitable, Callable
 
-from .brightsky_client import BrightSkyClient, SourceError, parse_current_weather, parse_radar
+from .brightsky_client import (
+    BrightSkyClient,
+    SourceError,
+    parse_current_weather,
+    parse_hourly_observations,
+    parse_radar,
+)
 from .config import AppConfig
 from .models import (
     CurrentConditions,
@@ -33,7 +39,7 @@ from .probability import (
 )
 from .series import build_24h_series, build_forecast_history_rows, build_radar_next_hour_bar
 from .store import Store
-from .times import utcnow
+from .times import to_iso, utcnow
 
 log = logging.getLogger("weather.aggregator")
 
@@ -74,11 +80,48 @@ class Aggregator:
         """Fetch Open-Meteo forecast + ensemble into the cache.
 
         After a successful forecast refresh, hourly rows are appended to
-        ``forecast_history`` (feeds the step-6 accuracy extension).
+        ``forecast_history`` (feeds the step-6 accuracy extension), and the
+        hourly observation backfill fills in ``observed_mm`` for the hours
+        that have already passed (step 6d).
         """
         await self._fetch_into_cache("forecast", self._openmeteo.fetch_forecast_payload)
         await self._fetch_into_cache("ensemble", self._openmeteo.fetch_ensemble_payload)
         await self._record_forecast_history()
+        await self.backfill_observations()
+
+    async def backfill_observations(self) -> None:
+        """Fill ``observed_mm`` in ``forecast_history`` from DWD observations.
+
+        Fetches the last 48 h of Bright Sky ``/weather`` hourly records and
+        writes each real observation (``observation_type != "forecast"``) as
+        the observation for its hour start (``timestamp - 1h``, see Data
+        conventions). Run from the hourly model refresh — never on a page
+        load. Any failure is logged and swallowed: a failing source must
+        never break a refresh.
+        """
+        now = utcnow()
+        try:
+            payload = await self._brightsky.fetch_weather_payload(now - timedelta(hours=48), now)
+            station = _station_info(payload)
+            if station is not None:
+                log.info(
+                    "observation backfill: station %s (%s m away)",
+                    station[0],
+                    station[1],
+                )
+            observations = parse_hourly_observations(payload, now)
+        except Exception:
+            log.exception("observation backfill fetch failed")
+            return
+        if not observations:
+            log.info("observation backfill: no observation records in the last 48 h")
+            return
+        try:
+            for hour_start, mm in observations:
+                await self._store.set_observation(to_iso(hour_start), mm)
+            log.info("observation backfill: %d hourly observations written", len(observations))
+        except Exception:
+            log.exception("observation backfill: writing observations failed")
 
     async def _fetch_into_cache(
         self, source: str, fetch: Callable[[], Awaitable[dict[str, Any]]]
@@ -264,6 +307,23 @@ class Aggregator:
             return parse_forecast(payload, list(self._cfg.models.forecast))
         except SourceError:
             return None
+
+
+def _station_info(payload: dict[str, Any]) -> tuple[str, float] | None:
+    """Station name + distance of the observation source in a /weather payload.
+
+    Prefers a source whose ``observation_type`` is ``"current"`` or
+    ``"historical"`` (a real station); falls back to the first listed source.
+    """
+    sources = [s for s in payload.get("sources") or [] if isinstance(s, dict)]
+    if not sources:
+        return None
+    for s in sources:
+        if s.get("observation_type") in ("current", "historical") and s.get("station_name"):
+            return s["station_name"], float(s.get("distance") or 0.0)
+    first = sources[0]
+    name = first.get("station_name") or str(first.get("id"))
+    return name, float(first.get("distance") or 0.0)
 
 
 def _first_hour_apparent(bundle: ForecastBundle | None, now: datetime) -> float | None:

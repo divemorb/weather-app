@@ -9,7 +9,8 @@ question prominently:
 Data sources (attribution shown in the UI, non-commercial use only):
 
 - **DWD via Bright Sky** — `current_weather` (now) + `radar` (1 km grid,
-  5-minute steps, ~2 h nowcast). https://api.brightsky.dev
+  5-minute steps, ~2 h nowcast) + `/weather` (hourly observations for the
+  forecast-history backfill). https://api.brightsky.dev
 - **Open-Meteo** — multi-model forecast (`icon_d2`, `icon_eu`, `ecmwf_ifs025`,
   `gfs_seamless`, `arome_france`, `ukmo_seamless`) and the ECMWF ensemble
   (50 members) for a real precipitation probability. https://open-meteo.com
@@ -112,6 +113,11 @@ everything to UTC and follows these rules (verified against the live APIs):
 - **Next-hour window rule:** a step with end-stamp `t` belongs to
   `[now, now+1h)` when `now < t <= now + 1h`. A step stamped exactly `now`
   is already in the past.
+- **Observation backfill:** every hourly refresh fetches the last 48 h of
+  Bright Sky `/weather` records and writes each real observation
+  (station source, `observation_type != "forecast"`) into
+  `forecast_history.observed_mm` for its hour start (`timestamp - 1h`).
+  This catches up hours missed while the app was down.
 
 ### Forecast history (accuracy extension)
 
@@ -121,6 +127,8 @@ forecast issued before the hour started (shortest lead time) wins, and a row
 that already has an observation is never overwritten. A one-time migration
 (tracked in `app_meta`, key `forecast_history_version`) empties the table and
 adds the unique index on the first startup after this change, then is a no-op.
+Observations are filled by the hourly backfill described above; `observed_mm`
+stays `NULL` until the hour's observation exists.
 
 ## Project layout
 
@@ -134,7 +142,7 @@ app/
   config.py               # YAML + env configuration
   store.py                # SQLite: source cache + forecast history
   times.py                # UTC time helpers
-  brightsky_client.py     # DWD client (current_weather, radar)
+  brightsky_client.py     # DWD client (current_weather, radar, /weather)
   openmeteo_client.py     # Open-Meteo forecast + ensemble client
   aggregator.py           # cache refresh + read-model (step 3)
   probability.py          # pure rain-probability logic (step 3)
@@ -153,6 +161,7 @@ tests/
   test_times.py
   test_brightsky_client.py
   test_openmeteo_client.py
+  test_backfill.py        # observation backfill (step 6d)
 ```
 
 ## API

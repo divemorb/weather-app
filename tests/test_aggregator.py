@@ -1,8 +1,7 @@
 """Integration tests for the aggregator (cache + probability pipeline).
 
-The clients are stubbed (no network); the Store is a real in-memory SQLite
-db; the clock is frozen by monkeypatching ``app.aggregator.utcnow`` so the
-"next 60 minutes" window is deterministic.
+Clients are stubbed (no network); the Store is a real in-memory SQLite db;
+the clock is monkeypatched on ``app.aggregator.utcnow`` for determinism.
 """
 from __future__ import annotations
 
@@ -66,6 +65,13 @@ class StubBrightSky:
         if "radar" in self._e:
             raise SourceError("radar down")
         return self._p["radar"]
+
+    async def fetch_weather_payload(self, start, end):
+        if "weather" in self._e:
+            raise SourceError("weather down")
+        if "weather" in self._p:
+            return self._p["weather"]
+        raise SourceError("weather not configured")
 
 
 class StubOpenMeteo:
@@ -150,11 +156,9 @@ def forecast_payload() -> dict:
 
 
 def ensemble_payload() -> dict:
-    """member01 rains (1 mm) in the next hour; member02 stays dry.
-
-    The hourly steps are stamped 13:00..16:00, so at now = 12:00 the first
-    step stamped *after* now (13:00, covering 12:00-13:00) is the next hour.
-    """
+    """member01 rains (1 mm) in the next hour; member02 stays dry. The steps
+    are stamped 13:00..16:00, so at now = 12:00 the first step after now
+    (13:00, covering 12:00-13:00) is the next hour."""
     h4 = [(NOW + timedelta(hours=1 + i)).strftime("%Y-%m-%dT%H:%M:%SZ") for i in range(4)]
     return {"hourly": {
         "time": h4,
