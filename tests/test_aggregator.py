@@ -109,8 +109,16 @@ def current_payload() -> dict:
 
 
 def forecast_payload() -> dict:
-    """icon_d2 rains 0.4 mm in the next hour; icon_eu stays dry."""
-    m15 = [(NOW + timedelta(minutes=15 * i)).strftime("%Y-%m-%dT%H:%M:%SZ") for i in range(4)]
+    """icon_d2 rains 0.4 mm in the next hour; icon_eu stays dry.
+
+    The minutely_15 steps are stamped 12:15..13:00, i.e. strictly inside
+    ``[NOW, NOW+1h)`` (a minutely_15 value at t covers [t-15min, t)), so at
+    now = 12:00 all four steps fall in the next-hour window.
+    """
+    m15 = [
+        (NOW + timedelta(minutes=15 + 15 * i)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        for i in range(4)
+    ]
     h24 = [(NOW + timedelta(hours=i)).strftime("%Y-%m-%dT%H:%M:%SZ") for i in range(24)]
     return {
         "minutely_15": {
@@ -135,8 +143,12 @@ def forecast_payload() -> dict:
 
 
 def ensemble_payload() -> dict:
-    """member01 rains (1 mm) at the current hour; member02 stays dry."""
-    h4 = [(NOW + timedelta(hours=i)).strftime("%Y-%m-%dT%H:%M:%SZ") for i in range(4)]
+    """member01 rains (1 mm) in the next hour; member02 stays dry.
+
+    The hourly steps are stamped 13:00..16:00, so at now = 12:00 the first
+    step stamped *after* now (13:00, covering 12:00-13:00) is the next hour.
+    """
+    h4 = [(NOW + timedelta(hours=1 + i)).strftime("%Y-%m-%dT%H:%M:%SZ") for i in range(4)]
     return {"hourly": {
         "time": h4,
         "precipitation": [0.5, 0.0, 0.0, 0.0],

@@ -93,6 +93,26 @@ A failing source never blocks the app: the last good cache is served with its
 age shown in the UI, and sources older than the configured threshold are
 flagged stale.
 
+## Data conventions
+
+The upstreams timestamp precipitation differently; the backend normalizes
+everything to UTC and follows these rules (verified against the live APIs):
+
+- **Open-Meteo hourly precipitation** at timestamp `t` is the rain of the
+  *preceding hour* `[t-1h, t)` — a sum, not an instantaneous value.
+- **Open-Meteo minutely_15 precipitation** at timestamp `t` is the rain of
+  the preceding 15 minutes `[t-15min, t)`. The hourly value at 11:00 equals
+  the sum of the 15-min values at 10:15, 10:30, 10:45 and 11:00.
+- **Open-Meteo apparent_temperature** (hourly) is an *instantaneous* value at
+  `t`, not a sum.
+- **Bright Sky `/weather`** hourly records: `precipitation` at timestamp `T`
+  is the rain of the preceding hour `[T-1h, T)`; `observation_type`
+  `"current"`/`"historical"` marks real observations, `"forecast"` marks
+  MOSMIX forecasts.
+- **Next-hour window rule:** a step with end-stamp `t` belongs to
+  `[now, now+1h)` when `now < t <= now + 1h`. A step stamped exactly `now`
+  is already in the past.
+
 ## Project layout
 
 ```

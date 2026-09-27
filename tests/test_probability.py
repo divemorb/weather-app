@@ -190,10 +190,13 @@ def test_radar_has_local_rain_scans_all_frames():
 # ---------------------------------------------------------------------------
 # model votes
 # ---------------------------------------------------------------------------
-def test_sum_next_hour_sums_four_steps():
+def test_sum_next_hour_skips_step_stamped_at_now():
+    # minutely_15 value at t covers [t-15min, t): the step stamped NOW
+    # (11:45-12:00) is the past quarter hour, so the window [NOW, NOW+1h)
+    # is the four steps stamped 12:15..13:00.
     t = [NOW + timedelta(minutes=15 * i) for i in range(5)]
-    v = [1.0, 2.0, 3.0, 4.0, 99.0]  # only first 4 fall in [now, now+1h)
-    assert sum_next_hour(t, v, NOW) == pytest.approx(10.0)
+    v = [1.0, 2.0, 3.0, 4.0, 99.0]  # 1.0 is the past step -> not summed
+    assert sum_next_hour(t, v, NOW) == pytest.approx(2.0 + 3.0 + 4.0 + 99.0)
 
 
 def test_sum_next_hour_none_on_missing_value():
@@ -214,16 +217,18 @@ def test_sum_next_hour_empty_is_none():
 
 
 def test_model_votes_per_model():
+    # steps are stamped NOW..NOW+45min; the step stamped NOW covers the past
+    # 15 minutes, so the window [NOW, NOW+1h) is the last three steps.
     bundle = ForecastBundle(
         models=[
-            _series("a", [1.0, 1.0, 1.0, 1.0], []),  # 4.0 mm
+            _series("a", [1.0, 1.0, 1.0, 1.0], []),  # 1+1+1 = 3.0 mm in window
             _series("b", [0.0, 0.0, 0.0, 0.0], []),  # 0.0 mm
-            _series("c", [None, 1.0, 1.0, 1.0], []),  # None (missing)
+            _series("c", [1.0, 1.0, None, 1.0], []),  # None in window -> missing
         ]
     )
     votes = model_votes(bundle, NOW)
     assert [v.name for v in votes] == ["a", "b", "c"]
-    assert votes[0].precip_next_hour_mm == pytest.approx(4.0)
+    assert votes[0].precip_next_hour_mm == pytest.approx(3.0)
     assert votes[1].precip_next_hour_mm == pytest.approx(0.0)
     assert votes[2].precip_next_hour_mm is None
 
@@ -269,6 +274,8 @@ def _ensemble(members: list[list[float | None]]) -> EnsembleData:
 
 
 def test_ensemble_vote_share():
+    # now = 11:30 -> the next hour is [11:30, 12:30); the first step stamped
+    # after now is idx0 (stamped 12:00, covering 11:00-12:00, the next hour).
     data = _ensemble(
         [
             [1.0, 0, 0, 0],  # rain at idx0
@@ -277,14 +284,30 @@ def test_ensemble_vote_share():
             [3.0, 0, 0, 0],  # rain at idx0
         ]
     )
-    vote = ensemble_vote(data, 0.1, NOW)
+    vote = ensemble_vote(data, 0.1, NOW - timedelta(minutes=30))
     assert vote.n_members == 4
     assert vote.n_rain_members == 2
     assert vote.probability_pct == pytest.approx(50.0)
 
 
+def test_ensemble_vote_now_exactly_on_boundary_selects_next_index():
+    # steps are stamped 12:00, 13:00, ...; at now = 12:00 exactly, idx0
+    # (stamped 12:00) covers 11:00-12:00 and is the past, so idx1 (stamped
+    # 13:00, covering 12:00-13:00) must be selected.
+    data = _ensemble(
+        [
+            [0.0, 5.0, 0, 0],  # dry at idx0 (past), rain at idx1 (next hour)
+            [0.0, 5.0, 0, 0],
+        ]
+    )
+    vote = ensemble_vote(data, 0.1, NOW)
+    assert vote.n_rain_members == 2
+    assert vote.probability_pct == pytest.approx(100.0)
+
+
 def test_ensemble_vote_uses_current_hour():
-    # now = 12:30 -> current hour index is 1 (12:00-13:00)
+    # now = 12:30 -> the next hour is [12:30, 13:30); the first step stamped
+    # after now is idx1 (stamped 13:00, covering 12:00-13:00).
     now = NOW + timedelta(minutes=30)
     data = _ensemble(
         [
@@ -311,8 +334,9 @@ def test_ensemble_vote_none_inputs():
 
 
 def test_ensemble_vote_skips_null_members():
+    # now = 11:30 -> idx0 (stamped 12:00) is the next hour
     data = _ensemble([[1.0, 0, 0, 0], [None, 0, 0, 0]])
-    vote = ensemble_vote(data, 0.1, NOW)
+    vote = ensemble_vote(data, 0.1, NOW - timedelta(minutes=30))
     # only member 0 is usable; it rains -> 100%
     assert vote.n_rain_members == 1
     assert vote.probability_pct == pytest.approx(100.0)

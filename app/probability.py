@@ -137,7 +137,12 @@ def sum_next_hour(
     values: list[float | None],
     now: datetime,
 ) -> float | None:
-    """Sum of the 15-min steps starting in ``[now, now + 1 h)``.
+    """Sum of the 15-min steps ending in the window ``[now, now + 1 h)``.
+
+    Open-Meteo minutely_15 precipitation is a *preceding-interval sum*: the
+    value at timestamp ``t`` is the rain of ``[t - 15 min, t)``. So the steps
+    that make up the next hour are those with ``now < t <= now + 1 h``; a step
+    stamped exactly ``now`` already covers the past 15 minutes and is skipped.
 
     Returns None when no step falls in that window (stale/missing series) or
     when any involved value is missing: a model without data does not vote
@@ -149,9 +154,9 @@ def sum_next_hour(
     total = 0.0
     count = 0
     for t, v in zip(min15_time, values):
-        if t < now:
+        if t <= now:
             continue
-        if t >= end:
+        if t > end:
             break
         if v is None:
             return None
@@ -190,17 +195,18 @@ def model_rain_signal(
 # ---------------------------------------------------------------------------
 # Signal 3: ensemble probability
 # ---------------------------------------------------------------------------
-def _hour_index_at_or_after(times: list[datetime], now: datetime) -> int | None:
-    """Index of the first hourly step stamped at or after ``now`` (or None).
+def _hour_index_after(times: list[datetime], now: datetime) -> int | None:
+    """Index of the first hourly step stamped after ``now`` (or None).
 
     Open-Meteo hourly precipitation is a *preceding-hour sum*: the value at
     time ``t`` is the rain of the hour ``[t - 1 h, t)``. So the step that
-    describes the hour containing ``now`` is the first one whose timestamp is
-    at or after ``now``. Returns None when ``now`` is beyond the last step
-    (a stale series).
+    describes the next hour is the first one whose timestamp is strictly
+    after ``now`` — a step stamped exactly ``now`` is the hour that just
+    ended and belongs to the past. Returns None when ``now`` is beyond the
+    last step (a stale series).
     """
     for i, t in enumerate(times):
-        if t >= now:
+        if t > now:
             return i
     return None
 
@@ -208,12 +214,12 @@ def _hour_index_at_or_after(times: list[datetime], now: datetime) -> int | None:
 def ensemble_vote(
     ensemble: EnsembleData | None, threshold_mm: float, now: datetime
 ) -> EnsembleVote:
-    """Share of ensemble members with > ``threshold_mm`` in the hour that
-    contains ``now``. Returns a None probability when the cached series no
-    longer covers the current hour (stale) or has no usable members."""
+    """Share of ensemble members with > ``threshold_mm`` in the next hour
+    (``[now, now + 1 h)``). Returns a None probability when the cached series
+    no longer covers the next hour (stale) or has no usable members."""
     if ensemble is None or ensemble.n_members == 0:
         return EnsembleVote(probability_pct=None, n_members=0, n_rain_members=0)
-    idx = _hour_index_at_or_after(ensemble.hourly_time, now)
+    idx = _hour_index_after(ensemble.hourly_time, now)
     if idx is None:
         return EnsembleVote(
             probability_pct=None, n_members=ensemble.n_members, n_rain_members=0
