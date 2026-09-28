@@ -32,6 +32,7 @@ class FakeAgg:
         rain=None,
         bar=None,
         series=None,
+        accuracy=None,
         sources=None,
         cache_meta=None,
     ):
@@ -39,6 +40,7 @@ class FakeAgg:
         self._rain = rain
         self._bar = bar
         self._series = series
+        self._accuracy = accuracy
         self._sources = sources
         self._cache_meta = cache_meta or {
             "available": True,
@@ -57,6 +59,9 @@ class FakeAgg:
 
     async def get_24h_model_comparison(self):
         return self._series
+
+    async def get_model_accuracy(self):
+        return self._accuracy
 
     async def get_source_status(self):
         return self._sources
@@ -308,6 +313,60 @@ def test_api_models_24h_empty(client):
     assert body["available"] is True  # cache exists but has no usable series
     assert body["hours"] == []
     assert body["n_models"] == 0
+
+
+# ---------------------------------------------------------------------------
+# /api/model-accuracy
+# ---------------------------------------------------------------------------
+def make_accuracy() -> dict:
+    """Pure-scorer shape (see app.accuracy.model_accuracy)."""
+    return {
+        "icon_d2": {
+            "n_samples": 100,
+            "mae_mm": 0.205,
+            "hits": 20,
+            "misses": 10,
+            "false_alarms": 15,
+            "correct_negatives": 55,
+            "event_accuracy": 0.75,
+        },
+        "gfs_seamless": {
+            "n_samples": 10,
+            "mae_mm": 0.4,
+            "hits": 2,
+            "misses": 3,
+            "false_alarms": 2,
+            "correct_negatives": 3,
+            "event_accuracy": 0.5,
+        },
+    }
+
+
+def test_api_model_accuracy_full(client, cfg):
+    c = client(FakeAgg(accuracy=make_accuracy()))
+    r = c.get("/api/model-accuracy")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["window_days"] == cfg.accuracy.window_days
+    assert body["min_samples"] == cfg.accuracy.min_samples
+    d2 = body["models"]["icon_d2"]
+    assert d2["enough_data"] is True
+    assert d2["n_samples"] == 100
+    assert d2["event_accuracy"] == pytest.approx(0.75)
+    assert d2["mae_mm"] == pytest.approx(0.205)
+    assert (d2["hits"], d2["misses"], d2["false_alarms"], d2["correct_negatives"]) == (20, 10, 15, 55)
+    # below min_samples -> greyed out in the UI
+    assert body["models"]["gfs_seamless"]["enough_data"] is False
+
+
+def test_api_model_accuracy_empty(client):
+    c = client(FakeAgg(accuracy={}))
+    r = c.get("/api/model-accuracy")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["models"] == {}
+    assert body["window_days"] == 30
+    assert body["min_samples"] == 48
 
 
 # ---------------------------------------------------------------------------

@@ -16,6 +16,7 @@ import pytest_asyncio
 from app.aggregator import Aggregator
 from app.brightsky_client import SourceError
 from app.config import (
+    AccuracyConfig,
     ApiConfig,
     AppConfig,
     LocationConfig,
@@ -44,6 +45,7 @@ def make_cfg(stale_radar: int = 10, stale_models: int = 120) -> AppConfig:
             forecast=("icon_d2", "icon_eu"), ensemble_model="ecmwf_ifs025"
         ),
         scheduling=SchedulingConfig(stale_radar_minutes=stale_radar, stale_models_minutes=stale_models),
+        accuracy=AccuracyConfig(window_days=30, min_samples=48),
         api=ApiConfig(),
         database_path=":memory:",
     )
@@ -360,6 +362,47 @@ async def test_get_24h_model_comparison(store, all_payloads, frozen_now):
     # 12:00-13:00) -> the 0.4 mm is in the first bucket
     assert icon_d2["precipitation_mm"][0] == pytest.approx(0.4)
     assert icon_d2["precipitation_mm"][1] == pytest.approx(0.0)
+
+
+async def test_get_model_accuracy_scores_window_only(store, all_payloads, frozen_now):
+    await store.add_forecasts(
+        [
+            # inside the 30-day window: hit (0.4 vs 0.3) + false alarm (0.2 vs 0.0)
+            {"model": "icon_d2", "issued_at": "2024-12-20T10:00:00Z",
+             "valid_from": "2024-12-20T11:00:00Z", "valid_to": "2024-12-20T12:00:00Z",
+             "precip_mm": 0.4},
+            {"model": "icon_d2", "issued_at": "2024-12-20T12:00:00Z",
+             "valid_from": "2024-12-20T13:00:00Z", "valid_to": "2024-12-20T14:00:00Z",
+             "precip_mm": 0.2},
+            # outside the window: must NOT be scored
+            {"model": "icon_eu", "issued_at": "2024-11-01T10:00:00Z",
+             "valid_from": "2024-11-01T11:00:00Z", "valid_to": "2024-11-01T12:00:00Z",
+             "precip_mm": 9.0},
+            # no observation yet (15:00 is never observed): must NOT be scored
+            {"model": "icon_eu", "issued_at": "2024-12-20T14:00:00Z",
+             "valid_from": "2024-12-20T15:00:00Z", "valid_to": "2024-12-20T16:00:00Z",
+             "precip_mm": 1.0},
+        ]
+    )
+    await store.set_observation("2024-12-20T11:00:00Z", 0.3)
+    await store.set_observation("2024-12-20T13:00:00Z", 0.0)
+    await store.set_observation("2024-11-01T11:00:00Z", 8.0)
+
+    accuracy = await Aggregator(
+        make_cfg(), store, StubBrightSky({}, ()), StubOpenMeteo({}, ())
+    ).get_model_accuracy()
+    assert set(accuracy) == {"icon_d2"}  # icon_eu has no in-window comparison
+    d2 = accuracy["icon_d2"]
+    assert d2["n_samples"] == 2
+    # > 0.1 mm event: (0.4 vs 0.3) = hit, (0.2 vs 0.0) = false alarm
+    assert (d2["hits"], d2["false_alarms"], d2["misses"], d2["correct_negatives"]) == (1, 1, 0, 0)
+    assert d2["event_accuracy"] == pytest.approx(0.5)
+    assert d2["mae_mm"] == pytest.approx(0.15)  # (0.1 + 0.2) / 2
+
+
+async def test_get_model_accuracy_empty_history(store, frozen_now):
+    agg = Aggregator(make_cfg(), store, StubBrightSky({}, ()), StubOpenMeteo({}, ()))
+    assert await agg.get_model_accuracy() == {}
 
 
 async def test_get_radar_nowcast_parses_frames(store, all_payloads):

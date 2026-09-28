@@ -83,6 +83,19 @@ class SchedulingConfig:
 
 
 @dataclass(frozen=True)
+class AccuracyConfig:
+    """Per-model accuracy scoring (step 6e).
+
+    Forecasts are compared against observations over a rolling window
+    (``window_days``); a model needs at least ``min_samples`` compared
+    hours before its accuracy is treated as reliable (``enough_data``).
+    """
+
+    window_days: int = 30
+    min_samples: int = 48
+
+
+@dataclass(frozen=True)
 class ApiConfig:
     brightsky_base_url: str = "https://api.brightsky.dev"
     open_meteo_base_url: str = "https://api.open-meteo.com/v1"
@@ -97,6 +110,7 @@ class AppConfig:
     probability: ProbabilityConfig
     models: ModelsConfig
     scheduling: SchedulingConfig
+    accuracy: AccuracyConfig
     api: ApiConfig
     database_path: str = "/data/weather.db"
     use_accuracy_weights: bool = False
@@ -185,6 +199,12 @@ def load_config(path: Path | None = None) -> AppConfig:
         stale_models_minutes=int(stale.get("models", 120)),
     )
 
+    acc_raw = raw.get("accuracy", {}) or {}
+    accuracy = AccuracyConfig(
+        window_days=int(acc_raw.get("window_days", 30)),
+        min_samples=int(acc_raw.get("min_samples", 48)),
+    )
+
     api_raw = raw.get("api", {}) or {}
     api = ApiConfig(
         brightsky_base_url=api_raw.get("brightsky_base_url", "https://api.brightsky.dev"),
@@ -203,6 +223,7 @@ def load_config(path: Path | None = None) -> AppConfig:
         probability=probability,
         models=models,
         scheduling=scheduling,
+        accuracy=accuracy,
         api=api,
         database_path=_env("DATABASE_PATH", "/data/weather.db") or "/data/weather.db",
         use_accuracy_weights=_env_bool("USE_ACCURACY_WEIGHTS", False),

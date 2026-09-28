@@ -8,6 +8,7 @@ from __future__ import annotations
 import pytest
 
 from app.api_serializers import (
+    serialize_model_accuracy,
     serialize_models_24h,
     serialize_now,
     serialize_radar_next_hour,
@@ -127,3 +128,45 @@ def test_models_24h_empty():
     assert body["available"] is False
     assert body["hours"] == []
     assert body["n_models"] == 0
+
+
+# ---------------------------------------------------------------------------
+# serialize_model_accuracy
+# ---------------------------------------------------------------------------
+def test_model_accuracy_full():
+    models = {
+        "icon_d2": {
+            "n_samples": 100,
+            "mae_mm": 0.205,
+            "hits": 20,
+            "misses": 10,
+            "false_alarms": 15,
+            "correct_negatives": 55,
+            "event_accuracy": 0.75,
+        },
+        "gfs_seamless": {
+            "n_samples": 10,
+            "mae_mm": 0.4,
+            "hits": 2,
+            "misses": 3,
+            "false_alarms": 2,
+            "correct_negatives": 3,
+            "event_accuracy": 0.5,
+        },
+    }
+    body = serialize_model_accuracy(models, window_days=30, min_samples=48)
+    assert body["window_days"] == 30
+    assert body["min_samples"] == 48
+    d2 = body["models"]["icon_d2"]
+    assert d2["enough_data"] is True
+    assert d2["n_samples"] == 100
+    assert d2["event_accuracy"] == pytest.approx(0.75)
+    assert d2["mae_mm"] == pytest.approx(0.205)
+    assert (d2["hits"], d2["misses"], d2["false_alarms"], d2["correct_negatives"]) == (20, 10, 15, 55)
+    # below min_samples -> not enough data
+    assert body["models"]["gfs_seamless"]["enough_data"] is False
+
+
+def test_model_accuracy_empty():
+    body = serialize_model_accuracy({}, window_days=30, min_samples=48)
+    assert body == {"window_days": 30, "min_samples": 48, "models": {}}

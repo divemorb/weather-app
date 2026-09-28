@@ -33,14 +33,10 @@ CREATE TABLE IF NOT EXISTS forecast_history (
     created_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 -- NOTE: the unique index on (model, valid_from) is created in
--- _migrate_forecast_history(), *after* the one-time cleanup of old rows.
-
-CREATE TABLE IF NOT EXISTS model_accuracy (
-    model        TEXT PRIMARY KEY,
-    n_samples    INTEGER NOT NULL DEFAULT 0,
-    mean_error   REAL,
-    updated_at   TEXT
-);
+-- _migrate(), *after* the one-time cleanup of old rows.
+-- NOTE: the old "model_accuracy" table (unused write-through table) was
+-- dropped in schema v3 (step 6e); accuracy is now computed on demand from
+-- forecast_history via compared_forecasts() + app.accuracy.model_accuracy.
 
 CREATE TABLE IF NOT EXISTS app_meta (
     key   TEXT PRIMARY KEY,
@@ -64,35 +60,47 @@ class Store:
         self._db = await aiosqlite.connect(self._db_path)
         self._db.row_factory = aiosqlite.Row
         await self._db.executescript(_SCHEMA)
-        await self._migrate_forecast_history()
+        await self._migrate()
         await self._db.commit()
 
-    async def _migrate_forecast_history(self) -> None:
-        """One-time migration to schema version 2 (tracked in ``app_meta``).
+    #: current schema version (tracked in ``app_meta``)
+    SCHEMA_VERSION = "3"
 
-        v2: ``forecast_history`` rows are unique per ``(model, valid_from)``
-        (upserted, see :meth:`add_forecasts`) and labelled by hour start.
-        All rows written before that are mislabelled, so the table is emptied
-        once. Tracked in ``app_meta`` so this is a no-op on every later
-        startup. The unique index must only exist once the old rows are gone,
-        hence it is created here rather than in ``_SCHEMA``.
+    async def _migrate(self) -> None:
+        """Run the one-time schema migrations, tracked in ``app_meta``.
+
+        v2 (step 6b/6c): ``forecast_history`` rows are unique per
+        ``(model, valid_from)`` (upserted, see :meth:`add_forecasts`) and
+        labelled by hour start. All rows written before that are
+        mislabelled, so the table is emptied once. The unique index must
+        only exist once the old rows are gone, hence it is created here
+        rather than in ``_SCHEMA``.
+        v3 (step 6e): drop the unused ``model_accuracy`` table; accuracy
+        is now computed on demand from ``forecast_history``.
+        Each step runs at most once; the key is updated in place, so this
+        is a no-op on every later startup.
         """
         assert self._db is not None
         async with self._db.execute(
             "SELECT value FROM app_meta WHERE key = 'forecast_history_version'"
         ) as cur:
             row = await cur.fetchone()
-        if row is not None and row["value"] == "2":
-            return
-        await self._db.execute("DELETE FROM forecast_history")
-        await self._db.execute("DROP INDEX IF EXISTS idx_fh_model_hour")
+        version = int(row["value"]) if row is not None and row["value"].isdigit() else 1
+        if version < 2:
+            await self._db.execute("DELETE FROM forecast_history")
+            await self._db.execute("DROP INDEX IF EXISTS idx_fh_model_hour")
+            await self._db.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS ux_fh_model_from"
+                " ON forecast_history (model, valid_from)"
+            )
+            version = 2
+        if version < 3:
+            await self._db.execute("DROP TABLE IF EXISTS model_accuracy")
+            version = 3
         await self._db.execute(
-            "CREATE UNIQUE INDEX IF NOT EXISTS ux_fh_model_from"
-            " ON forecast_history (model, valid_from)"
-        )
-        await self._db.execute(
-            "INSERT INTO app_meta (key, value) VALUES ('forecast_history_version', '2')"
-            " ON CONFLICT(key) DO UPDATE SET value = excluded.value"
+            "INSERT INTO app_meta (key, value) VALUES ('forecast_history_version', ?)"
+            " ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (str(version),),
         )
 
     async def close(self) -> None:
@@ -167,26 +175,29 @@ class Store:
         )
         await self._db.commit()
 
-    async def model_accuracy(self) -> dict[str, dict[str, Any]]:
-        """Per-model mean absolute error over compared forecasts."""
+    async def compared_forecasts(
+        self, since_iso: str
+    ) -> list[tuple[str, float, float]]:
+        """Raw ``(model, precip_mm, observed_mm)`` rows for scored forecasts.
+
+        Only rows that already have an observation and whose hour started
+        at or after ``since_iso`` (UTC ISO-8601, lexicographic comparison is
+        safe for this fixed format) are returned. All the math (MAE,
+        event counts, accuracy) is done in Python by
+        :func:`app.accuracy.model_accuracy` — the store only moves data.
+        """
         assert self._db is not None
-        result: dict[str, dict[str, Any]] = {}
         async with self._db.execute(
             """
-            SELECT model,
-                   COUNT(*) AS n,
-                   AVG(ABS(precip_mm - observed_mm)) AS mae
+            SELECT model, precip_mm, observed_mm
             FROM forecast_history
-            WHERE observed_mm IS NOT NULL
-            GROUP BY model
-            """
+            WHERE observed_mm IS NOT NULL AND valid_from >= ?
+            ORDER BY model, valid_from
+            """,
+            (since_iso,),
         ) as cur:
-            for row in await cur.fetchall():
-                result[row["model"]] = {
-                    "n_samples": row["n"],
-                    "mean_error": row["mae"],
-                }
-        return result
+            rows = await cur.fetchall()
+        return [(row["model"], row["precip_mm"], row["observed_mm"]) for row in rows]
 
 
 def _parse_utc(stamp: str) -> float:

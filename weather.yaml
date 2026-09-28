@@ -65,6 +65,15 @@ scheduling:
     radar: 10
     models: 120
 
+accuracy:
+  # Per-model accuracy window: forecasts are compared against observations
+  # for the last N days (GET /api/model-accuracy).
+  window_days: 30
+  # Minimum compared hours before a model's accuracy is treated as
+  # reliable (shown as "enough data" in the UI; below this the numbers
+  # are still computed but flagged).
+  min_samples: 48
+
 api:
   # Upstream endpoints (verified; overridable for tests/mocks).
   # Bright Sky has no /v2

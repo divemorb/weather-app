@@ -9,6 +9,7 @@ display timezone):
   GET /api/rain-probability     -> combined % + per-source breakdown
   GET /api/radar/next-hour      -> 12 x 5-min radar bar (mm per step)
   GET /api/models/24h           -> hourly precipitation per model (24 points)
+  GET /api/model-accuracy       -> per-model forecast accuracy (window, 6e)
   GET /api/sources              -> per-source age / staleness / errors
 
 Static frontend:  GET / (static/index.html, step 5)
@@ -25,6 +26,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .aggregator import Aggregator
 from .api_serializers import (
+    serialize_model_accuracy,
     serialize_models_24h,
     serialize_now,
     serialize_radar_next_hour,
@@ -133,6 +135,22 @@ async def api_models_24h(request: Request) -> dict:
     series = await agg.get_24h_model_comparison()
     meta = await agg.cache_meta("forecast")
     return serialize_models_24h(series, meta)
+
+
+@app.get("/api/model-accuracy")
+async def api_model_accuracy(request: Request) -> dict:
+    """Per-model accuracy over the configured window (step 6e).
+
+    Compares stored forecasts against observed rain using the same
+    ``> model_rain_threshold_mm`` event the next-hour vote uses. Returns an
+    empty ``models`` dict while nothing has been compared yet.
+    """
+    agg: Aggregator = request.app.state.aggregator
+    cfg: AppConfig = request.app.state.cfg
+    models = await agg.get_model_accuracy()
+    return serialize_model_accuracy(
+        models, cfg.accuracy.window_days, cfg.accuracy.min_samples
+    )
 
 
 @app.get("/api/sources")

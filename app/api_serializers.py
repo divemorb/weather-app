@@ -110,3 +110,38 @@ def serialize_models_24h(
         "models": series.get("models", []),
         "n_models": series.get("n_models", 0),
     }
+
+
+def serialize_model_accuracy(
+    models: dict[str, dict[str, Any]],
+    window_days: int,
+    min_samples: int,
+) -> dict[str, Any]:
+    """Shape the per-model accuracy (``GET /api/model-accuracy``).
+
+    ``models`` is the pure :func:`app.accuracy.model_accuracy` result
+    (``{}`` while nothing has been compared yet); each entry gains
+    ``enough_data`` = ``n_samples >= min_samples`` so the UI can grey out
+    models that have not accumulated enough compared hours.
+    """
+    serialized: dict[str, dict[str, Any]] = {}
+    for name, stats in models.items():
+        n = int(stats.get("n_samples", 0))
+        entry: dict[str, Any] = {
+            "n_samples": n,
+            "hits": int(stats["hits"]),
+            "misses": int(stats["misses"]),
+            "false_alarms": int(stats["false_alarms"]),
+            "correct_negatives": int(stats["correct_negatives"]),
+            "enough_data": n >= min_samples,
+        }
+        mae = stats.get("mae_mm")
+        entry["mae_mm"] = round(mae, 3) if mae is not None else None
+        ea = stats.get("event_accuracy")
+        entry["event_accuracy"] = round(ea, 3) if ea is not None else None
+        serialized[name] = entry
+    return {
+        "window_days": window_days,
+        "min_samples": min_samples,
+        "models": serialized,
+    }

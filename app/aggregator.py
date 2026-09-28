@@ -19,6 +19,7 @@ from .brightsky_client import (
     parse_hourly_observations,
     parse_radar,
 )
+from .accuracy import model_accuracy
 from .config import AppConfig
 from .models import (
     CurrentConditions,
@@ -270,6 +271,22 @@ class Aggregator:
         UTC calendar day — see :func:`build_24h_series`.
         """
         return build_24h_series(await self._get_forecast_bundle(), utcnow())
+
+    async def get_model_accuracy(self) -> dict[str, dict[str, Any]]:
+        """Per-model accuracy over the configured window (step 6e).
+
+        Compares stored forecasts against the observed rain of the same
+        hour — the same ``> model_rain_threshold_mm`` event the next-hour
+        vote uses. Only moves data: raw rows come from the store, the math
+        is the pure :func:`model_accuracy`. Returns ``{}`` for ``models``
+        while nothing has been compared yet.
+        """
+        now = utcnow()
+        since = to_iso(now - timedelta(days=self._cfg.accuracy.window_days))
+        rows = await self._store.compared_forecasts(since)
+        return model_accuracy(
+            rows, self._cfg.probability.model_rain_threshold_mm
+        )
 
     async def get_source_status(self) -> dict[str, dict[str, Any]]:
         """Per-source cache age + staleness + last error, for the UI."""

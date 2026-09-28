@@ -65,6 +65,29 @@ async def test_row_with_observation_is_not_overwritten(store):
 
 
 # ---------------------------------------------------------------------------
+# compared_forecasts (raw rows for the accuracy scorer)
+# ---------------------------------------------------------------------------
+async def test_compared_forecasts_filters_window_and_null_observations(store):
+    await store.add_forecasts(
+        [
+            _row("icon_d2", "2025-01-01T11:00:00Z", "2025-01-01T12:00:00Z", 0.5),  # observed, in window
+            _row("icon_d2", "2024-12-01T11:00:00Z", "2024-12-01T12:00:00Z", 9.0),  # observed, too old
+            _row("icon_eu", "2025-01-01T11:00:00Z", "2025-01-01T12:00:00Z", 0.2),  # observed, in window
+            _row("icon_eu", "2025-01-01T13:00:00Z", "2025-01-01T14:00:00Z", 0.3),  # no observation
+        ]
+    )
+    await store.set_observation("2025-01-01T12:00:00Z", 0.4)
+    await store.set_observation("2024-12-01T12:00:00Z", 8.0)
+
+    rows = await store.compared_forecasts("2024-12-15T00:00:00Z")
+    assert rows == [
+        ("icon_d2", 0.5, 0.4),
+        ("icon_eu", 0.2, 0.4),
+    ]
+    assert await store.compared_forecasts("2025-01-02T00:00:00Z") == []
+
+
+# ---------------------------------------------------------------------------
 # one-time migration (fresh DB -> v2 -> no-op afterwards)
 # ---------------------------------------------------------------------------
 async def test_migrates_old_db_once(tmp_path):
@@ -99,7 +122,7 @@ async def test_migrates_old_db_once(tmp_path):
         )
         await db1.commit()
 
-    # --- first connect on the new code: deletes old rows, records v2 ---
+    # --- first connect on the new code: deletes old rows, records v3 ---
     s2 = Store(db)
     try:
         await s2.connect()
@@ -107,7 +130,7 @@ async def test_migrates_old_db_once(tmp_path):
         async with s2._db.execute(
             "SELECT value FROM app_meta WHERE key = 'forecast_history_version'"
         ) as cur:
-            assert (await cur.fetchone())["value"] == "2"
+            assert (await cur.fetchone())["value"] == Store.SCHEMA_VERSION
 
         # --- a later connect must NOT wipe rows written after the migration ---
         await s2.add_forecasts(
@@ -116,6 +139,68 @@ async def test_migrates_old_db_once(tmp_path):
     finally:
         await s2.close()
 
+    s3 = Store(db)
+    try:
+        await s3.connect()
+        assert len(await _rows(s3)) == 1
+    finally:
+        await s3.close()
+
+
+async def test_v2_db_migrates_to_v3_dropping_model_accuracy(tmp_path):
+    """A DB written by the 6c code (version 2, with the unused
+    ``model_accuracy`` table) migrates to v3 once and keeps its data."""
+    import aiosqlite
+
+    db = str(tmp_path / "weather.db")
+    async with aiosqlite.connect(db) as db1:
+        await db1.executescript(
+            """
+            CREATE TABLE forecast_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                model TEXT NOT NULL,
+                issued_at TEXT NOT NULL,
+                valid_from TEXT NOT NULL,
+                valid_to TEXT NOT NULL,
+                precip_mm REAL NOT NULL,
+                observed_mm REAL,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+            );
+            CREATE UNIQUE INDEX ux_fh_model_from ON forecast_history (model, valid_from);
+            CREATE TABLE model_accuracy (
+                model TEXT PRIMARY KEY,
+                n_samples INTEGER NOT NULL DEFAULT 0,
+                mean_error REAL,
+                updated_at TEXT
+            );
+            CREATE TABLE app_meta (key TEXT PRIMARY KEY, value TEXT);
+            INSERT INTO app_meta (key, value) VALUES ('forecast_history_version', '2');
+            INSERT INTO forecast_history
+                (model, issued_at, valid_from, valid_to, precip_mm)
+            VALUES ('icon_d2', '2025-01-01T11:00:00Z', '2025-01-01T12:00:00Z',
+                    '2025-01-01T13:00:00Z', 0.5);
+            INSERT INTO model_accuracy (model, n_samples) VALUES ('icon_d2', 3);
+            """
+        )
+        await db1.commit()
+
+    s2 = Store(db)
+    try:
+        await s2.connect()
+        # the v2 row survives the v3 migration (only the table is dropped)
+        assert len(await _rows(s2)) == 1
+        async with s2._db.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'model_accuracy'"
+        ) as cur:
+            assert await cur.fetchone() is None
+        async with s2._db.execute(
+            "SELECT value FROM app_meta WHERE key = 'forecast_history_version'"
+        ) as cur:
+            assert (await cur.fetchone())["value"] == Store.SCHEMA_VERSION
+    finally:
+        await s2.close()
+
+    # a later connect is a no-op: data and version unchanged
     s3 = Store(db)
     try:
         await s3.connect()

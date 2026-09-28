@@ -12,6 +12,7 @@ import zlib
 from typing import Any
 
 from app.config import (
+    AccuracyConfig,
     ApiConfig,
     AppConfig,
     LocationConfig,
@@ -36,6 +37,7 @@ def make_cfg(
         probability=ProbabilityConfig(),
         models=ModelsConfig(forecast=forecast, ensemble_model=ensemble_model),
         scheduling=SchedulingConfig(),
+        accuracy=AccuracyConfig(),
         api=ApiConfig(
             brightsky_base_url="http://bs.test",
             open_meteo_base_url="http://om.test/v1",

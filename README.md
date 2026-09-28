@@ -55,6 +55,8 @@ All runtime settings live in **`weather.yaml`** (repo root). Key sections:
 | `models.forecast` | Open-Meteo models to compare | 6 models |
 | `models.ensemble_model` | ensemble for probability | `ecmwf_ifs025` (50 members) |
 | `scheduling.*` | refresh cadence + stale thresholds | radar 5 min, models 60 min |
+| `accuracy.window_days` | accuracy window (compared hours) | `30` |
+| `accuracy.min_samples` | min compared hours before a model counts as "enough data" | `48` |
 
 Environment variables override the YAML for the most common knobs:
 `LATITUDE`, `LONGITUDE`, `TIMEZONE`, `RADAR_RADIUS_KM`, `WEIGHT_RADAR`,
@@ -89,6 +91,18 @@ P = w_r * R + w_m * M + w_e * E          (weights renormalized to sum 1)
 the remaining weights are re-normalized automatically (0.3/0.2 becomes
 0.6/0.4). The UI always shows the derivation, e.g.
 "Radar: yes, 3 of 5 models, 42 % ensemble".
+
+**Scoring the models (`GET /api/model-accuracy`):** MAE alone is misleading —
+during a dry spell a model that always says 0 mm has a near-zero MAE without
+ever being right about rain. So each model is scored on the *same yes/no
+event* the vote uses (``> model_rain_threshold_mm``), over the last
+`accuracy.window_days` days: `hits` (rain forecast, rain observed),
+`misses`, `false_alarms`, `correct_negatives`, and
+`event_accuracy = (hits + correct_negatives) / n_samples`. `mae_mm` is
+reported for context. A model is flagged `enough_data` once it has at least
+`accuracy.min_samples` compared hours; the response's `models` dict is empty
+while nothing has been compared yet (fresh install — observations accumulate
+hourly via the backfill).
 
 A failing source never blocks the app: the last good cache is served with its
 age shown in the UI, and sources older than the configured threshold are
@@ -126,7 +140,10 @@ Every hourly refresh *upserts* the rows for the next 24 hours: the latest
 forecast issued before the hour started (shortest lead time) wins, and a row
 that already has an observation is never overwritten. A one-time migration
 (tracked in `app_meta`, key `forecast_history_version`) empties the table and
-adds the unique index on the first startup after this change, then is a no-op.
+adds the unique index on the first startup after this change (schema v2),
+then a later startup (schema v3) drops the unused `model_accuracy` table —
+accuracy is now computed on demand from `forecast_history` — and is a no-op
+afterwards.
 Observations are filled by the hourly backfill described above; `observed_mm`
 stays `NULL` until the hour's observation exists.
 
@@ -146,6 +163,7 @@ app/
   openmeteo_client.py     # Open-Meteo forecast + ensemble client
   aggregator.py           # cache refresh + read-model (step 3)
   probability.py          # pure rain-probability logic (step 3)
+  accuracy.py             # pure per-model accuracy scoring (step 6e)
   series.py               # pure API-series helpers (24 h + radar bar)
   api_serializers.py      # pure dataclass -> JSON serializers (step 4)
   scheduler.py            # APScheduler refresh jobs
@@ -157,6 +175,7 @@ app/
 tests/
   conftest.py
   helpers.py              # synthetic payload builders for tests
+  test_accuracy.py        # pure accuracy scorer (step 6e)
   test_config.py
   test_times.py
   test_brightsky_client.py
@@ -174,6 +193,7 @@ tests/
 | `GET /api/rain-probability` | combined % + per-source breakdown |
 | `GET /api/radar/next-hour` | 12 x 5-minute radar bar |
 | `GET /api/models/24h` | hourly precipitation per model |
+| `GET /api/model-accuracy` | per-model forecast accuracy (window) |
 | `GET /api/sources` | per-source age / staleness |
 
 All timestamps are **UTC** in the API; the frontend converts to
@@ -258,6 +278,38 @@ A bucket with no radar frame yet (nowcast does not reach that far) is `0.0`.
 The window is relative to *now*, not the UTC calendar day: the first entry
 is always the current hour, so `hours` spans from now to now + 23 h
 (e.g. 10:20 UTC → 10:00, 11:00, …, next day 09:00).
+
+**`GET /api/model-accuracy`** — per-model forecast accuracy over the
+configured window (see "How the rain probability is calculated" →
+"Scoring the models").
+
+```json
+{
+  "window_days": 30,
+  "min_samples": 48,
+  "models": {
+    "icon_d2": {
+      "n_samples": 100,
+      "hits": 20, "misses": 10, "false_alarms": 15, "correct_negatives": 55,
+      "event_accuracy": 0.75,
+      "mae_mm": 0.205,
+      "enough_data": true
+    },
+    "gfs_seamless": {
+      "n_samples": 10,
+      "hits": 2, "misses": 3, "false_alarms": 2, "correct_negatives": 3,
+      "event_accuracy": 0.5,
+      "mae_mm": 0.4,
+      "enough_data": false
+    }
+  }
+}
+```
+
+`models` is `{}` while no forecast has an observation yet (fresh install —
+it fills up hourly via the observation backfill). `event_accuracy` and
+`mae_mm` are `null`-safe (never `null` with `n_samples > 0`). `enough_data`
+is `n_samples >= min_samples`; the UI should grey out rows below that.
 
 **`GET /api/sources`** — one entry per source (`radar`, `current`, `forecast`,
 `ensemble`):

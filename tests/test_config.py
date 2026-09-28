@@ -62,6 +62,21 @@ def test_env_overrides_yaml(make_config, base_data, monkeypatch):
     assert cfg.scheduling.radar_interval_minutes == 10
 
 
+def test_accuracy_defaults(tmp_path, monkeypatch):
+    monkeypatch.delenv("WEATHER_CONFIG", raising=False)
+    cfg = load_config(tmp_path / "does_not_exist.yaml")
+    # Builtin defaults so the app still boots without a config file.
+    assert cfg.accuracy.window_days == 30
+    assert cfg.accuracy.min_samples == 48
+
+
+def test_accuracy_from_yaml(make_config, base_data):
+    base_data["accuracy"] = {"window_days": 14, "min_samples": 24}
+    cfg = load_config(make_config(base_data))
+    assert cfg.accuracy.window_days == 14
+    assert cfg.accuracy.min_samples == 24
+
+
 def test_weight_normalization_with_radar():
     cfg = load_config(None)  # real weather.yaml at repo root
     w = cfg.probability.weights(radar_available=True)
