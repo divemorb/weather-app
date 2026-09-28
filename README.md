@@ -66,6 +66,40 @@ default `false` — see "Optional accuracy weighting" below).
 
 Change `weather.yaml` and rebuild: `docker compose up -d --build`.
 
+## Security
+
+The app is designed for a **trusted home network**:
+
+- **LAN-only, no login by design.** There is no authentication and no
+  per-user state. Keep it that way: **do not forward the app's port
+  (default 8000) on your router** — if the host ever gets a public IP, an
+  unauthenticated API would be internet-reachable. Optionally pin the
+  publish address to the LAN IP instead of all interfaces.
+- **Same-origin only.** The frontend is served by the same app as the API,
+  so there is **no CORS**: a website opened in your browser can still send
+  a request to the app, but without CORS headers it cannot *read* the
+  answer — this closes the leak of the home coordinates from
+  `GET /api/config`.
+- **Security headers** on every response (API and static files), set by a
+  small middleware in `app/main.py`:
+  - `Content-Security-Policy: default-src 'self'; img-src 'self' data:;
+    object-src 'none'; base-uri 'none'; form-action 'none';
+    frame-ancestors 'none'` — the page may only load resources from itself
+    (the frontend is fully local, no CDN; `img-src data:` covers the inline
+    favicon). Nothing can be embedded, the base URI cannot be hijacked,
+    forms go nowhere, and the page cannot be framed by other sites.
+    Together with the text-only DOM inserts (step 7a), this means upstream
+    weather data can never execute as HTML/JS in your browser.
+  - `X-Content-Type-Options: nosniff` — the browser may not
+    MIME-sniff a mis-served file into an executable type.
+  - `Referrer-Policy: no-referrer` — the page URL is never leaked to
+    other origins.
+  - `Cross-Origin-Resource-Policy: same-origin` — the app's files are
+    refused as cross-origin resources.
+- **API docs off by default.** `/docs`, `/redoc` and `/openapi.json` are
+  only enabled with `ENABLE_API_DOCS=true` (see "API" below), so a guest
+  device on the LAN cannot browse the full API contract.
+
 ## How the rain probability is calculated
 
 Three independent signals for the **next 60 minutes**, combined linearly:
@@ -222,7 +256,16 @@ tests/
 | `GET /api/sources` | per-source age / staleness |
 
 All timestamps are **UTC** in the API; the frontend converts to
-`Europe/Berlin`. Interactive docs: `http://localhost:8000/docs`.
+`Europe/Berlin`.
+
+**Interactive docs** (`/docs`, `/redoc`, `/openapi.json`) are **off by
+default** (the app has no login, so the API contract should not be
+browsable by every device on the LAN). To enable them, start the app with
+`ENABLE_API_DOCS=true`:
+
+```bash
+ENABLE_API_DOCS=true docker compose up -d --build
+```
 
 ### Response contract
 

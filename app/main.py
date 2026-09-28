@@ -21,7 +21,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .aggregator import Aggregator
@@ -33,7 +32,7 @@ from .api_serializers import (
     serialize_rain_probability,
 )
 from .brightsky_client import BrightSkyClient
-from .config import AppConfig, load_config
+from .config import AppConfig, _env_bool, load_config
 from .openmeteo_client import OpenMeteoClient
 from .scheduler import build_scheduler, initial_refresh
 from .store import Store
@@ -71,13 +70,50 @@ async def lifespan(app: FastAPI):
         await store.close()
 
 
-app = FastAPI(title="Local Weather Aggregator", version="0.1.0", lifespan=lifespan)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # local network app
-    allow_methods=["GET"],
-    allow_headers=["*"],
+# API docs are off by default (security #10): the app is a no-login LAN app,
+# so the full API contract should not be browsable by every device on the
+# network. Enable with ENABLE_API_DOCS=true (development only).
+_docs_enabled = _env_bool("ENABLE_API_DOCS", False)
+
+app = FastAPI(
+    title="Local Weather Aggregator",
+    version="0.1.0",
+    lifespan=lifespan,
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
 )
+
+# No CORSMiddleware on purpose (security #4): the frontend is same-origin, so
+# CORS is not needed. Without CORS headers, a foreign website can still
+# *send* a request to the API but cannot *read* the answer (opaque
+# response), which closes the leak of the home location from /api/config.
+
+# Security headers on every response (security #13): API and static files.
+#   CSP            default-src 'self' — no external scripts/styles/frames
+#                  (img-src data: for the inline favicon in index.html);
+#                  object-src/base-uri/form-action/frame-ancestors locked
+#                  down so the page can't embed, navigate or frame anything.
+#   nosniff        stop browsers from MIME-sniffing a mis-served file
+#   no-referrer    never leak the page URL to other origins
+#   CORP           refuse to serve this app's files as cross-origin resources
+_SECURITY_HEADERS = {
+    "Content-Security-Policy": (
+        "default-src 'self'; img-src 'self' data:; object-src 'none'; "
+        "base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    ),
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "Cross-Origin-Resource-Policy": "same-origin",
+}
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    for name, value in _SECURITY_HEADERS.items():
+        response.headers[name] = value
+    return response
 
 
 @app.get("/healthz")

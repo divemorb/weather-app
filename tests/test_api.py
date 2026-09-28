@@ -382,3 +382,47 @@ def test_api_sources(client):
     assert body["forecast"]["available"] is True
     assert body["forecast"]["age_seconds"] == 60
     assert body["ensemble"]["stale"] is False
+
+
+# ---------------------------------------------------------------------------
+# security: no CORS, security headers, docs off (step 7b)
+# ---------------------------------------------------------------------------
+_SECURITY_HEADERS = {
+    "Content-Security-Policy": (
+        "default-src 'self'; img-src 'self' data:; object-src 'none'; "
+        "base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    ),
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    "Cross-Origin-Resource-Policy": "same-origin",
+}
+
+
+def test_no_cors_for_foreign_origin(client):
+    """A cross-origin request gets no access-control-allow-origin back
+    (the frontend is same-origin; without CORS it can't read the answer,
+    which protects /api/config's home location)."""
+    c = client(FakeAgg())
+    r = c.get(
+        "/api/config",
+        headers={"Origin": "https://evil.example"},
+    )
+    assert r.status_code == 200
+    assert "access-control-allow-origin" not in r.headers
+
+
+@pytest.mark.parametrize("url", ["/api/sources", "/"])
+def test_security_headers_on_api_and_static(client, url):
+    c = client(FakeAgg(sources=make_sources()))
+    r = c.get(url)
+    assert r.status_code == 200
+    for name, value in _SECURITY_HEADERS.items():
+        assert r.headers.get(name) == value
+
+
+@pytest.mark.parametrize("url", ["/docs", "/redoc", "/openapi.json"])
+def test_api_docs_off_by_default(client, url):
+    """/docs, /redoc and /openapi.json are 404 unless ENABLE_API_DOCS=true
+    (they are also 404 for any other URL, so this is the default contract)."""
+    c = client(FakeAgg())
+    assert c.get(url).status_code == 404
