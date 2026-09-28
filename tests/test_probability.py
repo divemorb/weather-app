@@ -12,7 +12,6 @@ import pytest
 
 from app.config import ProbabilityConfig, RadarConfig
 from app.models import (
-    EnsembleData,
     ForecastBundle,
     ModelSeries,
     ModelVote,
@@ -24,14 +23,12 @@ from app.probability import (
     build_explanation,
     cell_distance_km,
     combine_signals,
-    ensemble_vote,
     max_local_rain_mm,
     model_rain_signal,
     model_votes,
     radar_has_local_rain,
     radar_rain_signal,
     sum_next_hour,
-    weighted_model_signal,
 )
 
 NOW = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
@@ -264,179 +261,6 @@ def test_model_rain_signal_boundary_at_threshold():
     votes = [ModelVote(name="a", precip_next_hour_mm=0.1)]
     _, n_rain, _ = model_rain_signal(votes, 0.1)
     assert n_rain == 0
-
-
-# ---------------------------------------------------------------------------
-# accuracy-weighted model signal (step 6g)
-# ---------------------------------------------------------------------------
-def _vote(name: str, mm: float | None) -> ModelVote:
-    return ModelVote(name=name, precip_next_hour_mm=mm)
-
-
-def test_weighted_signal_equal_accuracy_matches_plain_signal():
-    # all accuracies 1.0 (>= min_samples) -> equal weights -> same as
-    # model_rain_signal: 1 of 3 voting models has rain -> 100/3 %
-    votes = [
-        _vote("a", 0.5),  # rain
-        _vote("b", 0.0),  # dry
-        _vote("c", 2.0),  # rain
-    ]
-    accuracy = {
-        n: {"n_samples": 100, "event_accuracy": 1.0, "mae_mm": 0.0} for n in "abc"
-    }
-    signal, n_rain, n_total, weighted = weighted_model_signal(votes, accuracy, 0.1, 48)
-    plain, plain_rain, plain_total = model_rain_signal(votes, 0.1)
-    assert weighted is True
-    assert signal == pytest.approx(plain)
-    assert (n_rain, n_total) == (plain_rain, plain_total) == (2, 3)
-    assert signal == pytest.approx(200.0 / 3.0)
-
-
-def test_weighted_signal_gate_falls_back_below_min_samples():
-    # one model has too few samples (and one has no accuracy row at all)
-    # -> weighted_applied is False and the plain equal-weight signal is
-    # returned (1 of 2 -> 50 %)
-    votes = [_vote("a", 0.5), _vote("b", 0.0)]
-    accuracy = {"a": {"n_samples": 47, "event_accuracy": 1.0, "mae_mm": 0.0}}
-    signal, n_rain, n_total, weighted = weighted_model_signal(votes, accuracy, 0.1, 48)
-    assert weighted is False
-    assert (n_rain, n_total) == (1, 2)
-    assert signal == pytest.approx(50.0)
-    assert signal == pytest.approx(model_rain_signal(votes, 0.1)[0])
-
-
-def test_weighted_signal_more_accurate_model_pulls_share():
-    # a: rain, accuracy 0.9 -> weight 0.9
-    # b: dry,  accuracy 0.3 -> weight 0.3
-    # weighted: 100 * 0.9 / (0.9 + 0.3) = 75  (plain would be 50)
-    votes = [_vote("a", 0.5), _vote("b", 0.0)]
-    accuracy = {
-        "a": {"n_samples": 100, "event_accuracy": 0.9, "mae_mm": 0.1},
-        "b": {"n_samples": 100, "event_accuracy": 0.3, "mae_mm": 0.4},
-    }
-    signal, n_rain, n_total, weighted = weighted_model_signal(votes, accuracy, 0.1, 48)
-    assert weighted is True
-    assert (n_rain, n_total) == (1, 2)
-    assert signal == pytest.approx(75.0)
-    assert signal > model_rain_signal(votes, 0.1)[0]  # 75 > 50: pulled toward a's rain vote
-
-
-def test_weighted_signal_zero_accuracy_uses_0p1_floor():
-    # a: rain with event_accuracy 0.0 -> weight floored at 0.1
-    # b: dry,  accuracy 0.9 -> weight 0.9
-    # weighted: 100 * 0.1 / (0.1 + 0.9) = 10  (a is down-weighted, not muted)
-    votes = [_vote("a", 0.5), _vote("b", 0.0)]
-    accuracy = {
-        "a": {"n_samples": 100, "event_accuracy": 0.0, "mae_mm": 0.5},
-        "b": {"n_samples": 100, "event_accuracy": 0.9, "mae_mm": 0.1},
-    }
-    signal, _n_rain, _n_total, weighted = weighted_model_signal(votes, accuracy, 0.1, 48)
-    assert weighted is True
-    assert signal == pytest.approx(10.0)
-
-
-def test_weighted_signal_skips_models_without_data():
-    # c has no data -> does not vote and does not trip the gate either
-    votes = [_vote("a", 0.5), _vote("b", 0.0), _vote("c", None)]
-    accuracy = {
-        "a": {"n_samples": 100, "event_accuracy": 0.9, "mae_mm": 0.1},
-        "b": {"n_samples": 100, "event_accuracy": 0.3, "mae_mm": 0.4},
-    }
-    signal, n_rain, n_total, weighted = weighted_model_signal(votes, accuracy, 0.1, 48)
-    assert weighted is True
-    assert (n_rain, n_total) == (1, 2)
-    assert signal == pytest.approx(75.0)
-
-
-def test_weighted_signal_no_voting_models():
-    signal, n_rain, n_total, weighted = weighted_model_signal(
-        [_vote("a", None)], {}, 0.1, 48
-    )
-    assert (signal, n_rain, n_total, weighted) == (None, 0, 0, False)
-
-
-def test_explanation_accuracy_weighted_flag():
-    plain = build_explanation(True, True, 3, 6, 42.0, 0.1)
-    assert "accuracy-weighted" not in plain
-    weighted = build_explanation(True, True, 3, 6, 42.0, 0.1, accuracy_weighted=True)
-    assert "3 of 6 models predict > 0.1 mm in the next hour, accuracy-weighted" in weighted
-
-
-# ---------------------------------------------------------------------------
-# ensemble vote
-# ---------------------------------------------------------------------------
-def _ensemble(members: list[list[float | None]]) -> EnsembleData:
-    hours = [NOW.replace(minute=0, second=0) + timedelta(hours=i) for i in range(4)]
-    return EnsembleData(hourly_time=hours, member_precip_mm=members)
-
-
-def test_ensemble_vote_share():
-    # now = 11:30 -> the next hour is [11:30, 12:30); the first step stamped
-    # after now is idx0 (stamped 12:00, covering 11:00-12:00, the next hour).
-    data = _ensemble(
-        [
-            [1.0, 0, 0, 0],  # rain at idx0
-            [0.0, 0, 0, 0],  # dry at idx0
-            [0.05, 0, 0, 0],  # below threshold (0.1)
-            [3.0, 0, 0, 0],  # rain at idx0
-        ]
-    )
-    vote = ensemble_vote(data, 0.1, NOW - timedelta(minutes=30))
-    assert vote.n_members == 4
-    assert vote.n_rain_members == 2
-    assert vote.probability_pct == pytest.approx(50.0)
-
-
-def test_ensemble_vote_now_exactly_on_boundary_selects_next_index():
-    # steps are stamped 12:00, 13:00, ...; at now = 12:00 exactly, idx0
-    # (stamped 12:00) covers 11:00-12:00 and is the past, so idx1 (stamped
-    # 13:00, covering 12:00-13:00) must be selected.
-    data = _ensemble(
-        [
-            [0.0, 5.0, 0, 0],  # dry at idx0 (past), rain at idx1 (next hour)
-            [0.0, 5.0, 0, 0],
-        ]
-    )
-    vote = ensemble_vote(data, 0.1, NOW)
-    assert vote.n_rain_members == 2
-    assert vote.probability_pct == pytest.approx(100.0)
-
-
-def test_ensemble_vote_uses_current_hour():
-    # now = 12:30 -> the next hour is [12:30, 13:30); the first step stamped
-    # after now is idx1 (stamped 13:00, covering 12:00-13:00).
-    now = NOW + timedelta(minutes=30)
-    data = _ensemble(
-        [
-            [0.0, 5.0, 0, 0],  # dry at idx0, rain at idx1
-            [0.0, 0.0, 0, 0],  # dry at idx1
-        ]
-    )
-    vote = ensemble_vote(data, 0.1, now)
-    assert vote.n_rain_members == 1
-    assert vote.probability_pct == pytest.approx(50.0)
-
-
-def test_ensemble_vote_stale_is_none():
-    # now beyond the series (all hours in the past)
-    now = NOW + timedelta(hours=5)
-    data = _ensemble([[1.0, 0, 0, 0], [1.0, 0, 0, 0]])
-    vote = ensemble_vote(data, 0.1, now)
-    assert vote.probability_pct is None
-
-
-def test_ensemble_vote_none_inputs():
-    assert ensemble_vote(None, 0.1, NOW).probability_pct is None
-    assert ensemble_vote(EnsembleData(), 0.1, NOW).probability_pct is None
-
-
-def test_ensemble_vote_skips_null_members():
-    # now = 11:30 -> idx0 (stamped 12:00) is the next hour
-    data = _ensemble([[1.0, 0, 0, 0], [None, 0, 0, 0]])
-    vote = ensemble_vote(data, 0.1, NOW - timedelta(minutes=30))
-    # only member 0 is usable; it rains -> 100%
-    assert vote.n_rain_members == 1
-    assert vote.probability_pct == pytest.approx(100.0)
 
 
 # ---------------------------------------------------------------------------

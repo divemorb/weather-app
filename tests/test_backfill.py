@@ -13,7 +13,7 @@ import pytest
 import pytest_asyncio
 
 from app.store import Store
-from tests.test_aggregator import (
+from tests.aggregator_support import (
     NOW,
     current_payload,
     ensemble_payload,
