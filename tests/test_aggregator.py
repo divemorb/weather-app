@@ -311,6 +311,29 @@ async def test_get_rain_probability_no_weights_when_disabled(store, all_payloads
     assert "accuracy-weighted" not in prob.explanation
 
 
+async def test_get_rain_probability_accuracy_read_failure_falls_back(
+    store, all_payloads, frozen_now, monkeypatch
+):
+    # flag on + the accuracy read raising (e.g. database error) must not
+    # break the headline number: equal weights are used and the explanation
+    # does not claim accuracy weighting
+    async def _boom(self, since_iso):
+        raise RuntimeError("database error")
+
+    monkeypatch.setattr("app.store.Store.compared_forecasts", _boom)
+
+    agg = make_aggregator(
+        make_cfg(use_accuracy_weights=True, min_samples=2), store, all_payloads, all_payloads
+    )
+    await agg.refresh_radar()
+    await agg.refresh_models()
+    prob = await agg.get_rain_probability()
+    # radar 100, models 50 (equal weights), ensemble 50 -> 0.5*100 + 0.3*50 + 0.2*50 = 75
+    assert prob.probability_pct == pytest.approx(75.0)
+    assert prob.weights_used == {"radar": 0.5, "models": 0.3, "ensemble": 0.2}
+    assert "accuracy-weighted" not in prob.explanation
+
+
 async def test_get_radar_nowcast_parses_frames(store, all_payloads):
     agg = make_aggregator(make_cfg(), store, all_payloads, None)
     await agg.refresh_radar()

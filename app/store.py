@@ -165,11 +165,19 @@ class Store:
         await self._db.commit()
 
     async def set_observation(self, valid_from: str, observed_mm: float) -> None:
+        """Set the observation for the hour starting at ``valid_from``.
+
+        The *latest* observation for the hour wins: Bright Sky may publish a
+        corrected value for an already-seen hour, and the backfill re-reads
+        the last 48 h on every hourly refresh, so an unconditional update is
+        what we want here. (The guard in :meth:`add_forecasts` is different —
+        it protects the *forecast* of an already observed hour.)
+        """
         assert self._db is not None
         await self._db.execute(
             """
             UPDATE forecast_history SET observed_mm = ?
-            WHERE valid_from = ? AND observed_mm IS NULL
+            WHERE valid_from = ?
             """,
             (observed_mm, valid_from),
         )

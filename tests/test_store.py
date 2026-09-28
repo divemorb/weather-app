@@ -64,6 +64,27 @@ async def test_row_with_observation_is_not_overwritten(store):
     assert rows[0]["issued_at"] == "2025-01-01T11:00:00Z"
 
 
+async def test_newer_observation_replaces_older_one(store):
+    # a corrected value for the same hour must win (latest observation wins);
+    # the forecast of an observed hour stays untouched, other hours are untouched
+    await store.add_forecasts(
+        [
+            _row("icon_d2", "2025-01-01T10:00:00Z", "2025-01-01T11:00:00Z", 0.5),
+            _row("icon_d2", "2025-01-01T11:00:00Z", "2025-01-01T12:00:00Z", 0.7),
+        ]
+    )
+    await store.set_observation("2025-01-01T12:00:00Z", 0.2)
+    await store.set_observation("2025-01-01T12:00:00Z", 0.9)  # corrected value
+
+    rows = await _rows(store)
+    assert len(rows) == 2
+    d2_12 = next(r for r in rows if r["valid_from"] == "2025-01-01T12:00:00Z")
+    assert d2_12["observed_mm"] == 0.9  # second write won
+    assert d2_12["precip_mm"] == 0.7  # forecast untouched
+    d2_11 = next(r for r in rows if r["valid_from"] == "2025-01-01T11:00:00Z")
+    assert d2_11["observed_mm"] is None  # other hour untouched
+
+
 # ---------------------------------------------------------------------------
 # compared_forecasts (raw rows for the accuracy scorer)
 # ---------------------------------------------------------------------------

@@ -18,6 +18,7 @@ from .brightsky_client import (
     parse_current_weather,
     parse_hourly_observations,
     parse_radar,
+    parse_station_info,
 )
 from .accuracy import model_accuracy
 from .config import AppConfig
@@ -104,7 +105,7 @@ class Aggregator:
         now = utcnow()
         try:
             payload = await self._brightsky.fetch_weather_payload(now - timedelta(hours=48), now)
-            station = _station_info(payload)
+            station = parse_station_info(payload)
             if station is not None:
                 log.info(
                     "observation backfill: station %s (%s m away)",
@@ -238,7 +239,14 @@ class Aggregator:
             # Optional accuracy weighting (step 6g): the pure function gates
             # internally — if any voting model lacks enough compared hours,
             # it reports weighted_applied=False and the equal-weight signal.
-            accuracy = await self.get_model_accuracy()
+            # A failing accuracy read (database error) must not break the
+            # headline number either: {} makes the same gate fall back to
+            # equal weights by itself.
+            try:
+                accuracy = await self.get_model_accuracy()
+            except Exception:
+                log.exception("model accuracy read failed; using equal weights")
+                accuracy = {}
             model_pct, n_rain, n_total, accuracy_weighted = weighted_model_signal(
                 votes,
                 accuracy,
@@ -342,23 +350,6 @@ class Aggregator:
             return parse_forecast(payload, list(self._cfg.models.forecast))
         except SourceError:
             return None
-
-
-def _station_info(payload: dict[str, Any]) -> tuple[str, float] | None:
-    """Station name + distance of the observation source in a /weather payload.
-
-    Prefers a source whose ``observation_type`` is ``"current"`` or
-    ``"historical"`` (a real station); falls back to the first listed source.
-    """
-    sources = [s for s in payload.get("sources") or [] if isinstance(s, dict)]
-    if not sources:
-        return None
-    for s in sources:
-        if s.get("observation_type") in ("current", "historical") and s.get("station_name"):
-            return s["station_name"], float(s.get("distance") or 0.0)
-    first = sources[0]
-    name = first.get("station_name") or str(first.get("id"))
-    return name, float(first.get("distance") or 0.0)
 
 
 def _first_hour_apparent(bundle: ForecastBundle | None, now: datetime) -> float | None:

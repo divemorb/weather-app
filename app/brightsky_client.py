@@ -24,7 +24,7 @@ library's response models):
       Used for the hourly observation backfill (step 6d).
 
 The parsers (:func:`parse_current_weather`, :func:`parse_radar`,
-:func:`parse_hourly_observations`) are pure
+:func:`parse_hourly_observations`, :func:`parse_station_info`) are pure
 functions so they are unit-testable without any network. The client raises
 :exc:`SourceError` on any failure so the aggregator can degrade gracefully
 (a failing source must never block the app).
@@ -214,6 +214,23 @@ def parse_hourly_observations(
         out.append((stamp - timedelta(hours=1), float(precip)))
     out.sort(key=lambda item: item[0])
     return out
+
+
+def parse_station_info(payload: dict[str, Any]) -> tuple[str, float] | None:
+    """Station name + distance of the observation source in a /weather payload.
+
+    Prefers a source whose ``observation_type`` is ``"current"`` or
+    ``"historical"`` (a real station); falls back to the first listed source.
+    """
+    sources = [s for s in payload.get("sources") or [] if isinstance(s, dict)]
+    if not sources:
+        return None
+    for s in sources:
+        if s.get("observation_type") in ("current", "historical") and s.get("station_name"):
+            return s["station_name"], float(s.get("distance") or 0.0)
+    first = sources[0]
+    name = first.get("station_name") or str(first.get("id"))
+    return name, float(first.get("distance") or 0.0)
 
 
 # ---------------------------------------------------------------------------

@@ -15,6 +15,7 @@ from app.brightsky_client import (
     parse_current_weather,
     parse_hourly_observations,
     parse_radar,
+    parse_station_info,
 )
 from tests.helpers import (
     make_cfg,
@@ -172,6 +173,44 @@ def test_parse_hourly_observations_unknown_source_and_bad_timestamp():
 def test_parse_hourly_observations_empty_payload():
     assert parse_hourly_observations({}, NOW_WEATHER) == []
     assert parse_hourly_observations({"weather": None, "sources": None}, NOW_WEATHER) == []
+
+
+def test_parse_station_info_prefers_real_observation_source():
+    """A source with observation_type 'current'/'historical' beats a forecast
+    source even when the latter is listed first."""
+    payload = make_weather_payload(
+        sources=[
+            {"id": 1001, "observation_type": "forecast",
+             "station_name": "MOSMIX", "distance": 3000.0},
+            {"id": 1002, "observation_type": "historical",
+             "station_name": "BERLIN", "distance": 5000.0},
+        ]
+    )
+    assert parse_station_info(payload) == ("BERLIN", 5000.0)
+    payload["sources"][1]["observation_type"] = "current"
+    assert parse_station_info(payload) == ("BERLIN", 5000.0)
+
+
+def test_parse_station_info_falls_back_to_first_source():
+    """Without a real-observation source (e.g. MOSMIX only), the first listed
+    source is reported; a missing station_name falls back to its id."""
+    payload = make_weather_payload(
+        sources=[
+            {"id": 1001, "observation_type": "forecast",
+             "station_name": "MOSMIX", "distance": 3000.0},
+            {"id": 77, "observation_type": "forecast"},
+        ]
+    )
+    assert parse_station_info(payload) == ("MOSMIX", 3000.0)
+    assert parse_station_info({"sources": [{"id": 77, "observation_type": "forecast"}]}) == (
+        "77", 0.0
+    )
+
+
+def test_parse_station_info_no_sources_returns_none():
+    assert parse_station_info({}) is None
+    assert parse_station_info({"sources": None}) is None
+    assert parse_station_info({"sources": []}) is None
 
 
 async def test_client_fetch_weather_payload_requests_window():
