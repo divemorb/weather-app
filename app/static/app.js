@@ -149,7 +149,7 @@ function renderHero(data) {
   for (const c of chips) {
     const el = document.createElement("span");
     el.className = "chip" + (c.on ? " on" : "");
-    el.innerHTML = c.text;
+    el.textContent = c.text;
     if (c.age != null) {
       const t = document.createElement("span");
       t.className = "muted";
@@ -184,8 +184,13 @@ function renderNow(data) {
   els.nowGrid.innerHTML = "";
   const main = document.createElement("div");
   main.className = "now-main";
-  main.innerHTML = `<span class="now-temp">${fmtNum(c.temperature_c, 0)}°</span>` +
-    `<span class="now-cond">${c.condition || "—"} · ${fmtClock(c.timestamp_utc)} local</span>`;
+  const temp = document.createElement("span");
+  temp.className = "now-temp";
+  temp.textContent = `${fmtNum(c.temperature_c, 0)}°`;
+  const cond = document.createElement("span");
+  cond.className = "now-cond";
+  cond.textContent = `${c.condition || "—"} · ${fmtClock(c.timestamp_utc)} local`;
+  main.append(temp, cond);
   els.nowGrid.appendChild(main);
 
   const grid = document.createElement("div");
@@ -193,7 +198,13 @@ function renderNow(data) {
   for (const [label, value] of stats) {
     const item = document.createElement("div");
     item.className = "now-item";
-    item.innerHTML = `<span class="now-label">${label}</span><span class="now-val">${value}</span>`;
+    const lab = document.createElement("span");
+    lab.className = "now-label";
+    lab.textContent = label;
+    const val = document.createElement("span");
+    val.className = "now-val";
+    val.textContent = value;
+    item.append(lab, val);
     grid.appendChild(item);
   }
   els.nowGrid.appendChild(grid);
@@ -270,10 +281,16 @@ function renderSources(data) {
     const row = document.createElement("div");
     row.className = "source-row";
     const ageCls = s.stale ? "stale" : "";
-    row.innerHTML =
-      `<span class="source-name">${SOURCE_LABELS[key] || key}</span>` +
-      `<span class="source-upstream">${s.upstream || ""}</span>` +
-      `<span class="source-age ${ageCls}">${s.available ? fmtAge(s.age_seconds) + (s.stale ? " · stale" : "") : "no data"}</span>`;
+    const name = document.createElement("span");
+    name.className = "source-name";
+    name.textContent = SOURCE_LABELS[key] || key;
+    const upstream = document.createElement("span");
+    upstream.className = "source-upstream";
+    upstream.textContent = s.upstream || "";
+    const age = document.createElement("span");
+    age.className = "source-age " + ageCls;
+    age.textContent = s.available ? fmtAge(s.age_seconds) + (s.stale ? " · stale" : "") : "no data";
+    row.append(name, upstream, age);
     els.sources.appendChild(row);
     if (s.last_error) {
       const err = document.createElement("div");

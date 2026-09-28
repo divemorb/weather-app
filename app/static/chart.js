@@ -105,7 +105,9 @@ function renderModelChart(containerEl, legendEl, data, fmtHour, fmtNum) {
 
     const item = document.createElement("span");
     item.className = "legend-item";
-    item.innerHTML = `<i style="background:${color}"></i>${m.name}`;
+    const sw = document.createElement("i");
+    sw.style.background = color;
+    item.append(sw, m.name);
     legendEl.appendChild(item);
   });
 
