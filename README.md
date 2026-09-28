@@ -78,7 +78,9 @@ Three independent signals for the **next 60 minutes**, combined linearly:
    its 15-minute precipitation for the next hour; the signal is the *share*
    of models forecasting more than `model_rain_threshold_mm` (0–100 %).
 3. **Ensemble probability** (default 0.2) — share of ECMWF ensemble members
-   (50) whose precipitation for the next hour exceeds the threshold.
+   (50) whose precipitation for the next hour exceeds the threshold. The
+   ensemble has hourly data only, so it uses the hour that overlaps the next
+   60 minutes the most (the first hourly step stamped `>= now + 30 min`).
 
 ```
 P = w_r * R + w_m * M + w_e * E          (weights renormalized to sum 1)
@@ -143,6 +145,12 @@ everything to UTC and follows these rules (verified against the live APIs):
 - **Next-hour window rule:** a step with end-stamp `t` belongs to
   `[now, now+1h)` when `now < t <= now + 1h`. A step stamped exactly `now`
   is already in the past.
+- **Single-hour pick (ensemble vote):** when *one* whole hour must
+  represent the next 60 minutes, pick the hourly step with the largest
+  overlap with `[now, now+1h)` — i.e. the first stamp `t` with
+  `t >= now + 30 min`. Example: at `now = 10:50` the step stamped 11:00
+  (covering 10:00–11:00) would be 50 minutes in the past, so the step
+  stamped 12:00 (covering 11:00–12:00, 50 min ahead) is used instead.
 - **Observation backfill:** every hourly refresh fetches the last 48 h of
   Bright Sky `/weather` records and writes each real observation
   (station source, `observation_type != "forecast"`) into

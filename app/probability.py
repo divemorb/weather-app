@@ -255,18 +255,28 @@ def weighted_model_signal(
 # ---------------------------------------------------------------------------
 # Signal 3: ensemble probability
 # ---------------------------------------------------------------------------
-def _hour_index_after(times: list[datetime], now: datetime) -> int | None:
-    """Index of the first hourly step stamped after ``now`` (or None).
+def _hour_index_best_overlap(times: list[datetime], now: datetime) -> int | None:
+    """Index of the hourly step that overlaps ``[now, now + 1 h)`` the most.
 
     Open-Meteo hourly precipitation is a *preceding-hour sum*: the value at
-    time ``t`` is the rain of the hour ``[t - 1 h, t)``. So the step that
-    describes the next hour is the first one whose timestamp is strictly
-    after ``now`` — a step stamped exactly ``now`` is the hour that just
-    ended and belongs to the past. Returns None when ``now`` is beyond the
-    last step (a stale series).
+    time ``t`` is the rain of the hour ``[t - 1 h, t)``. Picking the first
+    stamp *after* ``now`` would give the clock hour that *contains* ``now``:
+    at ``now = 10:50`` that is the stamp 11:00, covering 10:00-11:00, of
+    which 50 minutes are already over. So instead pick the step with the
+    largest overlap with the next 60 minutes, which works out to simply the
+    first stamp ``t`` with ``t >= now + 30 min``:
+
+    - ``now = 10:00`` -> stamp 11:00 (covers 10:00-11:00, 60 min overlap)
+    - ``now = 10:20`` -> stamp 11:00 (40 min)
+    - ``now = 10:30`` -> stamp 11:00 (30 min; tie, the earlier stamp wins)
+    - ``now = 10:50`` -> stamp 12:00 (covers 11:00-12:00, 50 min)
+
+    Returns None when no stamp is at least 30 minutes ahead of ``now``
+    (a stale series).
     """
+    limit = now + timedelta(minutes=30)
     for i, t in enumerate(times):
-        if t > now:
+        if t >= limit:
             return i
     return None
 
@@ -275,11 +285,14 @@ def ensemble_vote(
     ensemble: EnsembleData | None, threshold_mm: float, now: datetime
 ) -> EnsembleVote:
     """Share of ensemble members with > ``threshold_mm`` in the next hour
-    (``[now, now + 1 h)``). Returns a None probability when the cached series
-    no longer covers the next hour (stale) or has no usable members."""
+    (``[now, now + 1 h)``). The ensemble has hourly data only, so it uses the
+    hourly step that overlaps the next 60 minutes the most (see
+    :func:`_hour_index_best_overlap`). Returns a None probability when the
+    cached series is stale (no step at least 30 min ahead) or has no usable
+    members."""
     if ensemble is None or ensemble.n_members == 0:
         return EnsembleVote(probability_pct=None, n_members=0, n_rain_members=0)
-    idx = _hour_index_after(ensemble.hourly_time, now)
+    idx = _hour_index_best_overlap(ensemble.hourly_time, now)
     if idx is None:
         return EnsembleVote(
             probability_pct=None, n_members=ensemble.n_members, n_rain_members=0

@@ -87,3 +87,53 @@ def test_ensemble_vote_skips_null_members():
     # only member 0 is usable; it rains -> 100%
     assert vote.n_rain_members == 1
     assert vote.probability_pct == pytest.approx(100.0)
+
+
+# ---------------------------------------------------------------------------
+# Best-overlap hour selection (step 6i): the picked stamp is the first one
+# with t >= now + 30 min. Stamps here are 12:00, 13:00, 14:00, 15:00.
+# Each test puts rain in exactly one index, so the result proves which
+# index was picked (50% = picked, 0% = a different index was picked).
+# ---------------------------------------------------------------------------
+def test_ensemble_vote_best_overlap_now_11h00_picks_12h00():
+    # now = 11:00 -> 12:00 covers 11:00-12:00 entirely (60 min overlap)
+    data = _ensemble([[5.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]])
+    vote = ensemble_vote(data, 0.1, NOW - timedelta(hours=1))
+    assert vote.n_rain_members == 1
+    assert vote.probability_pct == pytest.approx(50.0)
+
+
+def test_ensemble_vote_best_overlap_now_11h20_picks_12h00():
+    # now = 11:20 -> 12:00 covers 11:00-12:00 (40 min overlap with the next
+    # 60 min, more than 13:00's 20)
+    data = _ensemble([[5.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]])
+    vote = ensemble_vote(data, 0.1, NOW - timedelta(minutes=40))
+    assert vote.n_rain_members == 1
+    assert vote.probability_pct == pytest.approx(50.0)
+
+
+def test_ensemble_vote_best_overlap_now_11h30_tie_prefers_earlier_stamp():
+    # now = 11:30 -> 12:00 and 13:00 each overlap by exactly 30 min; the
+    # earlier stamp (12:00) wins.
+    data = _ensemble([[5.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]])
+    vote = ensemble_vote(data, 0.1, NOW - timedelta(minutes=30))
+    assert vote.n_rain_members == 1
+    assert vote.probability_pct == pytest.approx(50.0)
+
+
+def test_ensemble_vote_best_overlap_now_11h50_picks_13h00():
+    # now = 11:50 -> 13:00 covers 12:00-13:00 (50 min overlap with the next
+    # 60 min, more than 12:00's 10) — the old first-stamp-after-now rule
+    # would have wrongly picked 12:00.
+    data = _ensemble([[0.0, 5.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]])
+    vote = ensemble_vote(data, 0.1, NOW - timedelta(minutes=10))
+    assert vote.n_rain_members == 1
+    assert vote.probability_pct == pytest.approx(50.0)
+
+
+def test_ensemble_vote_best_overlap_stale_under_30_min_is_none():
+    # now = 14:45 -> the last stamp (15:00) is only 15 min ahead, less than
+    # 30 min: the series is stale, no hour qualifies -> None.
+    data = _ensemble([[0.0, 0.0, 0.0, 5.0], [0.0, 0.0, 0.0, 5.0]])
+    vote = ensemble_vote(data, 0.1, NOW + timedelta(hours=2, minutes=45))
+    assert vote.probability_pct is None
