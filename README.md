@@ -172,6 +172,7 @@ app/
   static/style.css        # frontend styling + dark mode (step 5)
   static/app.js           # frontend logic: fetch + render (step 5)
   static/chart.js         # 24 h model comparison SVG chart (step 5)
+  static/accuracy.js      # "Model accuracy" card (step 6f)
 tests/
   conftest.py
   helpers.py              # synthetic payload builders for tests
@@ -345,5 +346,10 @@ is `n_samples >= min_samples`; the UI should grey out rows below that.
       with a light toggle, mobile-responsive. Reads the REST API (UTC) and
       converts to the configured display timezone; auto-refreshes every
       60 s.
+- [x] **Step 6f** — "Model accuracy" card (`app/static/accuracy.js`):
+      per-model samples / hit / miss / false-alarm / event-accuracy / MAE
+      table from `GET /api/model-accuracy`; rows below `accuracy.min_samples`
+      are greyed out, with "no data yet" and "Collecting data — N of M
+      hours" states.
 - [ ] **Step 6 (optional)** — forecast history vs. observations, per-model
       accuracy, automatic weighting

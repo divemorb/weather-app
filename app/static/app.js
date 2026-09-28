@@ -5,6 +5,7 @@
  *   - "Now" current-conditions tile
  *   - 60-minute radar nowcast bar (12 x 5-min)
  *   - 24 h multi-model precipitation chart (inline SVG)
+ *   - model accuracy card (accuracy.js, step 6f)
  *   - per-source age / staleness
  *
  * No build step, no external CDN: plain JS + inline SVG so it works on a
@@ -38,6 +39,9 @@ const els = {
   chart: $("chart"),
   chartBadge: $("chart-badge"),
   legend: $("legend"),
+  accuracyBadge: $("accuracy-badge"),
+  accuracyStatus: $("accuracy-status"),
+  accuracyTable: $("accuracy-table"),
   sources: $("sources"),
 };
 
@@ -320,6 +324,7 @@ async function load() {
     renderNow(now);
     renderRadar(radar);
     renderChart(models);
+    renderAccuracyCard(); // step 6f; fetches /api/model-accuracy itself
     renderSources(sources);
     if (els.refreshBadge) {
       els.refreshBadge.hidden = false;

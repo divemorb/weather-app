@@ -139,6 +139,23 @@ a { color: var(--accent); }
 .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
 .legend-item i { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
 
+/* ---- model accuracy card ---- */
+.acc-note { margin: 0 0 12px; font-size: 13px; }
+.accuracy-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.accuracy-table th,
+.accuracy-table td { padding: 6px 8px; text-align: right; white-space: nowrap; }
+.accuracy-table th {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--muted); border-bottom: 1px solid var(--border); font-weight: 600;
+}
+.accuracy-table th:first-child,
+.accuracy-table td.acc-model { text-align: left; font-weight: 600; }
+.accuracy-table td { border-bottom: 1px solid var(--border); }
+.accuracy-table tr:last-child td { border-bottom: none; }
+.accuracy-table td.num { color: var(--text); }
+.accuracy-table td.acc-acc { font-weight: 700; }
+.accuracy-table tr.low td { color: var(--muted); font-weight: 400; }
+
 /* ---- sources ---- */
 .sources { display: flex; flex-direction: column; gap: 8px; }
 .source-row { display: flex; align-items: center; gap: 10px; font-size: 13px; }

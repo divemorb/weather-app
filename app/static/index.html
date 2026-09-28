@@ -64,6 +64,16 @@
       <div class="legend" id="legend"></div>
     </section>
 
+    <!-- Per-model forecast accuracy (step 6f) -->
+    <section class="card accuracy">
+      <div class="card-head">
+        <h2>Model accuracy</h2>
+        <span class="badge" id="accuracy-badge" hidden>—</span>
+      </div>
+      <p class="muted acc-note" id="accuracy-status" hidden>No data yet — observations are compared hourly.</p>
+      <div id="accuracy-table"></div>
+    </section>
+
     <!-- Per-source status -->
     <section class="card">
       <div class="card-head"><h2>Data sources</h2></div>
@@ -78,6 +88,7 @@
   </div>
 
   <script src="/chart.js"></script>
+  <script src="/accuracy.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
