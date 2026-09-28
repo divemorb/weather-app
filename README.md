@@ -61,7 +61,8 @@ All runtime settings live in **`weather.yaml`** (repo root). Key sections:
 Environment variables override the YAML for the most common knobs:
 `LATITUDE`, `LONGITUDE`, `TIMEZONE`, `RADAR_RADIUS_KM`, `WEIGHT_RADAR`,
 `WEIGHT_MODELS`, `WEIGHT_ENSEMBLE`, `RADAR_INTERVAL_MINUTES`,
-`MODELS_INTERVAL_MINUTES`, `DATABASE_PATH`.
+`MODELS_INTERVAL_MINUTES`, `DATABASE_PATH`, `USE_ACCURACY_WEIGHTS` (boolean,
+default `false` — see "Optional accuracy weighting" below).
 
 Change `weather.yaml` and rebuild: `docker compose up -d --build`.
 
@@ -103,6 +104,21 @@ reported for context. A model is flagged `enough_data` once it has at least
 `accuracy.min_samples` compared hours; the response's `models` dict is empty
 while nothing has been compared yet (fresh install — observations accumulate
 hourly via the backfill).
+
+**Optional accuracy weighting (`USE_ACCURACY_WEIGHTS`):** with this switch
+on, the model signal `M` is no longer the equal-weight share of models with
+rain. Each voting model's vote (100 if it forecasts
+`> model_rain_threshold_mm`, else 0) is weighted by its `event_accuracy`
+from the scoring above, and
+`M = 100 * sum(w_i * rain_i) / sum(w_i)` with `w_i = max(event_accuracy, 0.1)`
+— the 0.1 floor keeps a poor model from being silenced entirely, and a model
+with no accuracy data yet gets the floor. **Gate:** if *any* voting model has
+fewer than `accuracy.min_samples` compared hours (or no accuracy row at
+all), the scores are not trustworthy yet and the signal falls back to the
+plain equal-weight share. The radar and ensemble weights are never changed.
+The explanation string gets ", accuracy-weighted" appended only when the
+weighting was actually applied (i.e. the gate passed), and models without
+next-hour data still do not vote — they also don't trip the gate.
 
 A failing source never blocks the app: the last good cache is served with its
 age shown in the UI, and sources older than the configured threshold are
@@ -346,10 +362,15 @@ is `n_samples >= min_samples`; the UI should grey out rows below that.
       with a light toggle, mobile-responsive. Reads the REST API (UTC) and
       converts to the configured display timezone; auto-refreshes every
       60 s.
-- [x] **Step 6f** — "Model accuracy" card (`app/static/accuracy.js`):
-      per-model samples / hit / miss / false-alarm / event-accuracy / MAE
-      table from `GET /api/model-accuracy`; rows below `accuracy.min_samples`
-      are greyed out, with "no data yet" and "Collecting data — N of M
-      hours" states.
-- [ ] **Step 6 (optional)** — forecast history vs. observations, per-model
-      accuracy, automatic weighting
+- [x] **Step 6** — forecast history vs. observations, per-model accuracy,
+      optional accuracy weighting: 6a/6b next-hour window boundary and
+      hour-labeling fixes, 6c idempotent forecast history (unique
+      `model`/hour, upsert), 6d observation backfill from Bright Sky
+      `/weather`, 6e per-model accuracy read-model +
+      `GET /api/model-accuracy`, 6f "Model accuracy" card
+      (`app/static/accuracy.js` — samples / hit / miss / false-alarm /
+      event-accuracy / MAE table, greyed-out rows below
+      `accuracy.min_samples`, "no data yet" and "Collecting data — N of M
+      hours" states), 6g optional accuracy-weighted model signal behind
+      `USE_ACCURACY_WEIGHTS` (gated on `accuracy.min_samples`, falls back to
+      equal weights until every voting model has enough compared hours).

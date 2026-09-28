@@ -192,6 +192,66 @@ def model_rain_signal(
     return 100.0 * n_rain / len(available), n_rain, len(available)
 
 
+def weighted_model_signal(
+    votes: list[ModelVote],
+    accuracy: dict[str, dict[str, float | int | None]],
+    threshold_mm: float,
+    min_samples: int,
+) -> tuple[float | None, int, int, bool]:
+    """Accuracy-weighted model signal (optional, step 6g).
+
+    Instead of counting the share of voting models with rain, each voting
+    model's *vote* (100 if it forecasts > ``threshold_mm``, else 0) is
+    weighted by its ``event_accuracy`` (see :func:`app.accuracy.model_accuracy`)
+    and the signal is ``100 * sum(w_i * rain_i) / sum(w_i)``. A more accurate
+    model pulls the number toward its vote.
+
+    Rules:
+
+    - Models without a next-hour sum (no data) do not count at all, same as
+      :func:`model_rain_signal`.
+    - Weight of a model is ``max(event_accuracy, 0.1)`` — the 0.1 floor
+      keeps a (poor) model from being silenced entirely. A model with no
+      accuracy row gets the floor.
+    - **Gate:** if *any* voting model has fewer than ``min_samples`` compared
+      hours (or no accuracy row at all), the scores are not trustworthy yet
+      and the function reports ``weighted_applied = False`` — the caller
+      must fall back to :func:`model_rain_signal` (equal weights).
+
+    Returns the same ``(signal | None, n_rain, n_total)`` as
+    :func:`model_rain_signal` (``n_rain``/``n_total`` are always the
+    equal-weight counts, for the explanation) plus ``weighted_applied``.
+    """
+    available = [v for v in votes if v.precip_next_hour_mm is not None]
+    if not available:
+        return None, 0, 0, False
+    n_rain = sum(1 for v in available if v.precip_next_hour_mm > threshold_mm)
+    weighted_applied = all(
+        isinstance(accuracy.get(v.name, {}).get("n_samples"), int)
+        and accuracy[v.name]["n_samples"] >= min_samples  # type: ignore[index]
+        for v in available
+    )
+    if not weighted_applied:
+        return 100.0 * n_rain / len(available), n_rain, len(available), False
+
+    total_weight = 0.0
+    weighted_rain = 0.0
+    for v in available:
+        event_accuracy = accuracy[v.name].get("event_accuracy")  # type: ignore[index]
+        weight = max(
+            float(event_accuracy) if event_accuracy is not None else 0.0, 0.1
+        )
+        total_weight += weight
+        if v.precip_next_hour_mm > threshold_mm:
+            weighted_rain += weight
+    return (
+        100.0 * weighted_rain / total_weight if total_weight > 0 else None,
+        n_rain,
+        len(available),
+        True,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Signal 3: ensemble probability
 # ---------------------------------------------------------------------------
@@ -296,11 +356,16 @@ def build_explanation(
     models_total: int,
     ensemble_pct: float | None,
     models_threshold_mm: float,
+    accuracy_weighted: bool = False,
 ) -> str:
     """Human-readable derivation for the UI.
 
-    e.g. ``Radar: yes; 3 of 6 models predict > 0.1 mm in the next hour;
-    ensemble 42 %``
+    e.g. ``Radar: yes; 3 of 6 models predict > 0.1 mm in the next hour,
+    accuracy-weighted; ensemble 42 %``
+
+    ``accuracy_weighted`` (step 6g) is only True when the accuracy-weighted
+    model signal was actually applied — the flag, not the config switch — so
+    the text never claims weighting that the gate fell back from.
     """
     if radar_available and radar_raining is not None:
         radar_part = "Radar: yes" if radar_raining else "Radar: no"
@@ -310,6 +375,8 @@ def build_explanation(
         f"{models_rain} of {models_total} models predict > "
         f"{models_threshold_mm:g} mm in the next hour"
     )
+    if accuracy_weighted:
+        models_part += ", accuracy-weighted"
     if ensemble_pct is not None:
         ensemble_part = f"ensemble {ensemble_pct:.0f} %"
     else:

@@ -37,6 +37,7 @@ from .probability import (
     model_rain_signal,
     model_votes,
     radar_rain_signal,
+    weighted_model_signal,
 )
 from .series import build_24h_series, build_forecast_history_rows, build_radar_next_hour_bar
 from .store import Store
@@ -217,7 +218,10 @@ class Aggregator:
     async def get_rain_probability(self) -> RainProbability:
         """Weighted combination of radar / model / ensemble signals.
 
-        See README "How the rain probability is calculated". Always returns
+        See README "How the rain probability is calculated". With
+        ``use_accuracy_weights`` enabled, the model signal is weighted by each
+        model's event accuracy (step 6g) — gated on every voting model having
+        enough compared hours, with fallback to equal weights. Always returns
         a :class:`RainProbability` (0 % with a "no data" explanation when
         every signal is missing) so the UI degrades gracefully.
         """
@@ -230,9 +234,22 @@ class Aggregator:
         radar_available, radar_raining = radar_rain_signal(
             nowcast, now, self._cfg.radar, prob_cfg
         )
-        model_pct, n_rain, n_total = model_rain_signal(
-            votes, prob_cfg.model_rain_threshold_mm
-        )
+        if self._cfg.use_accuracy_weights:
+            # Optional accuracy weighting (step 6g): the pure function gates
+            # internally — if any voting model lacks enough compared hours,
+            # it reports weighted_applied=False and the equal-weight signal.
+            accuracy = await self.get_model_accuracy()
+            model_pct, n_rain, n_total, accuracy_weighted = weighted_model_signal(
+                votes,
+                accuracy,
+                prob_cfg.model_rain_threshold_mm,
+                self._cfg.accuracy.min_samples,
+            )
+        else:
+            model_pct, n_rain, n_total = model_rain_signal(
+                votes, prob_cfg.model_rain_threshold_mm
+            )
+            accuracy_weighted = False
         prob, weights = combine_signals(
             prob_cfg,
             radar_available=radar_available,
@@ -250,6 +267,7 @@ class Aggregator:
                 n_total,
                 evote.probability_pct,
                 prob_cfg.model_rain_threshold_mm,
+                accuracy_weighted,
             )
         return RainProbability(
             probability_pct=round(prob, 1),

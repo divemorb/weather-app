@@ -30,7 +30,12 @@ from app.store import Store
 NOW = datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
 
 
-def make_cfg(stale_radar: int = 10, stale_models: int = 120) -> AppConfig:
+def make_cfg(
+    stale_radar: int = 10,
+    stale_models: int = 120,
+    use_accuracy_weights: bool = False,
+    min_samples: int = 48,
+) -> AppConfig:
     return AppConfig(
         location=LocationConfig(latitude=52.0, longitude=13.0),
         radar=RadarConfig(radius_km=5.0, grid_size_km=1.0, step_minutes=5),
@@ -45,9 +50,10 @@ def make_cfg(stale_radar: int = 10, stale_models: int = 120) -> AppConfig:
             forecast=("icon_d2", "icon_eu"), ensemble_model="ecmwf_ifs025"
         ),
         scheduling=SchedulingConfig(stale_radar_minutes=stale_radar, stale_models_minutes=stale_models),
-        accuracy=AccuracyConfig(window_days=30, min_samples=48),
+        accuracy=AccuracyConfig(window_days=30, min_samples=min_samples),
         api=ApiConfig(),
         database_path=":memory:",
+        use_accuracy_weights=use_accuracy_weights,
     )
 
 
@@ -403,6 +409,89 @@ async def test_get_model_accuracy_scores_window_only(store, all_payloads, frozen
 async def test_get_model_accuracy_empty_history(store, frozen_now):
     agg = Aggregator(make_cfg(), store, StubBrightSky({}, ()), StubOpenMeteo({}, ()))
     assert await agg.get_model_accuracy() == {}
+
+
+def _accuracy_rows(
+    model: str, n: int, start_hour: int = 11, issued_at: str = "2024-12-20T00:00:00Z"
+):
+    """n compared forecast rows for one model, all inside the 30-day window.
+
+    Rows start at ``start_hour`` so different models can occupy different
+    hours (``set_observation`` matches on ``valid_from`` only, so shared
+    hours would pick up each other's observations).
+    """
+    return [
+        {
+            "model": model,
+            "issued_at": issued_at,
+            "valid_from": f"2024-12-20T{start_hour + i:02d}:00:00Z",
+            "valid_to": f"2024-12-20T{start_hour + i + 1:02d}:00:00Z",
+            "precip_mm": 0.4,
+        }
+        for i in range(n)
+    ]
+
+
+async def test_get_rain_probability_accuracy_weights_applied(store, all_payloads, frozen_now):
+    # icon_d2 (rains, vote 0.4 mm): 1 hit + 1 false alarm -> event_accuracy
+    # 0.5. icon_eu (dry): 2 false alarms -> event_accuracy 0.0, weight
+    # floored at 0.1. Both have >= min_samples=2, so the gate passes and the
+    # model signal is weighted: 100 * 0.5 / (0.5 + 0.1) = 83.33 (plain: 50).
+    # radar 100, ensemble 50 -> 0.5*100 + 0.3*83.33 + 0.2*50 = 85
+    await store.add_forecasts(_accuracy_rows("icon_d2", 2, start_hour=11))
+    await store.add_forecasts(_accuracy_rows("icon_eu", 2, start_hour=13))
+    await store.set_observation("2024-12-20T11:00:00Z", 0.3)  # icon_d2: hit
+    await store.set_observation("2024-12-20T12:00:00Z", 0.0)  # icon_d2: false alarm
+    await store.set_observation("2024-12-20T13:00:00Z", 0.0)  # icon_eu: false alarm
+    await store.set_observation("2024-12-20T14:00:00Z", 0.0)  # icon_eu: false alarm
+
+    agg = make_aggregator(
+        make_cfg(use_accuracy_weights=True, min_samples=2), store, all_payloads, all_payloads
+    )
+    await agg.refresh_radar()
+    await agg.refresh_models()
+    prob = await agg.get_rain_probability()
+    assert prob.probability_pct == pytest.approx(85.0)
+    assert "accuracy-weighted" in prob.explanation
+    # the equal-weight counts still feed the explanation
+    assert "1 of 2 models" in prob.explanation
+
+
+async def test_get_rain_probability_accuracy_gate_falls_back(
+    store, all_payloads, frozen_now
+):
+    # only icon_d2 has compared hours (1 < min_samples=2) -> gate fails,
+    # the plain equal-weight model signal (50) is used, no "accuracy-
+    # weighted" in the explanation.
+    await store.add_forecasts(_accuracy_rows("icon_d2", 1))
+    await store.set_observation("2024-12-20T11:00:00Z", 0.3)
+
+    agg = make_aggregator(
+        make_cfg(use_accuracy_weights=True, min_samples=2), store, all_payloads, all_payloads
+    )
+    await agg.refresh_radar()
+    await agg.refresh_models()
+    prob = await agg.get_rain_probability()
+    # radar 100, models 50, ensemble 50 -> 0.5*100 + 0.3*50 + 0.2*50 = 75
+    assert prob.probability_pct == pytest.approx(75.0)
+    assert "accuracy-weighted" not in prob.explanation
+
+
+async def test_get_rain_probability_no_weights_when_disabled(store, all_payloads, frozen_now):
+    # flag off + accuracy data present -> equal weights, no mention
+    await store.add_forecasts(_accuracy_rows("icon_d2", 2, start_hour=11))
+    await store.add_forecasts(_accuracy_rows("icon_eu", 2, start_hour=13))
+    await store.set_observation("2024-12-20T11:00:00Z", 0.3)
+    await store.set_observation("2024-12-20T12:00:00Z", 0.0)
+    await store.set_observation("2024-12-20T13:00:00Z", 0.0)
+    await store.set_observation("2024-12-20T14:00:00Z", 0.0)
+
+    agg = make_aggregator(make_cfg(use_accuracy_weights=False), store, all_payloads, all_payloads)
+    await agg.refresh_radar()
+    await agg.refresh_models()
+    prob = await agg.get_rain_probability()
+    assert prob.probability_pct == pytest.approx(75.0)
+    assert "accuracy-weighted" not in prob.explanation
 
 
 async def test_get_radar_nowcast_parses_frames(store, all_payloads):
