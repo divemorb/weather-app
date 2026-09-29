@@ -1,7 +1,6 @@
 # Development
 
-Running the app and the test suite without Docker, and the full
-configuration reference (settings table and environment variables).
+Running the app and the test suite without Docker, and the full configuration reference (settings table and environment variables).
 
 ## Configuration
 
@@ -19,27 +18,9 @@ All runtime settings live in **`weather.yaml`** (repo root). Key sections:
 | `accuracy.window_days` | accuracy window (compared hours) | `30` |
 | `accuracy.min_samples` | min compared hours before a model counts as "enough data" | `48` |
 
-**Location.** The home location is *runtime state*: it is stored in the
-app's database (`/data` volume), not in the repo. On first run the page
-shows a setup wizard — search an address (OpenStreetMap Nominatim) or type
-latitude/longitude — and the app starts fetching. From then on the 📍
-button in the header changes the location (cached data and the
-accuracy history of the old location are deleted). `LATITUDE`/`LONGITUDE`
-env vars or a `location:` block in `weather.yaml` only *seed* the location
-on first start (adopted into the database); afterwards the stored value
-wins. `weather.yaml` ships without one, with a commented-out Berlin example
-under `location:` for exactly this purpose. The display timezone defaults
-to `Europe/Berlin` and can be set via `TIMEZONE` / `location.timezone`.
+**Location.** The home location is *runtime state*: it is stored in the app's database (`/data` volume), not in the repo. On first run the page shows a setup wizard — search an address (OpenStreetMap Nominatim) or type latitude/longitude — and the app starts fetching. From then on the 📍 button in the header changes the location (cached data and the accuracy history of the old location are deleted). `LATITUDE`/`LONGITUDE` env vars or a `location:` block in `weather.yaml` only *seed* the location on first start (adopted into the database); afterwards the stored value wins. `weather.yaml` ships without one, with a commented-out Berlin example under `location:` for exactly this purpose. The display timezone defaults to `Europe/Berlin` and can be set via `TIMEZONE` / `location.timezone`.
 
-Environment variables override the YAML for the most common knobs:
-`LATITUDE`, `LONGITUDE`, `TIMEZONE`, `RADAR_RADIUS_KM`, `WEIGHT_RADAR`,
-`WEIGHT_MODELS`, `WEIGHT_ENSEMBLE`, `DATABASE_PATH`, `USE_ACCURACY_WEIGHTS`
-(boolean, default `false` — see
-[ARCHITECTURE.md](ARCHITECTURE.md) — "Optional accuracy weighting"). The
-refresh intervals are set in `weather.yaml` only (`scheduling.*`). Other
-environment variables: `ALLOWED_HOSTS` (see
-[SECURITY.md](SECURITY.md)), `ENABLE_API_DOCS` (see [API.md](API.md)) and
-`WEATHER_CONFIG` (path to an alternative `weather.yaml`).
+Environment variables override the YAML for the most common knobs: `LATITUDE`, `LONGITUDE`, `TIMEZONE`, `RADAR_RADIUS_KM`, `WEIGHT_RADAR`, `WEIGHT_MODELS`, `WEIGHT_ENSEMBLE`, `DATABASE_PATH`, `USE_ACCURACY_WEIGHTS` (boolean, default `false` — see [ARCHITECTURE.md](ARCHITECTURE.md) — "Optional accuracy weighting"). The refresh intervals are set in `weather.yaml` only (`scheduling.*`). Other environment variables: `ALLOWED_HOSTS` (see [SECURITY.md](SECURITY.md)), `ENABLE_API_DOCS` (see [API.md](API.md)) and `WEATHER_CONFIG` (path to an alternative `weather.yaml`).
 
 Change `weather.yaml` and rebuild: `docker compose up -d --build`.
 
@@ -64,10 +45,4 @@ The history is in `git log --oneline` (one `Step Nx:` commit per sub-step).
 
 ## Working with an AI coding agent
 
-This project is developed with a local model through the Continue
-extension. The project rules the agent follows (container and test
-commands, what it must not touch, backend and frontend conventions, and
-one sub-step per chat with `Step Nx:` commits) are in
-[`.continue/rules/weather-projectrules.md`](../.continue/rules/weather-projectrules.md).
-Continue loads that file automatically in this workspace; contributors
-using a different agent should give it the same rules.
+This project is developed with a local model through the Continue extension. The project rules the agent follows (container and test commands, what it must not touch, backend and frontend conventions, and one sub-step per chat with `Step Nx:` commits) are in [`.continue/rules/weather-projectrules.md`](../.continue/rules/weather-projectrules.md). Continue loads that file automatically in this workspace; contributors using a different agent should give it the same rules.

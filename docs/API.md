@@ -1,7 +1,6 @@
 # API
 
-The REST contract of the app: the endpoint table, the interactive-docs note,
-and the response contract with examples.
+The REST contract of the app: the endpoint table, the interactive-docs note, and the response contract with examples.
 
 | Endpoint | Purpose |
 | --- | --- |
@@ -17,13 +16,9 @@ and the response contract with examples.
 | `GET /api/geocode` | address search for the setup wizard (Nominatim; `q` min 3 chars) |
 | `POST /api/location` | set the home location (same-origin JSON only; 403 for foreign origins) |
 
-All timestamps are **UTC** in the API; the frontend converts to
-`Europe/Berlin`.
+All timestamps are **UTC** in the API; the frontend converts to `Europe/Berlin`.
 
-**Interactive docs** (`/docs`, `/redoc`, `/openapi.json`) are **off by
-default** (the app has no login, so the API contract should not be
-browsable by every device on the LAN). To enable them, start the app with
-`ENABLE_API_DOCS=true`:
+**Interactive docs** (`/docs`, `/redoc`, `/openapi.json`) are **off by default** (the app has no login, so the API contract should not be browsable by every device on the LAN). To enable them, start the app with `ENABLE_API_DOCS=true`:
 
 ```bash
 ENABLE_API_DOCS=true docker compose up -d --build
@@ -31,10 +26,7 @@ ENABLE_API_DOCS=true docker compose up -d --build
 
 ### Response contract
 
-The serializers live in `app/api_serializers.py` (pure functions, unit-tested
-in `tests/test_api_serializers.py`); the endpoints in `app/main.py` are thin
-(aggregate → serialize). Every data payload carries freshness so the UI can show
-an age badge / stale flag without a round-trip to `/api/sources`.
+The serializers live in `app/api_serializers.py` (pure functions, unit-tested in `tests/test_api_serializers.py`); the endpoints in `app/main.py` are thin (aggregate → serialize). Every data payload carries freshness so the UI can show an age badge / stale flag without a round-trip to `/api/sources`.
 
 **`GET /api/now`**
 
@@ -53,8 +45,7 @@ an age badge / stale flag without a round-trip to `/api/sources`.
 }
 ```
 
-`conditions` is `null` (and `available: false`) until the first observation is
-cached.
+`conditions` is `null` (and `available: false`) until the first observation is cached.
 
 **`GET /api/rain-probability`**
 
@@ -69,9 +60,7 @@ cached.
 }
 ```
 
-`weights_used` is `{}` and `probability_pct` is `0.0` when no signal is
-available yet (see [ARCHITECTURE.md](ARCHITECTURE.md) — "How the rain
-probability is calculated").
+`weights_used` is `{}` and `probability_pct` is `0.0` when no signal is available yet (see [ARCHITECTURE.md](ARCHITECTURE.md) — "How the rain probability is calculated").
 
 **`GET /api/radar/next-hour`** — the 60-minute local-rain bar (12 x 5-min).
 
@@ -86,10 +75,7 @@ probability is calculated").
 }
 ```
 
-Each bucket is the *strongest* rain cell within `radar.radius_km` for that
-5-minute step (0.0 for dry). `available` is `false` when radar is missing or
-does not cover the location — the UI then falls back to a models-only display.
-A bucket with no radar frame yet (nowcast does not reach that far) is `0.0`.
+Each bucket is the *strongest* rain cell within `radar.radius_km` for that 5-minute step (0.0 for dry). `available` is `false` when radar is missing or does not cover the location — the UI then falls back to a models-only display. A bucket with no radar frame yet (nowcast does not reach that far) is `0.0`.
 
 **`GET /api/models/24h`**
 
@@ -104,15 +90,9 @@ A bucket with no radar frame yet (nowcast does not reach that far) is `0.0`.
 }
 ```
 
-`hours[i]` is the UTC **start** of the hour whose precipitation is
-`precipitation_mm[i]` (an hourly value at stamp `t` covers `[t-1h, t)`).
-The window is relative to *now*, not the UTC calendar day: the first entry
-is always the current hour, so `hours` spans from now to now + 23 h
-(e.g. 10:20 UTC → 10:00, 11:00, …, next day 09:00).
+`hours[i]` is the UTC **start** of the hour whose precipitation is `precipitation_mm[i]` (an hourly value at stamp `t` covers `[t-1h, t)`). The window is relative to *now*, not the UTC calendar day: the first entry is always the current hour, so `hours` spans from now to now + 23 h (e.g. 10:20 UTC → 10:00, 11:00, …, next day 09:00).
 
-**`GET /api/model-accuracy`** — per-model forecast accuracy over the
-configured window (see [ARCHITECTURE.md](ARCHITECTURE.md) — "How the rain
-probability is calculated" → "Scoring the models").
+**`GET /api/model-accuracy`** — per-model forecast accuracy over the configured window (see [ARCHITECTURE.md](ARCHITECTURE.md) — "How the rain probability is calculated" → "Scoring the models").
 
 ```json
 {
@@ -137,13 +117,9 @@ probability is calculated" → "Scoring the models").
 }
 ```
 
-`models` is `{}` while no forecast has an observation yet (fresh install —
-it fills up hourly via the observation backfill). `event_accuracy` and
-`mae_mm` are `null`-safe (never `null` with `n_samples > 0`). `enough_data`
-is `n_samples >= min_samples`; the UI should grey out rows below that.
+`models` is `{}` while no forecast has an observation yet (fresh install — it fills up hourly via the observation backfill). `event_accuracy` and `mae_mm` are `null`-safe (never `null` with `n_samples > 0`). `enough_data` is `n_samples >= min_samples`; the UI should grey out rows below that.
 
-**`GET /api/sources`** — one entry per source (`radar`, `current`, `forecast`,
-`ensemble`):
+**`GET /api/sources`** — one entry per source (`radar`, `current`, `forecast`, `ensemble`):
 
 ```json
 {
@@ -154,9 +130,7 @@ is `n_samples >= min_samples`; the UI should grey out rows below that.
 }
 ```
 
-**`GET /api/schedule`** — when the app next polls the upstream services, per
-scheduler job. `next_run_utc` is `null` while the scheduler isn't running;
-`server_time_utc` lets the browser correct for its own clock offset:
+**`GET /api/schedule`** — when the app next polls the upstream services, per scheduler job. `next_run_utc` is `null` while the scheduler isn't running; `server_time_utc` lets the browser correct for its own clock offset:
 
 ```json
 {
@@ -168,6 +142,4 @@ scheduler job. `next_run_utc` is `null` while the scheduler isn't running;
 }
 ```
 
-The frontend shows this as a countdown strip under the header (radar, models,
-next page reload) and reloads its data 10 s after each scheduled refresh, or
-every 60 s at the latest.
+The frontend shows this as a countdown strip under the header (radar, models, next page reload) and reloads its data 10 s after each scheduled refresh, or every 60 s at the latest.

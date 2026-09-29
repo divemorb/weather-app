@@ -15,6 +15,8 @@ alwaysApply: true
 - Frontend: no CDN, no build step. CSP `default-src 'self'`: no inline scripts, `on*=`
   handlers or `style="…"` in HTML; API data only via `textContent` (`innerHTML` only
   `""` or constants). New UI code goes into its own file.
-- Data conventions (time windows, units) are documented in the README ("Data conventions";
-  `docs/ARCHITECTURE.md` after Step 10). Read the relevant part before touching them.
+- Data conventions (time windows, units) are documented in `docs/ARCHITECTURE.md`
+  ("Data conventions"). Read the relevant part before touching them.
+- Markdown: no hard line breaks in prose (one line per paragraph or list item). Diagrams as
+  ```` ```mermaid ```` blocks, every node label in double quotes.
 - Tasks come as sub-steps: do one per chat, commit as `Step Nx: <summary>`, then stop.
