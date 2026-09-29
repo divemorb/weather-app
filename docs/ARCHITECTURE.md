@@ -2,6 +2,32 @@
 
 How the app works, for developers: how the rain probability is calculated, the data conventions of the upstream sources, and the project layout.
 
+## Data flow
+
+The scheduler keeps the local cache and history up to date, and the browser only ever reads from them — never from the upstream services.
+
+```mermaid
+flowchart LR
+    browser["Browser"] -->|/api/*| api["API endpoints"]
+    api -->|reads only| cache["source_cache (raw responses)"]
+    api -->|reads only| history["forecast_history (forecasts + obs)"]
+    sched["Scheduler"] -->|every 5 min| radarJob["Radar job"]
+    sched -->|every 60 min| modelsJob["Models job"]
+    startup["App startup"] -->|once| radarJob
+    startup -->|once| modelsJob
+    locSave["Location saved"] -->|right away| radarJob
+    locSave -->|right away| modelsJob
+    radarJob -->|fetches| brightsky["Bright Sky (DWD)"]
+    modelsJob -->|fetches| openmeteo["Open-Meteo (6 models)"]
+    modelsJob -->|backfill, last 48 h| brightsky
+    radarJob -->|writes| cache
+    modelsJob -->|writes| cache
+    modelsJob -->|next 24 h per model| history
+    modelsJob -->|observations| history
+    sqlite["SQLite file"] -->|contains| cache
+    sqlite -->|contains| history
+```
+
 ## How the rain probability is calculated
 
 Three independent signals for the **next 60 minutes**, combined linearly:
@@ -9,6 +35,20 @@ Three independent signals for the **next 60 minutes**, combined linearly:
 1. **Radar nowcast** (highest weight, default 0.5) — the DWD radar grid is scanned for cells within `radar.radius_km` of your location. If any cell in the relevant 5-minute steps exceeds the rain threshold, radar "votes rain" (binary 0/1).
 2. **Model agreement** (default 0.3) — each configured Open-Meteo model sums its 15-minute precipitation for the next hour; the signal is the *share* of models forecasting more than `model_rain_threshold_mm` (0–100 %).
 3. **Ensemble probability** (default 0.2) — share of ECMWF ensemble members (50) whose precipitation for the next hour exceeds the threshold. The ensemble has hourly data only, so it uses the hour that overlaps the next 60 minutes the most (the first hourly step stamped `>= now + 30 min`).
+
+The three signals are combined in one weighted sum, with a fallback when radar has no coverage and an optional accuracy weighting for the model signal:
+
+```mermaid
+flowchart TD
+    radar["Radar in radius -> R (1 or 0)"] --> sum["P = w_r*R + w_m*M + w_e*E"]
+    models["Models above 0.1 mm -> M (share)"] --> sum
+    ensemble["Ensemble above threshold -> E (share)"] --> sum
+    sum --> coverage{"Radar coverage?"}
+    coverage -->|yes| weights["Weights renormalized to 1 (0.5/0.3/0.2)"]
+    coverage -->|no| drop["Drop w_r, renormalize the rest"]
+    drop --> weights
+    accuracy["Accuracy weighting (optional)"] -.->|only when every voting model has enough compared hours| models
+```
 
 ```
 P = w_r * R + w_m * M + w_e * E          (weights renormalized to sum 1)
@@ -77,4 +117,23 @@ tests/
   test_brightsky_client.py
   test_openmeteo_client.py
   test_backfill.py        # observation backfill (step 6d)
+```
+
+## Location lifecycle
+
+The location is runtime state in the database: it is resolved once at startup and changed only through the API, which clears old data when the place actually moved.
+
+```mermaid
+flowchart TD
+    boot["App startup"] --> stored{"Location in the database?"}
+    stored -->|yes| ready["Location in effect"]
+    stored -->|no| cfg{"LATITUDE/LONGITUDE or weather.yaml?"}
+    cfg -->|yes| adopt["Adopt it into the database"] --> ready
+    cfg -->|no| uncfg["Unconfigured: refresh jobs skip"]
+    uncfg -->|setup wizard or button| post["POST /api/location"]
+    ready -->|wizard or button| post
+    post --> moved{"Moved more than about 1 km?"}
+    moved -->|yes| clear["Delete cache + forecast history"] --> save["Save to the database"]
+    moved -->|no| save
+    save --> refresh["Start a refresh right away"]
 ```

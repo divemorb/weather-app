@@ -2,6 +2,30 @@
 
 Security design and hardening of the app, including the one-time volume migration for existing installs.
 
+Every request passes these checks:
+
+```mermaid
+flowchart TD
+    req["Request"] --> host{"Host header allowed?"}
+    host -->|no| r400["400 Invalid host header"]
+    host -->|yes| route["Endpoint"]
+    route -->|"POST /api/location"| json{"Valid JSON body?"}
+    json -->|no| r422a["422"]
+    json -->|yes| origin{"Same origin?"}
+    origin -->|no| r403["403"]
+    origin -->|yes| tz{"Valid timezone?"}
+    tz -->|no| r422b["422"]
+    tz -->|yes| save["Save location"]
+    route -.->|unhandled error| r500["500"]
+    resp["Response with security headers + Cache-Control: no-cache"]
+    r400 --> resp
+    r403 --> resp
+    r422a --> resp
+    r422b --> resp
+    r500 --> resp
+    save --> resp
+```
+
 The app is designed for a **trusted home network**:
 
 - **LAN-only, no login by design.** There is no authentication and no per-user state. Keep it that way: **do not forward the app's port (default 8000) on your router** — if the host ever gets a public IP, an unauthenticated API would be internet-reachable. Optionally pin the publish address to the LAN IP instead of all interfaces.
