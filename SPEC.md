@@ -2,7 +2,7 @@ Build a local web app that aggregates weather data from multiple sources and dis
 
 ## Goal
 
-- Show the current weather at my location: lat: 52.52, long: 13.405
+- Show the current weather at my location (set in the setup wizard)
 
 - Calculate and display the probability of rain in the next 60 minutes
 

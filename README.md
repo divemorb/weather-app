@@ -32,6 +32,14 @@ so the old root-owned volume must be handed over once before the first start
 of the updated app — see the one-time command in "Security" below. Fresh
 installs don't need it.
 
+**First run:** the app ships without a location. The first page load opens a
+setup wizard — search an address (OpenStreetMap Nominatim) or type
+latitude/longitude, pick a display timezone, and save. The location is
+stored in the database and the app starts fetching right away (the first
+data appears within seconds). From then on the 📍 button in the header
+reopens the wizard to change the location (changing it deletes the cached
+data and the accuracy history of the old location).
+
 ### Without Docker (development)
 
 ```bash
@@ -63,8 +71,9 @@ button in the header changes the location (cached data and the
 accuracy history of the old location are deleted). `LATITUDE`/`LONGITUDE`
 env vars or a `location:` block in `weather.yaml` only *seed* the location
 on first start (adopted into the database); afterwards the stored value
-wins. The display timezone defaults to `Europe/Berlin` and can be set via
-`TIMEZONE` / `location.timezone`.
+wins. `weather.yaml` ships without one, with a commented-out Berlin example
+under `location:` for exactly this purpose. The display timezone defaults
+to `Europe/Berlin` and can be set via `TIMEZONE` / `location.timezone`.
 | `radar.radius_km` | "local rain" radius around you | `1.0` |
 | `probability.weights.{radar,models,ensemble}` | combination weights | `0.5 / 0.3 / 0.2` |
 | `probability.model_rain_threshold_mm` | model rain threshold | `0.1` |
@@ -517,6 +526,13 @@ every 60 s at the latest.
       noexec), orphan `weather_forecast.py` deleted, 7g foreign `Host`
       headers rejected (DNS rebinding: only IP literals, localhost, `*.local`
       and `ALLOWED_HOSTS` names are answered).
+- [x] **Step 8** — setup wizard: 8a split the files over 400 lines (pure
+      move, no behavior change), 8b made the location runtime state stored in
+      the database so the app runs unconfigured, 8c added
+      `POST /api/location` (same-origin JSON, validated), 8c2 added address
+      search via OpenStreetMap Nominatim, 8d added the first-run setup
+      wizard in the browser, 8e removed the personal location from the repo
+      and documented the wizard.
 - [x] **Fix: scheduled refreshes** — the refresh jobs were plain functions,
       which APScheduler runs in a worker thread without an event loop, so
       every scheduled refresh crashed and only the startup refresh ran (the

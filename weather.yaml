@@ -2,11 +2,15 @@
 # All times are handled as UTC internally; the timezone is display-only
 # (the frontend converts for you).
 #
-# NOTE: the location is NOT configured here (step 8b) — it is runtime state
-# stored in the app's database. Set it in the browser on first run (setup
-# wizard), or seed it once via the LATITUDE/LONGITUDE env vars / a
-# `location: {latitude, longitude, timezone}` block (adopted into the DB on
-# first start, afterwards the stored value wins).
+# The home location is set in the browser on first run (setup wizard) and
+# lives in the app's database from then on. For a headless setup, an
+# optional block can seed it (adopted into the database on first start;
+# afterwards the stored value wins):
+#
+# location:
+#   latitude: 52.52
+#   longitude: 13.405
+#   timezone: Europe/Berlin
 
 radar:
   # Radius around the location (km) considered "local rain" for the
