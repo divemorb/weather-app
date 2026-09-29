@@ -27,6 +27,11 @@ To serve on another port: `PORT=9000 docker compose up -d --build`
 The SQLite cache lives in the `weather-data` volume — page loads never touch
 the upstream APIs.
 
+**Existing installs:** the container now runs as a non-root user (step 7d),
+so the old root-owned volume must be handed over once before the first start
+of the updated app — see the one-time command in "Security" below. Fresh
+installs don't need it.
+
 ### Without Docker (development)
 
 ```bash
@@ -99,6 +104,23 @@ The app is designed for a **trusted home network**:
 - **API docs off by default.** `/docs`, `/redoc` and `/openapi.json` are
   only enabled with `ENABLE_API_DOCS=true` (see "API" below), so a guest
   device on the LAN cannot browse the full API contract.
+- **Non-root, read-only container.** The image runs as the unprivileged
+  `app` user (uid 1000, no home directory) on a read-only root filesystem
+  with **all Linux capabilities dropped** and `no-new-privileges` set;
+  memory is capped at 512 MB and process count at 200. Only the `weather-data`
+  volume (`/data`) and a `/tmp` tmpfs are writable. A code-execution bug
+  inside the container therefore runs without root, without privileges, and
+  without a writable filesystem to hide in.
+
+  **One-time migration for existing installs** (the old root-owned volume is
+  not writable by the new user):
+
+  ```bash
+  podman compose down
+  podman unshare chown -R 1000:1000 "$(podman volume inspect wetter_weather-data --format '{{.Mountpoint}}')"
+  ```
+
+  then start the app again (`podman compose up -d --build`).
 
 ## How the rain probability is calculated
 
@@ -425,3 +447,10 @@ is `n_samples >= min_samples`; the UI should grey out rows below that.
       hours" states), 6g optional accuracy-weighted model signal behind
       `USE_ACCURACY_WEIGHTS` (gated on `accuracy.min_samples`, falls back to
       equal weights until every voting model has enough compared hours).
+- [x] **Step 7** — security hardening (see "Security" above): 7a frontend
+      inserts API data as text, not HTML (XSS-proof, CSP-ready), 7b no CORS +
+      security headers on every response + API docs opt-in via
+      `ENABLE_API_DOCS`, 7c malformed / oversized / zip-bomb upstream payloads
+      rejected as `SourceError` instead of 500ing, 7d non-root `app` user
+      (uid 1000) on a read-only, capability-free container with bounded
+      memory and processes.

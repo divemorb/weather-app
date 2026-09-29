@@ -20,6 +20,19 @@ services:
     # keep the container alive and restart it on crash/host reboot.
     restart: unless-stopped
     # No privileged access needed; these are read-only public APIs.
+    # Hardened (step 7d): the image runs as the non-root `app` user
+    # (uid 1000) on a read-only root filesystem. Only /data (volume) and
+    # /tmp (tmpfs) are writable; all capabilities are dropped, no new
+    # privileges can be gained, and memory/processes are bounded.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    pids_limit: 200
 
 volumes:
   weather-data:
