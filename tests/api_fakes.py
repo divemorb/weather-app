@@ -7,6 +7,8 @@ The ``cfg`` / ``client`` fixtures live in ``tests/conftest.py``.
 """
 from __future__ import annotations
 
+import dataclasses
+
 from app.models import CurrentConditions, RainProbability
 
 
@@ -22,6 +24,7 @@ class FakeAgg:
         accuracy=None,
         sources=None,
         cache_meta=None,
+        cfg=None,
     ):
         self._conditions = conditions
         self._rain = rain
@@ -34,6 +37,27 @@ class FakeAgg:
             "age_seconds": 12,
             "stale": False,
         }
+        self._cfg = cfg
+        # records of the location writes (step 8c)
+        self.set_location_calls = []
+
+    @property
+    def cfg(self):
+        """The effective config (step 8c: ``POST /api/location`` reads it
+        back to update ``app.state.cfg``)."""
+        return self._cfg
+
+    async def set_location(self, loc) -> None:
+        """Record the new location; the effective config tracks it."""
+        self.set_location_calls.append(loc)
+        if self._cfg is not None:
+            self._cfg = dataclasses.replace(self._cfg, location=loc)
+
+    async def refresh_radar(self) -> None:
+        """No-op: the endpoint tests don't check the background refresh."""
+
+    async def refresh_models(self) -> None:
+        """No-op: the endpoint tests don't check the background refresh."""
 
     async def get_current_conditions(self):
         return self._conditions

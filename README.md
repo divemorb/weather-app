@@ -96,6 +96,13 @@ The app is designed for a **trusted home network**:
   a request to the app, but without CORS headers it cannot *read* the
   answer — this closes the leak of the home coordinates from
   `GET /api/config`.
+- **Location writes are same-origin JSON only** (`POST /api/location`):
+  the no-CORS rule above stops a foreign page from *reading* the app, but a
+  website can still *send* a POST to a LAN app without any CORS (CSRF). So
+  the location endpoint refuses foreign `Origin` headers (and requests
+  flagged cross-site) with `403`, and only accepts a JSON body — a
+  cross-site HTML form (form-encoded / `text/plain`) cannot post a
+  location either (that gets a 422).
 - **Host header check (DNS rebinding).** The no-CORS defense assumes the
   browser treats the app as a *different origin* from a malicious site.
   DNS rebinding breaks that: a site whose DNS record switches to the
@@ -300,6 +307,7 @@ tests/
 | `GET /api/model-accuracy` | per-model forecast accuracy (window) |
 | `GET /api/sources` | per-source age / staleness |
 | `GET /api/schedule` | next backend refresh per job (UI countdown) |
+| `POST /api/location` | set the home location (same-origin JSON only; 403 for foreign origins) |
 
 All timestamps are **UTC** in the API; the frontend converts to
 `Europe/Berlin`.

@@ -14,8 +14,12 @@ from __future__ import annotations
 
 import json
 import logging
+import zoneinfo
 from dataclasses import replace
 from typing import Any
+
+from fastapi import Request
+from pydantic import BaseModel, Field
 
 from .config import AppConfig, LocationConfig
 from .store import Store
@@ -140,3 +144,39 @@ async def apply_location(
     brightsky.set_location(loc.latitude, loc.longitude)
     openmeteo.set_location(loc.latitude, loc.longitude)
     return replace(cfg, location=loc)
+
+
+# ---------------------------------------------------------------------------
+# POST /api/location (step 8c)
+# ---------------------------------------------------------------------------
+class LocationIn(BaseModel):
+    """Request body for ``POST /api/location`` (validated before the
+    endpoint runs, so an invalid body is a 422 — even from a foreign
+    origin). ``allow_inf_nan=False``: ``NaN``/``Infinity`` would otherwise
+    slip into the database and crash JSON rendering on the next read."""
+
+    latitude: float = Field(ge=-90, le=90, allow_inf_nan=False)
+    longitude: float = Field(ge=-180, le=180, allow_inf_nan=False)
+    timezone: str = Field(min_length=1, max_length=64)
+    label: str = Field(default="", max_length=200)
+
+
+def valid_timezone(name: str) -> bool:
+    """True if ``name`` is a real IANA timezone the image's tz database can
+    load. Path-traversal or garbage names are rejected, not just ignored."""
+    try:
+        zoneinfo.ZoneInfo(name)
+        return True
+    except (ValueError, zoneinfo.ZoneInfoNotFoundError):  # the latter is a
+        return False  # KeyError subclass (verified)
+
+
+def same_origin(request: Request) -> bool:
+    """Refuse cross-site writes (CSRF): a foreign page may *send* a POST to
+    a LAN app even without CORS — a failed read is not a failed write."""
+    origin = request.headers.get("origin")
+    if origin is None:  # curl / non-browser: allowed on the LAN
+        return request.headers.get("sec-fetch-site") in (None, "same-origin")
+    return origin.lower() == (
+        f"{request.url.scheme}://{request.headers.get('host', '').lower()}"
+    )

@@ -11,11 +11,14 @@ display timezone):
   GET /api/models/24h           -> hourly precipitation per model (24 points)
   GET /api/model-accuracy       -> per-model forecast accuracy (window, 6e)
   GET /api/sources              -> per-source age / staleness / errors
+  GET /api/schedule             -> next backend refresh per job (UI countdown)
+  POST /api/location            -> set the home location (setup wizard)
 
 Static frontend:  GET / (static/index.html, step 5)
 """
 from __future__ import annotations
 
+import asyncio
 import ipaddress
 import logging
 import os
@@ -24,7 +27,8 @@ from dataclasses import replace
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import PlainTextResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from .aggregator import Aggregator
@@ -36,8 +40,14 @@ from .api_serializers import (
     serialize_rain_probability,
 )
 from .brightsky_client import BrightSkyClient
-from .config import AppConfig, _env_bool, load_config
-from .location import location_payload, resolve_startup_location
+from .config import AppConfig, LocationConfig, _env_bool, load_config
+from .location import (
+    LocationIn,
+    location_payload,
+    resolve_startup_location,
+    same_origin,
+    valid_timezone,
+)
 from .openmeteo_client import OpenMeteoClient
 from .scheduler import build_scheduler, initial_refresh, schedule_status
 from .store import Store
@@ -164,6 +174,17 @@ async def add_security_headers(request: Request, call_next):
     return response
 
 
+# FastAPI's default 422 handler echoes the rejected input; a JSON body with
+# NaN would then crash JSON rendering (500). Answer with the error messages
+# only — never the input (step 8c).
+@app.exception_handler(RequestValidationError)
+async def validation_error(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        {"detail": [{"loc": list(e["loc"]), "msg": e["msg"]} for e in exc.errors()]},
+        status_code=422,
+    )
+
+
 @app.get("/healthz")
 async def healthz() -> dict:
     return {"status": "ok"}
@@ -248,6 +269,46 @@ async def api_schedule(request: Request) -> dict:
     cfg: AppConfig = request.app.state.cfg
     scheduler = getattr(request.app.state, "scheduler", None)
     return schedule_status(scheduler, cfg)
+
+
+#: Keeps references to fire-and-forget refresh tasks so they are not
+#: garbage-collected mid-flight (step 8c).
+_background_tasks: set[asyncio.Task] = set()
+
+
+@app.post("/api/location")
+async def api_set_location(request: Request, body: LocationIn) -> dict:
+    """Set the home location (setup wizard, step 8c).
+
+    Same-origin JSON only: a foreign page can *send* a POST to a LAN app
+    even without CORS (CSRF), so the write is refused for foreign origins.
+    Pydantic validation runs before this body, so an invalid body is a 422
+    (never a 500: the custom handler echoes no input).
+    """
+    if not same_origin(request):
+        return JSONResponse({"detail": "cross-site request refused"}, status_code=403)
+    if not valid_timezone(body.timezone):
+        return JSONResponse(
+            {"detail": [{"loc": ["body", "timezone"], "msg": "unknown timezone"}]},
+            status_code=422,
+        )
+    # 3 decimals ~ 100 m: enough for the 1 km radar grid, less precise than
+    # a street address.
+    loc = LocationConfig(
+        latitude=round(body.latitude, 3),
+        longitude=round(body.longitude, 3),
+        timezone=body.timezone,
+        label=body.label,
+    )
+    agg: Aggregator = request.app.state.aggregator
+    await agg.set_location(loc)
+    request.app.state.cfg = agg.cfg
+    # One background refresh so data appears within seconds; the task is
+    # kept in _background_tasks so it cannot be GC'd before it finishes.
+    task = asyncio.create_task(initial_refresh(agg))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+    return {"ok": True, "location": location_payload(loc)}
 
 
 if _STATIC_DIR.exists():
