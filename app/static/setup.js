@@ -28,6 +28,7 @@ const setupEls = {
   save: document.getElementById("setup-save"),
   cancel: document.getElementById("setup-cancel"),
   status: document.getElementById("setup-status"),
+  dashboard: document.getElementById("dashboard"),
 };
 
 let setupMode = "first"; // "first" = no location yet, "change" = opened via 📍
@@ -53,6 +54,7 @@ function openSetup(mode) {
   clearResults();
   setupStatus("");
   setupEls.cancel.hidden = mode !== "change";
+  if (mode === "first") setupEls.dashboard.hidden = true;
   if (!setupEls.tz.value) setupEls.tz.value = browserTimezone();
   setupEls.section.hidden = false;
   setupEls.search.focus();
@@ -87,6 +89,19 @@ async function doSearch() {
   }
 }
 
+/* Fill the coordinates from a result and mark its button as selected. */
+function pickResult(r, btn) {
+  setupEls.lat.value = r.latitude;
+  setupEls.lon.value = r.longitude;
+  pickedLabel = r.label;
+  for (const b of setupEls.results.querySelectorAll(".setup-result")) {
+    const isPicked = b === btn;
+    b.classList.toggle("selected", isPicked);
+    b.setAttribute("aria-pressed", isPicked ? "true" : "false");
+  }
+  setupStatus(`Selected: ${r.label}. Check the timezone, then press “Save location”.`);
+}
+
 function renderResults(results) {
   if (results.length === 0) {
     setupStatus("No match — try a more specific address, or enter coordinates.", true);
@@ -94,6 +109,7 @@ function renderResults(results) {
   }
   setupStatus("");
   setupEls.results.hidden = false;
+  const buttons = [];
   for (const r of results) {
     const li = document.createElement("li");
     const btn = document.createElement("button");
@@ -101,14 +117,16 @@ function renderResults(results) {
     btn.className = "setup-result";
     btn.textContent = r.label;
     btn.title = r.label;
-    btn.addEventListener("click", () => {
-      setupEls.lat.value = r.latitude;
-      setupEls.lon.value = r.longitude;
-      pickedLabel = r.label;
-      setupStatus("Selected — review the coordinates, then press “Save location”.");
-    });
+    btn.setAttribute("aria-pressed", "false");
+    btn.addEventListener("click", () => pickResult(r, btn));
     li.appendChild(btn);
     setupEls.results.appendChild(li);
+    buttons.push(btn);
+  }
+  if (buttons.length === 1) {
+    pickResult(results[0], buttons[0]);
+  } else {
+    setupStatus("Click the matching result.");
   }
 }
 
@@ -127,6 +145,15 @@ async function doSave() {
   const latRaw = setupEls.lat.value.trim();
   const lonRaw = setupEls.lon.value.trim();
   const tzName = setupEls.tz.value.trim();
+  if (!latRaw && !lonRaw) {
+    setupStatus(
+      setupEls.results.hidden
+        ? "Search for an address or enter latitude and longitude first."
+        : "Click one of the search results first, or enter latitude and longitude.",
+      true
+    );
+    return;
+  }
   const lat = Number(latRaw);
   const lon = Number(lonRaw);
   if (!latRaw || !Number.isFinite(lat) || lat < -90 || lat > 90) {
@@ -163,6 +190,7 @@ async function doSave() {
     if (!res.ok) throw new Error(`/api/location -> ${res.status}`);
     const data = await res.json();
     closeSetup();
+    setupEls.dashboard.hidden = false;
     onLocationSaved(data.location || null);
   } catch (e) {
     console.error(e);

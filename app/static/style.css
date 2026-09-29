@@ -17,6 +17,9 @@
   color-scheme: dark;
 }
 
+/* The hidden attribute must win over component display rules. */
+[hidden] { display: none !important; }
+
 html[data-theme="light"] {
   --bg: #f6f8fa;
   --card: #ffffff;
@@ -79,7 +82,6 @@ a { color: var(--accent); }
 
 /* ---- refresh countdown strip ---- */
 .refresh-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
-.refresh-strip[hidden] { display: none; }
 .refresh-item {
   background: var(--card); border: 1px solid var(--border); border-radius: 10px;
   padding: 8px 12px; font-size: 12px; color: var(--muted);
@@ -182,7 +184,6 @@ a { color: var(--accent); }
 .attr { color: var(--muted); font-size: 12px; margin: 16px 0 0; }
 
 /* ---- setup wizard (step 8d) ---- */
-.setup[hidden] { display: none; }
 .setup-intro { margin: 0 0 14px; font-size: 13px; max-width: 62ch; }
 .setup-block { margin-bottom: 14px; }
 .setup-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
@@ -203,6 +204,7 @@ a { color: var(--accent); }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .setup-result:hover { border-color: var(--accent); }
+.setup-result.selected { border-color: var(--accent); }
 .setup-divider {
   display: flex; align-items: center; gap: 10px;
   color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;

@@ -48,11 +48,11 @@
         <div class="setup-coords">
           <div>
             <label class="setup-label" for="setup-lat">Latitude</label>
-            <input id="setup-lat" type="text" inputmode="decimal" autocomplete="off" placeholder="48.137" />
+            <input id="setup-lat" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 48.137" />
           </div>
           <div>
             <label class="setup-label" for="setup-lon">Longitude</label>
-            <input id="setup-lon" type="text" inputmode="decimal" autocomplete="off" placeholder="11.575" />
+            <input id="setup-lon" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 11.575" />
           </div>
         </div>
         <label class="setup-label" for="setup-tz">Timezone</label>
@@ -73,6 +73,8 @@
       </p>
     </section>
 
+    <!-- Data cards: hidden until a location is saved (step 8f) -->
+    <div id="dashboard">
     <!-- Countdown to the next backend refresh and page reload -->
     <div class="refresh-strip" id="refresh-strip" hidden>
       <div class="refresh-item" id="refresh-radar">
@@ -154,6 +156,7 @@
         non-commercial use only.
       </p>
     </section>
+    </div>
   </div>
 
   <script src="/chart.js"></script>
