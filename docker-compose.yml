@@ -23,10 +23,11 @@ services:
     # Hardened (step 7d): the image runs as the non-root `app` user
     # (uid 1000) on a read-only root filesystem. Only /data (volume) and
     # /tmp (tmpfs) are writable; all capabilities are dropped, no new
-    # privileges can be gained, and memory/processes are bounded.
+    # privileges can be gained, and memory/processes are bounded. The
+    # /tmp tmpfs is bounded at 16 MB with noexec/nosuid/nodev.
     read_only: true
     tmpfs:
-      - /tmp
+      - /tmp:size=16m,noexec,nosuid,nodev
     cap_drop:
       - ALL
     security_opt:

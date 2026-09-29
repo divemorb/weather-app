@@ -158,10 +158,10 @@ def _decode_grid(encoded: str, n_cells: int) -> array.array:
         data = d.decompress(raw, n_cells * 2 + 1)
     except zlib.error as exc:
         raise SourceError(f"Bright Sky radar: cannot decode frame ({exc})") from exc
-    if len(data) != n_cells * 2 or d.unconsumed_tail:
+    if len(data) != n_cells * 2 or d.unconsumed_tail or not d.eof:
         raise SourceError(
-            f"Bright Sky radar: frame expands to {len(data)} bytes "
-            f"(expected exactly {n_cells * 2})"
+            f"Bright Sky radar: truncated or oversized frame ({len(data)} "
+            f"bytes, expected exactly {n_cells * 2} and a complete stream)"
         )
     grid = array.array("H")
     grid.frombytes(data)
@@ -370,7 +370,10 @@ class BrightSkyClient:
 
     async def _get(self, endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
         url = f"{self._base}{endpoint}"
-        data = await stream_json_capped(self._http, url, params)
+        try:
+            data = await stream_json_capped(self._http, url, params)
+        except SourceError as exc:
+            raise SourceError(f"Bright Sky {endpoint}: {exc}") from exc
         if not isinstance(data, dict):
             raise SourceError(f"Bright Sky {endpoint} returned unexpected payload")
         return data

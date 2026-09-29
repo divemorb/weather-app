@@ -426,3 +426,18 @@ def test_api_docs_off_by_default(client, url):
     (they are also 404 for any other URL, so this is the default contract)."""
     c = client(FakeAgg())
     assert c.get(url).status_code == 404
+
+
+def test_unhandled_error_500_still_carries_security_headers(client):
+    """A raising endpoint yields a 500 (caught inside the security-header
+    middleware), and that 500 must carry all the security headers too."""
+
+    class BoomAgg(FakeAgg):
+        async def get_current_conditions(self):
+            raise RuntimeError("boom")
+
+    c = client(BoomAgg())
+    r = c.get("/api/now")
+    assert r.status_code == 500
+    for name, value in _SECURITY_HEADERS.items():
+        assert r.headers.get(name) == value

@@ -21,6 +21,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
 from .aggregator import Aggregator
@@ -89,7 +90,8 @@ app = FastAPI(
 # *send* a request to the API but cannot *read* the answer (opaque
 # response), which closes the leak of the home location from /api/config.
 
-# Security headers on every response (security #13): API and static files.
+# Security headers on every response (security #13): API, static files and
+# error responses alike (the middleware below also answers unhandled 500s).
 #   CSP            default-src 'self' — no external scripts/styles/frames
 #                  (img-src data: for the inline favicon in index.html);
 #                  object-src/base-uri/form-action/frame-ancestors locked
@@ -110,7 +112,13 @@ _SECURITY_HEADERS = {
 
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
-    response = await call_next(request)
+    # Unhandled endpoint exceptions must not escape as a bare Starlette 500
+    # (which would skip this middleware and lose the security headers).
+    try:
+        response = await call_next(request)
+    except Exception:
+        log.exception("unhandled error in %s", request.url.path)
+        response = PlainTextResponse("Internal Server Error", status_code=500)
     for name, value in _SECURITY_HEADERS.items():
         response.headers[name] = value
     return response

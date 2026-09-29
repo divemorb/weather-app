@@ -148,7 +148,10 @@ class OpenMeteoClient:
             await self._http.aclose()
 
     async def _get(self, url: str, params: dict[str, Any]) -> dict[str, Any]:
-        data = await stream_json_capped(self._http, url, params)
+        try:
+            data = await stream_json_capped(self._http, url, params)
+        except SourceError as exc:
+            raise SourceError(f"Open-Meteo: {exc}") from exc
         if not isinstance(data, dict) or data.get("error"):
             reason = data.get("reason") if isinstance(data, dict) else "bad payload"
             raise SourceError(f"Open-Meteo error: {reason}")

@@ -455,4 +455,7 @@ is `n_samples >= min_samples`; the UI should grey out rows below that.
       rejected as `SourceError` instead of 500ing, 7d non-root `app` user
       (uid 1000) on a read-only, capability-free container with bounded
       memory and processes, 7e deeply nested JSON rejected as `SourceError`,
-      root-owned app code in the image, pip upgraded past known advisories.
+      root-owned app code in the image, pip upgraded past known advisories,
+      7f security headers on 500 responses, truncated radar frames rejected,
+      fetch errors name the failed upstream, `/tmp` tmpfs bounded (16 MB,
+      noexec), orphan `weather_forecast.py` deleted.

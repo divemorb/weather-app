@@ -174,6 +174,19 @@ def test_parse_radar_zip_bomb_frame_raises_source_error():
     assert time.monotonic() - start < 1.0
 
 
+def test_parse_radar_truncated_frame_raises_source_error():
+    # a zlib stream whose checksum trailer was cut off (right length, but
+    # never finished) must be rejected like an incomplete stream
+    payload = make_radar_payload(
+        [{"timestamp": "2026-09-25T06:45:00+00:00", "grid": grid(5, 5)}]
+    )
+    payload["radar"][0]["precipitation_5"] = base64.b64encode(
+        zlib.compress(b"\0" * 50)[:-4]
+    ).decode("ascii")
+    with pytest.raises(SourceError):
+        parse_radar(payload)
+
+
 NOW_WEATHER = datetime(2026, 9, 27, 20, 0, tzinfo=timezone.utc)
 
 
@@ -382,7 +395,7 @@ async def test_client_http_error_raises_source_error():
     client = BrightSkyClient(
         cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
     )
-    with pytest.raises(SourceError):
+    with pytest.raises(SourceError, match="Bright Sky /current_weather"):
         await client.fetch_current()
     await client.aclose()
 
