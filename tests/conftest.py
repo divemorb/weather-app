@@ -6,7 +6,10 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 import yaml
+from fastapi.testclient import TestClient
 
+from app.config import load_config
+from app.main import app
 from app.store import Store
 from tests.aggregator_support import (
     NOW,
@@ -50,3 +53,26 @@ async def store() -> Store:
 @pytest.fixture
 def frozen_now(monkeypatch):
     monkeypatch.setattr("app.aggregator.utcnow", lambda: NOW)
+
+
+@pytest.fixture
+def cfg():
+    return load_config()
+
+
+@pytest.fixture
+def client(cfg):
+    """TestClient with the given fakes installed on ``app.state``.
+
+    The context manager is NOT entered, so the real lifespan (DB + scheduler +
+    network) is skipped.
+    """
+
+    def _install(agg) -> TestClient:
+        app.state.cfg = cfg
+        app.state.aggregator = agg
+        # base_url on an IP literal: the Host header check (step 7g) rejects
+        # the TestClient default "testserver", but accepts any IP literal.
+        return TestClient(app, base_url="http://127.0.0.1:8000")
+
+    return _install

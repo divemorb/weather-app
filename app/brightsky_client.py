@@ -27,83 +27,41 @@ The parsers (:func:`parse_current_weather`, :func:`parse_radar`,
 :func:`parse_hourly_observations`, :func:`parse_station_info`) are pure
 functions so they are unit-testable without any network. The client raises
 :exc:`SourceError` on any failure so the aggregator can degrade gracefully
-(a failing source must never block the app).
+(a failing source must never block the app). ``parse_radar`` rejects grids
+above :data:`MAX_RADAR_CELLS` before decoding, and :func:`_decode_grid`
+caps decompression at the expected size (zip-bomb guard).
 
-Payload protection (step 7c, security hardening): upstream data is
-*untrusted*. The parsers on the request path are wrapped with
-:func:`malformed_is_source_error`, so a wrong type or missing key raises
-:exc:`SourceError` instead of an unhandled 500. ``parse_radar`` rejects
-grids above :data:`MAX_RADAR_CELLS` before decoding, and
-:func:`_decode_grid` caps decompression at the expected size (zip-bomb
-guard). Both HTTP clients read bodies through
-:func:`stream_json_capped`, which aborts above
-:data:`MAX_RESPONSE_BYTES` (memory + SQLite cache protection).
+The shared upstream plumbing (``SourceError``,
+``malformed_is_source_error``, ``stream_json_capped``,
+``MAX_RESPONSE_BYTES``) lives in :mod:`app.upstream` and is re-exported
+from here, so existing imports keep working.
 """
 from __future__ import annotations
 
 import array
 import base64
 import binascii
-import functools
-import json
 import zlib
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable
+from typing import Any
 
 import httpx
 
 from .config import AppConfig
 from .models import CurrentConditions, RadarCell, RadarFrame, RadarNowcast
 from .times import parse_iso, utcnow
+from .upstream import (  # noqa: F401  (re-exported: existing imports keep working)
+    MAX_RESPONSE_BYTES,
+    SourceError,
+    malformed_is_source_error,
+    stream_json_capped,
+)
 
 #: Multiplier converting a raw radar uint16 value to millimetres (5-min step).
 RADAR_MM_PER_UNIT = 0.01
 
-#: Hard cap for upstream response bodies (memory + SQLite cache protection).
-#: Real payloads are ~20 KB (forecast), ~16 KB (ensemble), ~9 KB (radar) and
-#: ~1.4 KB (current), so 5 MB is far above anything legitimate.
-MAX_RESPONSE_BYTES = 5 * 1024 * 1024
-
 #: Max radar sub-grid size in cells; the real grid is only a few hundred.
 MAX_RADAR_CELLS = 250_000
-
-
-class SourceError(Exception):
-    """A data source failed or returned an unusable payload."""
-
-
-#: Payload-shape errors: upstream data is untrusted, so a wrong type or a
-#: missing key must surface as :exc:`SourceError` (which the request path
-#: catches) rather than as an unhandled 500.
-_MALFORMED_TYPES = (
-    KeyError,
-    TypeError,
-    ValueError,
-    AttributeError,
-    IndexError,
-    OverflowError,
-)
-
-
-def malformed_is_source_error(label: str) -> Callable:
-    """Decorator: re-raise payload-shape errors as :exc:`SourceError`.
-
-    Applied to the parsers on the request path. A :exc:`SourceError` raised
-    inside the parser is not in ``_MALFORMED_TYPES`` and passes through
-    unchanged, with its original message.
-    """
-
-    def wrap(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def inner(*args: Any, **kwargs: Any) -> Any:
-            try:
-                return func(*args, **kwargs)
-            except _MALFORMED_TYPES as exc:
-                raise SourceError(f"{label}: malformed payload ({exc!r})") from exc
-
-        return inner
-
-    return wrap
 
 
 # ---------------------------------------------------------------------------
@@ -309,52 +267,6 @@ def parse_station_info(payload: dict[str, Any]) -> tuple[str, float] | None:
 # ---------------------------------------------------------------------------
 # HTTP client
 # ---------------------------------------------------------------------------
-async def stream_json_capped(
-    http: httpx.AsyncClient, url: str, params: dict[str, Any]
-) -> Any:
-    """GET ``url`` and parse the JSON body, aborting above MAX_RESPONSE_BYTES.
-
-    Shared by both upstream clients (Bright Sky, Open-Meteo): untrusted
-    servers could otherwise answer with multi-GB bodies that exhaust memory
-    and the SQLite cache. The ``content-length`` header is checked up front;
-    chunked/lying responses are caught while streaming.
-
-    Raises :exc:`SourceError` for HTTP errors, size violations, and
-    undecodable bodies.
-    """
-    try:
-        async with http.stream("GET", url, params=params) as resp:
-            resp.raise_for_status()
-            declared = resp.headers.get("content-length")
-            if declared is not None:
-                try:
-                    if int(declared) > MAX_RESPONSE_BYTES:
-                        raise SourceError(
-                            f"response declares {declared} bytes, "
-                            f"over the {MAX_RESPONSE_BYTES} byte cap"
-                        )
-                except ValueError as exc:
-                    raise SourceError(f"bad content-length header: {declared!r}") from exc
-            chunks: list[bytes] = []
-            total = 0
-            async for chunk in resp.aiter_bytes():
-                total += len(chunk)
-                if total > MAX_RESPONSE_BYTES:
-                    raise SourceError(
-                        f"response body exceeds the {MAX_RESPONSE_BYTES} byte cap"
-                    )
-                chunks.append(chunk)
-            body = b"".join(chunks)
-    except (httpx.HTTPError, ValueError) as exc:
-        raise SourceError(f"request failed: {exc}") from exc
-    try:
-        return json.loads(body)
-    # RecursionError: deeply nested JSON ("[[[[…") is far below the size cap
-    # but exhausts the parser's recursion limit; it is not a ValueError.
-    except (ValueError, RecursionError) as exc:
-        raise SourceError(f"response is not valid JSON: {exc}") from exc
-
-
 class BrightSkyClient:
     def __init__(self, cfg: AppConfig, client: httpx.AsyncClient | None = None):
         self._base = cfg.api.brightsky_base_url.rstrip("/")
