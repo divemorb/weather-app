@@ -78,4 +78,12 @@ accuracy:
 api:
   # Upstream endpoints (verified; overridable for tests/mocks).
   # Bright Sky has no /v2
+  brightsky_base_url: "https://api.brightsky.dev"
+  open_meteo_base_url: "https://api.open-meteo.com/v1"
+  ensemble_base_url: "https://ensemble-api.open-meteo.com/v1"
+  # Address search for the setup wizard (OpenStreetMap Nominatim).
+  # The app sends a custom User-Agent as its usage policy requires.
+  nominatim_base_url: "https://nominatim.openstreetmap.org"
+  # Per-request upstream timeout (seconds).
+  timeout_seconds: 20
 

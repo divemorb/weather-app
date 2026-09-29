@@ -103,6 +103,12 @@ The app is designed for a **trusted home network**:
   flagged cross-site) with `403`, and only accepts a JSON body — a
   cross-site HTML form (form-encoded / `text/plain`) cannot post a
   location either (that gets a 422).
+- **Address search goes to OpenStreetMap Nominatim from the app's
+  server.** `GET /api/geocode` forwards the text you typed in the setup
+  wizard to `nominatim.openstreetmap.org` (the app sends the custom
+  `User-Agent` Nominatim requires and follows its usage policy: max 1
+  request per second, cached results). Coordinates you type directly
+  never leave the app.
 - **Host header check (DNS rebinding).** The no-CORS defense assumes the
   browser treats the app as a *different origin* from a malicious site.
   DNS rebinding breaks that: a site whose DNS record switches to the
@@ -307,6 +313,7 @@ tests/
 | `GET /api/model-accuracy` | per-model forecast accuracy (window) |
 | `GET /api/sources` | per-source age / staleness |
 | `GET /api/schedule` | next backend refresh per job (UI countdown) |
+| `GET /api/geocode` | address search for the setup wizard (Nominatim; `q` min 3 chars) |
 | `POST /api/location` | set the home location (same-origin JSON only; 403 for foreign origins) |
 
 All timestamps are **UTC** in the API; the frontend converts to

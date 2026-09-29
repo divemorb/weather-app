@@ -101,6 +101,7 @@ class ApiConfig:
     brightsky_base_url: str = "https://api.brightsky.dev"
     open_meteo_base_url: str = "https://api.open-meteo.com/v1"
     ensemble_base_url: str = "https://ensemble-api.open-meteo.com/v1"
+    nominatim_base_url: str = "https://nominatim.openstreetmap.org"
     timeout_seconds: float = 20.0
 
 
@@ -242,6 +243,9 @@ def load_config(path: Path | None = None) -> AppConfig:
         ),
         ensemble_base_url=api_raw.get(
             "ensemble_base_url", "https://ensemble-api.open-meteo.com/v1"
+        ),
+        nominatim_base_url=api_raw.get(
+            "nominatim_base_url", "https://nominatim.openstreetmap.org"
         ),
         timeout_seconds=float(api_raw.get("timeout_seconds", 20.0)),
     )

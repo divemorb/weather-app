@@ -1,14 +1,38 @@
-"""Endpoint tests for POST /api/location (step 8c).
+"""Endpoint tests for POST /api/location (step 8c) and GET /api/geocode
+(step 8c2).
 
 Covers: a valid same-origin save (values rounded to 3 decimals, the
 effective config updated on ``app.state``), the CSRF refusal for foreign
 origins (403), and the validation layer (422, never 500, no echo of the
-rejected input — NaN/Infinity included).
+rejected input — NaN/Infinity included). The geocode tests use a small
+fake geocoder installed on ``app.state.geocoder``: a lookup failure is a
+502, never a 500.
 """
 from __future__ import annotations
 
+import pytest
+
 from app.config import LocationConfig
+from app.upstream import SourceError
 from tests.api_fakes import FakeAgg
+
+
+class FakeGeocoder:
+    """Stands in for :class:`app.geocode.Geocoder` in the endpoint tests."""
+
+    def __init__(self, results=None, error=False):
+        self._results = results or []
+        self._error = error
+        self.queries = []
+
+    async def search(self, query):
+        self.queries.append(query)
+        if self._error:
+            raise SourceError("upstream down")
+        return self._results
+
+    async def aclose(self):
+        pass
 
 
 def _body(lat=48.13749, lon=11.57552, tz="Europe/Berlin", label="München"):
@@ -166,3 +190,39 @@ def test_post_location_security_headers_still_present_on_403_and_422(client, cfg
     r = c.post("/api/location", json=_body(), headers={"Content-Type": "text/plain"})
     assert r.status_code == 422
     assert r.headers.get("x-content-type-options") == "nosniff"
+
+
+# ---------------------------------------------------------------------------
+# GET /api/geocode (step 8c2)
+# ---------------------------------------------------------------------------
+def test_get_geocode_returns_results(client, cfg):
+    c = client(FakeAgg(cfg=cfg))
+    c.app.state.geocoder = FakeGeocoder(
+        results=[
+            {"label": "Marienplatz, München", "latitude": 48.138, "longitude": 11.577}
+        ]
+    )
+    r = c.get("/api/geocode", params={"q": "Marienplatz München"})
+    assert r.status_code == 200
+    assert r.json() == {
+        "results": [
+            {"label": "Marienplatz, München", "latitude": 48.138, "longitude": 11.577}
+        ]
+    }
+    assert c.app.state.geocoder.queries == ["Marienplatz München"]
+
+
+def test_get_geocode_source_error_is_502(client, cfg):
+    c = client(FakeAgg(cfg=cfg))
+    c.app.state.geocoder = FakeGeocoder(error=True)
+    r = c.get("/api/geocode", params={"q": "Marienplatz München"})
+    assert r.status_code == 502
+    assert r.json() == {"detail": "address lookup failed"}
+
+
+def test_get_geocode_query_too_short_is_422(client, cfg):
+    c = client(FakeAgg(cfg=cfg))
+    c.app.state.geocoder = FakeGeocoder()
+    r = c.get("/api/geocode", params={"q": "ab"})
+    assert r.status_code == 422
+    assert c.app.state.geocoder.queries == []

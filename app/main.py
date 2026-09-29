@@ -12,6 +12,7 @@ display timezone):
   GET /api/model-accuracy       -> per-model forecast accuracy (window, 6e)
   GET /api/sources              -> per-source age / staleness / errors
   GET /api/schedule             -> next backend refresh per job (UI countdown)
+  GET /api/geocode              -> address search results (setup wizard, 8c2)
   POST /api/location            -> set the home location (setup wizard)
 
 Static frontend:  GET / (static/index.html, step 5)
@@ -26,7 +27,7 @@ from contextlib import asynccontextmanager
 from dataclasses import replace
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
@@ -41,6 +42,7 @@ from .api_serializers import (
 )
 from .brightsky_client import BrightSkyClient
 from .config import AppConfig, LocationConfig, _env_bool, load_config
+from .geocode import Geocoder
 from .location import (
     LocationIn,
     location_payload,
@@ -51,6 +53,7 @@ from .location import (
 from .openmeteo_client import OpenMeteoClient
 from .scheduler import build_scheduler, initial_refresh, schedule_status
 from .store import Store
+from .upstream import SourceError
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("weather")
@@ -70,6 +73,7 @@ async def lifespan(app: FastAPI):
 
     brightsky = BrightSkyClient(cfg)
     openmeteo = OpenMeteoClient(cfg)
+    geocoder = Geocoder(cfg.api.nominatim_base_url)  # address search (8c2)
     aggregator = Aggregator(cfg, store, brightsky, openmeteo)
 
     scheduler = build_scheduler(cfg, aggregator)
@@ -80,6 +84,7 @@ async def lifespan(app: FastAPI):
     app.state.cfg = cfg
     app.state.aggregator = aggregator
     app.state.scheduler = scheduler
+    app.state.geocoder = geocoder
     log.info("weather app started (db=%s)", cfg.database_path)
     try:
         yield
@@ -87,6 +92,7 @@ async def lifespan(app: FastAPI):
         scheduler.shutdown(wait=False)
         await brightsky.aclose()
         await openmeteo.aclose()
+        await geocoder.aclose()
         await store.close()
 
 
@@ -269,6 +275,26 @@ async def api_schedule(request: Request) -> dict:
     cfg: AppConfig = request.app.state.cfg
     scheduler = getattr(request.app.state, "scheduler", None)
     return schedule_status(scheduler, cfg)
+
+
+@app.get("/api/geocode")
+async def api_geocode(
+    request: Request,
+    q: str = Query(min_length=3, max_length=200, description="Address or place"),
+) -> dict:
+    """Address search for the setup wizard (Nominatim, step 8c2).
+
+    The typed text goes to OpenStreetMap Nominatim *from the app's server*
+    (coordinates entered directly never leave the app). A failed lookup is
+    a 502, never a 500: a failing source must not block the app.
+    """
+    geocoder: Geocoder = request.app.state.geocoder
+    try:
+        results = await geocoder.search(q)
+    except SourceError:
+        log.warning("address lookup failed for %r", q[:50])
+        return JSONResponse({"detail": "address lookup failed"}, status_code=502)
+    return {"results": results}
 
 
 #: Keeps references to fire-and-forget refresh tasks so they are not
