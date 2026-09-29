@@ -2,7 +2,12 @@
 
 What this app is for, what it does, the requirements it must meet, and what
 it deliberately doesn't do. Formulas, data conventions, the API contract and
-security internals are described in the technical documentation.
+security internals are described in the technical documentation:
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) — how the rain probability is
+  calculated, data conventions, project layout
+- [API.md](API.md) — the REST API and response contract
+- [SECURITY.md](SECURITY.md) — security design and hardening
 
 ## Purpose
 

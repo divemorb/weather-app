@@ -12,6 +12,7 @@ venv/
 *.db
 *.sqlite3
 /data/
+.directory
 
 # Local overrides (do not commit real secrets; this app uses none, but keep
 # host-specific tuning local)
