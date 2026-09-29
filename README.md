@@ -62,6 +62,14 @@ All runtime settings live in **`weather.yaml`** (repo root). Key sections:
 | Key | Meaning | Default |
 | --- | --- | --- |
 | `location.*` | latitude / longitude / display timezone | — (set in the browser, see below) |
+| `radar.radius_km` | "local rain" radius around you | `1.0` |
+| `probability.weights.{radar,models,ensemble}` | combination weights | `0.5 / 0.3 / 0.2` |
+| `probability.model_rain_threshold_mm` | model rain threshold | `0.1` |
+| `models.forecast` | Open-Meteo models to compare | 6 models |
+| `models.ensemble_model` | ensemble for probability | `ecmwf_ifs025` (50 members) |
+| `scheduling.*` | refresh cadence + stale thresholds | radar 5 min, models 60 min |
+| `accuracy.window_days` | accuracy window (compared hours) | `30` |
+| `accuracy.min_samples` | min compared hours before a model counts as "enough data" | `48` |
 
 **Location.** The home location is *runtime state*: it is stored in the
 app's database (`/data` volume), not in the repo. On first run the page
@@ -74,20 +82,14 @@ on first start (adopted into the database); afterwards the stored value
 wins. `weather.yaml` ships without one, with a commented-out Berlin example
 under `location:` for exactly this purpose. The display timezone defaults
 to `Europe/Berlin` and can be set via `TIMEZONE` / `location.timezone`.
-| `radar.radius_km` | "local rain" radius around you | `1.0` |
-| `probability.weights.{radar,models,ensemble}` | combination weights | `0.5 / 0.3 / 0.2` |
-| `probability.model_rain_threshold_mm` | model rain threshold | `0.1` |
-| `models.forecast` | Open-Meteo models to compare | 6 models |
-| `models.ensemble_model` | ensemble for probability | `ecmwf_ifs025` (50 members) |
-| `scheduling.*` | refresh cadence + stale thresholds | radar 5 min, models 60 min |
-| `accuracy.window_days` | accuracy window (compared hours) | `30` |
-| `accuracy.min_samples` | min compared hours before a model counts as "enough data" | `48` |
 
 Environment variables override the YAML for the most common knobs:
 `LATITUDE`, `LONGITUDE`, `TIMEZONE`, `RADAR_RADIUS_KM`, `WEIGHT_RADAR`,
-`WEIGHT_MODELS`, `WEIGHT_ENSEMBLE`, `RADAR_INTERVAL_MINUTES`,
-`MODELS_INTERVAL_MINUTES`, `DATABASE_PATH`, `USE_ACCURACY_WEIGHTS` (boolean,
-default `false` — see "Optional accuracy weighting" below).
+`WEIGHT_MODELS`, `WEIGHT_ENSEMBLE`, `DATABASE_PATH`, `USE_ACCURACY_WEIGHTS`
+(boolean, default `false` — see "Optional accuracy weighting" below). The
+refresh intervals are set in `weather.yaml` only (`scheduling.*`). Other
+environment variables: `ALLOWED_HOSTS` (see "Security"), `ENABLE_API_DOCS`
+(see "API") and `WEATHER_CONFIG` (path to an alternative `weather.yaml`).
 
 Change `weather.yaml` and rebuild: `docker compose up -d --build`.
 

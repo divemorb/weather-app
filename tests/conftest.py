@@ -65,7 +65,7 @@ def cfg():
     location get this neutral one instead — no test depends on where the
     repo owner lives.
     """
-    return replace(load_config(), location=LocationConfig(52.0, 13.0, "Europe/Berlin"))
+    return replace(load_config(), location=LocationConfig(52.52, 13.405, "Europe/Berlin"))
 
 
 @pytest.fixture
