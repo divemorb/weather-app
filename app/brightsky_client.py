@@ -28,15 +28,27 @@ The parsers (:func:`parse_current_weather`, :func:`parse_radar`,
 functions so they are unit-testable without any network. The client raises
 :exc:`SourceError` on any failure so the aggregator can degrade gracefully
 (a failing source must never block the app).
+
+Payload protection (step 7c, security hardening): upstream data is
+*untrusted*. The parsers on the request path are wrapped with
+:func:`malformed_is_source_error`, so a wrong type or missing key raises
+:exc:`SourceError` instead of an unhandled 500. ``parse_radar`` rejects
+grids above :data:`MAX_RADAR_CELLS` before decoding, and
+:func:`_decode_grid` caps decompression at the expected size (zip-bomb
+guard). Both HTTP clients read bodies through
+:func:`stream_json_capped`, which aborts above
+:data:`MAX_RESPONSE_BYTES` (memory + SQLite cache protection).
 """
 from __future__ import annotations
 
 import array
 import base64
 import binascii
+import functools
+import json
 import zlib
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Callable
 
 import httpx
 
@@ -47,14 +59,57 @@ from .times import parse_iso, utcnow
 #: Multiplier converting a raw radar uint16 value to millimetres (5-min step).
 RADAR_MM_PER_UNIT = 0.01
 
+#: Hard cap for upstream response bodies (memory + SQLite cache protection).
+#: Real payloads are ~20 KB (forecast), ~16 KB (ensemble), ~9 KB (radar) and
+#: ~1.4 KB (current), so 5 MB is far above anything legitimate.
+MAX_RESPONSE_BYTES = 5 * 1024 * 1024
+
+#: Max radar sub-grid size in cells; the real grid is only a few hundred.
+MAX_RADAR_CELLS = 250_000
+
 
 class SourceError(Exception):
     """A data source failed or returned an unusable payload."""
 
 
+#: Payload-shape errors: upstream data is untrusted, so a wrong type or a
+#: missing key must surface as :exc:`SourceError` (which the request path
+#: catches) rather than as an unhandled 500.
+_MALFORMED_TYPES = (
+    KeyError,
+    TypeError,
+    ValueError,
+    AttributeError,
+    IndexError,
+    OverflowError,
+)
+
+
+def malformed_is_source_error(label: str) -> Callable:
+    """Decorator: re-raise payload-shape errors as :exc:`SourceError`.
+
+    Applied to the parsers on the request path. A :exc:`SourceError` raised
+    inside the parser is not in ``_MALFORMED_TYPES`` and passes through
+    unchanged, with its original message.
+    """
+
+    def wrap(func: Callable) -> Callable:
+        @functools.wraps(func)
+        def inner(*args: Any, **kwargs: Any) -> Any:
+            try:
+                return func(*args, **kwargs)
+            except _MALFORMED_TYPES as exc:
+                raise SourceError(f"{label}: malformed payload ({exc!r})") from exc
+
+        return inner
+
+    return wrap
+
+
 # ---------------------------------------------------------------------------
 # Pure parsers (no network) — the unit-tested contract
 # ---------------------------------------------------------------------------
+@malformed_is_source_error("Bright Sky current_weather")
 def parse_current_weather(payload: dict[str, Any]) -> CurrentConditions:
     """Parse a ``/current_weather`` payload into :class:`CurrentConditions`."""
     try:
@@ -86,18 +141,34 @@ def parse_current_weather(payload: dict[str, Any]) -> CurrentConditions:
     )
 
 
-def _decode_grid(encoded: str) -> array.array:
-    """Decode a ``precipitation_5`` frame into a flat uint16 grid."""
+def _decode_grid(encoded: str, n_cells: int) -> array.array:
+    """Decode a ``precipitation_5`` frame into a flat uint16 grid.
+
+    Decompression is capped at the expected size (``n_cells * 2`` bytes —
+    one uint16 per cell) so a corrupted or malicious frame cannot expand to
+    gigabytes in memory (zip bomb). A frame with extra or missing bytes is
+    malformed, not just "wrong size" afterwards.
+    """
     try:
         raw = base64.b64decode(encoded)
-        data = zlib.decompress(raw)
-    except (binascii.Error, zlib.error, ValueError) as exc:
+    except (binascii.Error, ValueError) as exc:
         raise SourceError(f"Bright Sky radar: cannot decode frame ({exc})") from exc
+    d = zlib.decompressobj()
+    try:
+        data = d.decompress(raw, n_cells * 2 + 1)
+    except zlib.error as exc:
+        raise SourceError(f"Bright Sky radar: cannot decode frame ({exc})") from exc
+    if len(data) != n_cells * 2 or d.unconsumed_tail:
+        raise SourceError(
+            f"Bright Sky radar: frame expands to {len(data)} bytes "
+            f"(expected exactly {n_cells * 2})"
+        )
     grid = array.array("H")
     grid.frombytes(data)
     return grid
 
 
+@malformed_is_source_error("Bright Sky radar")
 def parse_radar(payload: dict[str, Any]) -> RadarNowcast:
     """Parse a ``/radar`` payload into a :class:`RadarNowcast`.
 
@@ -123,6 +194,12 @@ def parse_radar(payload: dict[str, Any]) -> RadarNowcast:
     width = right - left + 1
     height = bottom - top + 1
     n_cells = width * height
+    # Reject absurd grids (bogus or malicious bbox) before any decoding.
+    if width <= 0 or height <= 0 or n_cells > MAX_RADAR_CELLS:
+        raise SourceError(
+            f"Bright Sky radar: bbox implies {n_cells} cells "
+            f"({width}x{height}), more than MAX_RADAR_CELLS={MAX_RADAR_CELLS}"
+        )
 
     try:
         px = float(llp["x"])
@@ -135,11 +212,7 @@ def parse_radar(payload: dict[str, Any]) -> RadarNowcast:
 
     frames: list[RadarFrame] = []
     for rec in frames_raw:
-        grid = _decode_grid(rec["precipitation_5"])
-        if len(grid) != n_cells:
-            raise SourceError(
-                f"Bright Sky radar: frame size {len(grid)} != expected {n_cells}"
-            )
+        grid = _decode_grid(rec["precipitation_5"], n_cells)
         cells: list[RadarCell] = []
         max_mm = 0.0
         for row in range(height):
@@ -236,6 +309,50 @@ def parse_station_info(payload: dict[str, Any]) -> tuple[str, float] | None:
 # ---------------------------------------------------------------------------
 # HTTP client
 # ---------------------------------------------------------------------------
+async def stream_json_capped(
+    http: httpx.AsyncClient, url: str, params: dict[str, Any]
+) -> Any:
+    """GET ``url`` and parse the JSON body, aborting above MAX_RESPONSE_BYTES.
+
+    Shared by both upstream clients (Bright Sky, Open-Meteo): untrusted
+    servers could otherwise answer with multi-GB bodies that exhaust memory
+    and the SQLite cache. The ``content-length`` header is checked up front;
+    chunked/lying responses are caught while streaming.
+
+    Raises :exc:`SourceError` for HTTP errors, size violations, and
+    undecodable bodies.
+    """
+    try:
+        async with http.stream("GET", url, params=params) as resp:
+            resp.raise_for_status()
+            declared = resp.headers.get("content-length")
+            if declared is not None:
+                try:
+                    if int(declared) > MAX_RESPONSE_BYTES:
+                        raise SourceError(
+                            f"response declares {declared} bytes, "
+                            f"over the {MAX_RESPONSE_BYTES} byte cap"
+                        )
+                except ValueError as exc:
+                    raise SourceError(f"bad content-length header: {declared!r}") from exc
+            chunks: list[bytes] = []
+            total = 0
+            async for chunk in resp.aiter_bytes():
+                total += len(chunk)
+                if total > MAX_RESPONSE_BYTES:
+                    raise SourceError(
+                        f"response body exceeds the {MAX_RESPONSE_BYTES} byte cap"
+                    )
+                chunks.append(chunk)
+            body = b"".join(chunks)
+    except (httpx.HTTPError, ValueError) as exc:
+        raise SourceError(f"request failed: {exc}") from exc
+    try:
+        return json.loads(body)
+    except ValueError as exc:
+        raise SourceError(f"response is not valid JSON: {exc}") from exc
+
+
 class BrightSkyClient:
     def __init__(self, cfg: AppConfig, client: httpx.AsyncClient | None = None):
         self._base = cfg.api.brightsky_base_url.rstrip("/")
@@ -251,12 +368,7 @@ class BrightSkyClient:
 
     async def _get(self, endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
         url = f"{self._base}{endpoint}"
-        try:
-            resp = await self._http.get(url, params=params)
-            resp.raise_for_status()
-            data = resp.json()
-        except (httpx.HTTPError, ValueError) as exc:
-            raise SourceError(f"Bright Sky {endpoint} failed: {exc}") from exc
+        data = await stream_json_capped(self._http, url, params)
         if not isinstance(data, dict):
             raise SourceError(f"Bright Sky {endpoint} returned unexpected payload")
         return data

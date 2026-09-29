@@ -369,3 +369,13 @@ async def test_get_radar_next_hour_empty_cache(store):
     assert bar["available"] is False
     assert len(bar["steps"]) == 12
     assert all(s["precip_mm"] == 0.0 for s in bar["steps"])
+
+
+async def test_get_current_conditions_malformed_cache_returns_none(store):
+    # a corrupted/malformed cached payload must degrade to "no data"
+    # (None), not raise — the request path must never 500 on bad data
+    bad = current_payload()
+    bad["weather"]["temperature"] = "not-a-number"
+    await store.put_cache("current", bad)
+    agg = make_aggregator(make_cfg(), store)
+    assert await agg.get_current_conditions() is None

@@ -9,7 +9,7 @@ import pytest
 import httpx
 
 from app.openmeteo_client import OpenMeteoClient, parse_forecast, parse_ensemble
-from app.brightsky_client import SourceError
+from app.brightsky_client import MAX_RESPONSE_BYTES, SourceError
 from tests.helpers import make_cfg, make_forecast_payload, make_ensemble_payload
 
 
@@ -108,6 +108,20 @@ def test_parse_forecast_error_flag_raises():
         parse_forecast({"error": True, "reason": "bad lat"}, ["icon_d2"])
 
 
+def test_parse_forecast_missing_timestamp_raises_source_error():
+    # a non-string in the time list: untrusted payload, must be a
+    # SourceError (the request path only catches that), not a TypeError
+    payload = make_forecast_payload(
+        model_names=["icon_d2"],
+        hours=[1, 2, 3, 4],  # a number where an ISO timestamp belongs
+        min15=[],
+        precip_per_model={"icon_d2": [0.0, 0.5, 0.0, 0.0]},
+        min15_precip_per_model={"icon_d2": []},
+    )
+    with pytest.raises(SourceError, match="malformed"):
+        parse_forecast(payload, ["icon_d2"])
+
+
 # ---------------------------------------------------------------------------
 # parse_ensemble
 # ---------------------------------------------------------------------------
@@ -144,6 +158,13 @@ def test_parse_ensemble_zero_members():
 def test_parse_ensemble_error_flag_raises():
     with pytest.raises(SourceError):
         parse_ensemble({"error": True, "reason": "no ensemble"})
+
+
+def test_parse_ensemble_wrong_type_raises_source_error():
+    # a string where a number belongs in the control series -> SourceError
+    payload = make_ensemble_payload(hours=HOURS, control=["a", 0.1, 0.2, 0.3], members=[])
+    with pytest.raises(SourceError, match="malformed"):
+        parse_ensemble(payload)
 
 
 # ---------------------------------------------------------------------------
@@ -201,4 +222,20 @@ async def test_client_api_error_json_raises_source_error():
     )
     with pytest.raises(SourceError):
         await client.fetch_forecast()
+    await client.aclose()
+
+
+async def test_client_rejects_body_over_response_size_cap():
+    # same cap as the Bright Sky client: an oversized body must be aborted
+    # with a SourceError, never fully buffered
+    cfg = make_cfg()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"x" * (MAX_RESPONSE_BYTES + 1))
+
+    client = OpenMeteoClient(
+        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    )
+    with pytest.raises(SourceError, match="cap"):
+        await client.fetch_forecast_payload()
     await client.aclose()

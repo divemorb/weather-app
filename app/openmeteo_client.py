@@ -17,7 +17,10 @@ Verified API facts (checked live):
 
 The parsers (:func:`parse_forecast`, :func:`parse_ensemble`) are pure
 functions so they are unit-testable without any network. The client raises
-:exc:`SourceError` on any failure.
+:exc:`SourceError` on any failure. Payload protection (step 7c): the
+parsers are wrapped with :func:`malformed_is_source_error` and the HTTP
+layer reads bodies through :func:`stream_json_capped` (size cap) — see
+``app/brightsky_client.py`` for the convention.
 """
 from __future__ import annotations
 
@@ -27,7 +30,7 @@ from typing import Any
 
 import httpx
 
-from .brightsky_client import SourceError
+from .brightsky_client import SourceError, malformed_is_source_error, stream_json_capped
 from .config import AppConfig
 from .models import EnsembleData, ForecastBundle, ModelSeries
 
@@ -60,6 +63,7 @@ def _series(payload: dict[str, Any], section: str, key: str) -> list[float | Non
     return [None if v is None else float(v) for v in raw]
 
 
+@malformed_is_source_error("Open-Meteo forecast")
 def parse_forecast(payload: dict[str, Any], model_names: list[str]) -> ForecastBundle:
     """Parse a multi-model forecast payload into a :class:`ForecastBundle`.
 
@@ -98,6 +102,7 @@ def parse_forecast(payload: dict[str, Any], model_names: list[str]) -> ForecastB
 _MEMBER_RE = re.compile(r"precipitation_member(\d+)$")
 
 
+@malformed_is_source_error("Open-Meteo ensemble")
 def parse_ensemble(payload: dict[str, Any]) -> EnsembleData:
     """Parse an ensemble payload into :class:`EnsembleData`.
 
@@ -143,12 +148,7 @@ class OpenMeteoClient:
             await self._http.aclose()
 
     async def _get(self, url: str, params: dict[str, Any]) -> dict[str, Any]:
-        try:
-            resp = await self._http.get(url, params=params)
-            resp.raise_for_status()
-            data = resp.json()
-        except (httpx.HTTPError, ValueError) as exc:
-            raise SourceError(f"Open-Meteo request failed: {exc}") from exc
+        data = await stream_json_capped(self._http, url, params)
         if not isinstance(data, dict) or data.get("error"):
             reason = data.get("reason") if isinstance(data, dict) else "bad payload"
             raise SourceError(f"Open-Meteo error: {reason}")

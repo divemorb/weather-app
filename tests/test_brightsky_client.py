@@ -5,12 +5,18 @@ Parser tests use synthetic payloads (no network). HTTP-layer tests use
 """
 from __future__ import annotations
 
+import base64
+import time
+import zlib
+
 import pytest
 import httpx
 from datetime import datetime, timezone
 
 from app.brightsky_client import (
     BrightSkyClient,
+    MAX_RADAR_CELLS,
+    MAX_RESPONSE_BYTES,
     SourceError,
     parse_current_weather,
     parse_hourly_observations,
@@ -53,6 +59,13 @@ def test_parse_current_weather_handles_nulls():
 def test_parse_current_weather_missing_weather_raises():
     with pytest.raises(SourceError):
         parse_current_weather({"sources": []})
+
+
+def test_parse_current_weather_wrong_type_raises_source_error():
+    # a string where a number belongs: untrusted payload, must be a
+    # SourceError (the request path only catches that), not a TypeError
+    with pytest.raises(SourceError, match="malformed"):
+        parse_current_weather(make_current_payload({"temperature": "not-a-number"}))
 
 
 def test_parse_radar_decodes_grid_and_unit():
@@ -120,6 +133,45 @@ def test_parse_radar_location_outside_grid_marks_uncovered():
     )
     nc = parse_radar(payload)
     assert nc.covered is False
+
+
+def test_parse_radar_non_numeric_bbox_raises_source_error():
+    # a bbox entry that is not a number: untrusted payload -> SourceError,
+    # not an unhandled ValueError (500)
+    g = grid(5, 5)
+    payload = make_radar_payload(
+        [{"timestamp": "2026-09-25T06:45:00+00:00", "grid": g}], bbox=["a", 20, 14, 24]
+    )
+    with pytest.raises(SourceError, match="malformed"):
+        parse_radar(payload)
+
+
+def test_parse_radar_huge_bbox_raises_source_error():
+    # width * height > MAX_RADAR_CELLS must be rejected BEFORE decoding,
+    # otherwise the decoder would allocate an absurd grid (2.5e9 cells here)
+    payload = make_radar_payload(
+        [{"timestamp": "2026-09-25T06:45:00+00:00", "grid": grid(5, 5)}],
+        bbox=(0, 0, 1_000_000, 1_000_000),
+    )
+    with pytest.raises(SourceError, match="MAX_RADAR_CELLS"):
+        parse_radar(payload)
+
+
+def test_parse_radar_zip_bomb_frame_raises_source_error():
+    # a frame whose zlib stream expands far beyond the expected grid size
+    # must be aborted at the decompression cap, not fully decompressed
+    raw = zlib.compress(b"\0" * 10_000_000)  # 10 MB from a few KB
+    encoded = base64.b64encode(raw).decode("ascii")
+    payload = make_radar_payload([])
+    payload["radar"] = [
+        {"timestamp": "2026-09-25T06:45:00+00:00", "precipitation_5": encoded}
+    ]
+    start = time.monotonic()
+    with pytest.raises(SourceError):
+        parse_radar(payload)
+    # the cap (100x100x2+1 bytes here) stops the stream after 20 KB of the
+    # 10 MB expansion — comfortably fast even on a slow machine
+    assert time.monotonic() - start < 1.0
 
 
 NOW_WEATHER = datetime(2026, 9, 27, 20, 0, tzinfo=timezone.utc)
@@ -332,4 +384,35 @@ async def test_client_http_error_raises_source_error():
     )
     with pytest.raises(SourceError):
         await client.fetch_current()
+    await client.aclose()
+
+
+async def test_client_rejects_body_over_response_size_cap():
+    # a body above MAX_RESPONSE_BYTES must be aborted with a SourceError,
+    # never fully buffered (memory + SQLite cache protection)
+    cfg = make_cfg()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"x" * (MAX_RESPONSE_BYTES + 1))
+
+    client = BrightSkyClient(
+        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    )
+    with pytest.raises(SourceError, match="cap"):
+        await client.fetch_current_payload()
+    await client.aclose()
+
+
+async def test_client_normal_body_still_parses_with_streaming():
+    # regression guard: the streamed path still returns parsed dicts
+    cfg = make_cfg()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=make_current_payload())
+
+    client = BrightSkyClient(
+        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    )
+    payload = await client.fetch_current_payload()
+    assert payload["weather"]["temperature"] == 7.4
     await client.aclose()
