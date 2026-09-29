@@ -403,6 +403,23 @@ async def test_client_rejects_body_over_response_size_cap():
     await client.aclose()
 
 
+async def test_client_deeply_nested_json_raises_source_error():
+    # 200 KB of nested brackets is far below the size cap but makes
+    # json.loads raise RecursionError; it must surface as a SourceError, or
+    # it escapes _fetch_into_cache and skips the rest of the refresh
+    cfg = make_cfg()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"[" * 100_000 + b"]" * 100_000)
+
+    client = BrightSkyClient(
+        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    )
+    with pytest.raises(SourceError, match="not valid JSON"):
+        await client.fetch_current_payload()
+    await client.aclose()
+
+
 async def test_client_normal_body_still_parses_with_streaming():
     # regression guard: the streamed path still returns parsed dicts
     cfg = make_cfg()

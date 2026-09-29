@@ -349,7 +349,9 @@ async def stream_json_capped(
         raise SourceError(f"request failed: {exc}") from exc
     try:
         return json.loads(body)
-    except ValueError as exc:
+    # RecursionError: deeply nested JSON ("[[[[…") is far below the size cap
+    # but exhausts the parser's recursion limit; it is not a ValueError.
+    except (ValueError, RecursionError) as exc:
         raise SourceError(f"response is not valid JSON: {exc}") from exc
 
 

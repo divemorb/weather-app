@@ -105,10 +105,11 @@ The app is designed for a **trusted home network**:
   only enabled with `ENABLE_API_DOCS=true` (see "API" below), so a guest
   device on the LAN cannot browse the full API contract.
 - **Non-root, read-only container.** The image runs as the unprivileged
-  `app` user (uid 1000, no home directory) on a read-only root filesystem
+  `app` user (uid/gid 1000, no home directory) on a read-only root filesystem
   with **all Linux capabilities dropped** and `no-new-privileges` set;
   memory is capped at 512 MB and process count at 200. Only the `weather-data`
-  volume (`/data`) and a `/tmp` tmpfs are writable. A code-execution bug
+  volume (`/data`) and a `/tmp` tmpfs are writable; the application code is
+  owned by root, so the `app` user cannot modify it. A code-execution bug
   inside the container therefore runs without root, without privileges, and
   without a writable filesystem to hide in.
 
@@ -453,4 +454,5 @@ is `n_samples >= min_samples`; the UI should grey out rows below that.
       `ENABLE_API_DOCS`, 7c malformed / oversized / zip-bomb upstream payloads
       rejected as `SourceError` instead of 500ing, 7d non-root `app` user
       (uid 1000) on a read-only, capability-free container with bounded
-      memory and processes.
+      memory and processes, 7e deeply nested JSON rejected as `SourceError`,
+      root-owned app code in the image, pip upgraded past known advisories.

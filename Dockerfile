@@ -6,19 +6,25 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
-# Unprivileged user (uid 1000) the app runs as; only /data and /tmp are
+# Unprivileged user (uid/gid 1000) the app runs as; only /data and /tmp are
 # writable at runtime (volume + tmpfs in docker-compose.yml)
-RUN useradd --system --uid 1000 --no-create-home app
+RUN groupadd --system --gid 1000 app \
+    && useradd --system --uid 1000 --gid app --no-create-home app
 
 WORKDIR /app
+
+# The base image ships pip 25.0.1 (install-time path-traversal advisories,
+# fixed in 26.2); pip never runs in the app, but don't ship it vulnerable
+RUN pip install --no-cache-dir --upgrade "pip>=26.2"
 
 # Install dependencies first for better layer caching
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Application code
-COPY --chown=app:app app/ ./app/
-COPY --chown=app:app weather.yaml ./weather.yaml
+# Application code stays root-owned: the app user can read it but not
+# rewrite it, even without the read-only root filesystem from compose
+COPY app/ ./app/
+COPY weather.yaml ./weather.yaml
 
 # SQLite cache lives here (mount a volume here to persist it)
 RUN mkdir -p /data && chown app:app /data
