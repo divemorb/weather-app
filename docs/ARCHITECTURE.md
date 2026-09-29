@@ -8,24 +8,32 @@ The scheduler keeps the local cache and history up to date, and the browser only
 
 ```mermaid
 flowchart LR
-    browser["Browser"] -->|/api/*| api["API endpoints"]
-    api -->|reads only| cache["source_cache (raw responses)"]
-    api -->|reads only| history["forecast_history (forecasts + obs)"]
-    sched["Scheduler"] -->|every 5 min| radarJob["Radar job"]
-    sched -->|every 60 min| modelsJob["Models job"]
-    startup["App startup"] -->|once| radarJob
-    startup -->|once| modelsJob
-    locSave["Location saved"] -->|right away| radarJob
-    locSave -->|right away| modelsJob
-    radarJob -->|fetches| brightsky["Bright Sky (DWD)"]
-    modelsJob -->|fetches| openmeteo["Open-Meteo (6 models)"]
-    modelsJob -->|backfill, last 48 h| brightsky
+    subgraph upstream["Upstream services"]
+        brightsky["Bright Sky (DWD)"]
+        openmeteo["Open-Meteo"]
+    end
+    subgraph app["The app"]
+        triggers["Scheduler, startup, location saved"]
+        radarJob["Radar job, every 5 min"]
+        modelsJob["Models job, every 60 min"]
+        api["API endpoints"]
+    end
+    subgraph db["SQLite file"]
+        cache["source_cache: raw responses"]
+        history["forecast_history"]
+    end
+    browser["Browser"]
+    triggers --> radarJob
+    triggers --> modelsJob
+    radarJob -->|current weather, radar| brightsky
+    modelsJob -->|forecast, ensemble| openmeteo
+    modelsJob -->|observations, last 48 h| brightsky
     radarJob -->|writes| cache
     modelsJob -->|writes| cache
-    modelsJob -->|next 24 h per model| history
-    modelsJob -->|observations| history
-    sqlite["SQLite file"] -->|contains| cache
-    sqlite -->|contains| history
+    modelsJob -->|next 24 h per model, observations| history
+    browser -->|/api/...| api
+    api -->|reads only| cache
+    api -->|reads only| history
 ```
 
 ## How the rain probability is calculated
@@ -40,14 +48,22 @@ The three signals are combined in one weighted sum, with a fallback when radar h
 
 ```mermaid
 flowchart TD
-    radar["Radar in radius -> R (1 or 0)"] --> sum["P = w_r*R + w_m*M + w_e*E"]
-    models["Models above 0.1 mm -> M (share)"] --> sum
-    ensemble["Ensemble above threshold -> E (share)"] --> sum
-    sum --> coverage{"Radar coverage?"}
-    coverage -->|yes| weights["Weights renormalized to 1 (0.5/0.3/0.2)"]
-    coverage -->|no| drop["Drop w_r, renormalize the rest"]
-    drop --> weights
-    accuracy["Accuracy weighting (optional)"] -.->|only when every voting model has enough compared hours| models
+    radar["Radar: rain within the radius? R = 1 or 0"]
+    models["Models above 0.1 mm: share M"]
+    ensemble["Ensemble members above the threshold: share E"]
+    coverage{"Radar covers the location?"}
+    full["Weights 0.5 / 0.3 / 0.2"]
+    noradar["No radar weight: 0.3 / 0.2 become 0.6 / 0.4"]
+    sum["P = w_r · R + w_m · M + w_e · E"]
+    accuracy["Optional accuracy weighting"]
+    coverage -->|yes| full
+    coverage -->|no| noradar
+    radar --> sum
+    models --> sum
+    ensemble --> sum
+    full --> sum
+    noradar --> sum
+    accuracy -.->|only with enough compared hours| models
 ```
 
 ```
