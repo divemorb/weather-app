@@ -16,7 +16,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.config import load_config
-from app.main import app
+from app.main import app, host_allowed
 from app.models import CurrentConditions, RainProbability
 
 
@@ -171,7 +171,9 @@ def client(cfg):
     def _install(agg: FakeAgg) -> TestClient:
         app.state.cfg = cfg
         app.state.aggregator = agg
-        return TestClient(app)
+        # base_url on an IP literal: the Host header check (step 7g) rejects
+        # the TestClient default "testserver", but accepts any IP literal.
+        return TestClient(app, base_url="http://127.0.0.1:8000")
 
     return _install
 
@@ -472,5 +474,49 @@ def test_unhandled_error_500_still_carries_security_headers(client):
     c = client(BoomAgg())
     r = c.get("/api/now")
     assert r.status_code == 500
+    for name, value in _SECURITY_HEADERS.items():
+        assert r.headers.get(name) == value
+
+
+# ---------------------------------------------------------------------------
+# security: Host header check against DNS rebinding (step 7g)
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "host",
+    [
+        "192.168.1.5:8000",
+        "[::1]:8000",
+        "::1",
+        "localhost:8000",
+        "raspberrypi.local:8000",
+        "PI.FRITZ.BOX:8000",
+    ],
+)
+def test_host_allowed_accepted(host):
+    assert host_allowed(host, frozenset({"pi.fritz.box"})) is True
+
+
+@pytest.mark.parametrize(
+    "host",
+    [
+        "evil.example",
+        "evil.example:8000",
+        "testserver",
+        "",
+        "localhost.evil.com",
+        "1.2.3.4.nip.io",
+    ],
+)
+def test_host_allowed_rejected(host):
+    assert host_allowed(host, frozenset({"pi.fritz.box"})) is False
+
+
+def test_foreign_host_header_rejected_with_security_headers(client):
+    """A rebinding attack (Host: evil.example) is answered 400, and that
+    400 still carries all the security headers."""
+    c = client(FakeAgg())
+    r = c.get("/api/config", headers={"host": "evil.example:8000"})
+    assert r.status_code == 400
+    assert r.text == "Invalid host header"
     for name, value in _SECURITY_HEADERS.items():
         assert r.headers.get(name) == value

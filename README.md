@@ -85,6 +85,17 @@ The app is designed for a **trusted home network**:
   a request to the app, but without CORS headers it cannot *read* the
   answer — this closes the leak of the home coordinates from
   `GET /api/config`.
+- **Host header check (DNS rebinding).** The no-CORS defense assumes the
+  browser treats the app as a *different origin* from a malicious site.
+  DNS rebinding breaks that: a site whose DNS record switches to the
+  app's LAN IP makes the browser treat the app as same-origin. So the app
+  only answers requests whose `Host` header names it: any **IP literal**,
+  **localhost**, any **`.local`** mDNS name (public DNS can't serve those),
+  or extra names from the `ALLOWED_HOSTS` env variable (comma-separated,
+  e.g. `ALLOWED_HOSTS=pi.fritz.box` for a router DNS name) — port ignored,
+  case-insensitive. Anything else gets `400 Invalid host header`. If your
+  browser shows "Invalid host header", the name you opened the app under
+  is not in that list — add it via `ALLOWED_HOSTS`.
 - **Security headers** on every response (API and static files), set by a
   small middleware in `app/main.py`:
   - `Content-Security-Policy: default-src 'self'; img-src 'self' data:;
@@ -477,7 +488,9 @@ every 60 s at the latest.
       root-owned app code in the image, pip upgraded past known advisories,
       7f security headers on 500 responses, truncated radar frames rejected,
       fetch errors name the failed upstream, `/tmp` tmpfs bounded (16 MB,
-      noexec), orphan `weather_forecast.py` deleted.
+      noexec), orphan `weather_forecast.py` deleted, 7g foreign `Host`
+      headers rejected (DNS rebinding: only IP literals, localhost, `*.local`
+      and `ALLOWED_HOSTS` names are answered).
 - [x] **Fix: scheduled refreshes** — the refresh jobs were plain functions,
       which APScheduler runs in a worker thread without an event loop, so
       every scheduled refresh crashed and only the startup refresh ran (the

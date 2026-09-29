@@ -16,7 +16,9 @@ Static frontend:  GET / (static/index.html, step 5)
 """
 from __future__ import annotations
 
+import ipaddress
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -111,15 +113,46 @@ _SECURITY_HEADERS = {
 }
 
 
+# Host header check (security #14): the app only answers requests whose Host
+# header names this app — an IP literal, localhost, a .local mDNS name, or
+# one of ALLOWED_HOSTS (port ignored). Any other domain (e.g. a rebinding
+# attack from evil.example) is rejected with 400, so a website whose DNS
+# flips to this host's LAN IP can never be treated as same-origin.
+_EXTRA_HOSTS = frozenset(
+    h.strip().lower() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()
+)
+
+
+def host_allowed(host_header: str, extra: frozenset[str] = _EXTRA_HOSTS) -> bool:
+    """True if the Host header names this app: an IP literal, localhost,
+    a .local mDNS name, or one of ``extra`` (port ignored)."""
+    host = host_header.strip().lower()
+    if host.startswith("["):  # [::1]:8000
+        host = host[1:].split("]", 1)[0]
+    elif host.count(":") == 1:  # name:port or ipv4:port
+        host = host.rsplit(":", 1)[0]
+    if not host:
+        return False
+    try:
+        ipaddress.ip_address(host)
+        return True
+    except ValueError:
+        pass
+    return host == "localhost" or host.endswith(".local") or host in extra
+
+
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
-    # Unhandled endpoint exceptions must not escape as a bare Starlette 500
-    # (which would skip this middleware and lose the security headers).
-    try:
-        response = await call_next(request)
-    except Exception:
-        log.exception("unhandled error in %s", request.url.path)
-        response = PlainTextResponse("Internal Server Error", status_code=500)
+    if not host_allowed(request.headers.get("host", "")):
+        response = PlainTextResponse("Invalid host header", status_code=400)
+    else:
+        # Unhandled endpoint exceptions must not escape as a bare Starlette 500
+        # (which would skip this middleware and lose the security headers).
+        try:
+            response = await call_next(request)
+        except Exception:
+            log.exception("unhandled error in %s", request.url.path)
+            response = PlainTextResponse("Internal Server Error", status_code=500)
     for name, value in _SECURITY_HEADERS.items():
         response.headers[name] = value
     return response
