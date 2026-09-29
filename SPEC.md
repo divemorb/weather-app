@@ -1,3 +1,6 @@
+> **Original brief from the project start, kept as history.** The current
+> scope (purpose, features, requirements) is in [SCOPE.md](SCOPE.md).
+
 Build a local web app that aggregates weather data from multiple sources and displays it in a clear, clean way.
 
 ## Goal

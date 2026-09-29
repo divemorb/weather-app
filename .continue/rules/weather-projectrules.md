@@ -16,5 +16,5 @@ alwaysApply: true
   handlers or `style="…"` in HTML; API data only via `textContent` (`innerHTML` only
   `""` or constants). New UI code goes into its own file.
 - Data conventions (time windows, units) are documented in the README ("Data conventions";
-  `docs/ARCHITECTURE.md` after Step 9). Read the relevant part before touching them.
+  `docs/ARCHITECTURE.md` after Step 10). Read the relevant part before touching them.
 - Tasks come as sub-steps: do one per chat, commit as `Step Nx: <summary>`, then stop.
