@@ -1,11 +1,12 @@
 # Weather app configuration
 # All times are handled as UTC internally; the timezone is display-only
 # (the frontend converts for you).
-
-location:
-  latitude: 52.52   # your location (Berlin)
-  longitude: 13.405
-  timezone: Europe/Berlin        # display timezone for the frontend
+#
+# NOTE: the location is NOT configured here (step 8b) — it is runtime state
+# stored in the app's database. Set it in the browser on first run (setup
+# wizard), or seed it once via the LATITUDE/LONGITUDE env vars / a
+# `location: {latitude, longitude, timezone}` block (adopted into the DB on
+# first start, afterwards the stored value wins).
 
 radar:
   # Radius around the location (km) considered "local rain" for the

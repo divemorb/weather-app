@@ -108,6 +108,34 @@ class Store:
             await self._db.close()
             self._db = None
 
+    # -- app meta (step 8b: the location lives here at runtime) ---------------
+    async def get_meta(self, key: str) -> str | None:
+        assert self._db is not None
+        async with self._db.execute("SELECT value FROM app_meta WHERE key = ?", (key,)) as cur:
+            row = await cur.fetchone()
+        return row["value"] if row is not None else None
+
+    async def set_meta(self, key: str, value: str) -> None:
+        assert self._db is not None
+        await self._db.execute(
+            "INSERT INTO app_meta (key, value) VALUES (?, ?)"
+            " ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (key, value),
+        )
+        await self._db.commit()
+
+    async def clear_location_data(self) -> None:
+        """Drop all cached payloads and forecast history (step 8b).
+
+        Called when the location changes: both tables belong to the *old*
+        location, so they must not be served for the new one. (The accuracy
+        window shrinks accordingly; there is nothing to re-compute.)
+        """
+        assert self._db is not None
+        await self._db.execute("DELETE FROM source_cache")
+        await self._db.execute("DELETE FROM forecast_history")
+        await self._db.commit()
+
     # -- cache ---------------------------------------------------------------
     async def put_cache(self, source: str, payload: dict[str, Any]) -> None:
         assert self._db is not None

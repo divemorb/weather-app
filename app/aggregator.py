@@ -21,7 +21,8 @@ from .brightsky_client import (
     parse_station_info,
 )
 from .accuracy import model_accuracy
-from .config import AppConfig
+from .config import AppConfig, LocationConfig
+from .location import apply_location
 from .models import (
     CurrentConditions,
     EnsembleVote,
@@ -54,6 +55,21 @@ _SOURCES: dict[str, tuple[str, str]] = {
     "ensemble": ("Open-Meteo", "stale_models_minutes"),
 }
 
+#: jobs whose "no location yet" skip was already logged (step 8b)
+_skips_logged: set[str] = set()
+
+
+def skip_without_location(agg: "Aggregator", job: str) -> bool:
+    """True when the refresh must be skipped: no location configured yet
+    (step 8b); logged once per job, cleared by ``set_location``."""
+    if agg.cfg.location is not None:
+        _skips_logged.discard(job)
+        return False
+    if job not in _skips_logged:
+        log.info("no location configured yet; skipping %s refresh", job)
+        _skips_logged.add(job)
+    return True
+
 
 class Aggregator:
     def __init__(
@@ -69,13 +85,29 @@ class Aggregator:
         self._openmeteo = openmeteo
         self._last_error: dict[str, str] = {}
 
+    @property
+    def cfg(self) -> AppConfig:
+        """The effective config; its ``location`` tracks the DB (step 8b)."""
+        return self._cfg
+
+    async def set_location(self, loc: LocationConfig) -> None:
+        """Store a new location (step 8b); see :func:`app.location.apply_location`."""
+        self._cfg = await apply_location(
+            self._store, self._cfg, self._brightsky, self._openmeteo, loc
+        )
+        _skips_logged.clear()  # log a future skip (location deleted, step 8d)
+
     # -- refresh (called by the scheduler, never per page load) ------------
+
     async def refresh_radar(self) -> None:
         """Fetch Bright Sky ``current_weather`` + radar into the cache.
 
         Each endpoint is fetched independently so one failure does not
         discard the other; failures keep the stale cache and are recorded.
+        No-op (logged once per job) while no location is configured (8b).
         """
+        if skip_without_location(self, "radar"):
+            return
         await self._fetch_into_cache("current", self._brightsky.fetch_current_payload)
         await self._fetch_into_cache("radar", self._brightsky.fetch_radar_payload)
 
@@ -85,8 +117,11 @@ class Aggregator:
         After a successful forecast refresh, hourly rows are appended to
         ``forecast_history`` (feeds the step-6 accuracy extension), and the
         hourly observation backfill fills in ``observed_mm`` for the hours
-        that have already passed (step 6d).
+        that have already passed (step 6d). No-op (logged once) while no
+        location is configured (step 8b).
         """
+        if skip_without_location(self, "models"):
+            return
         await self._fetch_into_cache("forecast", self._openmeteo.fetch_forecast_payload)
         await self._fetch_into_cache("ensemble", self._openmeteo.fetch_ensemble_payload)
         await self._record_forecast_history()
@@ -96,11 +131,10 @@ class Aggregator:
         """Fill ``observed_mm`` in ``forecast_history`` from DWD observations.
 
         Fetches the last 48 h of Bright Sky ``/weather`` hourly records and
-        writes each real observation (``observation_type != "forecast"``) as
-        the observation for its hour start (``timestamp - 1h``, see Data
-        conventions). Run from the hourly model refresh — never on a page
-        load. Any failure is logged and swallowed: a failing source must
-        never break a refresh.
+        writes each real observation (``observation_type != "forecast"``)
+        for its hour start (``timestamp - 1h``, see Data conventions).
+        Run from the hourly model refresh — never on a page load; failures
+        are logged and swallowed (a failing source never breaks a refresh).
         """
         now = utcnow()
         try:
@@ -220,11 +254,10 @@ class Aggregator:
         """Weighted combination of radar / model / ensemble signals.
 
         See README "How the rain probability is calculated". With
-        ``use_accuracy_weights`` enabled, the model signal is weighted by each
-        model's event accuracy (step 6g) — gated on every voting model having
-        enough compared hours, with fallback to equal weights. Always returns
-        a :class:`RainProbability` (0 % with a "no data" explanation when
-        every signal is missing) so the UI degrades gracefully.
+        ``use_accuracy_weights`` the model signal is weighted per model by
+        event accuracy (step 6g, with equal-weight fallback). Always returns
+        a :class:`RainProbability` (0 % + "no data" when every signal is
+        missing) so the UI degrades gracefully.
         """
         now = utcnow()
         nowcast = await self.get_radar_nowcast()
@@ -236,12 +269,9 @@ class Aggregator:
             nowcast, now, self._cfg.radar, prob_cfg
         )
         if self._cfg.use_accuracy_weights:
-            # Optional accuracy weighting (step 6g): the pure function gates
-            # internally — if any voting model lacks enough compared hours,
-            # it reports weighted_applied=False and the equal-weight signal.
-            # A failing accuracy read (database error) must not break the
-            # headline number either: {} makes the same gate fall back to
-            # equal weights by itself.
+            # step 6g: the pure function gates internally — insufficient
+            # samples or a failing accuracy read ({} below) both fall back
+            # to equal weights.
             try:
                 accuracy = await self.get_model_accuracy()
             except Exception:
@@ -310,9 +340,7 @@ class Aggregator:
         now = utcnow()
         since = to_iso(now - timedelta(days=self._cfg.accuracy.window_days))
         rows = await self._store.compared_forecasts(since)
-        return model_accuracy(
-            rows, self._cfg.probability.model_rain_threshold_mm
-        )
+        return model_accuracy(rows, self._cfg.probability.model_rain_threshold_mm)
 
     async def get_source_status(self) -> dict[str, dict[str, Any]]:
         """Per-source cache age + staleness + last error, for the UI."""

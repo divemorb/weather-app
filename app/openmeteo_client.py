@@ -136,8 +136,9 @@ class OpenMeteoClient:
         self._forecast_base = cfg.api.open_meteo_base_url.rstrip("/")
         self._ensemble_base = cfg.api.ensemble_base_url.rstrip("/")
         self._timeout = cfg.api.timeout_seconds
-        self._lat = cfg.location.latitude
-        self._lon = cfg.location.longitude
+        loc = cfg.location  # None while unconfigured (step 8b)
+        self._lat = loc.latitude if loc is not None else None
+        self._lon = loc.longitude if loc is not None else None
         self._forecast_models: list[str] = list(cfg.models.forecast)
         self._ensemble_model: str = cfg.models.ensemble_model
         self._owns_client = client is None
@@ -146,6 +147,16 @@ class OpenMeteoClient:
     async def aclose(self) -> None:
         if self._owns_client:
             await self._http.aclose()
+
+    def set_location(self, latitude: float, longitude: float) -> None:
+        """Change the location (step 8b: it is runtime state)."""
+        self._lat = latitude
+        self._lon = longitude
+
+    def _location_params(self) -> dict[str, float]:
+        if self._lat is None or self._lon is None:
+            raise SourceError("Open-Meteo: no location configured")
+        return {"latitude": self._lat, "longitude": self._lon}
 
     async def _get(self, url: str, params: dict[str, Any]) -> dict[str, Any]:
         try:
@@ -161,8 +172,7 @@ class OpenMeteoClient:
     async def fetch_forecast_payload(self) -> dict[str, Any]:
         """Multi-model forecast: 15-min precipitation + hourly model vars."""
         params: dict[str, Any] = {
-            "latitude": self._lat,
-            "longitude": self._lon,
+            **self._location_params(),
             "models": ",".join(self._forecast_models),
             "minutely_15": "precipitation",
             "hourly": ",".join(HOURLY_VARS),
@@ -176,8 +186,7 @@ class OpenMeteoClient:
     async def fetch_ensemble_payload(self) -> dict[str, Any]:
         """Ensemble precipitation per member (hourly), next 2 days."""
         params: dict[str, Any] = {
-            "latitude": self._lat,
-            "longitude": self._lon,
+            **self._location_params(),
             "models": self._ensemble_model,
             "hourly": "precipitation",
             "forecast_days": 2,

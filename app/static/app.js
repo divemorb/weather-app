@@ -329,8 +329,16 @@ function setBadge(badge, data) {
 function renderConfig(c) {
   cfg = c;
   tz = (c.location && c.location.timezone) || "UTC";
-  const { latitude, longitude } = c.location || {};
-  els.subtitle.textContent = `${latitude.toFixed(3)}, ${longitude.toFixed(3)} · ${tz}`;
+  if (c.configured === false || !c.location) {
+    // Unconfigured (step 8b): the setup wizard (step 8d) asks for the
+    // location — don't call toFixed() on the null coordinates.
+    els.subtitle.textContent = "no location set";
+    return;
+  }
+  const { latitude, longitude } = c.location;
+  els.subtitle.textContent =
+    `${latitude.toFixed(3)}, ${longitude.toFixed(3)} · ${tz}` +
+    (c.location.label ? ` · ${c.location.label}` : "");
 }
 
 /* ------------------------------------------------------------------ *

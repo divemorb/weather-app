@@ -34,9 +34,10 @@ def make_cfg(
     stale_models: int = 120,
     use_accuracy_weights: bool = False,
     min_samples: int = 48,
+    location: LocationConfig | None = LocationConfig(latitude=52.0, longitude=13.0),
 ) -> AppConfig:
     return AppConfig(
-        location=LocationConfig(latitude=52.0, longitude=13.0),
+        location=location,
         radar=RadarConfig(radius_km=5.0, grid_size_km=1.0, step_minutes=5),
         probability=ProbabilityConfig(
             weight_radar=0.5,
@@ -62,6 +63,12 @@ class StubBrightSky:
     def __init__(self, payloads: dict, errors: tuple = ()):
         self._p = payloads
         self._e = set(errors)
+        self._lat: float | None = None
+        self._lon: float | None = None
+
+    def set_location(self, latitude: float, longitude: float) -> None:
+        self._lat = latitude
+        self._lon = longitude
 
     async def fetch_current_payload(self):
         if "current" in self._e:
@@ -85,6 +92,12 @@ class StubOpenMeteo:
     def __init__(self, payloads: dict, errors: tuple = ()):
         self._p = payloads
         self._e = set(errors)
+        self._lat: float | None = None
+        self._lon: float | None = None
+
+    def set_location(self, latitude: float, longitude: float) -> None:
+        self._lat = latitude
+        self._lon = longitude
 
     async def fetch_forecast_payload(self):
         if "forecast" in self._e:
@@ -173,6 +186,16 @@ def ensemble_payload() -> dict:
         "precipitation_member01": [1.0, 0.0, 0.0, 0.0],
         "precipitation_member02": [0.0, 0.0, 0.0, 0.0],
     }}
+
+
+def make_payloads() -> dict:
+    """All four cache payloads (same as the ``all_payloads`` fixture)."""
+    return {
+        "current": current_payload(),
+        "radar": radar_payload([("2025-01-01T12:00:00Z", [(5, 5, 20)])]),
+        "forecast": forecast_payload(),
+        "ensemble": ensemble_payload(),
+    }
 
 
 def make_aggregator(cfg, store, bs=None, om=None, errors=()) -> Aggregator:

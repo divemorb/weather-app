@@ -271,14 +271,25 @@ class BrightSkyClient:
     def __init__(self, cfg: AppConfig, client: httpx.AsyncClient | None = None):
         self._base = cfg.api.brightsky_base_url.rstrip("/")
         self._timeout = cfg.api.timeout_seconds
-        self._lat = cfg.location.latitude
-        self._lon = cfg.location.longitude
+        loc = cfg.location  # None while unconfigured (step 8b)
+        self._lat = loc.latitude if loc is not None else None
+        self._lon = loc.longitude if loc is not None else None
         self._owns_client = client is None
         self._http = client or httpx.AsyncClient(timeout=self._timeout)
 
     async def aclose(self) -> None:
         if self._owns_client:
             await self._http.aclose()
+
+    def set_location(self, latitude: float, longitude: float) -> None:
+        """Change the location (step 8b: it is runtime state)."""
+        self._lat = latitude
+        self._lon = longitude
+
+    def _location_params(self) -> dict[str, float]:
+        if self._lat is None or self._lon is None:
+            raise SourceError("Bright Sky: no location configured")
+        return {"lat": self._lat, "lon": self._lon}
 
     async def _get(self, endpoint: str, params: dict[str, Any]) -> dict[str, Any]:
         url = f"{self._base}{endpoint}"
@@ -293,7 +304,7 @@ class BrightSkyClient:
     # -- raw payloads (what gets cached) ---------------------------------
     async def fetch_current_payload(self) -> dict[str, Any]:
         """Raw ``/current_weather`` JSON."""
-        return await self._get("/current_weather", {"lat": self._lat, "lon": self._lon})
+        return await self._get("/current_weather", self._location_params())
 
     async def fetch_radar_payload(self) -> dict[str, Any]:
         """Raw ``/radar`` JSON for the next-hour window.
@@ -317,8 +328,7 @@ class BrightSkyClient:
         return await self._get(
             "/radar",
             {
-                "lat": self._lat,
-                "lon": self._lon,
+                **self._location_params(),
                 "date": date.strftime(fmt),
                 "last_date": last_date.strftime(fmt),
             },
@@ -336,8 +346,7 @@ class BrightSkyClient:
         return await self._get(
             "/weather",
             {
-                "lat": self._lat,
-                "lon": self._lon,
+                **self._location_params(),
                 "date": start.strftime(fmt),
                 "last_date": end.strftime(fmt),
                 "tz": "UTC",

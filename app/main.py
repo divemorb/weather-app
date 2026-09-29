@@ -4,7 +4,7 @@ REST contract (all times UTC; the frontend converts to the configured
 display timezone):
 
   GET /healthz                  -> {"status": "ok", ...}
-  GET /api/config               -> location, timezone, weights (for UI labels)
+  GET /api/config               -> configured flag + location, timezone, weights
   GET /api/now                  -> current conditions tile + data age
   GET /api/rain-probability     -> combined % + per-source breakdown
   GET /api/radar/next-hour      -> 12 x 5-min radar bar (mm per step)
@@ -20,6 +20,7 @@ import ipaddress
 import logging
 import os
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -36,6 +37,7 @@ from .api_serializers import (
 )
 from .brightsky_client import BrightSkyClient
 from .config import AppConfig, _env_bool, load_config
+from .location import location_payload, resolve_startup_location
 from .openmeteo_client import OpenMeteoClient
 from .scheduler import build_scheduler, initial_refresh, schedule_status
 from .store import Store
@@ -51,6 +53,10 @@ async def lifespan(app: FastAPI):
     cfg = load_config()
     store = Store(cfg.database_path)
     await store.connect()
+
+    # The location is runtime state (step 8b): the stored value wins over
+    # env/YAML, which is only adopted on first start (written to the DB).
+    cfg = replace(cfg, location=await resolve_startup_location(store, cfg))
 
     brightsky = BrightSkyClient(cfg)
     openmeteo = OpenMeteoClient(cfg)
@@ -167,11 +173,10 @@ async def healthz() -> dict:
 async def api_config(request: Request) -> dict:
     cfg: AppConfig = request.app.state.cfg
     return {
-        "location": {
-            "latitude": cfg.location.latitude,
-            "longitude": cfg.location.longitude,
-            "timezone": cfg.location.timezone,
-        },
+        # step 8b: "configured" tells the frontend whether to show the
+        # setup wizard; "location" is null while unconfigured.
+        "configured": cfg.location is not None,
+        "location": location_payload(cfg.location) if cfg.location is not None else None,
         "radar_radius_km": cfg.radar.radius_km,
         "weights": {
             "radar": cfg.probability.weight_radar,

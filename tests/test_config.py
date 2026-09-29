@@ -92,3 +92,48 @@ def test_weight_fallback_without_radar():
     # models:ensemble ratio must be preserved (0.3 : 0.2 -> 0.6 : 0.4)
     assert abs(w["models"] - 0.6) < 1e-9
     assert abs(w["ensemble"] - 0.4) < 1e-9
+
+
+# ---------------------------------------------------------------------------
+# location is optional (step 8b: the app runs unconfigured)
+# ---------------------------------------------------------------------------
+def test_no_location_in_yaml_and_no_env_is_unconfigured(make_config, monkeypatch):
+    for var in ("LATITUDE", "LONGITUDE", "TIMEZONE"):
+        monkeypatch.delenv(var, raising=False)
+    cfg = load_config(make_config({}))
+    assert cfg.location is None
+
+
+def test_yaml_location_needs_both_coordinates(make_config, monkeypatch):
+    monkeypatch.delenv("LATITUDE", raising=False)
+    monkeypatch.delenv("LONGITUDE", raising=False)
+    cfg = load_config(make_config({"location": {"latitude": 52.0}}))
+    assert cfg.location is None
+
+
+def test_partial_env_falls_back_to_yaml(make_config, monkeypatch):
+    # env only counts when BOTH vars are set (they are one source); with
+    # only LATITUDE the YAML block is the source (no mixing of coordinates)
+    monkeypatch.delenv("LONGITUDE", raising=False)
+    monkeypatch.setenv("LATITUDE", "52.52")
+    cfg = load_config(make_config({"location": {"latitude": 52.0, "longitude": 13.0}}))
+    assert cfg.location is not None
+    assert cfg.location.latitude == 52.0
+
+
+def test_yaml_location_defaults_timezone(make_config, monkeypatch):
+    monkeypatch.delenv("TIMEZONE", raising=False)
+    cfg = load_config(make_config({"location": {"latitude": 52.0, "longitude": 13.0}}))
+    assert cfg.location is not None
+    assert cfg.location.timezone == "Europe/Berlin"
+
+
+def test_env_location_without_yaml(make_config, monkeypatch):
+    # env vars are a source by themselves; the YAML block is not needed
+    monkeypatch.delenv("LONGITUDE", raising=False)
+    monkeypatch.setenv("LATITUDE", "52.52")
+    monkeypatch.setenv("LONGITUDE", "13.40")
+    cfg = load_config(make_config({}))
+    assert cfg.location is not None
+    assert (cfg.location.latitude, cfg.location.longitude) == (52.52, 13.40)
+    assert cfg.location.timezone == "Europe/Berlin"

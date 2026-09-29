@@ -45,11 +45,31 @@ def test_api_config(client, cfg):
     r = c.get("/api/config")
     assert r.status_code == 200
     body = r.json()
+    assert body["configured"] is True
     assert body["location"]["latitude"] == pytest.approx(cfg.location.latitude)
     assert body["location"]["timezone"] == cfg.location.timezone
     assert body["radar_radius_km"] == pytest.approx(cfg.radar.radius_km)
     assert body["weights"]["radar"] == pytest.approx(cfg.probability.weight_radar)
     assert body["models"] == list(cfg.models.forecast)
+
+
+def test_api_config_unconfigured(client, cfg):
+    # step 8b: no location yet -> configured=false, location=null (the
+    # frontend shows the setup wizard instead of calling toFixed on null)
+    from dataclasses import replace
+
+    from app.config import load_config
+
+    c = client(FakeAgg())  # installs the configured cfg on app.state
+    app.state.cfg = replace(load_config(), location=None)
+    try:
+        r = c.get("/api/config")
+    finally:
+        app.state.cfg = cfg  # restore for later tests
+    assert r.status_code == 200
+    body = r.json()
+    assert body["configured"] is False
+    assert body["location"] is None
 
 
 # ---------------------------------------------------------------------------

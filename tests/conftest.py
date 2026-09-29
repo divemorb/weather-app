@@ -1,6 +1,7 @@
 """Shared fixtures. (Client/aggregation fixtures land with steps 2-3.)"""
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -8,7 +9,7 @@ import pytest_asyncio
 import yaml
 from fastapi.testclient import TestClient
 
-from app.config import load_config
+from app.config import LocationConfig, load_config
 from app.main import app
 from app.store import Store
 from tests.aggregator_support import (
@@ -57,7 +58,14 @@ def frozen_now(monkeypatch):
 
 @pytest.fixture
 def cfg():
-    return load_config()
+    """The real config plus a neutral location.
+
+    Step 8b: ``weather.yaml`` no longer carries a personal location (the
+    app runs unconfigured until the wizard sets one), so tests that need a
+    location get this neutral one instead — no test depends on where the
+    repo owner lives.
+    """
+    return replace(load_config(), location=LocationConfig(52.0, 13.0, "Europe/Berlin"))
 
 
 @pytest.fixture

@@ -27,6 +27,7 @@ class LocationConfig:
     latitude: float
     longitude: float
     timezone: str = "Europe/Berlin"
+    label: str = ""
 
 
 @dataclass(frozen=True)
@@ -105,7 +106,10 @@ class ApiConfig:
 
 @dataclass(frozen=True)
 class AppConfig:
-    location: LocationConfig
+    #: The home location. ``None`` while unconfigured (step 8b): it comes
+    #: from the env vars, from the YAML ``location:`` block, or — at
+    #: runtime — from the database where the app stores it (setup wizard).
+    location: LocationConfig | None
     radar: RadarConfig
     probability: ProbabilityConfig
     models: ModelsConfig
@@ -151,17 +155,42 @@ def _load_yaml(path: Path) -> dict:
     return data
 
 
+def _load_location(raw: dict) -> LocationConfig | None:
+    """Build the location from env vars (win) or the YAML ``location:`` block.
+
+    Both coordinates must come from the same source: only when *both*
+    ``LATITUDE`` and ``LONGITUDE`` are set do they count; otherwise the YAML
+    block counts when *both* keys are present. Any other mix is incomplete —
+    ``None`` (unconfigured; the setup wizard asks for the location, step 8).
+    There is no hard-coded default location: the repo must not contain one.
+    ``TIMEZONE`` / ``location.timezone`` still default to ``Europe/Berlin``.
+    """
+    env_lat = _env("LATITUDE")
+    env_lon = _env("LONGITUDE")
+    loc = raw.get("location", {}) or {}
+    y_lat = loc.get("latitude")
+    y_lon = loc.get("longitude")
+    if env_lat is not None and env_lon is not None:
+        try:
+            latitude, longitude = float(env_lat), float(env_lon)
+        except ValueError:
+            return None
+    elif isinstance(y_lat, (int, float)) and isinstance(y_lon, (int, float)) and not (
+        isinstance(y_lat, bool) or isinstance(y_lon, bool)
+    ):
+        latitude, longitude = float(y_lat), float(y_lon)
+    else:
+        return None
+    timezone = _env("TIMEZONE", loc.get("timezone", "Europe/Berlin")) or "Europe/Berlin"
+    return LocationConfig(latitude=latitude, longitude=longitude, timezone=timezone)
+
+
 def load_config(path: Path | None = None) -> AppConfig:
     """Load configuration from YAML, with environment overrides."""
     path = path or Path(_env("WEATHER_CONFIG") or _DEFAULT_CONFIG_PATH)
     raw = _load_yaml(path)
 
-    loc = raw.get("location", {}) or {}
-    location = LocationConfig(
-        latitude=_env_float("LATITUDE", float(loc.get("latitude", 52.52))),
-        longitude=_env_float("LONGITUDE", float(loc.get("longitude", 13.405))),
-        timezone=_env("TIMEZONE", loc.get("timezone", "Europe/Berlin")) or "Europe/Berlin",
-    )
+    location = _load_location(raw)
 
     rad = raw.get("radar", {}) or {}
     radar = RadarConfig(

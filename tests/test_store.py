@@ -168,6 +168,55 @@ async def test_migrates_old_db_once(tmp_path):
         await s3.close()
 
 
+# ---------------------------------------------------------------------------
+# app meta + location data clearing (step 8b)
+# ---------------------------------------------------------------------------
+async def test_meta_round_trip_and_missing_key(store):
+    assert await store.get_meta("location") is None
+    await store.set_meta("location", '{"latitude": 52.0}')
+    assert await store.get_meta("location") == '{"latitude": 52.0}'
+    await store.set_meta("location", '{"latitude": 52.52}')
+    assert await store.get_meta("location") == '{"latitude": 52.52}'
+
+
+async def test_meta_persists_across_connections(tmp_path):
+    db = str(tmp_path / "weather.db")
+    s1 = Store(db)
+    try:
+        await s1.connect()
+        await s1.set_meta("location", '{"latitude": 52.0, "longitude": 13.0}')
+    finally:
+        await s1.close()
+    s2 = Store(db)
+    try:
+        await s2.connect()
+        assert await s2.get_meta("location") == '{"latitude": 52.0, "longitude": 13.0}'
+    finally:
+        await s2.close()
+
+
+async def test_clear_location_data_wipes_cache_and_history_only(store):
+    await store.put_cache("radar", {"radar": []})
+    await store.put_cache("current", {"weather": {}})
+    await store.add_forecasts(
+        [
+            _row("icon_d2", "2025-01-01T11:00:00Z", "2025-01-01T12:00:00Z", 0.5),
+            _row("icon_eu", "2025-01-01T11:00:00Z", "2025-01-01T12:00:00Z", 0.2),
+        ]
+    )
+    await store.set_observation("2025-01-01T12:00:00Z", 0.3)
+    await store.set_meta("location", '{"latitude": 52.0, "longitude": 13.0}')
+
+    await store.clear_location_data()
+
+    payload, age = await store.get_cache("radar")
+    assert payload is None and age is None
+    assert await store.get_cache("current") == (None, None)
+    assert len(await _rows(store)) == 0
+    # the stored location itself must survive a location change
+    assert await store.get_meta("location") == '{"latitude": 52.0, "longitude": 13.0}'
+
+
 async def test_v2_db_migrates_to_v3_dropping_model_accuracy(tmp_path):
     """A DB written by the 6c code (version 2, with the unused
     ``model_accuracy`` table) migrates to v3 once and keeps its data."""

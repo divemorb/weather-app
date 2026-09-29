@@ -1,8 +1,8 @@
 # Weather App — local multi-source rain forecast
 
-Aggregates weather for one fixed location (configured in `weather.yaml`,
-defaults to Berlin) from **free, keyless sources** and answers one
-question prominently:
+Aggregates weather for one fixed location (set in the browser on first run,
+stored in the app's database — see "Configuration") from **free, keyless
+sources** and answers one question prominently:
 
 > **What is the probability of rain in the next 60 minutes?**
 
@@ -53,7 +53,18 @@ All runtime settings live in **`weather.yaml`** (repo root). Key sections:
 
 | Key | Meaning | Default |
 | --- | --- | --- |
-| `location.*` | latitude / longitude / display timezone | your location, `Europe/Berlin` |
+| `location.*` | latitude / longitude / display timezone | — (set in the browser, see below) |
+
+**Location.** The home location is *runtime state*: it is stored in the
+app's database (`/data` volume), not in the repo. On first run the page
+shows a setup wizard — search an address (OpenStreetMap Nominatim) or type
+latitude/longitude — and the app starts fetching. From then on the 📍
+button in the header changes the location (cached data and the
+accuracy history of the old location are deleted). `LATITUDE`/`LONGITUDE`
+env vars or a `location:` block in `weather.yaml` only *seed* the location
+on first start (adopted into the database); afterwards the stored value
+wins. The display timezone defaults to `Europe/Berlin` and can be set via
+`TIMEZONE` / `location.timezone`.
 | `radar.radius_km` | "local rain" radius around you | `1.0` |
 | `probability.weights.{radar,models,ensemble}` | combination weights | `0.5 / 0.3 / 0.2` |
 | `probability.model_rain_threshold_mm` | model rain threshold | `0.1` |
@@ -281,7 +292,7 @@ tests/
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /healthz` | liveness |
-| `GET /api/config` | location, timezone, weights (for UI labels) |
+| `GET /api/config` | `configured` flag, location, timezone, weights (for UI labels) |
 | `GET /api/now` | current conditions tile |
 | `GET /api/rain-probability` | combined % + per-source breakdown |
 | `GET /api/radar/next-hour` | 12 x 5-minute radar bar |
