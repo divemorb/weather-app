@@ -7,14 +7,13 @@
  *   - 24 h multi-model precipitation chart (inline SVG, chart.js)
  *   - model accuracy card (accuracy.js, step 6f)
  *   - per-source age / staleness
- *   - countdown to the next backend refresh (radar, models) and page reload
- *     (countdown.js, step 8a)
+ *   - setup wizard for the home location (setup.js, step 8d)
  *
  * No build step, no external CDN: plain JS + inline SVG so it works on a
  * home network with no outbound calls beyond the API itself.
  *
- * Loaded last, after chart.js, accuracy.js and countdown.js (see
- * index.html); those scripts run first and share this one global scope.
+ * Loaded last, after chart.js, accuracy.js, countdown.js and setup.js
+ * (see index.html); those scripts run first and share this one global scope.
  */
 "use strict";
 
@@ -55,6 +54,14 @@ const els = {
 
 let cfg = null;
 let tz = "UTC";
+
+/* Small DOM helper: createElement + optional className + textContent. */
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text != null) node.textContent = text;
+  return node;
+}
 
 /* ------------------------------------------------------------------ *
  * Fetching
@@ -130,9 +137,7 @@ function renderHero(data) {
     els.heroCard.classList.add(pct < 34 ? "low" : pct < 67 ? "mid" : "high");
   }
 
-  els.heroExplain.textContent = hasSignal
-    ? data.explanation
-    : "Waiting for the first cached forecast (radar + models).";
+  els.heroExplain.textContent = hasSignal ? data.explanation : "Waiting for the first cached forecast (radar + models).";
   els.heroExplain.classList.toggle("muted", !hasSignal);
 
   // Breakdown chips.
@@ -155,16 +160,9 @@ function renderHero(data) {
 
   els.heroChips.innerHTML = "";
   for (const c of chips) {
-    const el = document.createElement("span");
-    el.className = "chip" + (c.on ? " on" : "");
-    el.textContent = c.text;
-    if (c.age != null) {
-      const t = document.createElement("span");
-      t.className = "muted";
-      t.textContent = ` · ${fmtAge(c.age)}`;
-      el.appendChild(t);
-    }
-    els.heroChips.appendChild(el);
+    const chip = el("span", "chip" + (c.on ? " on" : ""), c.text);
+    if (c.age != null) chip.appendChild(el("span", "muted", ` · ${fmtAge(c.age)}`));
+    els.heroChips.appendChild(chip);
   }
 }
 
@@ -204,15 +202,8 @@ function renderNow(data) {
   const grid = document.createElement("div");
   grid.className = "now-stats";
   for (const [label, value] of stats) {
-    const item = document.createElement("div");
-    item.className = "now-item";
-    const lab = document.createElement("span");
-    lab.className = "now-label";
-    lab.textContent = label;
-    const val = document.createElement("span");
-    val.className = "now-val";
-    val.textContent = value;
-    item.append(lab, val);
+    const item = el("div", "now-item");
+    item.append(el("span", "now-label", label), el("span", "now-val", value));
     grid.appendChild(item);
   }
   els.nowGrid.appendChild(grid);
@@ -330,15 +321,22 @@ function renderConfig(c) {
   cfg = c;
   tz = (c.location && c.location.timezone) || "UTC";
   if (c.configured === false || !c.location) {
-    // Unconfigured (step 8b): the setup wizard (step 8d) asks for the
-    // location — don't call toFixed() on the null coordinates.
+    // Unconfigured (step 8b/8d): the wizard asks for the location.
     els.subtitle.textContent = "no location set";
     return;
   }
   const { latitude, longitude } = c.location;
-  els.subtitle.textContent =
-    `${latitude.toFixed(3)}, ${longitude.toFixed(3)} · ${tz}` +
-    (c.location.label ? ` · ${c.location.label}` : "");
+  els.subtitle.textContent = `${latitude.toFixed(3)}, ${longitude.toFixed(3)} · ${tz}` + (c.location.label ? ` · ${c.location.label}` : "");
+}
+
+/* Hook for setup.js (step 8d): the location was saved — re-read the config
+ * (subtitle shows the label, if any) and start the load loop. */
+async function onLocationSaved() {
+  try { renderConfig(await getJSON("/api/config")); } catch (e) { console.error(e); }
+  els.heroExplain.textContent = "Fetching first data…";
+  els.heroExplain.classList.add("muted");
+  await load();
+  if (!loadTimer) scheduleNextLoad(); // first run: the loop wasn't started yet
 }
 
 /* ------------------------------------------------------------------ *
@@ -363,10 +361,8 @@ async function load() {
     renderSources(sources);
     if (els.refreshBadge) {
       els.refreshBadge.hidden = false;
-      const oldest = [rain.radar_age_seconds, rain.models_age_seconds]
-        .filter((v) => v != null)
-        .sort((a, b) => b - a)[0];
-      els.refreshBadge.textContent = `updated ${fmtAge(oldest == null ? null : oldest)} ago`;
+      const oldest = [rain.radar_age_seconds, rain.models_age_seconds].filter((v) => v != null).sort((a, b) => b - a)[0];
+      els.refreshBadge.textContent = `updated ${fmtAge(oldest)} ago`; // fmtAge: null -> "n/a"
     }
   } catch (e) {
     console.error(e);
@@ -378,20 +374,26 @@ async function load() {
  * Boot
  * ------------------------------------------------------------------ */
 initTheme();
-els.themeToggle.addEventListener("click", () => {
-  const cur = document.documentElement.getAttribute("data-theme");
-  applyTheme(cur === "dark" ? "light" : "dark");
-});
+els.themeToggle.addEventListener("click", () =>
+  applyTheme(document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark")
+);
 
 (async function start() {
+  let configured = null;
   try {
-    renderConfig(await getJSON("/api/config"));
+    const c = await getJSON("/api/config");
+    renderConfig(c);
+    configured = c.configured;
   } catch (e) {
     console.error(e);
     els.subtitle.textContent = "configuration unavailable";
   }
-  await load();
-  scheduleNextLoad();
   renderCountdowns();
   setInterval(renderCountdowns, 1000);
+  if (configured === false) {
+    openSetup("first"); // first run: ask for the location, start later (setup.js)
+    return;
+  }
+  await load();
+  scheduleNextLoad();
 })();

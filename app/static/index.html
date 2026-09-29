@@ -19,9 +19,59 @@
       </div>
       <div class="actions">
         <span class="badge" id="refresh-badge" hidden>—</span>
+        <button id="location-btn" class="btn" type="button" aria-label="Change location" title="Change location">📍</button>
         <button id="theme-toggle" class="btn" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">🌙</button>
       </div>
     </header>
+
+    <!-- Setup wizard (step 8d): shown until a location is saved -->
+    <section class="card setup" id="setup" hidden>
+      <div class="card-head"><h2>Set your location</h2></div>
+      <p class="muted setup-intro">
+        Pick the spot this app watches for rain. It is stored in the app's
+        database and drives the radar, the models and the accuracy tracking.
+      </p>
+
+      <div class="setup-block">
+        <label class="setup-label" for="setup-search">Search an address or place</label>
+        <div class="setup-search-row">
+          <input id="setup-search" type="text" autocomplete="off" spellcheck="false"
+                 placeholder="Address or place, e.g. Marienplatz 1, München" />
+          <button id="setup-search-btn" class="btn btn-wide" type="button">Search</button>
+        </div>
+        <ul class="setup-results" id="setup-results" hidden></ul>
+      </div>
+
+      <div class="setup-divider" aria-hidden="true"><span>or coordinates</span></div>
+
+      <div class="setup-block">
+        <div class="setup-coords">
+          <div>
+            <label class="setup-label" for="setup-lat">Latitude</label>
+            <input id="setup-lat" type="text" inputmode="decimal" autocomplete="off" placeholder="48.137" />
+          </div>
+          <div>
+            <label class="setup-label" for="setup-lon">Longitude</label>
+            <input id="setup-lon" type="text" inputmode="decimal" autocomplete="off" placeholder="11.575" />
+          </div>
+        </div>
+        <label class="setup-label" for="setup-tz">Timezone</label>
+        <input id="setup-tz" type="text" autocomplete="off" spellcheck="false" placeholder="Europe/Berlin" />
+      </div>
+
+      <div class="setup-actions">
+        <button id="setup-save" class="btn btn-wide" type="button">Save location</button>
+        <button id="setup-cancel" class="btn btn-wide" type="button" hidden>Cancel</button>
+      </div>
+
+      <p class="setup-status" id="setup-status" aria-live="polite"></p>
+
+      <p class="setup-note muted">
+        Address search uses OpenStreetMap Nominatim; the text is sent from this
+        app's server. Radar covers Germany only; elsewhere the forecast uses the
+        weather models only.
+      </p>
+    </section>
 
     <!-- Countdown to the next backend refresh and page reload -->
     <div class="refresh-strip" id="refresh-strip" hidden>
@@ -109,6 +159,7 @@
   <script src="/chart.js"></script>
   <script src="/accuracy.js"></script>
   <script src="/countdown.js"></script>
+  <script src="/setup.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

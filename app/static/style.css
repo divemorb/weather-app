@@ -181,6 +181,42 @@ a { color: var(--accent); }
 .source-err { color: var(--bad); font-size: 12px; padding-left: 84px; }
 .attr { color: var(--muted); font-size: 12px; margin: 16px 0 0; }
 
+/* ---- setup wizard (step 8d) ---- */
+.setup[hidden] { display: none; }
+.setup-intro { margin: 0 0 14px; font-size: 13px; max-width: 62ch; }
+.setup-block { margin-bottom: 14px; }
+.setup-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.setup-search-row { display: flex; gap: 8px; }
+.setup-search-row input { flex: 1; }
+.setup input[type="text"] {
+  background: var(--card-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; font-size: 14px; width: 100%;
+}
+.setup input[type="text"]:focus { outline: none; border-color: var(--accent); }
+.setup-results { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.setup-result {
+  display: block; width: 100%; text-align: left;
+  background: var(--card-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; font-size: 13px; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.setup-result:hover { border-color: var(--accent); }
+.setup-divider {
+  display: flex; align-items: center; gap: 10px;
+  color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em;
+  margin: 14px 0;
+}
+.setup-divider::before,
+.setup-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.setup-coords { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.setup-actions { display: flex; gap: 8px; margin-top: 4px; }
+.btn-wide { width: auto; min-width: 140px; padding: 0 18px; font-size: 14px; }
+.setup-status { min-height: 20px; margin: 10px 0 0; font-size: 13px; }
+.setup-status.error { color: var(--bad); }
+.setup-note { margin: 12px 0 0; font-size: 12px; }
+
 /* ---- responsive ---- */
 @media (max-width: 560px) {
   .wrap { padding: 12px 12px 32px; }
@@ -189,4 +225,8 @@ a { color: var(--accent); }
   .source-upstream { display: none; }
   .source-err { padding-left: 0; }
   .radar-tick { font-size: 9px; }
+  .setup-search-row { flex-direction: column; }
+  .setup-coords { grid-template-columns: 1fr; }
+  .setup-actions { flex-wrap: wrap; }
+  .btn-wide { flex: 1; }
 }
