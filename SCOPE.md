@@ -160,7 +160,7 @@ The app is meant for a **trusted home network**.
 
 ## Technology
 
-- **Backend:** Python 3.12, FastAPI, uvicorn, httpx (async), APScheduler,
+- **Backend:** Python 3.12, FastAPI, uvicorn, httpx2 (async), APScheduler,
   SQLite (aiosqlite), PyYAML.
 - **Storage:** one SQLite file: cached upstream responses, forecast history
   with observations, app settings (including the location).

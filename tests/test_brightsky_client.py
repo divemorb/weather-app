@@ -1,7 +1,7 @@
 """Unit tests for the Bright Sky client parsers (step 8a).
 
 Parser tests use synthetic payloads (no network). The HTTP-layer tests
-(``httpx.MockTransport``) live in ``tests/test_brightsky_http.py``.
+(``httpx2.MockTransport``) live in ``tests/test_brightsky_http.py``.
 """
 from __future__ import annotations
 

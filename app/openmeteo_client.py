@@ -28,7 +28,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any
 
-import httpx
+import httpx2
 
 from .brightsky_client import SourceError, malformed_is_source_error, stream_json_capped
 from .config import AppConfig
@@ -132,7 +132,7 @@ def parse_ensemble(payload: dict[str, Any]) -> EnsembleData:
 
 
 class OpenMeteoClient:
-    def __init__(self, cfg: AppConfig, client: httpx.AsyncClient | None = None):
+    def __init__(self, cfg: AppConfig, client: httpx2.AsyncClient | None = None):
         self._forecast_base = cfg.api.open_meteo_base_url.rstrip("/")
         self._ensemble_base = cfg.api.ensemble_base_url.rstrip("/")
         self._timeout = cfg.api.timeout_seconds
@@ -142,7 +142,7 @@ class OpenMeteoClient:
         self._forecast_models: list[str] = list(cfg.models.forecast)
         self._ensemble_model: str = cfg.models.ensemble_model
         self._owns_client = client is None
-        self._http = client or httpx.AsyncClient(timeout=self._timeout)
+        self._http = client or httpx2.AsyncClient(timeout=self._timeout)
 
     async def aclose(self) -> None:
         if self._owns_client:

@@ -1,12 +1,12 @@
 """Unit tests for the Open-Meteo client (parsers + HTTP layer).
 
 Parser tests use synthetic multi-model / ensemble payloads (no network).
-HTTP-layer tests use ``httpx.MockTransport``.
+HTTP-layer tests use ``httpx2.MockTransport``.
 """
 from __future__ import annotations
 
 import pytest
-import httpx
+import httpx2
 
 from app.openmeteo_client import OpenMeteoClient, parse_forecast, parse_ensemble
 from app.brightsky_client import MAX_RESPONSE_BYTES, SourceError
@@ -174,13 +174,13 @@ async def test_client_forecast_builds_correct_params():
     cfg = make_cfg(forecast=("icon_d2", "icon_eu"))
     seen: dict[str, str] = {}
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         seen["url"] = str(request.url)
         seen["params"] = dict(request.url.params)
-        return httpx.Response(200, json=_forecast_payload())
+        return httpx2.Response(200, json=_forecast_payload())
 
     client = OpenMeteoClient(
-        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        cfg, client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
     )
     bundle = await client.fetch_forecast()
     assert len(bundle.models) == 2
@@ -196,13 +196,13 @@ async def test_client_ensemble_builds_correct_params():
     cfg = make_cfg(ensemble_model="ecmwf_ifs025")
     seen: dict[str, str] = {}
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         seen["url"] = str(request.url)
         seen["params"] = dict(request.url.params)
-        return httpx.Response(200, json=_ensemble_payload())
+        return httpx2.Response(200, json=_ensemble_payload())
 
     client = OpenMeteoClient(
-        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        cfg, client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
     )
     data = await client.fetch_ensemble()
     assert data.n_members == 3
@@ -214,11 +214,11 @@ async def test_client_ensemble_builds_correct_params():
 async def test_client_api_error_json_raises_source_error():
     cfg = make_cfg()
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"error": True, "reason": "invalid model"})
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, json={"error": True, "reason": "invalid model"})
 
     client = OpenMeteoClient(
-        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        cfg, client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
     )
     with pytest.raises(SourceError):
         await client.fetch_forecast()
@@ -230,11 +230,11 @@ async def test_client_rejects_body_over_response_size_cap():
     # with a SourceError, never fully buffered
     cfg = make_cfg()
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, content=b"x" * (MAX_RESPONSE_BYTES + 1))
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, content=b"x" * (MAX_RESPONSE_BYTES + 1))
 
     client = OpenMeteoClient(
-        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        cfg, client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
     )
     with pytest.raises(SourceError, match="cap"):
         await client.fetch_forecast_payload()

@@ -6,7 +6,7 @@ to coordinates. Verified against the live API:
   * ``GET /search?q=<text>&format=jsonv2&limit=5&addressdetails=0`` answers
     with a JSON **list**; each entry has ``"lat"`` / ``"lon"`` as **strings**
     (e.g. ``"48.1374990"``) and a ``"display_name"``. No match -> ``[]``.
-  * A **custom ``User-Agent`` is required**: the httpx default
+  * A **custom ``User-Agent`` is required**: the httpx2 default
     (``python-httpx/...``) and an empty UA get a 403.
   * Usage policy: max 1 request per second, search only on an explicit
     button press (no autocomplete), cache results.
@@ -22,7 +22,7 @@ import math
 import time
 from typing import Any, Awaitable, Callable
 
-import httpx
+import httpx2
 
 from .upstream import (
     SourceError,
@@ -30,7 +30,7 @@ from .upstream import (
     stream_json_capped,
 )
 
-#: Required by the Nominatim usage policy (the httpx default UA gets 403).
+#: Required by the Nominatim usage policy (the httpx2 default UA gets 403).
 USER_AGENT = "WetterLocal/1.0 (self-hosted home weather app)"
 
 #: Nominatim usage policy: max 1 request per second; wait a little more.
@@ -81,7 +81,7 @@ class Geocoder:
     def __init__(
         self,
         base_url: str,
-        transport: httpx.AsyncBaseTransport | None = None,
+        transport: httpx2.AsyncBaseTransport | None = None,
         clock: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ):
@@ -91,7 +91,7 @@ class Geocoder:
         self._cache: dict[str, list[dict[str, Any]]] = {}
         self._lock = asyncio.Lock()
         self._last_request_at = -math.inf  # first request never sleeps
-        self._http = httpx.AsyncClient(
+        self._http = httpx2.AsyncClient(
             timeout=10, headers={"User-Agent": USER_AGENT}, transport=transport
         )
 

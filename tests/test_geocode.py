@@ -1,12 +1,12 @@
 """Tests for the Nominatim address search (step 8c2).
 
 Parser tests are pure (real-shaped sample from the live API); client tests
-use ``httpx.MockTransport`` with a constant fake clock and a fake sleep that
+use ``httpx2.MockTransport`` with a constant fake clock and a fake sleep that
 records its argument, so the throttle is verified without real waiting.
 """
 from __future__ import annotations
 
-import httpx
+import httpx2
 import pytest
 
 from app.geocode import Geocoder, parse_nominatim
@@ -89,7 +89,7 @@ def test_parse_nominatim_caps_at_five():
 def _geocoder(handler, requests, sleeps, clock_value=1000.0):
     g = Geocoder(
         "https://nominatim.openstreetmap.org",
-        transport=httpx.MockTransport(handler),
+        transport=httpx2.MockTransport(handler),
         clock=lambda: clock_value,
         sleep=lambda wait: _record(sleeps, wait),
     )
@@ -101,15 +101,15 @@ async def _record(sleeps, wait):
 
 
 def _handler(payload, requests):
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         requests.append(request)
-        return httpx.Response(200, json=payload)
+        return httpx2.Response(200, json=payload)
 
     return handler
 
 
 async def test_search_request_carries_user_agent_and_jsonv2_params():
-    requests: list[httpx.Request] = []
+    requests: list[httpx2.Request] = []
     sleeps: list[float] = []
     g = _geocoder(_handler(NOMINATIM_SAMPLE, requests), requests, sleeps)
     results = await g.search("Marienplatz 1, München")
@@ -124,7 +124,7 @@ async def test_search_request_carries_user_agent_and_jsonv2_params():
 
 
 async def test_search_caches_identical_query_including_case():
-    requests: list[httpx.Request] = []
+    requests: list[httpx2.Request] = []
     sleeps: list[float] = []
     g = _geocoder(_handler(NOMINATIM_SAMPLE, requests), requests, sleeps)
     first = await g.search("münchen")
@@ -136,7 +136,7 @@ async def test_search_caches_identical_query_including_case():
 
 
 async def test_search_throttles_two_different_queries():
-    requests: list[httpx.Request] = []
+    requests: list[httpx2.Request] = []
     sleeps: list[float] = []
     g = _geocoder(_handler(NOMINATIM_SAMPLE, requests), requests, sleeps)
     await g.search("query one")
@@ -150,7 +150,7 @@ async def test_search_throttles_two_different_queries():
 
 
 async def test_search_first_request_never_sleeps():
-    requests: list[httpx.Request] = []
+    requests: list[httpx2.Request] = []
     sleeps: list[float] = []
     g = _geocoder(_handler(NOMINATIM_SAMPLE, requests), requests, sleeps)
     await g.search("only one")
@@ -160,12 +160,12 @@ async def test_search_first_request_never_sleeps():
 
 
 async def test_search_upstream_error_is_source_error_and_not_cached():
-    requests: list[httpx.Request] = []
+    requests: list[httpx2.Request] = []
     sleeps: list[float] = []
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         requests.append(request)
-        return httpx.Response(503, json={"detail": "unavailable"})
+        return httpx2.Response(503, json={"detail": "unavailable"})
 
     g = _geocoder(handler, requests, sleeps)
     with pytest.raises(SourceError):

@@ -13,7 +13,7 @@ import functools
 import json
 from typing import Any, Callable
 
-import httpx
+import httpx2
 
 #: Hard cap for upstream response bodies (memory + SQLite cache protection).
 #: Real payloads are ~20 KB (forecast), ~16 KB (ensemble), ~9 KB (radar) and
@@ -60,7 +60,7 @@ def malformed_is_source_error(label: str) -> Callable:
 
 
 async def stream_json_capped(
-    http: httpx.AsyncClient, url: str, params: dict[str, Any]
+    http: httpx2.AsyncClient, url: str, params: dict[str, Any]
 ) -> Any:
     """GET ``url`` and parse the JSON body, aborting above MAX_RESPONSE_BYTES.
 
@@ -95,7 +95,7 @@ async def stream_json_capped(
                     )
                 chunks.append(chunk)
             body = b"".join(chunks)
-    except (httpx.HTTPError, ValueError) as exc:
+    except (httpx2.HTTPError, ValueError) as exc:
         raise SourceError(f"request failed: {exc}") from exc
     try:
         return json.loads(body)

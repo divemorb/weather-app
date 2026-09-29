@@ -45,7 +45,7 @@ import zlib
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-import httpx
+import httpx2
 
 from .config import AppConfig
 from .models import CurrentConditions, RadarCell, RadarFrame, RadarNowcast
@@ -268,14 +268,14 @@ def parse_station_info(payload: dict[str, Any]) -> tuple[str, float] | None:
 # HTTP client
 # ---------------------------------------------------------------------------
 class BrightSkyClient:
-    def __init__(self, cfg: AppConfig, client: httpx.AsyncClient | None = None):
+    def __init__(self, cfg: AppConfig, client: httpx2.AsyncClient | None = None):
         self._base = cfg.api.brightsky_base_url.rstrip("/")
         self._timeout = cfg.api.timeout_seconds
         loc = cfg.location  # None while unconfigured (step 8b)
         self._lat = loc.latitude if loc is not None else None
         self._lon = loc.longitude if loc is not None else None
         self._owns_client = client is None
-        self._http = client or httpx.AsyncClient(timeout=self._timeout)
+        self._http = client or httpx2.AsyncClient(timeout=self._timeout)
 
     async def aclose(self) -> None:
         if self._owns_client:

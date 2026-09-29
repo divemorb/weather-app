@@ -1,7 +1,7 @@
 """HTTP-layer tests for the Bright Sky client (step 8a, moved out of
 test_brightsky_client.py).
 
-Uses ``httpx.MockTransport`` to avoid any real requests. The parser tests
+Uses ``httpx2.MockTransport`` to avoid any real requests. The parser tests
 stay in ``test_brightsky_client.py``.
 """
 from __future__ import annotations
@@ -11,7 +11,7 @@ import time
 import zlib
 from datetime import datetime, timezone
 
-import httpx
+import httpx2
 import pytest
 
 from app.brightsky_client import BrightSkyClient, MAX_RESPONSE_BYTES, SourceError
@@ -28,12 +28,12 @@ async def test_client_fetch_weather_payload_requests_window():
     cfg = make_cfg()
     seen: dict[str, str] = {}
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         seen["url"] = str(request.url)
-        return httpx.Response(200, json=make_weather_payload())
+        return httpx2.Response(200, json=make_weather_payload())
 
     client = BrightSkyClient(
-        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        cfg, client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
     )
     payload = await client.fetch_weather_payload(
         datetime(2026, 9, 27, 12, 0, tzinfo=timezone.utc),
@@ -51,11 +51,11 @@ async def test_client_fetch_weather_payload_requests_window():
 async def test_client_fetch_weather_payload_http_error():
     cfg = make_cfg()
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(500, json={"detail": "boom"})
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(500, json={"detail": "boom"})
 
     client = BrightSkyClient(
-        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        cfg, client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
     )
     with pytest.raises(SourceError):
         await client.fetch_weather_payload(
@@ -69,12 +69,12 @@ async def test_client_fetch_current_uses_correct_endpoint():
     cfg = make_cfg()
     seen: dict[str, str] = {}
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         seen["url"] = str(request.url)
-        return httpx.Response(200, json=make_current_payload())
+        return httpx2.Response(200, json=make_current_payload())
 
     client = BrightSkyClient(
-        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        cfg, client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
     )
     got = await client.fetch_current()
     assert got.temperature_c == 7.4
@@ -87,10 +87,10 @@ async def test_client_radar_endpoint():
     cfg = make_cfg()
     seen: dict[str, str] = {}
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         seen["url"] = str(request.url)
         g = grid(5, 5)
-        return httpx.Response(
+        return httpx2.Response(
             200,
             json=make_radar_payload(
                 [{"timestamp": "2026-09-25T06:45:00+00:00", "grid": g}]
@@ -98,7 +98,7 @@ async def test_client_radar_endpoint():
         )
 
     client = BrightSkyClient(
-        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        cfg, client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
     )
     nc = await client.fetch_radar()
     assert len(nc.frames) == 1
@@ -117,12 +117,12 @@ async def test_fetch_radar_requests_next_hour_window(monkeypatch):
     )
     params: dict[str, str] = {}
 
-    def handler(request: httpx.Request) -> httpx.Response:
+    def handler(request: httpx2.Request) -> httpx2.Response:
         params.update(request.url.params)
-        return httpx.Response(200, json=make_radar_payload([]))
+        return httpx2.Response(200, json=make_radar_payload([]))
 
     client = BrightSkyClient(
-        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        cfg, client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
     )
     await client.fetch_radar_payload()
     await client.aclose()
@@ -135,11 +135,11 @@ async def test_fetch_radar_requests_next_hour_window(monkeypatch):
 async def test_client_http_error_raises_source_error():
     cfg = make_cfg()
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(500, json={"detail": "boom"})
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(500, json={"detail": "boom"})
 
     client = BrightSkyClient(
-        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        cfg, client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
     )
     with pytest.raises(SourceError, match="Bright Sky /current_weather"):
         await client.fetch_current()
@@ -151,11 +151,11 @@ async def test_client_rejects_body_over_response_size_cap():
     # never fully buffered (memory + SQLite cache protection)
     cfg = make_cfg()
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, content=b"x" * (MAX_RESPONSE_BYTES + 1))
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, content=b"x" * (MAX_RESPONSE_BYTES + 1))
 
     client = BrightSkyClient(
-        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        cfg, client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
     )
     with pytest.raises(SourceError, match="cap"):
         await client.fetch_current_payload()
@@ -168,11 +168,11 @@ async def test_client_deeply_nested_json_raises_source_error():
     # it escapes _fetch_into_cache and skips the rest of the refresh
     cfg = make_cfg()
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, content=b"[" * 100_000 + b"]" * 100_000)
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, content=b"[" * 100_000 + b"]" * 100_000)
 
     client = BrightSkyClient(
-        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        cfg, client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
     )
     with pytest.raises(SourceError, match="not valid JSON"):
         await client.fetch_current_payload()
@@ -183,11 +183,11 @@ async def test_client_normal_body_still_parses_with_streaming():
     # regression guard: the streamed path still returns parsed dicts
     cfg = make_cfg()
 
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json=make_current_payload())
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, json=make_current_payload())
 
     client = BrightSkyClient(
-        cfg, client=httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        cfg, client=httpx2.AsyncClient(transport=httpx2.MockTransport(handler))
     )
     payload = await client.fetch_current_payload()
     assert payload["weather"]["temperature"] == 7.4
