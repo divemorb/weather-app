@@ -177,6 +177,10 @@ async def add_security_headers(request: Request, call_next):
             response = PlainTextResponse("Internal Server Error", status_code=500)
     for name, value in _SECURITY_HEADERS.items():
         response.headers[name] = value
+    # Without Cache-Control the browser guesses a freshness period and keeps
+    # using an old app.js after an update. "no-cache" makes it revalidate
+    # every time; unchanged static files still answer 304 via their ETag.
+    response.headers["Cache-Control"] = "no-cache"
     return response
 
 

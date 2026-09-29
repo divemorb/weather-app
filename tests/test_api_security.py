@@ -47,6 +47,23 @@ def test_security_headers_on_api_and_static(client, url):
         assert r.headers.get(name) == value
 
 
+@pytest.mark.parametrize("url", ["/api/sources", "/", "/app.js"])
+def test_responses_are_revalidated(client, url):
+    """Cache-Control: no-cache on every response, so the browser picks up a
+    new app.js after an update instead of reusing a stale cached copy."""
+    c = client(FakeAgg(sources=make_sources()))
+    assert c.get(url).headers.get("cache-control") == "no-cache"
+
+
+def test_unchanged_static_file_answers_304(client):
+    """Revalidation stays cheap: the ETag still yields 304 Not Modified."""
+    c = client(FakeAgg())
+    etag = c.get("/app.js").headers["etag"]
+    r = c.get("/app.js", headers={"If-None-Match": etag})
+    assert r.status_code == 304
+    assert r.headers.get("cache-control") == "no-cache"
+
+
 @pytest.mark.parametrize("url", ["/docs", "/redoc", "/openapi.json"])
 def test_api_docs_off_by_default(client, url):
     """/docs, /redoc and /openapi.json are 404 unless ENABLE_API_DOCS=true
