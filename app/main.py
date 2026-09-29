@@ -35,7 +35,7 @@ from .api_serializers import (
 from .brightsky_client import BrightSkyClient
 from .config import AppConfig, _env_bool, load_config
 from .openmeteo_client import OpenMeteoClient
-from .scheduler import build_scheduler, initial_refresh
+from .scheduler import build_scheduler, initial_refresh, schedule_status
 from .store import Store
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -61,6 +61,7 @@ async def lifespan(app: FastAPI):
 
     app.state.cfg = cfg
     app.state.aggregator = aggregator
+    app.state.scheduler = scheduler
     log.info("weather app started (db=%s)", cfg.database_path)
     try:
         yield
@@ -201,6 +202,14 @@ async def api_model_accuracy(request: Request) -> dict:
 async def api_sources(request: Request) -> dict:
     agg: Aggregator = request.app.state.aggregator
     return await agg.get_source_status()
+
+
+@app.get("/api/schedule")
+async def api_schedule(request: Request) -> dict:
+    """Next backend refresh per job (radar / models), for the UI countdown."""
+    cfg: AppConfig = request.app.state.cfg
+    scheduler = getattr(request.app.state, "scheduler", None)
+    return schedule_status(scheduler, cfg)
 
 
 if _STATIC_DIR.exists():

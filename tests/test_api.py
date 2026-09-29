@@ -385,6 +385,39 @@ def test_api_sources(client):
 
 
 # ---------------------------------------------------------------------------
+# /api/schedule (UI countdown to the next backend refresh)
+# ---------------------------------------------------------------------------
+class FakeScheduler:
+    def __init__(self, next_runs):
+        self._next_runs = next_runs
+
+    def get_job(self, job_id):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(next_run_time=self._next_runs.get(job_id))
+
+
+def test_api_schedule(client, cfg):
+    c = client(FakeAgg())
+    app.state.scheduler = FakeScheduler(
+        {"radar_refresh": datetime(2026, 9, 29, 14, 5, 5, tzinfo=timezone.utc)}
+    )
+    try:
+        r = c.get("/api/schedule")
+    finally:
+        del app.state.scheduler
+    assert r.status_code == 200
+    body = r.json()
+    assert body["server_time_utc"].endswith("Z")
+    assert body["jobs"]["radar"] == {
+        "interval_minutes": cfg.scheduling.radar_interval_minutes,
+        "next_run_utc": "2026-09-29T14:05:05Z",
+        "sources": ["radar", "current"],
+    }
+    assert body["jobs"]["models"]["next_run_utc"] is None
+
+
+# ---------------------------------------------------------------------------
 # security: no CORS, security headers, docs off (step 7b)
 # ---------------------------------------------------------------------------
 _SECURITY_HEADERS = {

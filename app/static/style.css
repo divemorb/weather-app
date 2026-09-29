@@ -77,6 +77,21 @@ a { color: var(--accent); }
 }
 .badge.stale { color: var(--warn); border-color: var(--warn); }
 
+/* ---- refresh countdown strip ---- */
+.refresh-strip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.refresh-strip[hidden] { display: none; }
+.refresh-item {
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 8px 12px; font-size: 12px; color: var(--muted);
+}
+.refresh-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.refresh-label { color: var(--text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.refresh-count { color: var(--text); font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.refresh-item.due .refresh-count { color: var(--accent); }
+.refresh-note { margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.refresh-bar { height: 3px; margin-top: 7px; background: var(--card-2); border-radius: 2px; overflow: hidden; }
+.refresh-bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 1s linear; }
+
 /* ---- cards ---- */
 .card {
   background: var(--card);
@@ -169,6 +184,7 @@ a { color: var(--accent); }
 /* ---- responsive ---- */
 @media (max-width: 560px) {
   .wrap { padding: 12px 12px 32px; }
+  .refresh-strip { grid-template-columns: minmax(0, 1fr); gap: 6px; }
   .now-stats { grid-template-columns: repeat(2, 1fr); }
   .source-upstream { display: none; }
   .source-err { padding-left: 0; }

@@ -23,6 +23,25 @@
       </div>
     </header>
 
+    <!-- Countdown to the next backend refresh and page reload -->
+    <div class="refresh-strip" id="refresh-strip" hidden>
+      <div class="refresh-item" id="refresh-radar">
+        <div class="refresh-head"><span class="refresh-label">Radar &amp; now</span><span class="refresh-count">–</span></div>
+        <div class="refresh-note">DWD via Bright Sky</div>
+        <div class="refresh-bar"><i></i></div>
+      </div>
+      <div class="refresh-item" id="refresh-models">
+        <div class="refresh-head"><span class="refresh-label">Models &amp; ensemble</span><span class="refresh-count">–</span></div>
+        <div class="refresh-note">Open-Meteo</div>
+        <div class="refresh-bar"><i></i></div>
+      </div>
+      <div class="refresh-item" id="refresh-page">
+        <div class="refresh-head"><span class="refresh-label">This page</span><span class="refresh-count">–</span></div>
+        <div class="refresh-note">reloads from the app's cache</div>
+        <div class="refresh-bar"><i></i></div>
+      </div>
+    </div>
+
     <!-- Headline: rain probability in the next 60 minutes -->
     <section class="card hero" id="hero-card">
       <div class="hero-value" id="hero-value">–</div>

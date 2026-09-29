@@ -3,35 +3,46 @@
 Radar (Bright Sky): every N minutes (default 5) — never on page load.
 Models (Open-Meteo): every M minutes (default 60).
 
-Each job runs the corresponding aggregator refresh as a task so a slow or
-failing upstream can't block the scheduler; the aggregator itself tolerates
-:exc:`SourceError` (keeps the stale cache, records the last error).
+The jobs are coroutines: APScheduler's asyncio executor runs them as tasks
+on the app's event loop, so a slow or failing upstream can't block the
+scheduler, and ``max_instances=1`` skips a run while the previous one is
+still busy. (A plain ``def`` job would run in a worker thread, where there
+is no event loop to schedule the refresh on.) The aggregator itself
+tolerates :exc:`SourceError` (keeps the stale cache, records the last error).
 """
 from __future__ import annotations
 
 import asyncio
 import logging
+from typing import Any
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 from .aggregator import Aggregator
 from .config import AppConfig
+from .times import to_iso, utcnow
 
 log = logging.getLogger("weather.scheduler")
+
+#: Scheduler job id -> cache sources that job refreshes (for the UI).
+JOB_SOURCES = {
+    "radar_refresh": ("radar", "current"),
+    "models_refresh": ("forecast", "ensemble"),
+}
 
 
 def build_scheduler(cfg: AppConfig, aggregator: Aggregator) -> AsyncIOScheduler:
     """Create (do NOT start) the scheduler with both refresh jobs."""
     scheduler = AsyncIOScheduler(timezone="UTC")
 
-    def _radar_job() -> None:
+    async def _radar_job() -> None:
         log.info("scheduled radar refresh")
-        asyncio.ensure_future(_guarded(aggregator.refresh_radar, "radar"))
+        await _guarded(aggregator.refresh_radar, "radar")
 
-    def _models_job() -> None:
+    async def _models_job() -> None:
         log.info("scheduled models refresh")
-        asyncio.ensure_future(_guarded(aggregator.refresh_models, "models"))
+        await _guarded(aggregator.refresh_models, "models")
 
     scheduler.add_job(
         _radar_job,
@@ -50,6 +61,29 @@ def build_scheduler(cfg: AppConfig, aggregator: Aggregator) -> AsyncIOScheduler:
         replace_existing=True,
     )
     return scheduler
+
+
+def schedule_status(scheduler: Any, cfg: AppConfig) -> dict[str, Any]:
+    """Next run time per refresh job, for the UI countdown.
+
+    ``server_time_utc`` lets the browser correct for its own clock offset.
+    ``next_run_utc`` is None while the scheduler isn't running (a job added
+    before ``start()`` has no next run time yet).
+    """
+    intervals = {
+        "radar_refresh": cfg.scheduling.radar_interval_minutes,
+        "models_refresh": cfg.scheduling.models_interval_minutes,
+    }
+    jobs: dict[str, Any] = {}
+    for job_id, sources in JOB_SOURCES.items():
+        job = scheduler.get_job(job_id) if scheduler is not None else None
+        next_run = getattr(job, "next_run_time", None)
+        jobs[job_id.removesuffix("_refresh")] = {
+            "interval_minutes": intervals[job_id],
+            "next_run_utc": to_iso(next_run) if next_run else None,
+            "sources": list(sources),
+        }
+    return {"server_time_utc": to_iso(utcnow()), "jobs": jobs}
 
 
 async def initial_refresh(aggregator: Aggregator) -> None:

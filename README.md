@@ -277,6 +277,7 @@ tests/
 | `GET /api/models/24h` | hourly precipitation per model |
 | `GET /api/model-accuracy` | per-model forecast accuracy (window) |
 | `GET /api/sources` | per-source age / staleness |
+| `GET /api/schedule` | next backend refresh per job (UI countdown) |
 
 All timestamps are **UTC** in the API; the frontend converts to
 `Europe/Berlin`.
@@ -414,6 +415,24 @@ is `n_samples >= min_samples`; the UI should grey out rows below that.
 }
 ```
 
+**`GET /api/schedule`** — when the app next polls the upstream services, per
+scheduler job. `next_run_utc` is `null` while the scheduler isn't running;
+`server_time_utc` lets the browser correct for its own clock offset:
+
+```json
+{
+  "server_time_utc": "2026-09-29T14:05:56Z",
+  "jobs": {
+    "radar":  {"interval_minutes": 5,  "next_run_utc": "2026-09-29T14:06:50Z", "sources": ["radar", "current"]},
+    "models": {"interval_minutes": 60, "next_run_utc": "2026-09-29T15:05:50Z", "sources": ["forecast", "ensemble"]}
+  }
+}
+```
+
+The frontend shows this as a countdown strip under the header (radar, models,
+next page reload) and reloads its data 10 s after each scheduled refresh, or
+every 60 s at the latest.
+
 ## Roadmap
 
 - [x] **Step 1** — project structure, Docker Compose, config, skeleton,
@@ -459,3 +478,10 @@ is `n_samples >= min_samples`; the UI should grey out rows below that.
       7f security headers on 500 responses, truncated radar frames rejected,
       fetch errors name the failed upstream, `/tmp` tmpfs bounded (16 MB,
       noexec), orphan `weather_forecast.py` deleted.
+- [x] **Fix: scheduled refreshes** — the refresh jobs were plain functions,
+      which APScheduler runs in a worker thread without an event loop, so
+      every scheduled refresh crashed and only the startup refresh ran (the
+      cache, forecast history and observation backfill froze until the next
+      restart). The jobs are now coroutines, covered by a test that drives a
+      real scheduler. Added `GET /api/schedule` and a countdown strip in the
+      UI (next radar / models refresh, next page reload).
