@@ -1,3 +1,31 @@
-//! Rust port of the weather app backend (see docs/ARCHITECTURE.md).
+use std::sync::Arc;
 
-fn main() {}
+use wetter::routes::{AppState, build_router};
+use wetter::security::parse_allowed_hosts;
+
+#[tokio::main(flavor = "current_thread")]
+async fn main() {
+    tracing_subscriber::fmt().with_target(false).init();
+    let extra_hosts = parse_allowed_hosts(&std::env::var("ALLOWED_HOSTS").unwrap_or_default());
+    let state = AppState {
+        extra_hosts: Arc::new(extra_hosts),
+    };
+    let bind = std::env::var("BIND_ADDR").unwrap_or_else(|_| "0.0.0.0:8000".to_string());
+    let listener = tokio::net::TcpListener::bind(&bind)
+        .await
+        .expect("cannot bind BIND_ADDR");
+    tracing::info!("listening on {bind}");
+    axum::serve(listener, build_router(state))
+        .with_graceful_shutdown(shutdown_signal())
+        .await
+        .expect("server error");
+}
+
+async fn shutdown_signal() {
+    use tokio::signal::unix::{SignalKind, signal};
+    let mut term = signal(SignalKind::terminate()).expect("cannot install SIGTERM handler");
+    tokio::select! {
+        _ = term.recv() => {},
+        _ = tokio::signal::ctrl_c() => {},
+    }
+}
