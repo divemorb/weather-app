@@ -1,0 +1,31 @@
+# Rust backend (port in progress; the Python app in the repo root is still
+# the deployed version). From the repo root:
+#   podman compose -f rust/docker-compose.yml up -d --build --force-recreate
+services:
+  weather:
+    build:
+      context: ..
+      dockerfile: rust/Dockerfile
+    container_name: weather-app-rust
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      DATABASE_PATH: /data/weather.db
+      # ALLOWED_HOSTS: "pi.fritz.box"   # extra host names (router DNS); IPs, localhost and *.local always work
+    volumes:
+      - weather-data:/data
+    restart: always
+    # Same hardening as the Python app: non-root (uid 1000), read-only root
+    # filesystem, only /data (volume) and /tmp (small tmpfs) writable, all
+    # capabilities dropped, no privilege gain, bounded process count.
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid,nodev
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 200
+
+volumes:
+  weather-data:
