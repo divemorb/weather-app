@@ -119,6 +119,17 @@ podman compose up -d
 
 (Docker: `docker compose down` / `docker compose up -d`.)
 
+### Start automatically after a reboot
+
+With Docker this works on its own. With Podman, run these two commands once:
+
+```bash
+sudo loginctl enable-linger $USER
+systemctl --user enable podman-restart.service
+```
+
+The first lets your user's services run at boot without anyone logging in; the second starts the app's container at boot. After the next reboot, `podman ps` should list `weather-app`. A container you removed with `podman compose down` stays off until you start it again.
+
 ### Update to a new version
 
 ```bash

@@ -19,7 +19,7 @@ services:
       - weather-data:/data
     # The app schedules its own refreshes (radar 5 min, models hourly);
     # keep the container alive and restart it on crash/host reboot.
-    restart: unless-stopped
+    restart: always
     # No privileged access needed; these are read-only public APIs.
     # Hardened (step 7d): the image runs as the non-root `app` user
     # (uid 1000) on a read-only root filesystem. Only /data (volume) and
