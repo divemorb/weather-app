@@ -4,6 +4,7 @@ pub mod brightsky;
 pub mod config;
 pub mod models;
 pub mod pyfmt;
+pub mod radar;
 pub mod routes;
 pub mod security;
 pub mod static_files;
