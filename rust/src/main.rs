@@ -16,6 +16,14 @@ async fn main() {
             wetter::times::to_iso(clock.now())
         );
     }
+    let config = match wetter::config::load_config(None, &|k| std::env::var(k).ok()) {
+        Ok(config) => config,
+        Err(err) => {
+            eprintln!("config error: {err}");
+            std::process::exit(1);
+        }
+    };
+    tracing::info!("config loaded (database: {})", config.database_path);
     let extra_hosts = parse_allowed_hosts(&std::env::var("ALLOWED_HOSTS").unwrap_or_default());
     let static_dir = std::env::var("STATIC_DIR").unwrap_or_else(|_| "/app/static".to_string());
     let static_files = match wetter::static_files::load(Path::new(&static_dir)) {
