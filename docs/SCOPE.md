@@ -81,7 +81,7 @@ The app is meant for a **trusted home network**.
 - Security headers on every response, including errors: a strict Content Security Policy, no framing, no referrer, no MIME sniffing.
 - Data from upstream services is never rendered as HTML.
 - The interactive API documentation is off unless explicitly enabled.
-- The container runs as a non-root user on a read-only filesystem, without capabilities, with limits on memory (512 MB) and processes (200).
+- The container runs as a non-root user on a read-only filesystem, without capabilities, with a limit on processes (200).
 
 ### Privacy
 

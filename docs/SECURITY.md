@@ -39,7 +39,7 @@ The app is designed for a **trusted home network**:
   - `Referrer-Policy: no-referrer` — the page URL is never leaked to other origins.
   - `Cross-Origin-Resource-Policy: same-origin` — the app's files are refused as cross-origin resources.
 - **API docs off by default.** `/docs`, `/redoc` and `/openapi.json` are only enabled with `ENABLE_API_DOCS=true` (see [API.md](API.md)), so a guest device on the LAN cannot browse the full API contract.
-- **Non-root, read-only container.** The image runs as the unprivileged `app` user (uid/gid 1000, no home directory) on a read-only root filesystem with **all Linux capabilities dropped** and `no-new-privileges` set; memory is capped at 512 MB and process count at 200. Only the `weather-data` volume (`/data`) and a `/tmp` tmpfs are writable; the application code is owned by root, so the `app` user cannot modify it. A code-execution bug inside the container therefore runs without root, without privileges, and without a writable filesystem to hide in.
+- **Non-root, read-only container.** The image runs as the unprivileged `app` user (uid/gid 1000, no home directory) on a read-only root filesystem with **all Linux capabilities dropped** and `no-new-privileges` set; the process count is capped at 200. Only the `weather-data` volume (`/data`) and a `/tmp` tmpfs are writable; the application code is owned by root, so the `app` user cannot modify it. A code-execution bug inside the container therefore runs without root, without privileges, and without a writable filesystem to hide in.
 
   **One-time migration for existing installs** (the old root-owned volume is not writable by the new user):
 

@@ -31,7 +31,7 @@ Once a location is set, the page shows:
 - **Podman** (with podman-compose) or **Docker** (with Compose), on the machine that will run the app. A *container* is the isolated little environment the app runs in, and the *volume* is the app's data store on your disk.
 - An **internet connection** — the weather data is downloaded from free services.
 - **About 200 MB of disk** for the container image, plus a little extra for the cached data.
-- **At most 512 MB of RAM** while it runs.
+- **About 50 MB of RAM** while it runs.
 
 One geographic limit: **the radar covers Germany only.** Elsewhere the app automatically drops the radar from the calculation and computes the rain chance from the weather models and the ensemble alone — the page tells you when that is the case.
 
