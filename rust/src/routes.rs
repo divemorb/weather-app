@@ -1,6 +1,7 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
+use axum::extract::State;
 use axum::handler::Handler;
 use axum::http::StatusCode;
 use axum::response::Response;
@@ -11,12 +12,13 @@ use serde_json::{Value, json};
 #[derive(Clone)]
 pub struct AppState {
     pub extra_hosts: Arc<HashSet<String>>,
+    pub static_files: Arc<HashMap<String, crate::static_files::StaticFile>>,
 }
 
 pub fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/healthz", get_only(healthz))
-        .fallback(not_found)
+        .fallback(fallback)
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             crate::security::guard,
@@ -52,8 +54,13 @@ async fn healthz() -> Json<Value> {
     Json(json!({"status": "ok"}))
 }
 
-async fn not_found() -> Response {
-    crate::security::json_error(StatusCode::NOT_FOUND, "Not Found")
+async fn fallback(
+    State(state): State<AppState>,
+    method: axum::http::Method,
+    uri: axum::http::Uri,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    crate::static_files::respond(&state.static_files, &method, &uri, &headers)
 }
 
 #[cfg(test)]

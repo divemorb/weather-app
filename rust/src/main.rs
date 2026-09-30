@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
 
 use wetter::routes::{AppState, build_router};
@@ -7,8 +9,17 @@ use wetter::security::parse_allowed_hosts;
 async fn main() {
     tracing_subscriber::fmt().with_target(false).init();
     let extra_hosts = parse_allowed_hosts(&std::env::var("ALLOWED_HOSTS").unwrap_or_default());
+    let static_dir = std::env::var("STATIC_DIR").unwrap_or_else(|_| "/app/static".to_string());
+    let static_files = match wetter::static_files::load(Path::new(&static_dir)) {
+        Ok(files) => files,
+        Err(err) => {
+            tracing::warn!("static files unavailable from {static_dir}: {err}");
+            HashMap::new()
+        }
+    };
     let state = AppState {
         extra_hosts: Arc::new(extra_hosts),
+        static_files: Arc::new(static_files),
     };
     let bind = std::env::var("BIND_ADDR").unwrap_or_else(|_| "0.0.0.0:8000".to_string());
     let listener = tokio::net::TcpListener::bind(&bind)
