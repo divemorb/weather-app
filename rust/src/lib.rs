@@ -3,6 +3,7 @@
 pub mod brightsky;
 pub mod config;
 pub mod models;
+pub mod openmeteo;
 pub mod pyfmt;
 pub mod radar;
 pub mod routes;
