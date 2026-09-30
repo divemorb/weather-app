@@ -1,0 +1,69 @@
+{
+ "weather": {
+  "source_id": 303711,
+  "timestamp": "2026-09-30T10:00:00+00:00",
+  "cloud_cover": 100,
+  "condition": "dry",
+  "dew_point": 8.04,
+  "solar_10": 0.052,
+  "solar_30": 0.195,
+  "solar_60": 0.367,
+  "precipitation_10": 0.0,
+  "precipitation_30": 0.0,
+  "precipitation_60": 0.0,
+  "pressure_msl": 1025.0,
+  "relative_humidity": 43,
+  "visibility": 43971,
+  "wind_direction_10": 130,
+  "wind_direction_30": 130,
+  "wind_direction_60": 130,
+  "wind_speed_10": 18.4,
+  "wind_speed_30": 19.4,
+  "wind_speed_60": 20.9,
+  "wind_gust_direction_10": 140,
+  "wind_gust_direction_30": 140,
+  "wind_gust_direction_60": 140,
+  "wind_gust_speed_10": 33.1,
+  "wind_gust_speed_30": 33.1,
+  "wind_gust_speed_60": 37.4,
+  "sunshine_30": 25.0,
+  "sunshine_60": 33.0,
+  "temperature": 21.0,
+  "fallback_source_ids": {
+   "solar_10": 254907,
+   "solar_30": 254907,
+   "solar_60": 254907,
+   "sunshine_30": 254907,
+   "sunshine_60": 254907
+  },
+  "icon": "cloudy"
+ },
+ "sources": [
+  {
+   "id": 303711,
+   "dwd_station_id": "00433",
+   "observation_type": "synop",
+   "lat": 52.4676,
+   "lon": 13.402,
+   "height": 47.7,
+   "station_name": "Berlin-Tempelhof",
+   "wmo_station_id": "10384",
+   "first_record": "2026-09-29T03:40:00+00:00",
+   "last_record": "2026-09-30T10:00:00+00:00",
+   "distance": 5837.0
+  },
+  {
+   "id": 254907,
+   "dwd_station_id": "03987",
+   "observation_type": "synop",
+   "lat": 52.3813,
+   "lon": 13.0622,
+   "height": 80.9,
+   "station_name": "Potsdam",
+   "wmo_station_id": "10379",
+   "first_record": "2026-09-29T03:40:00+00:00",
+   "last_record": "2026-09-30T10:00:00+00:00",
+   "distance": 27915.0
+  }
+ ]
+}

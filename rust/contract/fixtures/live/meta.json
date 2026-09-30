@@ -1,0 +1,71 @@
+{
+ "recorded_at": "2026-09-30T10:25:10Z",
+ "latitude": 52.52,
+ "longitude": 13.405,
+ "requests": {
+  "current_weather": {
+   "url": "https://api.brightsky.dev/current_weather",
+   "params": {
+    "lat": 52.52,
+    "lon": 13.405
+   },
+   "bytes": 1345
+  },
+  "radar": {
+   "url": "https://api.brightsky.dev/radar",
+   "params": {
+    "lat": 52.52,
+    "lon": 13.405,
+    "date": "2026-09-30T10:25:00+00:00",
+    "last_date": "2026-09-30T11:25:00+00:00"
+   },
+   "bytes": 7524
+  },
+  "weather": {
+   "url": "https://api.brightsky.dev/weather",
+   "params": {
+    "lat": 52.52,
+    "lon": 13.405,
+    "date": "2026-09-28T10:25:10Z",
+    "last_date": "2026-09-30T10:25:10Z",
+    "tz": "UTC"
+   },
+   "bytes": 33624
+  },
+  "forecast": {
+   "url": "https://api.open-meteo.com/v1/forecast",
+   "params": {
+    "latitude": 52.52,
+    "longitude": 13.405,
+    "models": "icon_d2,icon_eu,ecmwf_ifs025,gfs_seamless,arome_france,ukmo_seamless",
+    "minutely_15": "precipitation",
+    "hourly": "precipitation,temperature_2m,apparent_temperature,wind_speed_10m,cloud_cover",
+    "forecast_days": 3,
+    "timezone": "UTC"
+   },
+   "bytes": 28195
+  },
+  "ensemble": {
+   "url": "https://ensemble-api.open-meteo.com/v1/ensemble",
+   "params": {
+    "latitude": 52.52,
+    "longitude": 13.405,
+    "models": "ecmwf_ifs025",
+    "hourly": "precipitation",
+    "forecast_days": 2,
+    "timezone": "UTC"
+   },
+   "bytes": 16255
+  },
+  "nominatim_search": {
+   "url": "https://nominatim.openstreetmap.org/search",
+   "params": {
+    "q": "Alexanderplatz Berlin",
+    "format": "jsonv2",
+    "limit": 5,
+    "addressdetails": 0
+   },
+   "bytes": 1452
+  }
+ }
+}

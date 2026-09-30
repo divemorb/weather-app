@@ -1,0 +1,930 @@
+{
+ "now": "2026-09-30T10:27:10Z",
+ "python_memory_kb": 63576,
+ "upstream": [],
+ "cases": {
+  "healthz": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "status": "ok"
+   }
+  },
+  "api/config": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "configured": false,
+    "location": null,
+    "radar_radius_km": 1.0,
+    "weights": {
+     "radar": 0.5,
+     "models": 0.3,
+     "ensemble": 0.2
+    },
+    "models": [
+     "icon_d2",
+     "icon_eu",
+     "ecmwf_ifs025",
+     "gfs_seamless",
+     "arome_france",
+     "ukmo_seamless"
+    ]
+   }
+  },
+  "api/now": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "available": false,
+    "age_seconds": null,
+    "stale": false,
+    "conditions": null
+   }
+  },
+  "api/rain-probability": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "probability_pct": 0.0,
+    "explanation": "No data available yet (all sources empty or failing)",
+    "radar_available": false,
+    "radar_raining": null,
+    "models_rain_count": 0,
+    "models_total": 0,
+    "ensemble_pct": null,
+    "weights_used": {},
+    "radar_age_seconds": null,
+    "models_age_seconds": null
+   }
+  },
+  "api/radar/next-hour": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "available": false,
+    "age_seconds": null,
+    "stale": true,
+    "steps": [
+     {
+      "start_utc": "2026-09-30T10:25:00Z",
+      "precip_mm": 0.0
+     },
+     {
+      "start_utc": "2026-09-30T10:30:00Z",
+      "precip_mm": 0.0
+     },
+     {
+      "start_utc": "2026-09-30T10:35:00Z",
+      "precip_mm": 0.0
+     },
+     {
+      "start_utc": "2026-09-30T10:40:00Z",
+      "precip_mm": 0.0
+     },
+     {
+      "start_utc": "2026-09-30T10:45:00Z",
+      "precip_mm": 0.0
+     },
+     {
+      "start_utc": "2026-09-30T10:50:00Z",
+      "precip_mm": 0.0
+     },
+     {
+      "start_utc": "2026-09-30T10:55:00Z",
+      "precip_mm": 0.0
+     },
+     {
+      "start_utc": "2026-09-30T11:00:00Z",
+      "precip_mm": 0.0
+     },
+     {
+      "start_utc": "2026-09-30T11:05:00Z",
+      "precip_mm": 0.0
+     },
+     {
+      "start_utc": "2026-09-30T11:10:00Z",
+      "precip_mm": 0.0
+     },
+     {
+      "start_utc": "2026-09-30T11:15:00Z",
+      "precip_mm": 0.0
+     },
+     {
+      "start_utc": "2026-09-30T11:20:00Z",
+      "precip_mm": 0.0
+     }
+    ]
+   }
+  },
+  "api/models/24h": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "available": false,
+    "age_seconds": null,
+    "stale": true,
+    "hours": [],
+    "models": [],
+    "n_models": 0
+   }
+  },
+  "api/model-accuracy": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "window_days": 30,
+    "min_samples": 48,
+    "models": {}
+   }
+  },
+  "api/sources": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "radar": {
+     "upstream": "DWD (Bright Sky)",
+     "last_error": null,
+     "available": false,
+     "age_seconds": null,
+     "stale": true
+    },
+    "current": {
+     "upstream": "DWD (Bright Sky)",
+     "last_error": null,
+     "available": false,
+     "age_seconds": null,
+     "stale": true
+    },
+    "forecast": {
+     "upstream": "Open-Meteo",
+     "last_error": null,
+     "available": false,
+     "age_seconds": null,
+     "stale": true
+    },
+    "ensemble": {
+     "upstream": "Open-Meteo",
+     "last_error": null,
+     "available": false,
+     "age_seconds": null,
+     "stale": true
+    }
+   }
+  },
+  "api/schedule": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "server_time_utc": "2026-09-30T10:27:10Z",
+    "jobs": {
+     "radar": {
+      "interval_minutes": 5,
+      "next_run_utc": "<next_run_utc>",
+      "sources": [
+       "radar",
+       "current"
+      ]
+     },
+     "models": {
+      "interval_minutes": 60,
+      "next_run_utc": "<next_run_utc>",
+      "sources": [
+       "forecast",
+       "ensemble"
+      ]
+     }
+    }
+   }
+  },
+  "static/root": {
+   "status": 200,
+   "headers": {
+    "content-type": "text/html; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "present"
+   },
+   "sha256": "ed32ba1a988d8ba6a909d7d3565b3566e025f48915a8d4f9fabacc63f2276d95",
+   "length": 7380
+  },
+  "static/index.html": {
+   "status": 200,
+   "headers": {
+    "content-type": "text/html; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "present"
+   },
+   "sha256": "ed32ba1a988d8ba6a909d7d3565b3566e025f48915a8d4f9fabacc63f2276d95",
+   "length": 7380
+  },
+  "static/app.js": {
+   "status": 200,
+   "headers": {
+    "content-type": "text/javascript; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "present"
+   },
+   "sha256": "6fe34f2af9912c06235a98c01473bc259ff26b1ebb8f8595d985f289bed1b793",
+   "length": 14961
+  },
+  "static/chart.js": {
+   "status": 200,
+   "headers": {
+    "content-type": "text/javascript; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "present"
+   },
+   "sha256": "f8907e77e5837c604707e5ce49b81b420e3d269939609f63d0c16061abb16a9f",
+   "length": 4031
+  },
+  "static/accuracy.js": {
+   "status": 200,
+   "headers": {
+    "content-type": "text/javascript; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "present"
+   },
+   "sha256": "d9919dd2ceb97375b626adadc09b6331776094a37fa0e1fdd69f9c5a5a09cb3c",
+   "length": 3586
+  },
+  "static/countdown.js": {
+   "status": 200,
+   "headers": {
+    "content-type": "text/javascript; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "present"
+   },
+   "sha256": "9c8c714f074917f10e78dbabc607d9f1e3a917279b0429870efb44aacb226536",
+   "length": 4454
+  },
+  "static/setup.js": {
+   "status": 200,
+   "headers": {
+    "content-type": "text/javascript; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "present"
+   },
+   "sha256": "a4d608abe6c93e1991c3778fb8f8a59fc902204226e09cbe2b58becb28d36a19",
+   "length": 7247
+  },
+  "static/style.css": {
+   "status": 200,
+   "headers": {
+    "content-type": "text/css; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "present"
+   },
+   "sha256": "2e92ec191d8ac99d06ccb113bf3739f260d77d844291e236c958fc49ce6e4dea",
+   "length": 9871
+  },
+  "static/app.js-revalidate": {
+   "status": 304,
+   "headers": {
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "present"
+   },
+   "text": ""
+  },
+  "static/missing": {
+   "status": 404,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": "Not Found"
+   }
+  },
+  "static/traversal": {
+   "status": 404,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": "Not Found"
+   }
+  },
+  "static/traversal-encoded": {
+   "status": 404,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": "Not Found"
+   }
+  },
+  "static/api-unknown": {
+   "status": 404,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": "Not Found"
+   }
+  },
+  "security/docs": {
+   "status": 404,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": "Not Found"
+   }
+  },
+  "security/redoc": {
+   "status": 404,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": "Not Found"
+   }
+  },
+  "security/openapi": {
+   "status": 404,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": "Not Found"
+   }
+  },
+  "security/host-evil": {
+   "status": 400,
+   "headers": {
+    "content-type": "text/plain; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "text": "Invalid host header"
+  },
+  "security/host-evil-port": {
+   "status": 400,
+   "headers": {
+    "content-type": "text/plain; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "text": "Invalid host header"
+  },
+  "security/host-empty": {
+   "status": 400,
+   "headers": {
+    "content-type": "text/plain; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "text": "Invalid host header"
+  },
+  "security/host-suffix": {
+   "status": 400,
+   "headers": {
+    "content-type": "text/plain; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "text": "Invalid host header"
+  },
+  "security/host-ipv6": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "status": "ok"
+   }
+  },
+  "security/host-mdns": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "status": "ok"
+   }
+  },
+  "security/host-localhost": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "status": "ok"
+   }
+  },
+  "security/host-extra": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "status": "ok"
+   }
+  },
+  "security/cors": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "configured": false,
+    "location": null,
+    "radar_radius_km": 1.0,
+    "weights": {
+     "radar": 0.5,
+     "models": 0.3,
+     "ensemble": 0.2
+    },
+    "models": [
+     "icon_d2",
+     "icon_eu",
+     "ecmwf_ifs025",
+     "gfs_seamless",
+     "arome_france",
+     "ukmo_seamless"
+    ]
+   }
+  },
+  "security/method": {
+   "status": 405,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": "Method Not Allowed"
+   }
+  },
+  "location/422-latitude": {
+   "status": 422,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": [
+     {
+      "loc": [
+       "body",
+       "latitude"
+      ],
+      "msg": "<msg>"
+     }
+    ]
+   }
+  },
+  "location/422-longitude": {
+   "status": 422,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": [
+     {
+      "loc": [
+       "body",
+       "longitude"
+      ],
+      "msg": "<msg>"
+     }
+    ]
+   }
+  },
+  "location/422-missing-timezone": {
+   "status": 422,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": [
+     {
+      "loc": [
+       "body",
+       "timezone"
+      ],
+      "msg": "<msg>"
+     }
+    ]
+   }
+  },
+  "location/422-empty-timezone": {
+   "status": 422,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": [
+     {
+      "loc": [
+       "body",
+       "timezone"
+      ],
+      "msg": "<msg>"
+     }
+    ]
+   }
+  },
+  "location/422-unknown-timezone": {
+   "status": 422,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": [
+     {
+      "loc": [
+       "body",
+       "timezone"
+      ],
+      "msg": "<msg>"
+     }
+    ]
+   }
+  },
+  "location/422-traversal-timezone": {
+   "status": 422,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": [
+     {
+      "loc": [
+       "body",
+       "timezone"
+      ],
+      "msg": "<msg>"
+     }
+    ]
+   }
+  },
+  "location/422-long-label": {
+   "status": 422,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": [
+     {
+      "loc": [
+       "body",
+       "label"
+      ],
+      "msg": "<msg>"
+     }
+    ]
+   }
+  },
+  "location/422-not-json": {
+   "status": 422,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": [
+     {
+      "loc": [
+       "body",
+       0
+      ],
+      "msg": "<msg>"
+     }
+    ]
+   }
+  },
+  "location/422-json-list": {
+   "status": 422,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": [
+     {
+      "loc": [
+       "body"
+      ],
+      "msg": "<msg>"
+     }
+    ]
+   }
+  },
+  "location/422-nan": {
+   "status": 422,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   }
+  },
+  "location/422-before-403": {
+   "status": 422,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": [
+     {
+      "loc": [
+       "body",
+       "latitude"
+      ],
+      "msg": "<msg>"
+     }
+    ]
+   }
+  },
+  "location/403-foreign-origin": {
+   "status": 403,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": "cross-site request refused"
+   }
+  },
+  "location/403-fetch-site": {
+   "status": 403,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": "cross-site request refused"
+   }
+  }
+ }
+}

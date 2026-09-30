@@ -1,0 +1,519 @@
+{
+ "now": "2026-09-30T10:27:10Z",
+ "python_memory_kb": 62728,
+ "upstream": [
+  "/bs/current_weather?lat=1.0&lon=13.405",
+  "/bs/current_weather?lat=48.137&lon=11.575",
+  "/bs/current_weather?lat=48.14&lon=11.58",
+  "/bs/current_weather?lat=52.0&lon=13.405",
+  "/bs/current_weather?lat=52.5&lon=13.405",
+  "/bs/current_weather?lat=52.52&lon=13.405",
+  "/bs/current_weather?lat=52.52&lon=13.405",
+  "/bs/radar?date=2026-09-30T10:25:00+00:00&last_date=2026-09-30T11:25:00+00:00&lat=1.0&lon=13.405",
+  "/bs/radar?date=2026-09-30T10:25:00+00:00&last_date=2026-09-30T11:25:00+00:00&lat=48.137&lon=11.575",
+  "/bs/radar?date=2026-09-30T10:25:00+00:00&last_date=2026-09-30T11:25:00+00:00&lat=48.14&lon=11.58",
+  "/bs/radar?date=2026-09-30T10:25:00+00:00&last_date=2026-09-30T11:25:00+00:00&lat=52.0&lon=13.405",
+  "/bs/radar?date=2026-09-30T10:25:00+00:00&last_date=2026-09-30T11:25:00+00:00&lat=52.5&lon=13.405",
+  "/bs/radar?date=2026-09-30T10:25:00+00:00&last_date=2026-09-30T11:25:00+00:00&lat=52.52&lon=13.405",
+  "/bs/radar?date=2026-09-30T10:25:00+00:00&last_date=2026-09-30T11:25:00+00:00&lat=52.52&lon=13.405",
+  "/bs/weather?date=2026-09-28T10:27:10Z&last_date=2026-09-30T10:27:10Z&lat=1.0&lon=13.405&tz=UTC",
+  "/bs/weather?date=2026-09-28T10:27:10Z&last_date=2026-09-30T10:27:10Z&lat=48.137&lon=11.575&tz=UTC",
+  "/bs/weather?date=2026-09-28T10:27:10Z&last_date=2026-09-30T10:27:10Z&lat=48.14&lon=11.58&tz=UTC",
+  "/bs/weather?date=2026-09-28T10:27:10Z&last_date=2026-09-30T10:27:10Z&lat=52.0&lon=13.405&tz=UTC",
+  "/bs/weather?date=2026-09-28T10:27:10Z&last_date=2026-09-30T10:27:10Z&lat=52.5&lon=13.405&tz=UTC",
+  "/bs/weather?date=2026-09-28T10:27:10Z&last_date=2026-09-30T10:27:10Z&lat=52.52&lon=13.405&tz=UTC",
+  "/bs/weather?date=2026-09-28T10:27:10Z&last_date=2026-09-30T10:27:10Z&lat=52.52&lon=13.405&tz=UTC",
+  "/ens/v1/ensemble?forecast_days=2&hourly=precipitation&latitude=1.0&longitude=13.405&models=ecmwf_ifs025&timezone=UTC",
+  "/ens/v1/ensemble?forecast_days=2&hourly=precipitation&latitude=48.137&longitude=11.575&models=ecmwf_ifs025&timezone=UTC",
+  "/ens/v1/ensemble?forecast_days=2&hourly=precipitation&latitude=48.14&longitude=11.58&models=ecmwf_ifs025&timezone=UTC",
+  "/ens/v1/ensemble?forecast_days=2&hourly=precipitation&latitude=52.0&longitude=13.405&models=ecmwf_ifs025&timezone=UTC",
+  "/ens/v1/ensemble?forecast_days=2&hourly=precipitation&latitude=52.5&longitude=13.405&models=ecmwf_ifs025&timezone=UTC",
+  "/ens/v1/ensemble?forecast_days=2&hourly=precipitation&latitude=52.52&longitude=13.405&models=ecmwf_ifs025&timezone=UTC",
+  "/ens/v1/ensemble?forecast_days=2&hourly=precipitation&latitude=52.52&longitude=13.405&models=ecmwf_ifs025&timezone=UTC",
+  "/nom/search?addressdetails=0&format=jsonv2&limit=5&q=Alexanderplatz Berlin UA=WetterLocal/1.0 (self-hosted home weather app)",
+  "/om/v1/forecast?forecast_days=3&hourly=precipitation,temperature_2m,apparent_temperature,wind_speed_10m,cloud_cover&latitude=1.0&longitude=13.405&minutely_15=precipitation&models=icon_d2,icon_eu,ecmwf_ifs025,gfs_seamless,arome_france,ukmo_seamless&timezone=UTC",
+  "/om/v1/forecast?forecast_days=3&hourly=precipitation,temperature_2m,apparent_temperature,wind_speed_10m,cloud_cover&latitude=48.137&longitude=11.575&minutely_15=precipitation&models=icon_d2,icon_eu,ecmwf_ifs025,gfs_seamless,arome_france,ukmo_seamless&timezone=UTC",
+  "/om/v1/forecast?forecast_days=3&hourly=precipitation,temperature_2m,apparent_temperature,wind_speed_10m,cloud_cover&latitude=48.14&longitude=11.58&minutely_15=precipitation&models=icon_d2,icon_eu,ecmwf_ifs025,gfs_seamless,arome_france,ukmo_seamless&timezone=UTC",
+  "/om/v1/forecast?forecast_days=3&hourly=precipitation,temperature_2m,apparent_temperature,wind_speed_10m,cloud_cover&latitude=52.0&longitude=13.405&minutely_15=precipitation&models=icon_d2,icon_eu,ecmwf_ifs025,gfs_seamless,arome_france,ukmo_seamless&timezone=UTC",
+  "/om/v1/forecast?forecast_days=3&hourly=precipitation,temperature_2m,apparent_temperature,wind_speed_10m,cloud_cover&latitude=52.5&longitude=13.405&minutely_15=precipitation&models=icon_d2,icon_eu,ecmwf_ifs025,gfs_seamless,arome_france,ukmo_seamless&timezone=UTC",
+  "/om/v1/forecast?forecast_days=3&hourly=precipitation,temperature_2m,apparent_temperature,wind_speed_10m,cloud_cover&latitude=52.52&longitude=13.405&minutely_15=precipitation&models=icon_d2,icon_eu,ecmwf_ifs025,gfs_seamless,arome_france,ukmo_seamless&timezone=UTC",
+  "/om/v1/forecast?forecast_days=3&hourly=precipitation,temperature_2m,apparent_temperature,wind_speed_10m,cloud_cover&latitude=52.52&longitude=13.405&minutely_15=precipitation&models=icon_d2,icon_eu,ecmwf_ifs025,gfs_seamless,arome_france,ukmo_seamless&timezone=UTC"
+ ],
+ "cases": {
+  "wizard/config-before": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "configured": false,
+    "location": null,
+    "radar_radius_km": 1.0,
+    "weights": {
+     "radar": 0.5,
+     "models": 0.3,
+     "ensemble": 0.2
+    },
+    "models": [
+     "icon_d2",
+     "icon_eu",
+     "ecmwf_ifs025",
+     "gfs_seamless",
+     "arome_france",
+     "ukmo_seamless"
+    ]
+   }
+  },
+  "location/set-berlin": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "ok": true,
+    "location": {
+     "latitude": 52.52,
+     "longitude": 13.405,
+     "timezone": "Europe/Berlin",
+     "label": "Berlin"
+    }
+   }
+  },
+  "wizard/config-berlin": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "configured": true,
+    "location": {
+     "latitude": 52.52,
+     "longitude": 13.405,
+     "timezone": "Europe/Berlin",
+     "label": "Berlin"
+    },
+    "radar_radius_km": 1.0,
+    "weights": {
+     "radar": 0.5,
+     "models": 0.3,
+     "ensemble": 0.2
+    },
+    "models": [
+     "icon_d2",
+     "icon_eu",
+     "ecmwf_ifs025",
+     "gfs_seamless",
+     "arome_france",
+     "ukmo_seamless"
+    ]
+   }
+  },
+  "wizard/sources-berlin": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "radar": {
+     "upstream": "DWD (Bright Sky)",
+     "last_error": null,
+     "available": true,
+     "age_seconds": 0,
+     "stale": false
+    },
+    "current": {
+     "upstream": "DWD (Bright Sky)",
+     "last_error": null,
+     "available": true,
+     "age_seconds": 0,
+     "stale": false
+    },
+    "forecast": {
+     "upstream": "Open-Meteo",
+     "last_error": null,
+     "available": true,
+     "age_seconds": 0,
+     "stale": false
+    },
+    "ensemble": {
+     "upstream": "Open-Meteo",
+     "last_error": null,
+     "available": true,
+     "age_seconds": 0,
+     "stale": false
+    }
+   }
+  },
+  "wizard/now-berlin": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "available": true,
+    "age_seconds": 0,
+    "stale": false,
+    "conditions": {
+     "timestamp_utc": "2026-09-30T10:00:00+00:00",
+     "temperature_c": 21.0,
+     "feels_like_c": 17.2,
+     "wind_speed_ms": 18.4,
+     "wind_direction_deg": 130.0,
+     "wind_gust_ms": 37.4,
+     "cloud_cover_pct": 100.0,
+     "humidity_pct": 43.0,
+     "pressure_hpa": 1025.0,
+     "dew_point_c": 8.04,
+     "precipitation_10mm": 0.0,
+     "precipitation_30mm": 0.0,
+     "precipitation_60mm": 0.0,
+     "condition": "dry",
+     "source_id": 303711
+    }
+   }
+  },
+  "location/move-munich": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "ok": true,
+    "location": {
+     "latitude": 48.137,
+     "longitude": 11.575,
+     "timezone": "Europe/Berlin",
+     "label": "München"
+    }
+   }
+  },
+  "wizard/config-munich": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "configured": true,
+    "location": {
+     "latitude": 48.137,
+     "longitude": 11.575,
+     "timezone": "Europe/Berlin",
+     "label": "München"
+    },
+    "radar_radius_km": 1.0,
+    "weights": {
+     "radar": 0.5,
+     "models": 0.3,
+     "ensemble": 0.2
+    },
+    "models": [
+     "icon_d2",
+     "icon_eu",
+     "ecmwf_ifs025",
+     "gfs_seamless",
+     "arome_france",
+     "ukmo_seamless"
+    ]
+   }
+  },
+  "wizard/accuracy-after-move": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "window_days": 30,
+    "min_samples": 48,
+    "models": {}
+   }
+  },
+  "location/same-place": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "ok": true,
+    "location": {
+     "latitude": 48.14,
+     "longitude": 11.58,
+     "timezone": "Europe/Berlin",
+     "label": ""
+    }
+   }
+  },
+  "wizard/config-same-place": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "configured": true,
+    "location": {
+     "latitude": 48.14,
+     "longitude": 11.58,
+     "timezone": "Europe/Berlin",
+     "label": ""
+    },
+    "radar_radius_km": 1.0,
+    "weights": {
+     "radar": 0.5,
+     "models": 0.3,
+     "ensemble": 0.2
+    },
+    "models": [
+     "icon_d2",
+     "icon_eu",
+     "ecmwf_ifs025",
+     "gfs_seamless",
+     "arome_france",
+     "ukmo_seamless"
+    ]
+   }
+  },
+  "location/lax-string-latitude": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "ok": true,
+    "location": {
+     "latitude": 52.5,
+     "longitude": 13.405,
+     "timezone": "Europe/Berlin",
+     "label": "Berlin"
+    }
+   }
+  },
+  "location/lax-int-latitude": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "ok": true,
+    "location": {
+     "latitude": 52.0,
+     "longitude": 13.405,
+     "timezone": "Europe/Berlin",
+     "label": "Berlin"
+    }
+   }
+  },
+  "location/lax-bool-latitude": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "ok": true,
+    "location": {
+     "latitude": 1.0,
+     "longitude": 13.405,
+     "timezone": "Europe/Berlin",
+     "label": "Berlin"
+    }
+   }
+  },
+  "location/extra-field": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "ok": true,
+    "location": {
+     "latitude": 52.52,
+     "longitude": 13.405,
+     "timezone": "Europe/Berlin",
+     "label": "Berlin"
+    }
+   }
+  },
+  "geocode/ok": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "results": [
+     {
+      "label": "Alexanderplatz, Spandauer Vorstadt, Mitte, Berlin, Deutschland",
+      "latitude": 52.5219814,
+      "longitude": 13.4136358
+     },
+     {
+      "label": "Alexanderplatz, 2, Dircksenstraße, Klosterviertel, Spandauer Vorstadt, Mitte, Berlin, 10179, Deutschland",
+      "latitude": 52.5215661,
+      "longitude": 13.4112804
+     },
+     {
+      "label": "Alexanderplatz, Klosterviertel, Spandauer Vorstadt, Mitte, Berlin, 10178, Deutschland",
+      "latitude": 52.5216438,
+      "longitude": 13.4131914
+     }
+    ]
+   }
+  },
+  "geocode/too-short": {
+   "status": 422,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": [
+     {
+      "loc": [
+       "query",
+       "q"
+      ],
+      "msg": "<msg>"
+     }
+    ]
+   }
+  },
+  "geocode/missing": {
+   "status": 422,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": [
+     {
+      "loc": [
+       "query",
+       "q"
+      ],
+      "msg": "<msg>"
+     }
+    ]
+   }
+  },
+  "geocode/too-long": {
+   "status": 422,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": [
+     {
+      "loc": [
+       "query",
+       "q"
+      ],
+      "msg": "<msg>"
+     }
+    ]
+   }
+  }
+ }
+}

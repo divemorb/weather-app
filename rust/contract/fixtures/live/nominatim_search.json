@@ -1,0 +1,65 @@
+[
+ {
+  "place_id": 144589064,
+  "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+  "osm_type": "way",
+  "osm_id": 783052052,
+  "lat": "52.5219814",
+  "lon": "13.4136358",
+  "category": "place",
+  "type": "square",
+  "place_rank": 25,
+  "importance": 0.5119277148736227,
+  "addresstype": "square",
+  "name": "Alexanderplatz",
+  "display_name": "Alexanderplatz, Spandauer Vorstadt, Mitte, Berlin, Deutschland",
+  "boundingbox": [
+   "52.5201457",
+   "52.5238113",
+   "13.4103097",
+   "13.4160801"
+  ]
+ },
+ {
+  "place_id": 144597875,
+  "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+  "osm_type": "node",
+  "osm_id": 3908141014,
+  "lat": "52.5215661",
+  "lon": "13.4112804",
+  "category": "railway",
+  "type": "station",
+  "place_rank": 30,
+  "importance": 0.4682518726909874,
+  "addresstype": "railway",
+  "name": "Alexanderplatz",
+  "display_name": "Alexanderplatz, 2, Dircksenstra\u00dfe, Klosterviertel, Spandauer Vorstadt, Mitte, Berlin, 10179, Deutschland",
+  "boundingbox": [
+   "52.5165661",
+   "52.5265661",
+   "13.4062804",
+   "13.4162804"
+  ]
+ },
+ {
+  "place_id": 144599064,
+  "licence": "Data \u00a9 OpenStreetMap contributors, ODbL 1.0. http://osm.org/copyright",
+  "osm_type": "way",
+  "osm_id": 346206374,
+  "lat": "52.5216438",
+  "lon": "13.4131914",
+  "category": "highway",
+  "type": "pedestrian",
+  "place_rank": 26,
+  "importance": 0.05342208819714653,
+  "addresstype": "road",
+  "name": "Alexanderplatz",
+  "display_name": "Alexanderplatz, Klosterviertel, Spandauer Vorstadt, Mitte, Berlin, 10178, Deutschland",
+  "boundingbox": [
+   "52.5216214",
+   "52.5216661",
+   "13.4131913",
+   "13.4131914"
+  ]
+ }
+]

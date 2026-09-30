@@ -1,0 +1,119 @@
+{
+ "now": "2026-09-30T10:50:00Z",
+ "python_memory_kb": 63448,
+ "upstream": [
+  "/bs/current_weather?lat=52.52&lon=13.405",
+  "/bs/radar?date=2026-09-30T10:50:00+00:00&last_date=2026-09-30T11:50:00+00:00&lat=52.52&lon=13.405",
+  "/bs/weather?date=2026-09-28T10:50:00Z&last_date=2026-09-30T10:50:00Z&lat=52.52&lon=13.405&tz=UTC",
+  "/ens/v1/ensemble?forecast_days=2&hourly=precipitation&latitude=52.52&longitude=13.405&models=ecmwf_ifs025&timezone=UTC",
+  "/om/v1/forecast?forecast_days=3&hourly=precipitation,temperature_2m,apparent_temperature,wind_speed_10m,cloud_cover&latitude=52.52&longitude=13.405&minutely_15=precipitation&models=icon_d2,icon_eu,ecmwf_ifs025,gfs_seamless,arome_france,ukmo_seamless&timezone=UTC"
+ ],
+ "cases": {
+  "api/model-accuracy": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "window_days": 30,
+    "min_samples": 48,
+    "models": {
+     "arome_france": {
+      "n_samples": 72,
+      "hits": 16,
+      "misses": 4,
+      "false_alarms": 14,
+      "correct_negatives": 38,
+      "enough_data": true,
+      "mae_mm": 0.168,
+      "event_accuracy": 0.75
+     },
+     "ecmwf_ifs025": {
+      "n_samples": 72,
+      "hits": 4,
+      "misses": 16,
+      "false_alarms": 38,
+      "correct_negatives": 14,
+      "enough_data": true,
+      "mae_mm": 0.306,
+      "event_accuracy": 0.25
+     },
+     "gfs_seamless": {
+      "n_samples": 72,
+      "hits": 10,
+      "misses": 10,
+      "false_alarms": 26,
+      "correct_negatives": 26,
+      "enough_data": true,
+      "mae_mm": 0.235,
+      "event_accuracy": 0.5
+     },
+     "icon_d2": {
+      "n_samples": 72,
+      "hits": 18,
+      "misses": 2,
+      "false_alarms": 10,
+      "correct_negatives": 42,
+      "enough_data": true,
+      "mae_mm": 0.143,
+      "event_accuracy": 0.833
+     },
+     "icon_eu": {
+      "n_samples": 72,
+      "hits": 12,
+      "misses": 8,
+      "false_alarms": 22,
+      "correct_negatives": 30,
+      "enough_data": true,
+      "mae_mm": 0.214,
+      "event_accuracy": 0.583
+     },
+     "ukmo_seamless": {
+      "n_samples": 22,
+      "hits": 1,
+      "misses": 2,
+      "false_alarms": 11,
+      "correct_negatives": 8,
+      "enough_data": false,
+      "mae_mm": 0.216,
+      "event_accuracy": 0.409
+     }
+    }
+   }
+  },
+  "api/rain-probability": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "probability_pct": 74.9,
+    "explanation": "Radar: yes; 3 of 5 models predict > 0.1 mm in the next hour; ensemble 35 %",
+    "radar_available": true,
+    "radar_raining": true,
+    "models_rain_count": 3,
+    "models_total": 5,
+    "ensemble_pct": 34.7,
+    "weights_used": {
+     "radar": 0.5,
+     "models": 0.3,
+     "ensemble": 0.2
+    },
+    "radar_age_seconds": 0,
+    "models_age_seconds": 0
+   }
+  }
+ }
+}
