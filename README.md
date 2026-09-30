@@ -213,3 +213,7 @@ For everything else (weights, models, refresh cadence, accuracy window) see [doc
 - [docs/SCOPE.md](docs/SCOPE.md) — purpose, features and requirements.
 
 The project is developed with an AI coding agent; its rules are in `.continue/rules/weather-projectrules.md` (see [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)).
+
+## License
+
+The code is released under the [MIT License](LICENSE). The weather and map data belong to their providers and follow their own terms (see [Data sources and credits](#data-sources-and-credits)).
