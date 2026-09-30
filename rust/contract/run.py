@@ -148,7 +148,7 @@ def start_backend(args, port: int, env: dict) -> subprocess.Popen:
 def wait_ready(port: int, proc: subprocess.Popen, timeout: float = 60.0) -> str | None:
     end = time.monotonic() + timeout
     while time.monotonic() < end:
-        if proc.poll() is not None:
+        if proc is not None and proc.poll() is not None:
             return f"backend exited with code {proc.returncode} (see the backend log)"
         try:
             if request(port, {"path": "/healthz"})["status"] == 200:
@@ -159,7 +159,9 @@ def wait_ready(port: int, proc: subprocess.Popen, timeout: float = 60.0) -> str 
     return f"backend not ready after {timeout:.0f} s"
 
 
-def stop_backend(proc: subprocess.Popen) -> int | None:
+def stop_backend(proc: subprocess.Popen | None) -> int | None:
+    if proc is None:
+        return None
     peak = None
     try:
         for line in pathlib.Path(f"/proc/{proc.pid}/status").read_text().splitlines():
@@ -267,8 +269,11 @@ def run_scenario(args, sc: dict) -> dict:
             seed_db(db, sc["seed"], sc["now"])
         env = {"WEATHER_CONFIG": str(make_config(tmp, fake.base)), "DATABASE_PATH": str(db),
                "WETTER_FAKE_NOW": sc["now"], **sc["env"]}
-        port = free_port()
-        proc = start_backend(args, port, env)
+        if args.backend == "external":  # the app runs already (checkpoint: the image)
+            port, proc = args.port, None
+        else:
+            port = free_port()
+            proc = start_backend(args, port, env)
         result = {"cases": {}, "upstream": [], "memory_kb": None}
         error = wait_ready(port, proc)
         etags = {}
@@ -300,7 +305,11 @@ def run_scenario(args, sc: dict) -> dict:
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--backend", choices=["python", "rust"], default="rust")
+    ap.add_argument("--backend", choices=["python", "rust", "external"], default="rust",
+                    help="external: test an app that already runs on --port (started with --print-env's variables)")
+    ap.add_argument("--port", type=int, default=8000, help="port of the external app")
+    ap.add_argument("--print-env", metavar="SCENARIO",
+                    help="print the environment an external app needs for SCENARIO and exit")
     ap.add_argument("--binary", default="/target/debug/wetter", help="the Rust binary (--backend rust)")
     ap.add_argument("--scenario", nargs="*", help="only these scenarios")
     ap.add_argument("--require", nargs="*", default=["*"],
@@ -311,6 +320,17 @@ def main():
     ap.add_argument("--backend-log", default=None, help="file for the backend's output (default: discard)")
     args = ap.parse_args()
     scenarios = [s for s in SCENARIOS if not args.scenario or s["name"] in args.scenario]
+    if args.print_env or args.backend == "external":
+        names = [args.print_env] if args.print_env else [s["name"] for s in scenarios]
+        for sc in (s for s in SCENARIOS if s["name"] in names):
+            if sc["routes"] or sc.get("seed"):
+                sys.exit(f"scenario {sc['name']} needs the fake upstream or a seeded database; "
+                         "only self-contained scenarios (unconfigured) run against an external app")
+    if args.print_env:
+        sc = next(s for s in SCENARIOS if s["name"] == args.print_env)
+        for k, v in {"WETTER_FAKE_NOW": sc["now"], **sc["env"]}.items():
+            print(f"{k}={v}")
+        return 0
     if args.list:
         for sc in scenarios:
             for case in sc["cases"]:

@@ -69,6 +69,8 @@ SECURITY_CASES = [
     get("/../weather.yaml", "static/traversal"),
     get("/%2e%2e/weather.yaml", "static/traversal-encoded"),
     get("/api/nope", "static/api-unknown"),
+    {"name": "static/post-file", "method": "POST", "path": "/app.js", "headers": SAME_ORIGIN, "body": {}},
+    {"name": "static/post-unknown", "method": "POST", "path": "/nope", "headers": SAME_ORIGIN, "body": {}},
     get("/docs", "security/docs"),
     get("/redoc", "security/redoc"),
     get("/openapi.json", "security/openapi"),

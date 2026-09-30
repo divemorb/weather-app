@@ -1,6 +1,6 @@
 {
  "now": "2026-09-30T10:27:10Z",
- "python_memory_kb": 63576,
+ "python_memory_kb": 62464,
  "upstream": [],
  "cases": {
   "healthz": {
@@ -451,6 +451,36 @@
    },
    "json": {
     "detail": "Not Found"
+   }
+  },
+  "static/post-file": {
+   "status": 405,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": "Method Not Allowed"
+   }
+  },
+  "static/post-unknown": {
+   "status": 405,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": "Method Not Allowed"
    }
   },
   "security/docs": {
