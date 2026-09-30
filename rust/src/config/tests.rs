@@ -204,3 +204,153 @@ fn env_location_without_yaml() {
     assert_eq!((loc.latitude, loc.longitude), (52.52, 13.40));
     assert_eq!(loc.timezone, "Europe/Berlin");
 }
+
+// ---------------------------------------------------------------------------
+// R7: falsy YAML documents, env error hints, py_sum weights, Default impls
+// ---------------------------------------------------------------------------
+
+#[test]
+fn falsy_yaml_documents_load_defaults() {
+    // Python: `yaml.safe_load(fh) or {}` — every falsy document (null,
+    // false, 0, 0.0, "", []) loads as `{}`, i.e. all builtin defaults.
+    let dir = tempfile::tempdir().unwrap();
+    for doc in [
+        "false",
+        "0",
+        "0.0",
+        "[]",
+        "\"\"",
+        "{}",
+        "",
+        "# just a comment\n",
+    ] {
+        let path = make_config(dir.path(), doc);
+        let cfg = load(Some(&path), &env_lookup(&[]))
+            .unwrap_or_else(|err| panic!("falsy document {doc:?} should load: {err}"));
+        assert!(cfg.location.is_none(), "{doc:?}");
+        assert_eq!(cfg.radar, RadarConfig::default(), "{doc:?}");
+        assert_eq!(cfg.probability, ProbabilityConfig::default(), "{doc:?}");
+        // `load_config` takes `forecast` from the YAML (`()` when absent),
+        // not from the dataclass default.
+        assert!(cfg.models.forecast.is_empty(), "{doc:?}");
+        assert_eq!(cfg.models.ensemble_model, "ecmwf_ifs025", "{doc:?}");
+        assert_eq!(cfg.scheduling, SchedulingConfig::default(), "{doc:?}");
+        assert_eq!(cfg.accuracy, AccuracyConfig::default(), "{doc:?}");
+        assert_eq!(cfg.api, ApiConfig::default(), "{doc:?}");
+    }
+}
+
+#[test]
+fn non_falsy_non_mapping_yaml_is_an_error() {
+    // A non-empty list, a non-empty string or `true` is a truthy
+    // non-mapping: rejected, like Python's `ValueError`.
+    let dir = tempfile::tempdir().unwrap();
+    for doc in ["[1]", "\"text\"", "true"] {
+        let path = make_config(dir.path(), doc);
+        let err = load(Some(&path), &env_lookup(&[])).unwrap_err();
+        assert!(err.contains("must contain a mapping"), "{doc:?}: {err}");
+    }
+}
+
+#[test]
+fn env_f64_error_has_plain_digits_hint() {
+    // `1_000` stays an error on purpose (approved difference from Python).
+    let env = env_lookup(&[("RADAR_RADIUS_KM", "1_000")]);
+    let err = values::env_f64(&|k| env.get(k).cloned(), "RADAR_RADIUS_KM", 5.0).unwrap_err();
+    assert_eq!(
+        err,
+        "RADAR_RADIUS_KM: not a number: \"1_000\" (write plain digits, e.g. 10 or 0.5)"
+    );
+}
+
+#[test]
+fn env_i64_error_has_plain_digits_hint() {
+    let env = env_lookup(&[("RADAR_INTERVAL_MINUTES", "1.5")]);
+    let err = values::env_i64(&|k| env.get(k).cloned(), "RADAR_INTERVAL_MINUTES", 5).unwrap_err();
+    assert_eq!(
+        err,
+        "RADAR_INTERVAL_MINUTES: not an integer: \"1.5\" (write plain digits, e.g. 10)"
+    );
+}
+
+#[test]
+fn weights_01_02_03_normalized_by_py_sum() {
+    let prob = ProbabilityConfig {
+        weight_radar: 0.1,
+        weight_models: 0.2,
+        weight_ensemble: 0.3,
+        model_rain_threshold_mm: 0.1,
+        radar_cell_rain_threshold_mm: 0.05,
+    };
+    let w = prob.weights(true).unwrap();
+    // Python's `sum([0.1, 0.2, 0.3])` is exactly 0.6 (compensated), so the
+    // normalized weights are exactly 0.1 / 0.6 etc.; plain addition would
+    // give a total of 0.6000000000000001 and different bits.
+    assert_eq!(w.len(), 3);
+    assert_eq!(w[0], ("radar", 0.1 / 0.6));
+    assert_eq!(w[1], ("models", 0.2 / 0.6));
+    assert_eq!(w[2], ("ensemble", 0.3 / 0.6));
+}
+
+#[test]
+fn config_defaults_match_python_dataclasses() {
+    // The literals are the dataclass defaults from app/config.py.
+    assert_eq!(
+        RadarConfig::default(),
+        RadarConfig {
+            radius_km: 5.0,
+            grid_size_km: 1.0,
+            step_minutes: 5,
+        }
+    );
+    assert_eq!(
+        ProbabilityConfig::default(),
+        ProbabilityConfig {
+            weight_radar: 0.5,
+            weight_models: 0.3,
+            weight_ensemble: 0.2,
+            model_rain_threshold_mm: 0.1,
+            radar_cell_rain_threshold_mm: 0.05,
+        }
+    );
+    assert_eq!(
+        ModelsConfig::default(),
+        ModelsConfig {
+            forecast: vec![
+                "icon_d2".to_string(),
+                "icon_eu".to_string(),
+                "ecmwf_ifs025".to_string(),
+                "gfs_seamless".to_string(),
+                "arome_france".to_string(),
+                "ukmo_seamless".to_string(),
+            ],
+            ensemble_model: "ecmwf_ifs025".to_string(),
+        }
+    );
+    assert_eq!(
+        SchedulingConfig::default(),
+        SchedulingConfig {
+            radar_interval_minutes: 5,
+            models_interval_minutes: 60,
+            stale_radar_minutes: 10,
+            stale_models_minutes: 120,
+        }
+    );
+    assert_eq!(
+        AccuracyConfig::default(),
+        AccuracyConfig {
+            window_days: 30,
+            min_samples: 48,
+        }
+    );
+    assert_eq!(
+        ApiConfig::default(),
+        ApiConfig {
+            brightsky_base_url: "https://api.brightsky.dev".to_string(),
+            open_meteo_base_url: "https://api.open-meteo.com/v1".to_string(),
+            ensemble_base_url: "https://ensemble-api.open-meteo.com/v1".to_string(),
+            nominatim_base_url: "https://nominatim.openstreetmap.org".to_string(),
+            timeout_seconds: 20.0,
+        }
+    );
+}

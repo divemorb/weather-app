@@ -105,3 +105,72 @@ fn py_fmt_0f_rounds_to_35() {
 fn py_fmt_0f_125_halves_even() {
     assert_eq!(py_fmt_0f(12.5), "12");
 }
+
+#[test]
+fn py_sum_reference_matches_python() {
+    // Reference values produced by Python 3.12's builtin sum() for 3011
+    // lists; `values` and `sum` are f64 bit patterns.
+    let data: serde_json::Value =
+        serde_json::from_str(include_str!("../../contract/fixtures/py_cases/sum.json")).unwrap();
+    let cases = data["cases"].as_array().expect("fixture has a cases array");
+    let mut mismatches = 0;
+    let mut first: Vec<String> = Vec::new();
+    for c in cases {
+        let values: Vec<f64> = c["values"]
+            .as_array()
+            .expect("values is a list of bit patterns")
+            .iter()
+            .map(|bits| f64::from_bits(bits.as_u64().expect("bits is an unsigned integer")))
+            .collect();
+        let want = f64::from_bits(c["sum"].as_u64().expect("sum is a bit pattern"));
+        let got = py_sum(values.iter().copied());
+        if got.to_bits() != want.to_bits() {
+            mismatches += 1;
+            if first.len() < 5 {
+                first.push(format!("values={values:?} got={got:?} want={want:?}"));
+            }
+        }
+    }
+    assert_eq!(mismatches, 0, "first mismatches: {first:?}");
+}
+
+#[test]
+fn py_hypot_reference_matches_python() {
+    // Reference values produced by Python 3.12's math.hypot for 4006 pairs;
+    // `dx`, `dy` and `hypot` are f64 bit patterns.
+    let data: serde_json::Value =
+        serde_json::from_str(include_str!("../../contract/fixtures/py_cases/hypot.json")).unwrap();
+    let cases = data["cases"].as_array().expect("fixture has a cases array");
+    let mut mismatches = 0;
+    let mut first: Vec<String> = Vec::new();
+    for c in cases {
+        let dx = f64::from_bits(c["dx"].as_u64().expect("dx is a bit pattern"));
+        let dy = f64::from_bits(c["dy"].as_u64().expect("dy is a bit pattern"));
+        let want = f64::from_bits(c["hypot"].as_u64().expect("hypot is a bit pattern"));
+        let got = py_hypot(dx, dy);
+        if got.to_bits() != want.to_bits() {
+            mismatches += 1;
+            if first.len() < 5 {
+                first.push(format!("dx={dx:?} dy={dy:?} got={got:?} want={want:?}"));
+            }
+        }
+    }
+    assert_eq!(mismatches, 0, "first mismatches: {first:?}");
+}
+
+#[test]
+fn py_sum_01_02_03_is_exactly_06() {
+    // Python's sum([0.1, 0.2, 0.3]) is exactly 0.6; plain addition gives
+    // 0.6000000000000001.
+    assert_eq!(py_sum([0.1, 0.2, 0.3]), 0.6);
+}
+
+#[test]
+fn py_sum_empty_is_zero() {
+    assert_eq!(py_sum([]), 0.0);
+}
+
+#[test]
+fn py_hypot_3_4_is_5() {
+    assert_eq!(py_hypot(3.0, 4.0), 5.0);
+}

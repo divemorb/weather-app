@@ -14,10 +14,9 @@ pub fn env_str(env: Env, name: &str) -> Option<String> {
 /// Python `_env_float`: `float(raw)` (a bad value is a startup error).
 pub fn env_f64(env: Env, name: &str, default: f64) -> Result<f64, String> {
     match env_str(env, name) {
-        Some(raw) => raw
-            .trim()
-            .parse()
-            .map_err(|_| format!("{name}: not a number: {raw:?}")),
+        Some(raw) => raw.trim().parse().map_err(|_| {
+            format!("{name}: not a number: {raw:?} (write plain digits, e.g. 10 or 0.5)")
+        }),
         None => Ok(default),
     }
 }
@@ -28,7 +27,7 @@ pub fn env_i64(env: Env, name: &str, default: i64) -> Result<i64, String> {
         Some(raw) => raw
             .trim()
             .parse()
-            .map_err(|_| format!("{name}: not an integer: {raw:?}")),
+            .map_err(|_| format!("{name}: not an integer: {raw:?} (write plain digits, e.g. 10)")),
         None => Ok(default),
     }
 }

@@ -11,6 +11,8 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 
+use crate::pyfmt;
+
 use values::{
     Env, env_bool, env_f64, env_i64, env_str, get_f64, get_i64, get_str, section, subsec,
 };
@@ -34,6 +36,16 @@ pub struct RadarConfig {
     pub step_minutes: i64,
 }
 
+impl Default for RadarConfig {
+    fn default() -> Self {
+        Self {
+            radius_km: 5.0,
+            grid_size_km: 1.0,
+            step_minutes: 5,
+        }
+    }
+}
+
 /// Weights for the combined next-hour rain probability.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ProbabilityConfig {
@@ -42,6 +54,18 @@ pub struct ProbabilityConfig {
     pub weight_ensemble: f64,
     pub model_rain_threshold_mm: f64,
     pub radar_cell_rain_threshold_mm: f64,
+}
+
+impl Default for ProbabilityConfig {
+    fn default() -> Self {
+        Self {
+            weight_radar: 0.5,
+            weight_models: 0.3,
+            weight_ensemble: 0.2,
+            model_rain_threshold_mm: 0.1,
+            radar_cell_rain_threshold_mm: 0.05,
+        }
+    }
 }
 
 impl ProbabilityConfig {
@@ -61,7 +85,9 @@ impl ProbabilityConfig {
             ("models", self.weight_models),
             ("ensemble", self.weight_ensemble),
         ];
-        let total: f64 = w.iter().map(|(_, v)| *v).sum();
+        // Python computes `sum(w.values())`: a compensated sum, not plain
+        // left-to-right addition (for 0.1 + 0.2 + 0.3 it is exactly 0.6).
+        let total = pyfmt::py_sum(w.iter().map(|(_, v)| *v));
         if total <= 0.0 {
             return Err("at least one probability source weight must be > 0".to_string());
         }
@@ -79,6 +105,24 @@ pub struct ModelsConfig {
     pub ensemble_model: String,
 }
 
+impl Default for ModelsConfig {
+    fn default() -> Self {
+        Self {
+            forecast: [
+                "icon_d2",
+                "icon_eu",
+                "ecmwf_ifs025",
+                "gfs_seamless",
+                "arome_france",
+                "ukmo_seamless",
+            ]
+            .map(str::to_string)
+            .to_vec(),
+            ensemble_model: "ecmwf_ifs025".to_string(),
+        }
+    }
+}
+
 /// Cache refresh cadence and stale thresholds.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SchedulingConfig {
@@ -86,6 +130,17 @@ pub struct SchedulingConfig {
     pub models_interval_minutes: i64,
     pub stale_radar_minutes: i64,
     pub stale_models_minutes: i64,
+}
+
+impl Default for SchedulingConfig {
+    fn default() -> Self {
+        Self {
+            radar_interval_minutes: 5,
+            models_interval_minutes: 60,
+            stale_radar_minutes: 10,
+            stale_models_minutes: 120,
+        }
+    }
 }
 
 /// Per-model accuracy scoring (step 6e): a rolling window of `window_days`
@@ -97,6 +152,15 @@ pub struct AccuracyConfig {
     pub min_samples: i64,
 }
 
+impl Default for AccuracyConfig {
+    fn default() -> Self {
+        Self {
+            window_days: 30,
+            min_samples: 48,
+        }
+    }
+}
+
 /// Upstream endpoints (overridable for tests/mocks).
 #[derive(Debug, Clone, PartialEq)]
 pub struct ApiConfig {
@@ -105,6 +169,18 @@ pub struct ApiConfig {
     pub ensemble_base_url: String,
     pub nominatim_base_url: String,
     pub timeout_seconds: f64,
+}
+
+impl Default for ApiConfig {
+    fn default() -> Self {
+        Self {
+            brightsky_base_url: "https://api.brightsky.dev".to_string(),
+            open_meteo_base_url: "https://api.open-meteo.com/v1".to_string(),
+            ensemble_base_url: "https://ensemble-api.open-meteo.com/v1".to_string(),
+            nominatim_base_url: "https://nominatim.openstreetmap.org".to_string(),
+            timeout_seconds: 20.0,
+        }
+    }
 }
 
 /// The whole application configuration.
@@ -121,18 +197,34 @@ pub struct AppConfig {
     pub use_accuracy_weights: bool,
 }
 
-/// Python `_load_yaml`: a missing file is `{}`; a non-mapping top level is
-/// an error, like Python's `ValueError`.
+/// Python `_load_yaml`: a missing file is `{}`; a *falsy* document is
+/// `{}` too (`yaml.safe_load(fh) or {}`); any other non-mapping top level
+/// is an error, like Python's `ValueError`.
 fn load_yaml(path: &Path) -> Result<Value, String> {
     let Ok(text) = std::fs::read_to_string(path) else {
         return Ok(Value::Object(Map::new()));
     };
     let value = serde_saphyr::from_str::<Value>(&text)
         .map_err(|err| format!("invalid YAML in {path:?}: {err}"))?;
+    if is_falsy(&value) {
+        return Ok(Value::Object(Map::new()));
+    }
     match value {
-        Value::Null => Ok(Value::Object(Map::new())),
         Value::Object(_) => Ok(value),
         _ => Err(format!("config file {path:?} must contain a mapping")),
+    }
+}
+
+/// Python truthiness of a YAML document: `null`, `false`, `0`, `0.0`, `""`
+/// and `[]` (and `{}`) are falsy.
+fn is_falsy(v: &Value) -> bool {
+    match v {
+        Value::Null => true,
+        Value::Bool(b) => !b,
+        Value::Number(n) => n.as_f64() == Some(0.0),
+        Value::String(s) => s.is_empty(),
+        Value::Array(items) => items.is_empty(),
+        Value::Object(map) => map.is_empty(),
     }
 }
 
