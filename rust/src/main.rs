@@ -8,6 +8,14 @@ use wetter::security::parse_allowed_hosts;
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     tracing_subscriber::fmt().with_target(false).init();
+    let clock = wetter::times::Clock::from_env(&|k| std::env::var(k).ok())
+        .expect("WETTER_FAKE_NOW must be an ISO-8601 timestamp");
+    if clock.is_fixed() {
+        tracing::warn!(
+            "WETTER_FAKE_NOW is set: the clock is frozen at {}",
+            wetter::times::to_iso(clock.now())
+        );
+    }
     let extra_hosts = parse_allowed_hosts(&std::env::var("ALLOWED_HOSTS").unwrap_or_default());
     let static_dir = std::env::var("STATIC_DIR").unwrap_or_else(|_| "/app/static".to_string());
     let static_files = match wetter::static_files::load(Path::new(&static_dir)) {
