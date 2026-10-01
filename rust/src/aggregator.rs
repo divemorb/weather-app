@@ -376,6 +376,9 @@ pub(crate) mod testkit;
 mod backfill_tests;
 
 #[cfg(test)]
+mod rain_tests;
+
+#[cfg(test)]
 mod read_tests;
 
 #[cfg(test)]

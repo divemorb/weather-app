@@ -14,9 +14,15 @@ use chrono::{DateTime, TimeDelta, Utc};
 
 use crate::accuracy::{ModelAccuracy, model_accuracy};
 use crate::brightsky::parse_current_weather;
-use crate::models::{CurrentConditions, EnsembleVote, ForecastBundle, ModelVote, RadarNowcast};
+use crate::models::{
+    CurrentConditions, EnsembleVote, ForecastBundle, ModelVote, RadarNowcast, RainProbability,
+};
 use crate::openmeteo::{parse_ensemble, parse_forecast};
-use crate::probability::{ensemble_vote, model_votes};
+use crate::probability::{
+    build_explanation, combine_signals, ensemble_vote, model_rain_signal, model_votes,
+    radar_rain_signal, weighted_model_signal,
+};
+use crate::pyfmt::py_round;
 use crate::radar::parse_radar;
 use crate::series::{RadarBar, Series24h, build_24h_series, build_radar_next_hour_bar};
 use crate::store::{Source, StoreError};
@@ -104,6 +110,80 @@ impl Aggregator {
             cfg.probability.model_rain_threshold_mm,
             now,
         ))
+    }
+
+    /// Python `get_rain_probability`: weighted combination of the radar /
+    /// model / ensemble signals (README "How the rain probability is
+    /// calculated"). With `use_accuracy_weights` the model signal is
+    /// weighted per model by event accuracy (step 6g, with equal-weight
+    /// fallback). Always returns a `RainProbability` (0 % + "no data" when
+    /// every signal is missing) so the UI degrades gracefully.
+    pub fn get_rain_probability(&self) -> Result<RainProbability, StoreError> {
+        let cfg = self.cfg();
+        let now = self.now();
+        let nowcast = self.get_radar_nowcast()?;
+        let votes = self.get_model_votes()?;
+        let evote = self.get_ensemble_vote()?;
+
+        let (radar_available, radar_raining) = radar_rain_signal(
+            nowcast.as_ref(),
+            now,
+            &cfg.radar,
+            &cfg.probability,
+            TimeDelta::hours(1),
+        );
+        let (model_pct, n_rain, n_total, accuracy_weighted) = if cfg.use_accuracy_weights {
+            // step 6g: the pure function gates internally — insufficient
+            // samples or a failing accuracy read ({} below) both fall back
+            // to equal weights.
+            let accuracy = match self.get_model_accuracy() {
+                Ok(accuracy) => accuracy,
+                Err(err) => {
+                    tracing::error!("model accuracy read failed; using equal weights: {err}");
+                    BTreeMap::new()
+                }
+            };
+            weighted_model_signal(
+                &votes,
+                &accuracy,
+                cfg.probability.model_rain_threshold_mm,
+                cfg.accuracy.min_samples,
+            )
+        } else {
+            let (model_pct, n_rain, n_total) =
+                model_rain_signal(&votes, cfg.probability.model_rain_threshold_mm);
+            (model_pct, n_rain, n_total, false)
+        };
+        let (prob, weights_used) = combine_signals(
+            &cfg.probability,
+            radar_available,
+            radar_raining,
+            model_pct,
+            evote.probability_pct,
+        );
+        let explanation = if weights_used.is_empty() {
+            "No data available yet (all sources empty or failing)".to_string()
+        } else {
+            build_explanation(
+                radar_available,
+                radar_raining,
+                n_rain,
+                n_total,
+                evote.probability_pct,
+                cfg.probability.model_rain_threshold_mm,
+                accuracy_weighted,
+            )
+        };
+        Ok(RainProbability {
+            probability_pct: py_round(prob, 1),
+            radar_available,
+            radar_raining,
+            models_rain_count: n_rain,
+            models_total: n_total,
+            ensemble_pct: evote.probability_pct.map(|p| py_round(p, 1)),
+            weights_used,
+            explanation,
+        })
     }
 
     /// Python `get_24h_model_comparison`: hourly precipitation per model
