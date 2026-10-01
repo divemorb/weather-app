@@ -4,6 +4,7 @@ pub mod accuracy;
 pub mod brightsky;
 pub mod clients;
 pub mod config;
+pub mod location;
 pub mod models;
 pub mod openmeteo;
 pub mod probability;
