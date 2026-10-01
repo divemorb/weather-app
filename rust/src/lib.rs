@@ -1,6 +1,7 @@
 //! Rust port of the weather app backend (axum); the Python app is the spec.
 
 pub mod accuracy;
+pub mod aggregator;
 pub mod brightsky;
 pub mod clients;
 pub mod config;
