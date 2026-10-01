@@ -367,11 +367,16 @@ impl Aggregator {
     }
 }
 
+mod read;
+
 #[cfg(test)]
 pub(crate) mod testkit;
 
 #[cfg(test)]
 mod backfill_tests;
+
+#[cfg(test)]
+mod read_tests;
 
 #[cfg(test)]
 mod tests;
