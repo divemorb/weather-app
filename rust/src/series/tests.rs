@@ -21,7 +21,7 @@ fn model(name: &str, hourly: Vec<Option<f64>>, start: Option<DateTime<Utc>>) -> 
     let naive = base.naive_utc();
     let base = at(naive.year(), naive.month(), naive.day(), naive.hour(), 0);
     let hourly_time = (0..hourly.len())
-        .map(|i| base + TimeDelta::hours(i as i64))
+        .map(|i| base + TimeDelta::hours(i64::try_from(i).unwrap()))
         .collect();
     ModelSeries {
         name: name.to_string(),

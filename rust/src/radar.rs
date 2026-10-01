@@ -148,11 +148,8 @@ pub fn parse_radar(payload: &Value) -> Result<RadarNowcast, SourceError> {
     // Is the requested location actually inside the returned sub-grid?
     let covered = 0.0 <= px && px < width as f64 && 0.0 <= py && py < height as f64;
 
-    let n_cells = usize::try_from(n_cells).map_err(|_| {
-        SourceError::new(format!(
-            "{label}: bbox implies {n_cells} cells ({width}x{height}), more than MAX_RADAR_CELLS={MAX_RADAR_CELLS}"
-        ))
-    })?;
+    let n_cells = usize::try_from(n_cells)
+        .map_err(|_| SourceError::new(format!("{label}: bad grid size {n_cells}")))?;
     let mut frames: Vec<RadarFrame> = Vec::with_capacity(frames_raw.len());
     for rec in frames_raw {
         let rec = rec
@@ -181,10 +178,8 @@ pub fn parse_radar(payload: &Value) -> Result<RadarNowcast, SourceError> {
             for col in 0..width {
                 // decode_grid guarantees grid.len() == width * height, so the
                 // index is always in range; .get keeps it panic-free anyway.
-                let Some(idx) = usize::try_from(row * width + col).ok() else {
-                    return Err(SourceError::new(format!("{label}: frame size mismatch")));
-                };
-                let Some(&value) = grid.get(idx) else {
+                let index = usize::try_from(row * width + col).ok();
+                let Some(&value) = index.and_then(|i| grid.get(i)) else {
                     return Err(SourceError::new(format!("{label}: frame size mismatch")));
                 };
                 let mm = value as f64 * RADAR_MM_PER_UNIT;
