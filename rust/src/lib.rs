@@ -13,6 +13,7 @@ pub mod probability;
 pub mod pyfmt;
 pub mod radar;
 pub mod routes;
+pub mod scheduler;
 pub mod security;
 pub mod serializers;
 pub mod series;
