@@ -150,6 +150,138 @@ fn forecast_payload_puts_suffixed_series() {
     assert_eq!(payload["latitude"], json!(52.0));
 }
 
+#[tokio::test]
+async fn fetch_parses_json_and_sends_params() {
+    use crate::testutil::fake_upstream::{FakeResponse, FakeUpstream};
+    let fake = FakeUpstream::start();
+    fake.set(
+        "/bs/current_weather",
+        FakeResponse::Json(json!({"a": [1, 2.5]})),
+    );
+    let client = http_client(5.0).unwrap();
+    let params = [
+        ("lat", crate::pyfmt::py_repr(52.52)),
+        ("date", "2026-09-30T10:25:00+00:00".to_string()),
+        ("q", "Alexanderplatz Berlin".to_string()),
+    ];
+    let value = fetch_json_capped(
+        &client,
+        &format!("{}/bs/current_weather", fake.base),
+        &params,
+    )
+    .await
+    .unwrap();
+    assert_eq!(value, json!({"a": [1, 2.5]}));
+    let request = fake.requests().into_iter().next().unwrap();
+    assert_eq!(request.path, "/bs/current_weather");
+    assert_eq!(request.param("lat"), Some("52.52"));
+    assert_eq!(request.param("date"), Some("2026-09-30T10:25:00+00:00"));
+    assert_eq!(request.param("q"), Some("Alexanderplatz Berlin"));
+    assert_eq!(request.user_agent, USER_AGENT);
+}
+
+#[tokio::test]
+async fn fetch_http_error_is_source_error() {
+    use crate::testutil::fake_upstream::{FakeResponse, FakeUpstream};
+    let fake = FakeUpstream::start();
+    fake.set("/bs/current_weather", FakeResponse::Status(500));
+    let client = http_client(5.0).unwrap();
+    let err = fetch_json_capped(&client, &format!("{}/bs/current_weather", fake.base), &[])
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("500"), "got: {err}");
+}
+
+#[tokio::test]
+async fn fetch_redirect_is_source_error() {
+    use crate::testutil::fake_upstream::{FakeResponse, FakeUpstream};
+    let fake = FakeUpstream::start();
+    fake.set("/bs/current_weather", FakeResponse::Status(302));
+    let client = http_client(5.0).unwrap();
+    let err = fetch_json_capped(&client, &format!("{}/bs/current_weather", fake.base), &[])
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("302"), "got: {err}");
+    assert_eq!(fake.requests().len(), 1, "a redirect must not be followed");
+}
+
+#[tokio::test]
+async fn fetch_broken_json_is_source_error() {
+    use crate::testutil::fake_upstream::{FakeResponse, FakeUpstream};
+    let fake = FakeUpstream::start();
+    fake.set(
+        "/bs/current_weather",
+        FakeResponse::Raw("{\"weather\": ".to_string()),
+    );
+    let client = http_client(5.0).unwrap();
+    let err = fetch_json_capped(&client, &format!("{}/bs/current_weather", fake.base), &[])
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("not valid JSON"), "got: {err}");
+}
+
+#[tokio::test]
+async fn fetch_declared_oversize_is_source_error() {
+    use crate::testutil::fake_upstream::{FakeResponse, FakeUpstream};
+    let fake = FakeUpstream::start();
+    fake.set(
+        "/bs/current_weather",
+        FakeResponse::Oversize {
+            bytes: 6_000_000,
+            declare: true,
+        },
+    );
+    let client = http_client(5.0).unwrap();
+    let err = fetch_json_capped(&client, &format!("{}/bs/current_weather", fake.base), &[])
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("cap"), "got: {err}");
+}
+
+#[tokio::test]
+async fn fetch_streamed_oversize_is_source_error() {
+    use crate::testutil::fake_upstream::{FakeResponse, FakeUpstream};
+    let fake = FakeUpstream::start();
+    fake.set(
+        "/bs/current_weather",
+        FakeResponse::Oversize {
+            bytes: 6_000_000,
+            declare: false,
+        },
+    );
+    let client = http_client(5.0).unwrap();
+    let err = fetch_json_capped(&client, &format!("{}/bs/current_weather", fake.base), &[])
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("cap"), "got: {err}");
+}
+
+#[tokio::test]
+async fn fetch_deeply_nested_json_is_source_error() {
+    use crate::testutil::fake_upstream::{FakeResponse, FakeUpstream};
+    let fake = FakeUpstream::start();
+    fake.set(
+        "/bs/current_weather",
+        FakeResponse::Raw("[".repeat(100_000) + &"]".repeat(100_000)),
+    );
+    let client = http_client(5.0).unwrap();
+    let err = fetch_json_capped(&client, &format!("{}/bs/current_weather", fake.base), &[])
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("not valid JSON"), "got: {err}");
+}
+
+#[tokio::test]
+async fn fetch_unknown_path_is_source_error() {
+    use crate::testutil::fake_upstream::FakeUpstream;
+    let fake = FakeUpstream::start();
+    let client = http_client(5.0).unwrap();
+    let err = fetch_json_capped(&client, &format!("{}/never-set", fake.base), &[])
+        .await
+        .unwrap_err();
+    assert!(err.to_string().contains("404"), "got: {err}");
+}
+
 #[test]
 fn ensemble_payload_names_members() {
     let payload = crate::testutil::make_ensemble_payload(

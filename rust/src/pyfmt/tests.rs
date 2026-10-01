@@ -186,3 +186,58 @@ fn f64_to_i64() {
         Some(i64::MIN)
     );
 }
+
+#[test]
+fn py_repr_reference_values() {
+    // Reference values produced by Python 3.12's repr() for floats.
+    let cases: [(f64, &str); 14] = [
+        (52.52, "52.52"),
+        (1.0, "1.0"),
+        (52.0, "52.0"),
+        (0.1 + 0.2, "0.30000000000000004"),
+        (1e16, "1e+16"),
+        (1e15, "1000000000000000.0"),
+        (123456789012345678.0, "1.2345678901234568e+17"),
+        (1e-5, "1e-05"),
+        (0.0001, "0.0001"),
+        (-0.0, "-0.0"),
+        (1.5e-7, "1.5e-07"),
+        (1e100, "1e+100"),
+        (f64::NAN, "nan"),
+        (f64::INFINITY, "inf"),
+    ];
+    for (x, want) in cases {
+        let got = py_repr(x);
+        assert_eq!(got, want, "x={x:?}");
+    }
+}
+
+#[test]
+fn py_float_numbers_bools_and_strings() {
+    use serde_json::json;
+    assert_eq!(py_float(&json!("52.5")), Some(52.5));
+    assert_eq!(py_float(&json!(" 52.5 ")), Some(52.5));
+    assert_eq!(py_float(&json!("1e1")), Some(10.0));
+    assert_eq!(py_float(&json!("1_0")), Some(10.0));
+    assert_eq!(py_float(&json!("+5")), Some(5.0));
+    assert_eq!(py_float(&json!(true)), Some(1.0));
+    assert_eq!(py_float(&json!(false)), Some(0.0));
+    assert_eq!(py_float(&json!(52)), Some(52.0));
+    assert!(py_float(&json!("inf")).unwrap().is_infinite());
+    assert!(py_float(&json!("nan")).unwrap().is_nan());
+}
+
+#[test]
+fn py_float_rejects_non_numeric() {
+    use serde_json::json;
+    for v in [
+        json!("abc"),
+        json!(""),
+        serde_json::Value::Null,
+        json!([1]),
+        json!("1__0"),
+        json!("_1"),
+    ] {
+        assert_eq!(py_float(&v), None, "v={v}");
+    }
+}

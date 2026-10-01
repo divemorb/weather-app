@@ -1,6 +1,6 @@
 //! Shared upstream plumbing (Python `app/upstream.py`). Upstream data is
 //! untrusted: a wrong type or a missing key becomes a `SourceError`, never
-//! a panic. The HTTP fetch comes in phase 3.
+//! a panic.
 
 use serde_json::Value;
 
@@ -24,6 +24,64 @@ impl std::fmt::Display for SourceError {
 }
 
 impl std::error::Error for SourceError {}
+
+/// Sent with every upstream request. Nominatim requires a custom
+/// User-Agent (its usage policy; the default ones get a 403).
+pub const USER_AGENT: &str = "WetterLocal/1.0 (self-hosted home weather app)";
+
+/// The HTTP client for upstream requests: total timeout, our User-Agent,
+/// and no redirects (httpx doesn't follow them, so a 3xx is an error).
+pub fn http_client(timeout_seconds: f64) -> Result<reqwest::Client, String> {
+    let timeout = std::time::Duration::try_from_secs_f64(timeout_seconds)
+        .unwrap_or(std::time::Duration::from_secs(20));
+    reqwest::Client::builder()
+        .timeout(timeout)
+        .user_agent(USER_AGENT)
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .map_err(|e| format!("cannot build the HTTP client: {e}"))
+}
+
+/// Python `stream_json_capped`: GET `url` with `params` and parse the JSON
+/// body, aborting above `MAX_RESPONSE_BYTES` (declared or streamed).
+pub async fn fetch_json_capped(
+    client: &reqwest::Client,
+    url: &str,
+    params: &[(&str, String)],
+) -> Result<Value, SourceError> {
+    let mut resp = client
+        .get(url)
+        .query(params)
+        .send()
+        .await
+        .map_err(|e| SourceError::new(format!("request failed: {e}")))?;
+    let status = resp.status();
+    if !status.is_success() {
+        return Err(SourceError::new(format!("request failed: HTTP {status}")));
+    }
+    if let Some(declared) = resp.content_length()
+        && declared > MAX_RESPONSE_BYTES as u64
+    {
+        return Err(SourceError::new(format!(
+            "response declares {declared} bytes, over the {MAX_RESPONSE_BYTES} byte cap"
+        )));
+    }
+    let mut body: Vec<u8> = Vec::new();
+    while let Some(chunk) = resp
+        .chunk()
+        .await
+        .map_err(|e| SourceError::new(format!("request failed: {e}")))?
+    {
+        if body.len() + chunk.len() > MAX_RESPONSE_BYTES {
+            return Err(SourceError::new(format!(
+                "response body exceeds the {MAX_RESPONSE_BYTES} byte cap"
+            )));
+        }
+        body.extend_from_slice(&chunk);
+    }
+    serde_json::from_slice(&body)
+        .map_err(|e| SourceError::new(format!("response is not valid JSON: {e}")))
+}
 
 /// Python truthiness of a JSON value (`if payload.get("error"):`).
 pub fn py_truthy(v: &Value) -> bool {

@@ -1,6 +1,8 @@
 //! Test-only payload builders, the Rust version of `tests/helpers.py`.
 //! Everything here is compiled only under `#[cfg(test)]`, so it may unwrap.
 
+pub mod fake_upstream;
+
 use serde_json::{Map, Value, json};
 
 /// A width x height grid filled with `value`.

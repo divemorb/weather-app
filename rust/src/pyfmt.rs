@@ -1,6 +1,61 @@
 //! Python-compatible number formatting: the JSON answers must carry exactly
 //! the numbers and strings the Python app produces.
 
+use serde_json::Value;
+
+/// Python `repr(x)` for a float (`str(x)` is the same): `52.0`, `1e+16`,
+/// `1.5e-07`, `nan`, `inf`. Rust's `{:?}` already picks the same digits and
+/// the same switch to exponent notation; only the exponent is written
+/// differently (`1e16` → `1e+16`, `1e-7` → `1e-07`).
+pub fn py_repr(x: f64) -> String {
+    if x.is_nan() {
+        return "nan".to_string();
+    }
+    if x.is_infinite() {
+        return if x > 0.0 { "inf" } else { "-inf" }.to_string();
+    }
+    let s = format!("{x:?}");
+    match s.split_once('e') {
+        Some((mantissa, exp)) => {
+            let (sign, digits) = match exp.strip_prefix('-') {
+                Some(d) => ('-', d),
+                None => ('+', exp),
+            };
+            format!("{mantissa}e{sign}{digits:0>2}")
+        }
+        None => s,
+    }
+}
+
+/// Python `float(v)` for a JSON value: a number, a bool (1.0/0.0) or a
+/// numeric string; anything else is `None`. Strings follow Python's rules:
+/// surrounding whitespace is ignored and single underscores between digits
+/// are allowed (`"1_0"` is 10.0). `"nan"`/`"inf"` parse (to NaN/inf), so
+/// callers that need a finite number check `is_finite()`.
+pub fn py_float(v: &Value) -> Option<f64> {
+    match v {
+        Value::Number(n) => n.as_f64(),
+        Value::Bool(b) => Some(if *b { 1.0 } else { 0.0 }),
+        Value::String(s) => py_float_str(s),
+        _ => None,
+    }
+}
+
+fn py_float_str(s: &str) -> Option<f64> {
+    let s = s.trim();
+    let bytes = s.as_bytes();
+    for (i, b) in bytes.iter().enumerate() {
+        if *b == b'_' {
+            let before = i.checked_sub(1).and_then(|j| bytes.get(j));
+            let after = bytes.get(i + 1);
+            if !(before.is_some_and(u8::is_ascii_digit) && after.is_some_and(u8::is_ascii_digit)) {
+                return None;
+            }
+        }
+    }
+    s.replace('_', "").parse::<f64>().ok()
+}
+
 /// Python's `round(x, ndigits)` for floats: the exact binary value, rounded
 /// half-to-even to `ndigits` decimals (Rust's `{:.N}` formatting does the
 /// same), read back as the nearest f64.
