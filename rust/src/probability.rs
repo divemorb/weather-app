@@ -248,8 +248,10 @@ pub fn weighted_model_signal(
     let mut weighted_rain = 0.0_f64;
     for v in &available {
         // The gate above guarantees a row for every voting model.
-        let event_accuracy = accuracy[&v.name].event_accuracy;
-        let weight = event_accuracy.unwrap_or(0.0).max(0.1);
+        let Some(row) = accuracy.get(&v.name) else {
+            continue;
+        };
+        let weight = row.event_accuracy.unwrap_or(0.0).max(0.1);
         total_weight += weight;
         if v.precip_next_hour_mm.is_some_and(|p| p > threshold_mm) {
             weighted_rain += weight;

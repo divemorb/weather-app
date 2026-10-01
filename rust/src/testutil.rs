@@ -107,7 +107,13 @@ pub fn make_radar_payload(
     })
 }
 
-fn series<'a>(list: &'a [(&str, Vec<Value>)], name: &str) -> &'a Vec<Value> {
+/// One row per model: (model name, its series of values).
+type PerModel<'a> = [(&'a str, Vec<Value>)];
+
+/// The extra hourly variables, each with one per-model table.
+type ExtraHourly<'a> = [(&'a str, &'a PerModel<'a>)];
+
+fn series<'a>(list: &'a PerModel<'a>, name: &str) -> &'a Vec<Value> {
     &list
         .iter()
         .find(|(n, _)| *n == name)
@@ -116,14 +122,13 @@ fn series<'a>(list: &'a [(&str, Vec<Value>)], name: &str) -> &'a Vec<Value> {
 }
 
 /// An Open-Meteo multi-model forecast payload with suffixed keys.
-#[allow(clippy::type_complexity)]
 pub fn make_forecast_payload(
     model_names: &[&str],
     hours: &[&str],
     min15: &[&str],
-    precip_per_model: &[(&str, Vec<Value>)],
-    min15_precip_per_model: &[(&str, Vec<Value>)],
-    extra_hourly: &[(&str, &[(&str, Vec<Value>)])],
+    precip_per_model: &PerModel<'_>,
+    min15_precip_per_model: &PerModel<'_>,
+    extra_hourly: &ExtraHourly<'_>,
 ) -> Value {
     let mut payload = json!({
         "latitude": 52.0,

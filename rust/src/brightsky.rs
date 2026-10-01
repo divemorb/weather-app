@@ -158,7 +158,9 @@ pub fn parse_station_info(payload: &Value) -> Result<Option<(String, f64)>, Sour
             return Ok(Some((py_str(name), distance(s)?)));
         }
     }
-    let first = &sources[0];
+    let Some(first) = sources.first() else {
+        return Ok(None);
+    };
     let name = match first.get("station_name") {
         Some(n) if py_truthy(n) => py_str(n),
         _ => py_str(first.get("id").unwrap_or(&Value::Null)),

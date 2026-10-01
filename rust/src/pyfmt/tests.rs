@@ -174,3 +174,15 @@ fn py_sum_empty_is_zero() {
 fn py_hypot_3_4_is_5() {
     assert_eq!(py_hypot(3.0, 4.0), 5.0);
 }
+
+#[test]
+fn f64_to_i64() {
+    assert_eq!(super::f64_to_i64(2.9), Some(2));
+    assert_eq!(super::f64_to_i64(-2.9), Some(-2));
+    assert_eq!(super::f64_to_i64(f64::NAN), None);
+    assert_eq!(super::f64_to_i64(9.3e18), None);
+    assert_eq!(
+        super::f64_to_i64(-9_223_372_036_854_775_808.0),
+        Some(i64::MIN)
+    );
+}

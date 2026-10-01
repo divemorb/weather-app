@@ -155,7 +155,9 @@ fn member_number(key: &str, label: &str) -> Result<Option<i64>, SourceError> {
     let Some(pos) = key.rfind("precipitation_member") else {
         return Ok(None);
     };
-    let digits = &key[pos + "precipitation_member".len()..];
+    let Some(digits) = key.get(pos + "precipitation_member".len()..) else {
+        return Ok(None);
+    };
     if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
         return Ok(None);
     }

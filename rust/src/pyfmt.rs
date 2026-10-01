@@ -8,9 +8,26 @@ pub fn py_round(x: f64, ndigits: usize) -> f64 {
     format!("{x:.ndigits$}").parse().unwrap_or(x)
 }
 
+/// The only f64 -> i64 conversion in the crate: `Some(n)` exactly when the
+/// truncated value fits in an i64.
+#[expect(clippy::cast_possible_truncation, reason = "range checked just above")]
+pub fn f64_to_i64(x: f64) -> Option<i64> {
+    const TWO_POW_63: f64 = 9_223_372_036_854_775_808.0;
+    (x.is_finite() && (-TWO_POW_63..TWO_POW_63).contains(&x)).then(|| x.trunc() as i64)
+}
+
 /// Python's `round(x)` (no ndigits): half-to-even, as an integer.
 pub fn py_round_int(x: f64) -> i64 {
-    x.round_ties_even() as i64
+    let r = x.round_ties_even();
+    match f64_to_i64(r) {
+        Some(n) => n,
+        // Keep the old saturating-cast results where the conversion is
+        // not possible: NaN -> 0, above the i64 range -> i64::MAX,
+        // below it -> i64::MIN.
+        None if r.is_nan() => 0,
+        None if r < 0.0 => i64::MIN,
+        None => i64::MAX,
+    }
 }
 
 /// Python's `format(x, ".0f")`.
@@ -29,12 +46,14 @@ pub fn py_fmt_g(x: f64) -> String {
         };
     }
     let sci = format!("{x:.5e}"); // e.g. "3.46939e1": the exponent after rounding to 6 digits
-    let (mantissa, exp) = sci
-        .split_once('e')
-        .expect("output of {:e} always has an exponent");
-    let exp: i32 = exp.parse().expect("exponent of {:e} output is an integer");
+    let Some((mantissa, exp)) = sci.split_once('e') else {
+        return format!("{x}");
+    };
+    let Ok(exp) = exp.parse::<i32>() else {
+        return format!("{x}");
+    };
     if (-4..6).contains(&exp) {
-        let decimals = (5 - exp) as usize;
+        let decimals = usize::try_from(5 - exp).unwrap_or(0);
         strip_zeros(&format!("{x:.decimals$}"))
     } else {
         let sign = if exp < 0 { '-' } else { '+' };

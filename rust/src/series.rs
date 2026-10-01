@@ -169,8 +169,8 @@ pub fn build_radar_next_hour_bar(
     n_steps: usize,
 ) -> RadarBar {
     let grid_now = now.duration_trunc(TimeDelta::minutes(5)).unwrap_or(now);
-    let bucket_starts: Vec<DateTime<Utc>> = (0..n_steps)
-        .map(|i| grid_now + TimeDelta::minutes(5 * i as i64))
+    let bucket_starts: Vec<DateTime<Utc>> = (0..i64::try_from(n_steps).unwrap_or(0))
+        .map(|i| grid_now + TimeDelta::minutes(5 * i))
         .collect();
     let mut steps: Vec<RadarStep> = bucket_starts
         .iter()

@@ -3,6 +3,8 @@
 
 use serde_json::Value;
 
+use crate::pyfmt::f64_to_i64;
+
 /// Environment lookup: `&|k| std::env::var(k).ok()` in production, a map in tests.
 pub type Env<'a> = &'a dyn Fn(&str) -> Option<String>;
 
@@ -62,7 +64,7 @@ pub fn yaml_i64(v: &Value, what: &str) -> Result<i64, String> {
     match v {
         Value::Number(n) => n
             .as_i64()
-            .or_else(|| n.as_f64().map(|f| f.trunc() as i64))
+            .or_else(|| n.as_f64().and_then(f64_to_i64))
             .ok_or_else(|| format!("{what}: bad number")),
         Value::String(s) => s
             .trim()

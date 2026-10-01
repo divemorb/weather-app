@@ -12,6 +12,7 @@ use serde_json::{Map, Value};
 use std::io::Read;
 
 use crate::models::{RadarCell, RadarFrame, RadarNowcast};
+use crate::pyfmt::f64_to_i64;
 use crate::times::parse_iso;
 use crate::upstream::SourceError;
 
@@ -57,16 +58,13 @@ pub fn decode_grid(encoded: &str, n_cells: usize) -> Result<Vec<u16>, SourceErro
 /// Python `int(v)` for a bbox entry: a JSON integer, or a float truncated
 /// toward zero; anything else is a malformed payload.
 fn bbox_int(v: &Value) -> Result<i64, SourceError> {
-    if let Some(i) = v.as_i64() {
-        Ok(i)
-    } else if let Some(f) = v.as_f64() {
-        Ok(f.trunc() as i64)
-    } else {
-        Err(malformed(
+    let number = v.as_i64().or_else(|| v.as_f64().and_then(f64_to_i64));
+    number.ok_or_else(|| {
+        malformed(
             "Bright Sky radar",
             SourceError::new(format!("bbox entry {v} is not a number")),
-        ))
-    }
+        )
+    })
 }
 
 /// One numeric member of `latlon_position`; anything but a JSON number is a
@@ -150,7 +148,11 @@ pub fn parse_radar(payload: &Value) -> Result<RadarNowcast, SourceError> {
     // Is the requested location actually inside the returned sub-grid?
     let covered = 0.0 <= px && px < width as f64 && 0.0 <= py && py < height as f64;
 
-    let n_cells = n_cells as usize;
+    let n_cells = usize::try_from(n_cells).map_err(|_| {
+        SourceError::new(format!(
+            "{label}: bbox implies {n_cells} cells ({width}x{height}), more than MAX_RADAR_CELLS={MAX_RADAR_CELLS}"
+        ))
+    })?;
     let mut frames: Vec<RadarFrame> = Vec::with_capacity(frames_raw.len());
     for rec in frames_raw {
         let rec = rec
@@ -179,7 +181,10 @@ pub fn parse_radar(payload: &Value) -> Result<RadarNowcast, SourceError> {
             for col in 0..width {
                 // decode_grid guarantees grid.len() == width * height, so the
                 // index is always in range; .get keeps it panic-free anyway.
-                let Some(&value) = grid.get((row * width + col) as usize) else {
+                let Some(idx) = usize::try_from(row * width + col).ok() else {
+                    return Err(SourceError::new(format!("{label}: frame size mismatch")));
+                };
+                let Some(&value) = grid.get(idx) else {
                     return Err(SourceError::new(format!("{label}: frame size mismatch")));
                 };
                 let mm = value as f64 * RADAR_MM_PER_UNIT;

@@ -8,8 +8,10 @@ use wetter::security::parse_allowed_hosts;
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
     tracing_subscriber::fmt().with_target(false).init();
-    let clock = wetter::times::Clock::from_env(&|k| std::env::var(k).ok())
-        .expect("WETTER_FAKE_NOW must be an ISO-8601 timestamp");
+    let Ok(clock) = wetter::times::Clock::from_env(&|k| std::env::var(k).ok()) else {
+        eprintln!("WETTER_FAKE_NOW must be an ISO-8601 timestamp");
+        std::process::exit(1);
+    };
     if clock.is_fixed() {
         tracing::warn!(
             "WETTER_FAKE_NOW is set: the clock is frozen at {}",
@@ -38,19 +40,26 @@ async fn main() {
         static_files: Arc::new(static_files),
     };
     let bind = std::env::var("BIND_ADDR").unwrap_or_else(|_| "0.0.0.0:8000".to_string());
-    let listener = tokio::net::TcpListener::bind(&bind)
-        .await
-        .expect("cannot bind BIND_ADDR");
+    let Ok(listener) = tokio::net::TcpListener::bind(&bind).await else {
+        eprintln!("cannot bind BIND_ADDR");
+        std::process::exit(1);
+    };
     tracing::info!("listening on {bind}");
-    axum::serve(listener, build_router(state))
+    if let Err(err) = axum::serve(listener, build_router(state))
         .with_graceful_shutdown(shutdown_signal())
         .await
-        .expect("server error");
+    {
+        eprintln!("server error: {err}");
+        std::process::exit(1);
+    }
 }
 
 async fn shutdown_signal() {
     use tokio::signal::unix::{SignalKind, signal};
-    let mut term = signal(SignalKind::terminate()).expect("cannot install SIGTERM handler");
+    let Ok(mut term) = signal(SignalKind::terminate()) else {
+        eprintln!("cannot install SIGTERM handler");
+        std::process::exit(1);
+    };
     tokio::select! {
         _ = term.recv() => {},
         _ = tokio::signal::ctrl_c() => {},

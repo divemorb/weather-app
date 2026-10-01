@@ -48,7 +48,7 @@ pub fn model_accuracy(
 
     let mut result: BTreeMap<String, ModelAccuracy> = BTreeMap::new();
     for (model, pairs) in by_model {
-        let n = pairs.len() as i64;
+        let n = i64::try_from(pairs.len()).unwrap_or(i64::MAX);
         let mut abs_error = 0.0_f64;
         let mut hits = 0_i64;
         let mut misses = 0_i64;

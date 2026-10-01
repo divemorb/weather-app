@@ -64,11 +64,11 @@ fn series(name: &str, min15: &[Option<f64>], hourly: &[Option<f64>]) -> ModelSer
     ModelSeries {
         name: name.to_string(),
         min15_time: (0..min15.len())
-            .map(|i| base + TimeDelta::minutes(15 * i as i64))
+            .map(|i| base + TimeDelta::minutes(15 * i64::try_from(i).unwrap()))
             .collect(),
         min15_precip_mm: min15.to_vec(),
         hourly_time: (0..hourly.len())
-            .map(|i| base + TimeDelta::hours(i as i64))
+            .map(|i| base + TimeDelta::hours(i64::try_from(i).unwrap()))
             .collect(),
         hourly_precip_mm: hourly.to_vec(),
         hourly_temp_c: Vec::new(),
@@ -241,7 +241,7 @@ fn sum_next_hour_skips_step_stamped_at_now() {
     // (11:45-12:00) is the past quarter hour, so the window [NOW, NOW+1h)
     // is the four steps stamped 12:15..13:00.
     let t: Vec<DateTime<Utc>> = (0..5)
-        .map(|i| now() + TimeDelta::minutes(15 * i as i64))
+        .map(|i| now() + TimeDelta::minutes(15 * i64::from(i)))
         .collect();
     let v: Vec<Option<f64>> = [1.0, 2.0, 3.0, 4.0, 99.0].into_iter().map(Some).collect();
     // 1.0 is the past step -> not summed
@@ -254,7 +254,7 @@ fn sum_next_hour_skips_step_stamped_at_now() {
 #[test]
 fn sum_next_hour_none_on_missing_value() {
     let t: Vec<DateTime<Utc>> = (0..4)
-        .map(|i| now() + TimeDelta::minutes(15 * i as i64))
+        .map(|i| now() + TimeDelta::minutes(15 * i64::from(i)))
         .collect();
     let v = vec![Some(1.0), None, Some(3.0), Some(4.0)];
     assert_eq!(sum_next_hour(&t, &v, now()), None);
@@ -264,7 +264,7 @@ fn sum_next_hour_none_on_missing_value() {
 fn sum_next_hour_none_when_no_step_in_window() {
     // series already stale (all steps before now)
     let t: Vec<DateTime<Utc>> = (0..4)
-        .map(|i| now() - TimeDelta::hours(1) + TimeDelta::minutes(15 * i as i64))
+        .map(|i| now() - TimeDelta::hours(1) + TimeDelta::minutes(15 * i64::from(i)))
         .collect();
     let v: Vec<Option<f64>> = vec![Some(1.0); 4];
     assert_eq!(sum_next_hour(&t, &v, now()), None);

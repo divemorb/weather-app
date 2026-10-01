@@ -32,3 +32,23 @@ tempfile = "=3.27.0"
 [profile.release]
 strip = true
 lto = "thin"
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[lints.clippy]
+unwrap_used = "deny"
+expect_used = "deny"
+panic = "deny"
+indexing_slicing = "deny"
+string_slice = "deny"
+todo = "deny"
+unimplemented = "deny"
+dbg_macro = "deny"
+cast_possible_truncation = "deny"
+cast_sign_loss = "deny"
+# cast_possible_wrap is intentionally not enabled yet: series/tests.rs:24
+# (usize -> i64, outside this step's file list) would need the same
+# try_from treatment, so the lint is deferred with it.
+allow_attributes = "deny"
+allow_attributes_without_reason = "deny"

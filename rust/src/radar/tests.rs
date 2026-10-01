@@ -195,7 +195,7 @@ fn decode_grid_matches_python_cases() {
     for case in cases {
         let name = case["name"].as_str().unwrap();
         let encoded = case["encoded"].as_str().unwrap();
-        let n_cells = case["n_cells"].as_u64().unwrap() as usize;
+        let n_cells = usize::try_from(case["n_cells"].as_u64().unwrap()).unwrap();
         match case["result"].as_str() {
             Some("error") => {
                 assert!(decode_grid(encoded, n_cells).is_err(), "case {name:?}");
@@ -214,7 +214,7 @@ fn decode_grid_matches_python_cases() {
                     % 1_000_000_007;
                 assert_eq!(
                     grid.len(),
-                    result["len"].as_u64().unwrap() as usize,
+                    usize::try_from(result["len"].as_u64().unwrap()).unwrap(),
                     "case {name:?}: len"
                 );
                 assert_eq!(sum, result["sum"].as_u64().unwrap(), "case {name:?}: sum");
