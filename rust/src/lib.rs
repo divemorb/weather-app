@@ -2,6 +2,7 @@
 
 pub mod accuracy;
 pub mod brightsky;
+pub mod clients;
 pub mod config;
 pub mod models;
 pub mod openmeteo;
