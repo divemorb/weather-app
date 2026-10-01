@@ -30,6 +30,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/model-accuracy", get_only(api::api_model_accuracy))
         .route("/api/sources", get_only(api::api_sources))
         .route("/api/schedule", get_only(api::api_schedule))
+        .route("/api/geocode", get_only(location::get_geocode))
+        .route("/api/location", post_only(location::post_location))
         .fallback(fallback)
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
@@ -76,9 +78,13 @@ async fn fallback(
 }
 
 mod api;
+mod location;
 
 #[cfg(test)]
 mod api_tests;
+
+#[cfg(test)]
+mod location_tests;
 
 #[cfg(test)]
 mod tests;
