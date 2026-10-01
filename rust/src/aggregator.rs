@@ -13,16 +13,19 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Mutex, RwLock};
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use serde_json::{Map, Value, json};
 
+use crate::brightsky::{parse_hourly_observations, parse_station_info};
 use crate::clients::{BrightSkyClient, OpenMeteoClient};
 use crate::config::{AppConfig, LocationConfig};
 use crate::location;
+use crate::openmeteo::parse_forecast;
 use crate::pyfmt::py_round_int;
 use crate::serializers::CacheMeta;
+use crate::series::build_forecast_history_rows;
 use crate::store::{Source, Store, StoreError};
-use crate::times::Clock;
+use crate::times::{Clock, to_iso};
 use crate::upstream::SourceError;
 
 /// The two scheduled refresh jobs (Python's job ids and log names).
@@ -229,7 +232,90 @@ impl Aggregator {
         self.store_fetched(Source::Forecast, forecast);
         let ensemble = self.openmeteo.fetch_ensemble_payload().await;
         self.store_fetched(Source::Ensemble, ensemble);
-        // R25b: forecast history, then the observation backfill
+        self.record_forecast_history();
+        self.backfill_observations().await;
+    }
+
+    /// Python `_record_forecast_history`: append this hour's model
+    /// forecasts to `forecast_history`. History is a nicety: every failure
+    /// (a missing or unparseable cache, a database error) is logged or
+    /// swallowed and never breaks the refresh.
+    fn record_forecast_history(&self) {
+        let now = self.now();
+        let cached = match self.store.get_cache(Source::Forecast, now) {
+            Ok(cached) => cached,
+            Err(err) => {
+                tracing::warn!("reading the forecast cache failed: {err}");
+                return;
+            }
+        };
+        let Some((payload, _age)) = cached else {
+            return; // no cached forecast: nothing to record
+        };
+        let Ok(bundle) = parse_forecast(&payload, &self.cfg().models.forecast) else {
+            return;
+        };
+        if let Err(err) = self
+            .store
+            .add_forecasts(&build_forecast_history_rows(&bundle, now, 24))
+        {
+            tracing::error!("storing forecast history failed: {err}");
+        }
+    }
+
+    /// Python `backfill_observations`: fill `observed_mm` in
+    /// `forecast_history` from DWD observations.
+    ///
+    /// Fetches the last 48 h of Bright Sky `/weather` hourly records and
+    /// writes each real observation (`observation_type != "forecast"`) for
+    /// its hour start (`timestamp - 1h`). Run from the hourly model refresh
+    /// — never on a page load; failures are logged and swallowed (a
+    /// failing source never breaks a refresh).
+    pub async fn backfill_observations(&self) {
+        let now = self.now();
+        let payload = match self
+            .brightsky
+            .fetch_weather_payload(now - TimeDelta::hours(48), now)
+            .await
+        {
+            Ok(payload) => payload,
+            Err(err) => {
+                tracing::error!("observation backfill fetch failed: {err}");
+                return;
+            }
+        };
+        let station = match parse_station_info(&payload) {
+            Ok(station) => station,
+            Err(err) => {
+                tracing::error!("observation backfill fetch failed: {err}");
+                return;
+            }
+        };
+        if let Some((name, distance)) = station {
+            tracing::info!(
+                "observation backfill: station {name} ({} m away)",
+                crate::pyfmt::py_repr(distance)
+            );
+        }
+        let observations = match parse_hourly_observations(&payload, now) {
+            Ok(observations) => observations,
+            Err(err) => {
+                tracing::error!("observation backfill fetch failed: {err}");
+                return;
+            }
+        };
+        if observations.is_empty() {
+            tracing::info!("observation backfill: no observation records in the last 48 h");
+            return;
+        }
+        for (hour_start, mm) in &observations {
+            if let Err(err) = self.store.set_observation(&to_iso(*hour_start), *mm) {
+                tracing::error!("observation backfill: writing observations failed: {err}");
+                return;
+            }
+        }
+        let count = observations.len();
+        tracing::info!("observation backfill: {count} hourly observations written");
     }
 
     // -- read model (page loads) --------------------------------------------
@@ -283,6 +369,9 @@ impl Aggregator {
 
 #[cfg(test)]
 pub(crate) mod testkit;
+
+#[cfg(test)]
+mod backfill_tests;
 
 #[cfg(test)]
 mod tests;

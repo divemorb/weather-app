@@ -108,6 +108,44 @@ async fn refresh_models_tolerates_ensemble_failure() {
 }
 
 #[tokio::test]
+async fn refresh_models_writes_forecast_history() {
+    let fake = FakeUpstream::start();
+    let payloads = make_payloads();
+    serve(&fake, &payloads, &[]);
+    let agg = make_aggregator(make_cfg(&fake, CfgOpts::default()), memory_store());
+
+    agg.refresh_models().await;
+
+    let conn = agg.store().lock_for_tests();
+    let rows: Vec<(String, String, String)> = {
+        let mut stmt = conn
+            .prepare("SELECT model, valid_from, valid_to FROM forecast_history")
+            .unwrap();
+        stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap()
+    };
+    // icon_d2 + icon_eu: 24 *future* hours each (gfs has null data -> 0
+    // rows); the hour ending at NOW (11:00-12:00, stamp 12:00) is past
+    // and not stored
+    assert_eq!(rows.len(), 48);
+    let models: std::collections::HashSet<&str> = rows.iter().map(|r| r.0.as_str()).collect();
+    assert_eq!(models, ["icon_d2", "icon_eu"].into_iter().collect());
+    for (model, valid_from, valid_to) in &rows {
+        // each row covers one hour that has not started yet at issued_at
+        assert!(
+            valid_from.as_str() >= "2025-01-01T12:00:00Z",
+            "{model} {valid_from}"
+        );
+        assert!(
+            valid_to.as_str() > valid_from.as_str(),
+            "{model} {valid_from} {valid_to}"
+        );
+    }
+}
+
+#[tokio::test]
 async fn source_status_marks_stale() {
     let fake = FakeUpstream::start();
     let payloads = make_payloads();
