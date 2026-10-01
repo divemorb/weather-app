@@ -132,11 +132,12 @@ pub fn combine_signals(
             _ => prob_cfg.weight_ensemble,
         }
     };
-    let weights: Vec<f64> = signals.iter().map(|(k, _)| base_weight(k)).collect();
+    let mut weights: Vec<f64> = signals.iter().map(|(k, _)| base_weight(k)).collect();
     let mut total = py_sum(weights.iter().copied());
     if total <= 0.0 {
         // Configured weights for all available signals are zero: fall back
         // to equal weighting so the app still produces a number.
+        weights = vec![1.0; signals.len()];
         total = signals.len() as f64;
     }
     let weights_used: Vec<(String, f64)> = signals
@@ -197,3 +198,6 @@ pub fn build_explanation(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod zero_weight_tests;
