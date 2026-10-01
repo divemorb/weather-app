@@ -13,6 +13,7 @@ pub mod security;
 pub mod serializers;
 pub mod series;
 pub mod static_files;
+pub mod store;
 pub mod times;
 pub mod upstream;
 
