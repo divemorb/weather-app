@@ -10,6 +10,7 @@ pub mod pyfmt;
 pub mod radar;
 pub mod routes;
 pub mod security;
+pub mod serializers;
 pub mod series;
 pub mod static_files;
 pub mod times;
