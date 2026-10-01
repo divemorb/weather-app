@@ -13,11 +13,23 @@ use serde_json::{Value, json};
 pub struct AppState {
     pub extra_hosts: Arc<HashSet<String>>,
     pub static_files: Arc<HashMap<String, crate::static_files::StaticFile>>,
+    pub aggregator: Arc<crate::aggregator::Aggregator>,
+    /// None when no scheduler runs (tests; Python: no `app.state.scheduler`).
+    pub scheduler: Option<Arc<crate::scheduler::Scheduler>>,
+    pub geocoder: Arc<crate::geocode::Geocoder>,
 }
 
 pub fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/healthz", get_only(healthz))
+        .route("/api/config", get_only(api::api_config))
+        .route("/api/now", get_only(api::api_now))
+        .route("/api/rain-probability", get_only(api::api_rain_probability))
+        .route("/api/radar/next-hour", get_only(api::api_radar_next_hour))
+        .route("/api/models/24h", get_only(api::api_models_24h))
+        .route("/api/model-accuracy", get_only(api::api_model_accuracy))
+        .route("/api/sources", get_only(api::api_sources))
+        .route("/api/schedule", get_only(api::api_schedule))
         .fallback(fallback)
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
@@ -62,6 +74,11 @@ async fn fallback(
 ) -> Response {
     crate::static_files::respond(&state.static_files, &method, &uri, &headers)
 }
+
+mod api;
+
+#[cfg(test)]
+mod api_tests;
 
 #[cfg(test)]
 mod tests;

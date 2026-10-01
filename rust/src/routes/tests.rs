@@ -2,6 +2,8 @@ use axum::body::Body;
 use axum::http::{HeaderMap, Request, StatusCode};
 use tower::ServiceExt;
 
+use crate::aggregator::testkit::CfgOpts;
+
 use super::*;
 
 fn test_state() -> AppState {
@@ -9,9 +11,11 @@ fn test_state() -> AppState {
     std::fs::write(dir.path().join("index.html"), "<html></html>").unwrap();
     std::fs::write(dir.path().join("app.js"), "console.log(1)").unwrap();
     let static_files = crate::static_files::load(dir.path()).unwrap();
+    let fake = crate::testutil::fake_upstream::FakeUpstream::start();
+    let state = super::api_tests::api_state(&fake, CfgOpts::default());
     AppState {
-        extra_hosts: Arc::new(HashSet::new()),
         static_files: Arc::new(static_files),
+        ..state
     }
 }
 

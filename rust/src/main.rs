@@ -73,7 +73,7 @@ async fn main() {
         openmeteo,
         clock,
     ));
-    let _geocoder = Arc::new(wetter::geocode::Geocoder::new(
+    let geocoder = Arc::new(wetter::geocode::Geocoder::new(
         &config.api.nominatim_base_url,
         geocode_http,
     ));
@@ -95,6 +95,9 @@ async fn main() {
     let state = AppState {
         extra_hosts: Arc::new(extra_hosts),
         static_files: Arc::new(static_files),
+        aggregator: agg,
+        scheduler: Some(scheduler),
+        geocoder,
     };
     let bind = std::env::var("BIND_ADDR").unwrap_or_else(|_| "0.0.0.0:8000".to_string());
     let listener = match tokio::net::TcpListener::bind(&bind).await {
