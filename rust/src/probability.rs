@@ -5,6 +5,8 @@
 //! the normalized models: no I/O, no hidden clock. Three independent
 //! signals (radar nowcast, model votes, ensemble) are combined linearly.
 
+pub mod combine;
+
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, TimeDelta, Utc};
@@ -13,6 +15,8 @@ use crate::accuracy::ModelAccuracy;
 use crate::config::{ProbabilityConfig, RadarConfig};
 use crate::models::{ForecastBundle, ModelVote, RadarFrame, RadarNowcast};
 use crate::pyfmt::py_hypot;
+
+pub use combine::*;
 
 /// Location in full-grid (x, y) cell coordinates (Python
 /// `_location_full_xy`). The sub-grid's origin is at `bbox` =
