@@ -69,6 +69,36 @@ Verified on 2026-09-30 against the exact versions in `rust/Cargo.toml` (Rust 1.9
 - zlib with a size cap: `flate2::read::ZlibDecoder::new(raw.as_slice()).take(limit).read_to_end(&mut out)` (`use std::io::Read;`). A truncated or corrupt stream is an `Err`, and bytes after the end of the stream are ignored (like Python's `decompressobj`).
 - Encode (tests): `flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default())`, then `write_all`, then `finish()`.
 
-## reqwest 0.13.5, rusqlite 0.40.2
+## reqwest 0.13.5 (upstream HTTP)
 
-Added with the phase that uses them (phase 3).
+Features: `rustls`, `gzip`, `query` (no `json`, no `stream`, no `blocking`).
+
+- Client: `reqwest::Client::builder().timeout(d).user_agent(ua).redirect(reqwest::redirect::Policy::none()).build()`. It returns a `Result`. Build it once and clone it (a clone shares the connection pool). `Policy::none()` matters: httpx doesn't follow redirects, so a 3xx must be an error, not a second request.
+- Request: `client.get(url).query(&[("lat", "52.52".to_string())]).send().await`. `.query` takes `&[(&str, String)]` and percent-encodes (`+` becomes `%2B`, a space becomes `+`).
+- Status: `resp.status().is_success()`. reqwest doesn't turn 4xx/5xx into errors by itself.
+- Body with a cap: check `resp.content_length()` (an `Option<u64>`; `None` for chunked or close-delimited bodies), then read with `while let Some(chunk) = resp.chunk().await? { ... }` (`chunk` is `bytes::Bytes`, use it as `&[u8]`). There is no `.json()` (feature off): parse with `serde_json::from_slice::<Value>(&body)`. serde_json stops at 128 nesting levels with an error ("recursion limit exceeded"), so deeply nested JSON is an error, not a crash.
+- `std::time::Duration::try_from_secs_f64(x)` instead of `from_secs_f64` (which panics on a negative or NaN value from the config).
+
+## rusqlite 0.40.2 (bundled SQLite 3.53.2)
+
+- Open: `Connection::open(path)` (file) or `Connection::open_in_memory()`. The parent directory must exist (`std::fs::create_dir_all`).
+- Many statements at once (Python `executescript`): `conn.execute_batch(SQL)`.
+- One statement: `conn.execute(sql, params)` with positional `(a, b)` tuples or `rusqlite::params![a, b]`, or named `rusqlite::named_params! {":model": m, ":precip_mm": x}` for `:name` placeholders.
+- One row or none: `use rusqlite::OptionalExtension;` then `conn.query_row(sql, [key], |r| r.get(0)).optional()?`, giving an `Option<T>`. A nullable column is `Option<T>`: a row whose `value` is NULL reads as `Some(None)` with `Option<Option<String>>`.
+- Many rows: `let mut stmt = conn.prepare(sql)?; let rows = stmt.query_map([x], |r| Ok((r.get(0)?, r.get(1)?)))?.collect::<Result<Vec<_>, _>>()?;`. Drop `stmt` (end its block) before you move or reuse the connection.
+- `r.get::<_, f64>(i)` also reads an INTEGER column (as `3.0`), but `i64` doesn't read a REAL column (error).
+- `Connection` is `Send` but not `Sync`: share it as `std::sync::Mutex<Connection>` and never hold the guard across an `.await` (clippy fails on `await_holding_lock`).
+
+## Shared state and locks
+
+- App-wide objects live in an `Arc` (`Arc<Aggregator>`) and use `std::sync::Mutex`/`RwLock` inside for the few fields that change. Lock, copy or change, release, and only then `.await`.
+- No `unwrap()` on a lock: `self.x.lock().unwrap_or_else(std::sync::PoisonError::into_inner)` (same for `.read()`/`.write()`).
+- Locks that must be held across an `.await` (the geocoder throttle) are `tokio::sync::Mutex` (`.lock().await`).
+- Background work: `tokio::spawn(async move { agg.refresh().await })` with a cloned `Arc`. Two things at once: `tokio::join!(a(), b())`.
+- Timers: `tokio::time::interval_at(tokio::time::Instant::now() + period, period)` (first tick one period after start), with `.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip)`. `tokio::time::sleep(d).await` waits.
+
+## axum extras for phase 3
+
+- Raw query pairs (all of them, in order, percent-decoded, invalid UTF-8 becomes U+FFFD): handler argument `axum::extract::Query(pairs): Query<Vec<(String, String)>>`. Don't deserialize into a struct: a repeated key is then an error, while Python takes the last value.
+- Raw body plus headers: handler arguments `headers: axum::http::HeaderMap, body: axum::body::Bytes` (the body must be the last argument). axum's default body limit is 2 MB (bigger bodies get 413).
+- Outside a handler (tests, the fake upstream): `Query::<Vec<(String, String)>>::try_from_uri(&uri)`.
