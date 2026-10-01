@@ -93,6 +93,28 @@ fn now_missing_conditions_is_null() {
     );
 }
 
+/// Python `serialize_now(None, meta)` ignores `meta` and always answers the
+/// fixed "no cached observation" shape (review R17b).
+#[test]
+fn now_missing_conditions_ignores_meta() {
+    assert_eq!(
+        serialize_now(
+            None,
+            Some(&CacheMeta {
+                available: true,
+                age_seconds: Some(42),
+                stale: false,
+            })
+        ),
+        json!({
+            "available": false,
+            "age_seconds": null,
+            "stale": false,
+            "conditions": null,
+        })
+    );
+}
+
 // ---------------------------------------------------------------------------
 // serialize_rain_probability
 // ---------------------------------------------------------------------------

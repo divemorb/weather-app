@@ -52,11 +52,18 @@ fn cache_meta(meta: Option<&CacheMeta>) -> Map<String, Value> {
 /// `conditions` object is then null and the frontend renders an empty
 /// state.
 pub fn serialize_now(conditions: Option<&CurrentConditions>, meta: Option<&CacheMeta>) -> Value {
+    // Python returns the fixed "no cached observation" shape and ignores
+    // `meta` when there are no conditions.
+    let Some(conditions) = conditions else {
+        return json!({
+            "available": false,
+            "age_seconds": null,
+            "stale": false,
+            "conditions": null,
+        });
+    };
     let mut out = cache_meta(meta);
-    out.insert(
-        "conditions".into(),
-        conditions.map(conditions_json).unwrap_or(Value::Null),
-    );
+    out.insert("conditions".into(), conditions_json(conditions));
     Value::Object(out)
 }
 
