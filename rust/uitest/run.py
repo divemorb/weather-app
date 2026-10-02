@@ -53,8 +53,8 @@ _spec.loader.exec_module(contract)
 
 from cdp import Browser  # noqa: E402
 from expect import (  # noqa: E402
-    ANSWER, ATTRIBUTION_LINKS, BUDGET_BYTES, FIXED, KIOSK_MIN_FONT, KIOSK_SIZES, LOCALES, MODEL_LABELS,
-    NOW, SCENARIO, SOURCES, TZ, WEIGHTS, WHEN, WIZARD_DETAIL, WIZARD_LABEL)
+    ACCURACY_HEAD, ANSWER, ATTRIBUTION_LINKS, BUDGET_BYTES, FIXED, KIOSK_MIN_FONT, KIOSK_SIZES, LOCALES, MODEL_LABELS,
+    NOW, RADAR_CAPTION, SCENARIO, SOURCES, TZ, WEIGHTS, WHEN, WIZARD_DETAIL, WIZARD_LABEL)
 from fakeup import FakeUpstream  # noqa: E402
 from scenarios import SCENARIOS  # noqa: E402
 
@@ -66,7 +66,7 @@ ALLOWED_EXT = {".html", ".js", ".css"}
 COMMON = ["console", "requests", "lang", "location", "location-detail", "theme-light", "theme-dark", "theme-icon",
           "contrast-light", "contrast-dark", "overflow-360", "buttons", "attribution"]
 GLANCE = ["rain-answer", "rain-when", "rain-probability"]
-RADAR = ["radar-steps", "radar-labels"]
+RADAR = ["radar-steps", "radar-labels", "radar-caption", "radar-dry", "radar-max"]
 NOW_CHECKS = list(NOW)
 CHART = ["chart-svg", "chart-series", "chart-legend", "chart-y-labels", "chart-x-labels", "chart-unit", "chart-dry"]
 DETAILS = ["details-closed", "details-weights", "details-signals", "countdown-radar", "countdown-models",
@@ -88,7 +88,7 @@ def check_names(scenario: str, lang: str) -> list[str]:
                           "chart-unavailable"] + [n for n in DETAILS if n not in ("details-weights", "details-signals")])
     if scenario == "accuracy":
         return ["console", "requests", "location", "location-detail", "rain-probability", "details-closed",
-                "accuracy-table"]
+                "accuracy-table", "accuracy-head", "accuracy-note"]
     if scenario == "unconfigured":
         return ["console", "requests", "lang", "setup-visible", "theme-light", "theme-dark", "theme-icon",
                 "contrast-light", "contrast-dark", "overflow-360", "buttons"]
@@ -381,6 +381,20 @@ def check_radar(pg: UIPage, exp: dict, add):
             if labels[0] != labels_ok[0]:
                 problems.append(f"first label {labels[0]!r}, expected the first step's time {labels_ok[0]!r}")
     add("radar-labels", problems)
+    add("radar-caption", expect_text(pg, "radar-caption", RADAR_CAPTION[lang]))
+    peak = max(exp["radar"])
+    if peak > 0:  # rain: the amount of the tallest step, once; no "dry" sentence
+        shown = [e for e in pg.ui("radar-max") if e["visible"]]
+        want = fmt_mm(peak, lang)
+        problems = [] if len(shown) == 1 else [
+            f"{len(shown)} visible [data-test=radar-max], expected one (the amount at the tallest step)"]
+        problems += [f"[data-test=radar-max] shows {e['text']!r}, expected {want!r}"
+                     for e in shown if not has(e["text"], want)]
+        add("radar-max", problems)
+        add("radar-dry", expect_hidden(pg, "radar-dry"))
+    else:  # dry: the sentence instead of an amount (the empty tracks stay)
+        add("radar-dry", expect_text(pg, "radar-dry", FIXED["radar.dry"][lang]))
+        add("radar-max", expect_hidden(pg, "radar-max"))
 
 
 def _epoch(iso: str) -> int:
@@ -488,6 +502,11 @@ def check_details(pg: UIPage, sc: str, exp: dict, names: list[str], add):
         add("source-errors", [] if n == want else [f"{n} visible [data-test=source-error], expected {want}"])
     if "accuracy-table" in names:
         add("accuracy-table", accuracy_problems(pg, exp))
+    if "accuracy-head" in names:
+        add("accuracy-head", expect_tokens(pg, "accuracy-head", ACCURACY_HEAD[pg.lang]))
+    if "accuracy-note" in names:  # the fixture has rain hours, so the no-rain note stays hidden
+        add("accuracy-note", expect_text(pg, "accuracy-note", FIXED["accuracy.note"][pg.lang])
+            + expect_hidden(pg, "accuracy-no-rain"))
 
 
 def accuracy_problems(pg, exp) -> list[str]:

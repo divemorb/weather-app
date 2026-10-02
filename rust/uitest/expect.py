@@ -27,7 +27,31 @@ FIXED = {
     "chart.unavailable": {"en": "No model forecast yet", "de": "Noch keine Modellvorhersage"},
     "accuracy.none": {"en": "No data yet — observations are compared hourly.",
                       "de": "Noch keine Daten – Messungen werden stündlich verglichen."},
+    # W4 (the user's review, 2026-10-02): the strip says when it is dry
+    "radar.dry": {"en": "Dry for the next 60 minutes", "de": "In den nächsten 60 Minuten trocken"},
+    # W7: the accuracy table explains itself
+    "accuracy.note": {
+        "en": "Every hour, each model's forecast is compared with what the nearest DWD weather station measured. "
+              "Rain means more than 0.1 mm in the hour. Hit: rain forecast and measured. Miss: rain measured but "
+              "not forecast. False alarm: rain forecast, but it stayed dry. Hit rate: the share of hours a model "
+              "got right, rain or dry. Avg. error: the mean difference in mm per hour.",
+        "de": "Stündlich wird die Vorhersage jedes Modells mit der Messung der nächsten DWD-Wetterstation "
+              "verglichen. Regen heißt mehr als 0,1 mm in der Stunde. Treffer: Regen vorhergesagt und gemessen. "
+              "Verpasst: Regen gemessen, aber nicht vorhergesagt. Fehlalarm: Regen vorhergesagt, aber es blieb "
+              "trocken. Trefferquote: Anteil der Stunden, in denen ein Modell richtig lag, ob Regen oder trocken. "
+              "Ø Abweichung: mittlere Differenz in mm pro Stunde.",
+    },
+    "accuracy.no-rain": {"en": "No rain measured in this window yet, so only false alarms show so far.",
+                         "de": "In diesem Zeitraum wurde noch kein Regen gemessen, daher sind bisher nur "
+                               "Fehlalarme sichtbar."},
 }
+
+# The radar strip's caption with the radius from /api/config (the test config: radar_radius_km 1.0).
+RADAR_CAPTION = {"en": "Strongest rain within 1 km, per 5 minutes",
+                 "de": "Stärkster Regen im Umkreis von 1 km, je 5 Minuten"}
+# The accuracy table's column headers, in order.
+ACCURACY_HEAD = {"en": ["Model", "Hours", "Hits", "Misses", "False alarms", "Hit rate", "Avg. error"],
+                 "de": ["Modell", "Stunden", "Treffer", "Verpasst", "Fehlalarme", "Trefferquote", "Ø Abweichung"]}
 
 # Same current_weather fixture in live, rain and accuracy (Bright Sky sends km/h).
 NOW = {
