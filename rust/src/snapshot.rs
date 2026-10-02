@@ -27,7 +27,7 @@ pub enum SnapshotError {
     /// The copy's `PRAGMA integrity_check` reported a problem; the copy has
     /// been removed again.
     Integrity(String),
-    /// A filesystem problem (removing a corrupt copy).
+    /// A filesystem problem.
     Io(io::Error),
 }
 
@@ -47,9 +47,10 @@ impl std::fmt::Display for SnapshotError {
 impl std::error::Error for SnapshotError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
+            SnapshotError::TargetExists(_) => None,
             SnapshotError::Sqlite(e) => Some(e),
+            SnapshotError::Integrity(_) => None,
             SnapshotError::Io(e) => Some(e),
-            _ => None,
         }
     }
 }
@@ -90,13 +91,32 @@ pub struct Stats {
 /// and verify the copy with `PRAGMA integrity_check`.
 ///
 /// `target` must not exist; a missing `source` is an error, not a new
-/// empty file. On an integrity failure the copy is removed again.
+/// empty file. Any failure after the copy may have been written removes
+/// the copy again, so no broken file is left at `target`.
 pub fn snapshot(source: &Path, target: &Path) -> Result<Stats, SnapshotError> {
     if target.exists() {
         return Err(SnapshotError::TargetExists(target.to_path_buf()));
     }
-    vacuum_into(source, target)?;
-    verify(target)
+    match vacuum_into(source, target).and_then(|_| verify(target)) {
+        Ok(stats) => Ok(stats),
+        Err(err) => Err(remove_copy(target, err)),
+    }
+}
+
+/// Remove the copy again after a failure and return the original error.
+/// A failure before `VACUUM INTO` wrote the file leaves nothing to remove;
+/// a failed removal is reported on stderr (the CLI also prints the
+/// original error there).
+fn remove_copy(target: &Path, err: SnapshotError) -> SnapshotError {
+    if target.exists()
+        && let Err(rm) = std::fs::remove_file(target)
+    {
+        eprintln!(
+            "cannot remove the failed copy at {}: {rm}",
+            target.display()
+        );
+    }
+    err
 }
 
 /// One `VACUUM INTO` against the live database (read-only connection).
@@ -110,12 +130,12 @@ fn vacuum_into(source: &Path, target: &Path) -> Result<(), SnapshotError> {
 }
 
 /// Open the copy read-only, require `PRAGMA integrity_check` to say `ok`
-/// (removing the copy otherwise) and read the statistics from it.
+/// and read the statistics from it. (Removing a failed copy is the
+/// caller's job, so every failure path removes it in one place.)
 fn verify(target: &Path) -> Result<Stats, SnapshotError> {
     let conn = Connection::open_with_flags(target, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     let result: String = conn.query_row("PRAGMA integrity_check", [], |r| r.get(0))?;
     if result != "ok" {
-        std::fs::remove_file(target)?;
         return Err(SnapshotError::Integrity(result));
     }
     collect_stats(&conn)

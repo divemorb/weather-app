@@ -100,6 +100,21 @@ fn snapshot_of_missing_db_fails_without_creating_it() {
 }
 
 #[test]
+fn snapshot_removes_copy_when_statistics_fail() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("weather.db");
+    let conn = rusqlite::Connection::open(&db).unwrap();
+    conn.execute_batch("CREATE TABLE app_meta (key TEXT PRIMARY KEY, value TEXT);")
+        .unwrap();
+    conn.close().unwrap();
+
+    let target = dir.path().join("copy.db");
+    let err = snapshot(&db, &target).unwrap_err();
+    assert!(matches!(err, SnapshotError::Sqlite(_)));
+    assert!(!target.exists());
+}
+
+#[test]
 fn snapshot_leaves_out_uncommitted_writes() {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("weather.db");
