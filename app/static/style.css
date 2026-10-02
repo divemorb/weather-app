@@ -51,13 +51,19 @@ a { color: var(--accent); }
 
 .wrap { max-width: 860px; margin: 0 auto; padding: 16px 16px 40px; }
 
-/* ---- top bar ---- */
+/* ---- top bar (step W2: the place and two icon buttons) ---- */
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 2px; }
-.brand { display: flex; align-items: center; gap: 12px; }
-.brand-mark { font-size: 30px; line-height: 1; }
-.brand h1 { margin: 0; font-size: 19px; }
-.sub { margin: 0; font-size: 12px; color: var(--muted); }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand-mark { width: 26px; height: 26px; color: var(--accent); flex: none; }
+.place {
+  font-size: 16px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .actions { display: flex; align-items: center; gap: 8px; }
+.btn .icon { width: 18px; height: 18px; display: block; }
+.icon-sun { display: none; }
+html[data-theme="dark"] .icon-sun { display: block; }
+html[data-theme="dark"] .icon-moon { display: none; }
 
 .btn {
   background: var(--card-2);
@@ -218,6 +224,18 @@ a { color: var(--accent); }
 .setup-status { min-height: 20px; margin: 10px 0 0; font-size: 13px; }
 .setup-status.error { color: var(--bad); }
 .setup-note { margin: 12px 0 0; font-size: 12px; }
+
+/* ---- glance (step W2: the rain answer, W4 adds the radar strip) ---- */
+.glance { padding: 24px 20px; }
+.glance-answer { margin: 0; font-size: clamp(28px, 4.5vw, 40px); line-height: 1.15; font-weight: 700; }
+.glance-when { margin: 10px 0 0; font-size: 14px; color: var(--muted); }
+.glance-prob { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+.glance-prob-value {
+  font-size: 34px; font-weight: 800; line-height: 1; color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.glance-prob-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+.radar-strip { margin-top: 18px; }
 
 /* ---- responsive ---- */
 @media (max-width: 560px) {

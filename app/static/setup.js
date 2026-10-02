@@ -1,132 +1,166 @@
-/* Setup wizard (step 8d): the home location is picked in the browser.
+/* setup.js — the location wizard, as a module (step W2).
  *
- * Loaded before app.js via a <script> tag; exposes the functions
- * openSetup(mode), closeSetup(), doSearch(), doSave() and the wizard
- * state (setupMode, pickedLabel). Markup: <section id="setup"> in
- * index.html, styles: style.css (".setup").
- *
- * Only its own names may be used at load time (this script runs before
- * app.js); the shared helpers from app.js (getJSON, cfg,
- * onLocationSaved) are used at call time.
- *
- * No <form> on purpose: the CSP is form-action 'none', so all buttons
- * are type="button" and Enter in the search field triggers the search
- * via a keydown listener.
+ * initSetup({lang, isConfigured, onSaved}) wires the <section data-test=
+ * "setup"> markup and remembers the callback for a saved location;
+ * openSetup("first"|"change") shows the wizard (first hides <main>).
+ * No <form> on purpose: the CSP is form-action 'none', so all buttons are
+ * type="button" and Enter in the search field triggers the search.
  */
-"use strict";
+import { t } from "./i18n.js";
+import { ApiError, getJSON, postJSON } from "./api.js";
 
-/* Element handles (end-of-body script: the DOM is already parsed). */
-const setupEls = {
+const els = {
   section: document.getElementById("setup"),
   locationBtn: document.getElementById("location-btn"),
+  title: document.getElementById("setup-title"),
+  intro: document.getElementById("setup-intro"),
+  searchLabel: document.getElementById("setup-search-label"),
   search: document.getElementById("setup-search"),
   searchBtn: document.getElementById("setup-search-btn"),
   results: document.getElementById("setup-results"),
+  divider: document.getElementById("setup-divider"),
+  latLabel: document.getElementById("setup-lat-label"),
+  lonLabel: document.getElementById("setup-lon-label"),
+  tzLabel: document.getElementById("setup-tz-label"),
   lat: document.getElementById("setup-lat"),
   lon: document.getElementById("setup-lon"),
   tz: document.getElementById("setup-tz"),
   save: document.getElementById("setup-save"),
   cancel: document.getElementById("setup-cancel"),
   status: document.getElementById("setup-status"),
-  dashboard: document.getElementById("dashboard"),
+  note: document.getElementById("setup-note"),
+  main: document.getElementById("dashboard"),
 };
 
-let setupMode = "first"; // "first" = no location yet, "change" = opened via 📍
+let lang = "en";
+let isConfigured = () => true;
+let onSaved = () => {};
+let mode = "first"; // "first" = no location yet, "change" = opened via the button
 let pickedLabel = ""; // display label of the picked search result
 
-function setupStatus(text, isError) {
-  setupEls.status.textContent = text || "";
-  setupEls.status.classList.toggle("error", !!isError);
+function status(text, isError) {
+  els.status.textContent = text || "";
+  els.status.classList.toggle("error", !!isError);
 }
 
 function browserTimezone() {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-  } catch (_) {
+  } catch {
     return "";
   }
 }
 
 /* ---- open / close ---- */
-function openSetup(mode) {
-  setupMode = mode;
+export function openSetup(m) {
+  mode = m;
   pickedLabel = "";
   clearResults();
-  setupStatus("");
-  setupEls.cancel.hidden = mode !== "change";
-  if (mode === "first") setupEls.dashboard.hidden = true;
-  if (!setupEls.tz.value) setupEls.tz.value = browserTimezone();
-  setupEls.section.hidden = false;
-  setupEls.search.focus();
+  status("");
+  els.cancel.hidden = m !== "change";
+  if (m === "first") els.main.hidden = true;
+  if (!els.tz.value) els.tz.value = browserTimezone();
+  els.section.hidden = false;
+  els.search.focus();
 }
 
 function closeSetup() {
-  setupEls.section.hidden = true;
-  setupStatus("");
+  els.section.hidden = true;
+  status("");
+}
+
+/* ---- wiring (called once from app.js) ---- */
+export function initSetup(opts) {
+  lang = opts.lang || "en";
+  isConfigured = opts.isConfigured || (() => true);
+  onSaved = opts.onSaved || (() => {});
+  els.title.textContent = t(lang, "setup.title");
+  els.intro.textContent = t(lang, "setup.intro");
+  els.searchLabel.textContent = t(lang, "setup.search-label");
+  els.search.placeholder = t(lang, "setup.search-placeholder");
+  els.searchBtn.textContent = t(lang, "setup.search-btn");
+  els.divider.textContent = t(lang, "setup.divider");
+  els.latLabel.textContent = t(lang, "setup.lat");
+  els.lonLabel.textContent = t(lang, "setup.lon");
+  els.tzLabel.textContent = t(lang, "setup.tz");
+  els.save.textContent = t(lang, "setup.save");
+  els.cancel.textContent = t(lang, "setup.cancel");
+  els.note.textContent = t(lang, "setup.note");
+  els.locationBtn.addEventListener("click", () =>
+    openSetup(isConfigured() ? "change" : "first")
+  );
+  els.searchBtn.addEventListener("click", doSearch);
+  els.search.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") doSearch();
+  });
+  els.lat.addEventListener("input", () => onCoordInput(els.lat, els.lon));
+  els.lon.addEventListener("input", () => onCoordInput(els.lon, els.lat));
+  els.save.addEventListener("click", doSave);
+  els.cancel.addEventListener("click", closeSetup);
 }
 
 /* ---- address search ---- */
 function clearResults() {
-  setupEls.results.hidden = true;
-  setupEls.results.innerHTML = "";
+  els.results.hidden = true;
+  els.results.innerHTML = "";
 }
 
 async function doSearch() {
-  const text = setupEls.search.value.trim();
+  const text = els.search.value.trim();
   if (text.length < 3) {
-    setupStatus("Type at least 3 characters to search.", true);
+    status(t(lang, "setup.status.min-length"), true);
     return;
   }
   pickedLabel = "";
   clearResults();
-  setupStatus("Searching…");
+  status(t(lang, "setup.status.searching"));
   try {
     const data = await getJSON(`/api/geocode?q=${encodeURIComponent(text)}`);
     renderResults(data.results || []);
-  } catch (e) {
-    console.error(e);
-    setupStatus("Address search failed — try again, or enter the coordinates directly.", true);
+  } catch {
+    status(t(lang, "setup.status.search-failed"), true);
   }
 }
 
 /* Fill the coordinates from a result and mark its button as selected. */
 function pickResult(r, btn) {
-  setupEls.lat.value = r.latitude;
-  setupEls.lon.value = r.longitude;
+  els.lat.value = r.latitude;
+  els.lon.value = r.longitude;
   pickedLabel = r.label;
-  for (const b of setupEls.results.querySelectorAll(".setup-result")) {
+  for (const b of els.results.querySelectorAll(".setup-result")) {
     const isPicked = b === btn;
     b.classList.toggle("selected", isPicked);
     b.setAttribute("aria-pressed", isPicked ? "true" : "false");
   }
-  setupStatus(`Selected: ${r.label}. Check the timezone, then press “Save location”.`);
+  status(t(lang, "setup.status.selected", { label: r.label }));
 }
 
 function renderResults(results) {
   if (results.length === 0) {
-    setupStatus("No match — try a more specific address, or enter coordinates.", true);
+    status(t(lang, "setup.status.no-match"), true);
     return;
   }
-  setupStatus("");
-  setupEls.results.hidden = false;
+  status("");
+  els.results.hidden = false;
   const buttons = [];
   for (const r of results) {
     const li = document.createElement("li");
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "setup-result";
+    btn.setAttribute("data-test", "setup-result");
     btn.textContent = r.label;
     btn.title = r.label;
     btn.setAttribute("aria-pressed", "false");
     btn.addEventListener("click", () => pickResult(r, btn));
     li.appendChild(btn);
-    setupEls.results.appendChild(li);
+    els.results.appendChild(li);
     buttons.push(btn);
   }
   if (buttons.length === 1) {
     pickResult(results[0], buttons[0]);
   } else {
-    setupStatus("Click the matching result.");
+    status(t(lang, "setup.status.click-result"));
   }
 }
 
@@ -142,14 +176,14 @@ function onCoordInput(self, other) {
 
 /* ---- save ---- */
 async function doSave() {
-  const latRaw = setupEls.lat.value.trim();
-  const lonRaw = setupEls.lon.value.trim();
-  const tzName = setupEls.tz.value.trim();
+  const latRaw = els.lat.value.trim();
+  const lonRaw = els.lon.value.trim();
+  const tzName = els.tz.value.trim();
   if (!latRaw && !lonRaw) {
-    setupStatus(
-      setupEls.results.hidden
-        ? "Search for an address or enter latitude and longitude first."
-        : "Click one of the search results first, or enter latitude and longitude.",
+    status(
+      els.results.hidden
+        ? t(lang, "setup.status.need-input")
+        : t(lang, "setup.status.need-result"),
       true
     );
     return;
@@ -157,57 +191,40 @@ async function doSave() {
   const lat = Number(latRaw);
   const lon = Number(lonRaw);
   if (!latRaw || !Number.isFinite(lat) || lat < -90 || lat > 90) {
-    setupStatus("Latitude must be a number between -90 and 90.", true);
+    status(t(lang, "setup.status.lat-range"), true);
     return;
   }
   if (!lonRaw || !Number.isFinite(lon) || lon < -180 || lon > 180) {
-    setupStatus("Longitude must be a number between -180 and 180.", true);
+    status(t(lang, "setup.status.lon-range"), true);
     return;
   }
   if (!tzName) {
-    setupStatus("Timezone is required (e.g. Europe/Berlin).", true);
+    status(t(lang, "setup.status.tz-required"), true);
     return;
   }
   if (
-    setupMode === "change" &&
-    !confirm("Changing the location deletes the cached data and the model-accuracy history. Continue?")
+    mode === "change" &&
+    !confirm(t(lang, "setup.confirm-change"))
   ) {
     return;
   }
-  setupStatus("Saving…");
+  status(t(lang, "setup.status.saving"));
   try {
-    const res = await fetch("/api/location", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ latitude: lat, longitude: lon, timezone: tzName, label: pickedLabel }),
+    const data = await postJSON("/api/location", {
+      latitude: lat,
+      longitude: lon,
+      timezone: tzName,
+      label: pickedLabel,
     });
-    if (res.status === 422) {
-      const data = await res.json().catch(() => null);
-      const first = data && Array.isArray(data.detail) && data.detail[0];
-      setupStatus((first && first.msg) || "The location was rejected — check the values.", true);
+    closeSetup();
+    els.main.hidden = false;
+    onSaved(data.location || null);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 422) {
+      const first = Array.isArray(e.detail) && e.detail[0];
+      status((first && first.msg) || t(lang, "setup.status.rejected"), true);
       return;
     }
-    if (!res.ok) throw new Error(`/api/location -> ${res.status}`);
-    const data = await res.json();
-    closeSetup();
-    setupEls.dashboard.hidden = false;
-    onLocationSaved(data.location || null);
-  } catch (e) {
-    console.error(e);
-    setupStatus("Could not save the location — try again.", true);
+    status(t(lang, "setup.status.save-failed"), true);
   }
 }
-
-/* ---- boot wiring (listeners only; app.js helpers are used at call time) ---- */
-setupEls.locationBtn.addEventListener("click", () => {
-  // While nothing is stored yet the wizard stays in "first" mode (no confirm).
-  openSetup(cfg && cfg.configured === false ? "first" : "change");
-});
-setupEls.searchBtn.addEventListener("click", doSearch);
-setupEls.search.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") doSearch();
-});
-setupEls.lat.addEventListener("input", () => onCoordInput(setupEls.lat, setupEls.lon));
-setupEls.lon.addEventListener("input", () => onCoordInput(setupEls.lon, setupEls.lat));
-setupEls.save.addEventListener("click", doSave);
-setupEls.cancel.addEventListener("click", closeSetup);
