@@ -85,7 +85,7 @@ export function renderChart(els, data, lang, locale, tz) {
 }
 
 function buildSvg(body, { hours, models }, maxV, lang, locale, tz) {
-  const kiosk = document.body.classList.contains("kiosk");
+  const kiosk = document.documentElement.classList.contains("kiosk");
   const { w, h, labelEvery } = chartMetrics(body.clientWidth, kiosk);
   const n = hours.length;
   const padL = 34, padR = 12, padT = 12, padB = 30;
