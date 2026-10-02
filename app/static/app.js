@@ -3,18 +3,22 @@
  * Sets the language (<html lang>, the aria-labels, the footer) and the
  * theme, then reads /api/config: unconfigured -> the wizard in "first"
  * mode; configured -> the glance, the Now section, the chart and the
- * details. A failed fetch keeps the old content and logs with
- * console.warn (failures are not page errors). The page reload is
- * scheduled by details.js (10 s after a backend refresh, at the latest
- * every 60 s) via the onReload callback.
+ * details. A failed /api/config at startup is retried every 10 s (the
+ * place line says the app can't be reached meanwhile). A refresh
+ * re-fetches all the data endpoints; each endpoint fails on its own and
+ * each page part renders on its own (an exception is caught and logged
+ * with console.warn, the part keeps its old content or its unavailable
+ * state), and the next page reload is scheduled whatever failed
+ * (details.js: 10 s after a backend refresh, at the latest every 60 s,
+ * via the onReload callback). Nothing throws uncaught.
  */
 import { pickLang, t } from "./i18n.js";
 import { getJSON } from "./api.js";
-import { locationText, locationDetail } from "./format.js";
+import { CONFIG_RETRY_MS, locationText, locationDetail } from "./format.js";
 import { renderGlance } from "./glance.js";
 import { initNow, renderNow } from "./now.js";
 import { renderChart } from "./chart.js";
-import { initDetails, renderDetails } from "./details.js";
+import { initDetails, renderDetails, scheduleFrom } from "./details.js";
 import { initSetup, openSetup } from "./setup.js";
 
 const lang = pickLang(navigator.languages);
@@ -81,6 +85,13 @@ function setPlace(location) {
   $("location-detail").textContent = locationDetail(location);
 }
 
+/* The place line while /api/config does not answer: the location is set,
+ * the app just didn't answer; the page keeps trying (10 s). */
+function setUnreachable() {
+  $("location").textContent = t(lang, "location.unreachable");
+  $("location-detail").textContent = "";
+}
+
 const chartEls = {
   body: $("chart-body"),
   legend: $("chart-legend"),
@@ -89,41 +100,72 @@ const chartEls = {
   unit: $("chart-unit"),
 };
 
+/* One page part, rendered on its own: an exception (bad data from one
+ * endpoint) is caught and logged, the part keeps its old content or its
+ * unavailable state, and the other parts still render. */
+function renderPart(name, render) {
+  try {
+    render();
+  } catch (e) {
+    console.warn(`the ${name} part failed to render`, e);
+  }
+}
+
 /* One refresh: the glance, the Now section, the chart and the details.
  * Each endpoint fails on its own (a failing source never breaks the
  * other parts), so a null reaches the renderer, which shows its
- * "unavailable" state. */
-async function loadGlance() {
+ * "unavailable" state; each part renders on its own; and the next page
+ * reload is scheduled whatever failed (details.js). */
+async function refresh() {
   const fetchOrNull = (path) =>
     getJSON(path).catch((e) => {
       console.warn(e); // keep the old content; a failure is not a page error
       return null;
     });
-  const [rain, radar, now, models, sources, schedule, accuracy] = await Promise.all([
-    fetchOrNull("/api/rain-probability"),
-    fetchOrNull("/api/radar/next-hour"),
-    fetchOrNull("/api/now"),
-    fetchOrNull("/api/models/24h"),
-    fetchOrNull("/api/sources"),
-    fetchOrNull("/api/schedule"),
-    fetchOrNull("/api/model-accuracy"),
-  ]);
-  /* The radius comes from the config loaded once at startup, not from a
-   * fetch per refresh (the caption under the radar strip). */
-  renderGlance(rain, radar, lang, locale, tz, cfg && cfg.radar_radius_km);
-  renderNow(now, lang, locale, tz);
-  renderChart(chartEls, models, lang, locale, tz);
-  renderDetails({ rain, sources, schedule, accuracy });
-}
-
-(async function start() {
-  $("location").textContent = t(lang, "location.loading");
+  const data = { rain: null, radar: null, now: null, models: null, sources: null, schedule: null, accuracy: null };
   try {
-    cfg = await getJSON("/api/config");
+    /* The radius comes from the config loaded once at startup, not from a
+     * fetch per refresh (the caption under the radar strip). */
+    [data.rain, data.radar, data.now, data.models, data.sources, data.schedule, data.accuracy] = await Promise.all([
+      fetchOrNull("/api/rain-probability"),
+      fetchOrNull("/api/radar/next-hour"),
+      fetchOrNull("/api/now"),
+      fetchOrNull("/api/models/24h"),
+      fetchOrNull("/api/sources"),
+      fetchOrNull("/api/schedule"),
+      fetchOrNull("/api/model-accuracy"),
+    ]);
   } catch (e) {
     console.warn(e);
-    setPlace(null);
-    return;
+  }
+  renderPart("glance", () => renderGlance(data.rain, data.radar, lang, locale, tz, cfg && cfg.radar_radius_km));
+  renderPart("now", () => renderNow(data.now, lang, locale, tz));
+  renderPart("chart", () => renderChart(chartEls, data.models, lang, locale, tz));
+  renderPart("details", () => renderDetails({ rain: data.rain, sources: data.sources, accuracy: data.accuracy }));
+  /* The reload can't be skipped: it is scheduled after the renderers,
+   * whatever failed in them. */
+  scheduleFrom(data.schedule);
+}
+
+/* Startup: /api/config is retried until it works (10 s between attempts,
+ * the place line says the app can't be reached meanwhile), then the page
+ * starts as usual: the wizard when unconfigured, else the data. */
+async function start() {
+  $("location").textContent = t(lang, "location.loading");
+  while (true) {
+    let c = null;
+    try {
+      c = await getJSON("/api/config");
+    } catch (e) {
+      console.warn(e);
+    }
+    if (c && typeof c === "object") {
+      cfg = c;
+      break;
+    }
+    if (c != null) console.warn("bad /api/config response", c);
+    setUnreachable();
+    await new Promise((resolve) => setTimeout(resolve, CONFIG_RETRY_MS));
   }
   if (cfg.location) tz = cfg.location.timezone || "UTC";
   setPlace(cfg.location);
@@ -131,14 +173,15 @@ async function loadGlance() {
     openSetup("first"); // ask for the location; the reload starts after a save
     return;
   }
-  await loadGlance(); // the page reload is scheduled inside (details.js)
-})();
+  await refresh(); // the page reload is scheduled inside (details.js)
+}
+start().catch((e) => console.warn("start failed", e));
 
 /* The Details card: the schedule, the countdowns and the page reload
  * live there; onReload runs one refresh, which reschedules the next. */
 initDetails(lang, locale, {
   onReload: () => {
-    loadGlance();
+    refresh().catch((e) => console.warn("the refresh failed", e));
   },
 });
 
@@ -146,13 +189,17 @@ initSetup({
   lang,
   isConfigured: () => !!(cfg && cfg.configured !== false && cfg.location),
   onSaved: async () => {
+    let newCfg = null;
     try {
-      cfg = await getJSON("/api/config");
-      if (cfg.location) tz = cfg.location.timezone || "UTC";
-      setPlace(cfg.location);
-      await loadGlance(); // the reload is scheduled inside (details.js)
+      newCfg = await getJSON("/api/config");
     } catch (e) {
       console.warn(e);
     }
+    if (newCfg) {
+      cfg = newCfg;
+      if (newCfg.location) tz = newCfg.location.timezone || "UTC";
+      setPlace(newCfg.location);
+    }
+    await refresh(); // the reload is scheduled inside (details.js)
   },
 });

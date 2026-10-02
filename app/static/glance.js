@@ -58,7 +58,11 @@ export function renderGlance(rain, radar, lang, locale, tz, radiusKm) {
 /* The 60-minute strip and its surroundings; called on every refresh. */
 function renderRadar(radar, lang, locale, tz, radiusKm, detail) {
   const steps = radar && Array.isArray(radar.steps) ? radar.steps : [];
-  if (!radar || !radar.available || steps.length === 0) {
+  /* A broken step (not an object, no parsable start_utc) means the strip
+   * can't be drawn: the unavailable line, like without a radar. */
+  const sound = steps.length > 0 && steps.every(
+    (s) => s && typeof s === "object" && typeof s.start_utc === "string" && !isNaN(Date.parse(s.start_utc)));
+  if (!radar || !radar.available || !sound) {
     els.visual.hidden = true;
     els.unavailable.hidden = false;
     els.unavailable.textContent = t(lang, "radar.unavailable");

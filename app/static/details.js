@@ -1,4 +1,4 @@
-/* details.js — the Details card (step W7): the technical parts.
+/* details.js — the Details card (step W7), the page reload (step W9b).
  *
  * One <details data-test="details"> (closed on load) after the forecast;
  * details.js fills its body from four endpoints, fetched by app.js on
@@ -12,12 +12,17 @@
  *     enough data first, best hit rate first; below the sample minimum
  *     greyed; the table explains itself in the note under it).
  *
- * The page reload moves here too: 10 s after the next scheduled backend
- * refresh, at the latest every 60 s (the old scheduleNextLoad); the
- * callback is set by app.js.
+ * Each section renders on its own: one bad endpoint never clears the
+ * card or stops the other sections (the new body is only swapped in once
+ * it has been built). The page reload lives here too, but not inside the
+ * body: app.js calls scheduleFrom() after every refresh, after all the
+ * renderers, so the next reload (10 s after the next scheduled backend
+ * refresh, at the latest every 60 s) is scheduled whatever failed. The
+ * onReload callback (one refresh) is set by app.js.
  */
 import {
-  DASH, fmtAge, fmtCountdown, fmtMm, fmtPercent, modelLabel, rainObserved, sortAccuracy,
+  DASH, PAGE_RELOAD_AFTER_REFRESH_MS, PAGE_REFRESH_MS, fmtAge, fmtCountdown, fmtMm,
+  fmtPercent, modelLabel, nextLoadDelay, rainObserved, sortAccuracy,
 } from "./format.js";
 import { t } from "./i18n.js";
 
@@ -28,8 +33,6 @@ const els = {
   body: $("details-body"),
 };
 
-const REFRESH_MS = 60_000; // reload at least this often
-const RELOAD_AFTER_REFRESH_MS = 10_000; // after a scheduled backend refresh
 const SOURCE_ORDER = ["radar", "current", "forecast", "ensemble"];
 
 let lang = "en";
@@ -43,7 +46,7 @@ let valueEls = null; // the three countdown value spans
 /* ---- the schedule and the reload (the old countdown.js behaviour) ---- */
 
 function applySchedule(s) {
-  if (!s || !s.jobs) {
+  if (!s || typeof s !== "object" || !s.jobs || typeof s.jobs !== "object") {
     schedule = null;
     return;
   }
@@ -53,42 +56,64 @@ function applySchedule(s) {
 }
 
 function serverNow() {
-  return Date.now() + (schedule ? schedule.offsetMs : 0);
+  return Date.now() + (schedule && Number.isFinite(schedule.offsetMs) ? schedule.offsetMs : 0);
 }
 
-/* Next page reload: every REFRESH_MS, or sooner right after a backend
- * refresh (the refresh normally finishes within a few seconds). */
+/* Next page reload: every PAGE_REFRESH_MS, or sooner right after a
+ * backend refresh (the refresh normally finishes within a few seconds).
+ * The delay is the pure nextLoadDelay() (format.js); this only sets the
+ * timer, and it always sets it — even on bad data, the page reloads. */
 function scheduleNextLoad() {
-  clearTimeout(loadTimer);
-  let delay = REFRESH_MS;
-  if (schedule) {
-    for (const job of Object.values(schedule.jobs)) {
-      if (!job || !job.next_run_utc) continue;
-      const until = Date.parse(job.next_run_utc) - serverNow() + RELOAD_AFTER_REFRESH_MS;
-      if (until > 0 && until < delay) delay = until;
-    }
+  let delay;
+  try {
+    delay = nextLoadDelay(schedule && schedule.jobs, serverNow(), PAGE_REFRESH_MS, PAGE_RELOAD_AFTER_REFRESH_MS);
+  } catch (e) {
+    console.warn("computing the reload delay failed", e);
+    delay = PAGE_REFRESH_MS;
   }
+  if (typeof delay !== "number" || !Number.isFinite(delay) || delay <= 0) delay = PAGE_REFRESH_MS;
+  clearTimeout(loadTimer);
   nextLoadAt = Date.now() + delay;
   loadTimer = setTimeout(() => {
     onReload();
   }, delay);
 }
 
-/* The three countdown values, once a second. */
-function tick() {
-  if (!valueEls) return;
-  for (const job of ["radar", "models"]) {
-    const el = valueEls[job];
-    const def = schedule && schedule.jobs ? schedule.jobs[job] : null;
-    if (!el) continue;
-    if (!def || !def.next_run_utc) {
-      el.textContent = DASH;
-      continue;
-    }
-    el.textContent = fmtCountdown(Date.parse(def.next_run_utc) - serverNow());
+/* Apply the /api/schedule data and schedule the next page reload.
+ * app.js calls this after every refresh, after the renderers, so the
+ * reload happens whatever failed in them. It never throws. */
+export function scheduleFrom(scheduleData) {
+  try {
+    applySchedule(scheduleData);
+    scheduleNextLoad();
+    tick();
+  } catch (e) {
+    console.warn("scheduling the next reload failed", e);
   }
-  const page = valueEls.page;
-  if (page) page.textContent = fmtCountdown(nextLoadAt - Date.now());
+}
+
+/* The three countdown values, once a second; bad data shows a dash, it
+ * never throws (the interval would turn it into an uncaught error). */
+function tick() {
+  try {
+    if (!valueEls) return;
+    for (const job of ["radar", "models"]) {
+      const el = valueEls[job];
+      if (!el || typeof el !== "object") continue;
+      const def = schedule && schedule.jobs && typeof schedule.jobs === "object"
+        ? schedule.jobs[job]
+        : null;
+      if (!def || typeof def !== "object" || !def.next_run_utc || isNaN(Date.parse(def.next_run_utc))) {
+        el.textContent = DASH;
+        continue;
+      }
+      el.textContent = fmtCountdown(Date.parse(def.next_run_utc) - serverNow());
+    }
+    const page = valueEls.page;
+    if (page && typeof page === "object") page.textContent = fmtCountdown(nextLoadAt - Date.now());
+  } catch (e) {
+    console.warn("the countdown tick failed", e);
+  }
 }
 
 /* ---- wiring (called once from app.js) ---- */
@@ -101,22 +126,44 @@ export function initDetails(l, loc, opts) {
   setInterval(tick, 1000);
 }
 
-/* The body, rebuilt on every refresh. */
+/* The body, rebuilt on every refresh. Each section renders on its own
+ * (one bad endpoint keeps the card, never the empty half of it): the new
+ * body is built in a detached fragment and only swapped in at the end.
+ * Scheduling the next reload is not part of the body — app.js calls
+ * scheduleFrom() afterwards, so it happens whatever failed here. */
 export function renderDetails(data) {
   const rain = data && data.rain;
   const sources = data && data.sources;
   const accuracy = data && data.accuracy;
 
-  els.body.textContent = "";
-  els.body.appendChild(signalsSection(rain));
-  const refresh = refreshSection();
-  valueEls = refresh.values;
-  els.body.appendChild(refresh.wrap);
-  els.body.appendChild(sourcesSection(sources));
-  els.body.appendChild(accuracySection(accuracy));
+  const frag = document.createDocumentFragment();
+  const add = (builder) => {
+    try {
+      frag.appendChild(builder());
+    } catch (e) {
+      console.warn("a details section failed to render", e);
+    }
+  };
+  add(() => signalsSection(rain));
+  let refresh = null;
+  try {
+    refresh = refreshSection();
+  } catch (e) {
+    console.warn("the details refresh section failed to render", e);
+    valueEls = null; // the old spans are detached; tick() must not touch them
+  }
+  if (refresh) {
+    valueEls = refresh.values;
+    add(() => refresh.wrap);
+  }
+  add(() => sourcesSection(sources));
+  add(() => accuracySection(accuracy));
 
-  applySchedule(data && data.schedule);
-  scheduleNextLoad();
+  /* Nothing rendered? Keep the old card instead of an empty one. */
+  if (frag.childElementCount > 0) {
+    els.body.textContent = "";
+    els.body.appendChild(frag);
+  }
   tick();
 }
 

@@ -11,6 +11,31 @@ import { t } from "./i18n.js";
 
 export const DASH = "—"; // every missing value
 
+/* The page reload's timing (W9b): the page re-fetches at the latest every
+ * PAGE_REFRESH_MS, sooner PAGE_RELOAD_AFTER_REFRESH_MS after a scheduled
+ * backend refresh; a failed /api/config at startup is retried every
+ * CONFIG_RETRY_MS. Exported so details.js and app.js share one source and
+ * the unit tests can pin the values. */
+export const PAGE_REFRESH_MS = 60_000;
+export const PAGE_RELOAD_AFTER_REFRESH_MS = 10_000;
+export const CONFIG_RETRY_MS = 10_000;
+
+/* The delay until the next page reload, in ms: at most `refreshMs`,
+ * sooner right after a scheduled backend refresh — `reloadAfterRefreshMs`
+ * after the job's next_run_utc, the soonest job winning. Jobs that are
+ * missing, not objects, or carry no parsable next_run_utc are skipped.
+ * Pure (unit-tested in rust/uitest/unit/more/refresh-w9b.test.mjs). */
+export function nextLoadDelay(jobs, serverNowMs, refreshMs, reloadAfterRefreshMs) {
+  let delay = refreshMs;
+  if (!jobs || typeof jobs !== "object") return delay;
+  for (const job of Object.values(jobs)) {
+    if (!job || typeof job !== "object" || !job.next_run_utc) continue;
+    const until = Date.parse(job.next_run_utc) - serverNowMs + reloadAfterRefreshMs;
+    if (until > 0 && until < delay) delay = until;
+  }
+  return delay;
+}
+
 function validNumber(v) {
   return typeof v === "number" && Number.isFinite(v);
 }
