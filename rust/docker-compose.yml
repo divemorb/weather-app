@@ -1,8 +1,11 @@
 # Rust backend (port in progress; the Python app in the repo root is still
 # the deployed version). From the repo root:
 #   podman compose -f rust/docker-compose.yml up -d --build --force-recreate
+# On a machine that doesn't build (Raspberry Pi), load the image first
+# (podman save | ssh … podman load) and start it without --build.
 services:
   weather:
+    image: localhost/wetter-rust:latest
     build:
       context: ..
       dockerfile: rust/Dockerfile
@@ -29,3 +32,8 @@ services:
 
 volumes:
   weather-data:
+    # Takes over the Python app's data as is (same schema, same uid 1000).
+    # Compose names that volume <project>_weather-data, the project being the
+    # directory of the Python compose file (a checkout named "wetter" by
+    # default); set WETTER_VOLUME if yours is named differently.
+    name: ${WETTER_VOLUME:-wetter_weather-data}
