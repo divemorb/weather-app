@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
+use tokio::signal::unix::{Signal, SignalKind, signal};
 use wetter::routes::{AppState, build_router};
 use wetter::security::parse_allowed_hosts;
 
@@ -41,6 +42,18 @@ fn snapshot_command(target: &str) {
 
 #[tokio::main(flavor = "current_thread")]
 async fn server() {
+    // The SIGTERM stream comes first (it can only be created inside the
+    // runtime): as PID 1 in the container, a SIGTERM without a handler is
+    // ignored, and a stop during the startup refresh would otherwise end
+    // in a kill (exit code 137). The same stream is later handed to
+    // `with_graceful_shutdown`.
+    let mut term = match signal(SignalKind::terminate()) {
+        Ok(term) => term,
+        Err(err) => {
+            eprintln!("cannot install SIGTERM handler: {err}");
+            std::process::exit(1);
+        }
+    };
     tracing_subscriber::fmt().with_target(false).init();
     let clock = match wetter::times::Clock::from_env(&|k| std::env::var(k).ok()) {
         Ok(clock) => clock,
@@ -114,8 +127,17 @@ async fn server() {
     let scheduler = Arc::new(wetter::scheduler::Scheduler::new());
     scheduler.start(agg.clone());
     // Warm the cache before the listener binds: /healthz answering means the
-    // first refresh is done (a failing source must not block startup).
-    wetter::scheduler::initial_refresh(&agg).await;
+    // first refresh is done (a failing source must not block startup). A
+    // stop request during the refresh exits cleanly: the spawned scheduler
+    // tasks end with the runtime, and database writes are synchronous calls
+    // between the .awaits, so no half-done write survives.
+    tokio::select! {
+        _ = wetter::scheduler::initial_refresh(&agg) => {},
+        _ = shutdown_requested(&mut term) => {
+            tracing::info!("shutdown requested during startup");
+            return;
+        }
+    }
     tracing::info!("weather app started (db={})", config.database_path);
     let extra_hosts = parse_allowed_hosts(&std::env::var("ALLOWED_HOSTS").unwrap_or_default());
     let static_dir = std::env::var("STATIC_DIR").unwrap_or_else(|_| "/app/static".to_string());
@@ -143,7 +165,7 @@ async fn server() {
     };
     tracing::info!("listening on {bind}");
     if let Err(err) = axum::serve(listener, build_router(state))
-        .with_graceful_shutdown(shutdown_signal())
+        .with_graceful_shutdown(async move { shutdown_requested(&mut term).await })
         .await
     {
         eprintln!("server error: {err}");
@@ -151,15 +173,8 @@ async fn server() {
     }
 }
 
-async fn shutdown_signal() {
-    use tokio::signal::unix::{SignalKind, signal};
-    let mut term = match signal(SignalKind::terminate()) {
-        Ok(term) => term,
-        Err(err) => {
-            eprintln!("cannot install SIGTERM handler: {err}");
-            std::process::exit(1);
-        }
-    };
+/// SIGTERM (on the stream registered at the start of `server`) or Ctrl-C.
+async fn shutdown_requested(term: &mut Signal) {
     tokio::select! {
         _ = term.recv() => {},
         _ = tokio::signal::ctrl_c() => {},
