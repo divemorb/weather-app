@@ -1,0 +1,30 @@
+/* Kiosk view (?kiosk): one screen, no scrolling, big type, no details.
+ * Loaded by index.html; body.kiosk is set by app.js from the query. */
+
+body.kiosk .wrap { max-width: none; padding: 24px 32px; }
+body.kiosk .topbar { margin-bottom: 18px; }
+body.kiosk .card + .card { margin-top: 14px; }
+body.kiosk .glance { padding: 24px 28px; }
+body.kiosk .glance-answer { font-size: 36px; }
+body.kiosk .glance-prob-value { font-size: 72px; }
+body.kiosk .glance-when { font-size: 17px; }
+body.kiosk .place { font-size: 22px; }
+body.kiosk .place-detail { font-size: 14px; }
+body.kiosk .radar { margin-top: 18px; }
+body.kiosk .radar-top { height: 18px; margin-bottom: 5px; }
+body.kiosk .radar-strip { height: 44px; }
+body.kiosk .radar-labels { margin-top: 5px; }
+body.kiosk .radar-caption { margin-top: 8px; }
+body.kiosk .now { padding: 18px 26px; }
+body.kiosk .now-title { margin-bottom: 10px; }
+body.kiosk .now-temp { font-size: 56px; }
+body.kiosk .now-condition { font-size: 24px; }
+body.kiosk .now-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px 24px; margin-top: 14px;
+}
+body.kiosk .now-label { font-size: 13px; }
+body.kiosk .now-value { font-size: 17px; }
+body.kiosk .now-time { margin-top: 12px; font-size: 14px; }
+body.kiosk .attr { margin-top: 14px; }
+body.kiosk [data-test="details"] { display: none; }

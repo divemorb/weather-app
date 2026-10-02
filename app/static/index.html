@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Local Rain Forecast</title>
   <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/kiosk.css" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 6C32 6 12 30 12 42a20 20 0 0 0 40 0C52 30 32 6 32 6Z' fill='%2358a6ff'/%3E%3C/svg%3E" />
 </head>
 <body>
@@ -108,6 +109,53 @@
             <div class="radar-labels" id="radar-labels" aria-hidden="true"></div>
             <p class="radar-caption" id="radar-caption" data-test="radar-caption" hidden></p>
           </div>
+        </div>
+      </section>
+
+      <!-- Now (W5): current conditions, temperature and condition big -->
+      <section class="card now" id="now">
+        <h2 class="now-title" id="now-title">Now</h2>
+        <p class="now-unavailable" id="now-unavailable" data-test="now-unavailable" hidden></p>
+        <div class="now-body" id="now-body">
+          <div class="now-main">
+            <span class="now-temp" id="now-temp" data-test="now-temp"></span>
+            <span class="now-condition" id="now-condition" data-test="now-condition"></span>
+          </div>
+          <dl class="now-grid">
+            <div class="now-cell">
+              <dt class="now-label" id="now-feels-label">Feels like</dt>
+              <dd class="now-value" id="now-feels" data-test="now-feels"></dd>
+            </div>
+            <div class="now-cell">
+              <dt class="now-label" id="now-wind-label">Wind</dt>
+              <dd class="now-value" id="now-wind" data-test="now-wind"></dd>
+            </div>
+            <div class="now-cell">
+              <dt class="now-label" id="now-gusts-label">Gusts</dt>
+              <dd class="now-value" id="now-gust" data-test="now-gust"></dd>
+            </div>
+            <div class="now-cell">
+              <dt class="now-label" id="now-humidity-label">Humidity</dt>
+              <dd class="now-value" id="now-humidity" data-test="now-humidity"></dd>
+            </div>
+            <div class="now-cell">
+              <dt class="now-label" id="now-pressure-label">Pressure</dt>
+              <dd class="now-value" id="now-pressure" data-test="now-pressure"></dd>
+            </div>
+            <div class="now-cell">
+              <dt class="now-label" id="now-dewpoint-label">Dew point</dt>
+              <dd class="now-value" id="now-dewpoint" data-test="now-dewpoint"></dd>
+            </div>
+            <div class="now-cell">
+              <dt class="now-label" id="now-clouds-label">Clouds</dt>
+              <dd class="now-value" id="now-clouds" data-test="now-clouds"></dd>
+            </div>
+            <div class="now-cell">
+              <dt class="now-label" id="now-rain-label">Rain last hour</dt>
+              <dd class="now-value" id="now-rain" data-test="now-rain"></dd>
+            </div>
+          </dl>
+          <p class="now-time muted" id="now-time" data-test="now-time"></p>
         </div>
       </section>
     </main>

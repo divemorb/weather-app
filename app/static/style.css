@@ -254,6 +254,49 @@ button:focus-visible, a:focus-visible {
 
 .radar-unavailable { margin: 0; font-size: 14px; color: var(--muted); }
 
+/* ---- the Now section: temperature and condition big, the rest quiet ----- */
+
+.now-title {
+  margin: 0 0 14px;
+  font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted);
+}
+
+.now-main { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+
+.now-temp {
+  font-size: 46px; line-height: 1; font-weight: 700; letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.now-condition { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+
+/* The quiet grid: label above value, two columns from 360 px up. */
+.now-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 20px;
+  margin: 18px 0 0;
+}
+
+.now-cell { min-width: 0; }
+
+.now-label {
+  margin: 0;
+  font-size: 13px; line-height: 1.4;
+  color: var(--muted);
+}
+
+.now-value {
+  margin: 1px 0 0;
+  font-size: 15px; font-weight: 600; line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+
+.now-time { margin: 16px 0 0; font-size: 13px; }
+
+.now-unavailable { margin: 2px 0 0; font-size: 15px; color: var(--muted); }
+
 /* ---- setup wizard ------------------------------------------------------- */
 
 .setup { padding: 26px 24px; }
@@ -324,25 +367,6 @@ button:focus-visible, a:focus-visible {
   .place { font-size: 22px; }
   .place-detail { font-size: 14px; }
 }
-
-/* ---- kiosk: one screen, no scrolling, big type, no details -------------- */
-
-body.kiosk .wrap { max-width: none; padding: 24px 32px; }
-body.kiosk .topbar { margin-bottom: 18px; }
-body.kiosk .card + .card { margin-top: 14px; }
-body.kiosk .glance { padding: 24px 28px; }
-body.kiosk .glance-answer { font-size: 36px; }
-body.kiosk .glance-prob-value { font-size: 72px; }
-body.kiosk .glance-when { font-size: 17px; }
-body.kiosk .place { font-size: 22px; }
-body.kiosk .place-detail { font-size: 14px; }
-body.kiosk .radar { margin-top: 18px; }
-body.kiosk .radar-top { height: 18px; margin-bottom: 5px; }
-body.kiosk .radar-strip { height: 44px; }
-body.kiosk .radar-labels { margin-top: 5px; }
-body.kiosk .radar-caption { margin-top: 8px; }
-body.kiosk .attr { margin-top: 14px; }
-body.kiosk [data-test="details"] { display: none; }
 
 /* ---- motion ------------------------------------------------------------- */
 
