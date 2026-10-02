@@ -5,8 +5,42 @@ use std::sync::Arc;
 use wetter::routes::{AppState, build_router};
 use wetter::security::parse_allowed_hosts;
 
+/// Dispatch before the server does anything: `wetter` runs the server,
+/// `wetter snapshot PATH` copies the live database and exits. (No tracing
+/// subscriber yet: stdout carries only the snapshot report.)
+fn main() {
+    let args: Vec<String> = std::env::args().collect();
+    match args.as_slice() {
+        [_] => server(),
+        [_, sub, target] if sub == "snapshot" => snapshot_command(target),
+        _ => {
+            eprintln!("usage: wetter [snapshot PATH]");
+            std::process::exit(2);
+        }
+    }
+}
+
+/// `wetter snapshot PATH`: consistent copy of the live database plus a
+/// short report on stdout (see `wetter::snapshot`).
+fn snapshot_command(target: &str) {
+    let config = match wetter::config::load_config(None, &|k| std::env::var(k).ok()) {
+        Ok(config) => config,
+        Err(err) => {
+            eprintln!("config error: {err}");
+            std::process::exit(1);
+        }
+    };
+    match wetter::snapshot::snapshot(Path::new(&config.database_path), Path::new(target)) {
+        Ok(stats) => println!("{}", wetter::snapshot::report(&stats)),
+        Err(err) => {
+            eprintln!("snapshot failed: {err}");
+            std::process::exit(1);
+        }
+    }
+}
+
 #[tokio::main(flavor = "current_thread")]
-async fn main() {
+async fn server() {
     tracing_subscriber::fmt().with_target(false).init();
     let clock = match wetter::times::Clock::from_env(&|k| std::env::var(k).ok()) {
         Ok(clock) => clock,
