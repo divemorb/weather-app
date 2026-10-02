@@ -8,6 +8,7 @@
  */
 import { pickLang, t } from "./i18n.js";
 import { getJSON } from "./api.js";
+import { locationText, locationDetail } from "./format.js";
 import { renderGlance } from "./glance.js";
 import { initSetup, openSetup } from "./setup.js";
 
@@ -63,10 +64,12 @@ let cfg = null;
 let tz = "UTC";
 let loadTimer = null;
 
-function locationText(location) {
-  if (!location) return t(lang, "location.unset");
-  if (location.label) return location.label;
-  return `${location.latitude.toFixed(3)}, ${location.longitude.toFixed(3)}`;
+/* The header's place line and the muted detail under it (the time zone,
+ * plus the coordinates when the place shows a label); set everywhere a
+ * location is known — startup, after a save, and the error path. */
+function setPlace(location) {
+  $("location").textContent = locationText(location) || t(lang, "location.unset");
+  $("location-detail").textContent = locationDetail(location);
 }
 
 async function loadGlance() {
@@ -91,11 +94,11 @@ function startLoop() {
     cfg = await getJSON("/api/config");
   } catch (e) {
     console.warn(e);
-    $("location").textContent = t(lang, "location.unset");
+    setPlace(null);
     return;
   }
   if (cfg.location) tz = cfg.location.timezone || "UTC";
-  $("location").textContent = locationText(cfg.location);
+  setPlace(cfg.location);
   if (cfg.configured === false || !cfg.location) {
     openSetup("first"); // ask for the location; the loop starts after a save
     return;
@@ -111,7 +114,7 @@ initSetup({
     try {
       cfg = await getJSON("/api/config");
       if (cfg.location) tz = cfg.location.timezone || "UTC";
-      $("location").textContent = locationText(cfg.location);
+      setPlace(cfg.location);
       await loadGlance();
     } catch (e) {
       console.warn(e);

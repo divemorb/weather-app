@@ -24,6 +24,12 @@ export function renderGlance(rain, radar, lang, locale, tz) {
     els.when.hidden = true;
   }
   const weights = rain && rain.weights_used;
-  els.prob.textContent =
-    weights && Object.keys(weights).length > 0 ? fmtPercent(rain.probability_pct, locale) : DASH;
+  if (weights && Object.keys(weights).length > 0) {
+    els.prob.textContent = fmtPercent(rain.probability_pct, locale);
+    els.prob.classList.remove("muted");
+  } else {
+    /* no data: the placeholder stays neutral, the accent means rain */
+    els.prob.textContent = DASH;
+    els.prob.classList.add("muted");
+  }
 }

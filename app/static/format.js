@@ -89,6 +89,28 @@ export function windDir(deg, lang) {
   return pts[((Math.round(deg / 45) % 8) + 8) % 8];
 }
 
+/* The header's place line: the label, else the coordinates to three
+ * decimals; "" without a location (the page shows its own text). */
+export function locationText(location) {
+  if (!location) return "";
+  if (location.label) return location.label;
+  if (!validNumber(location.latitude) || !validNumber(location.longitude)) return "";
+  return `${location.latitude.toFixed(3)}, ${location.longitude.toFixed(3)}`;
+}
+
+/* The muted line under the place: the time zone, and — when the place
+ * shows a label — the coordinates before it:
+ * "52.522, 13.414 · Europe/Berlin". Empty without a location. */
+export function locationDetail(location) {
+  if (!location) return "";
+  const parts = [];
+  if (location.label && validNumber(location.latitude) && validNumber(location.longitude)) {
+    parts.push(`${location.latitude.toFixed(3)}, ${location.longitude.toFixed(3)}`);
+  }
+  if (location.timezone) parts.push(location.timezone);
+  return parts.join(" · ");
+}
+
 const MODEL_LABELS = {
   icon_d2: "ICON-D2 (DWD)",
   icon_eu: "ICON-EU (DWD)",

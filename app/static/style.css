@@ -74,17 +74,29 @@ a:hover { text-decoration: underline; }
 /* ---- header: the place and the two icon buttons ----------------------- */
 
 .topbar {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: flex-start; justify-content: space-between;
   gap: 12px; margin-bottom: 20px;
 }
 
-.brand { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+.brand { display: flex; align-items: flex-start; gap: 10px; min-width: 0; flex: 1; }
 
-.brand-mark { width: 24px; height: 24px; color: var(--accent); flex: none; }
+.brand-mark { width: 24px; height: 24px; color: var(--accent); flex: none; margin-top: 2px; }
+
+/* The place is the header's main text: it wraps, never cuts off (long
+ * Nominatim labels are the normal case), the coordinates and the time
+ * zone live in the muted line under it. */
+.brand-text { min-width: 0; }
 
 .place {
-  font-size: 16px; font-weight: 600; letter-spacing: -0.01em;
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: block;
+  font-size: 20px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.25;
+  overflow-wrap: break-word;
+}
+
+.place-detail {
+  margin: 3px 0 0;
+  font-size: 13px; line-height: 1.4;
+  overflow-wrap: break-word;
 }
 
 .actions { display: flex; align-items: center; gap: 4px; }
@@ -99,10 +111,12 @@ a:hover { text-decoration: underline; }
 .actions .btn:hover { background: var(--hover); }
 .actions .btn .icon { width: 22px; height: 22px; display: block; }
 
-/* The moon invites dark mode; the sun invites light. */
-.icon-sun { display: none; }
-:root[data-theme="dark"] .icon-sun { display: block; }
-:root[data-theme="dark"] .icon-moon { display: none; }
+/* The moon invites dark mode; the sun invites light. The selectors must
+ * reach into .actions .btn to out-weight ".btn .icon { display: block }",
+ * or the light theme shows both icons. */
+.actions .btn .icon-sun { display: none; }
+:root[data-theme="dark"] .actions .btn .icon-sun { display: block; }
+:root[data-theme="dark"] .actions .btn .icon-moon { display: none; }
 
 /* ---- buttons (the wizard's) ------------------------------------------- */
 
@@ -172,6 +186,9 @@ button:focus-visible, a:focus-visible {
   color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
+
+/* The no-data placeholder is neutral: the accent colour means rain. */
+.glance-prob-value.muted { color: var(--muted); }
 
 .glance-prob-label { font-size: 14px; color: var(--muted); line-height: 1.45; }
 
@@ -244,7 +261,8 @@ button:focus-visible, a:focus-visible {
   .card + .card { margin-top: 22px; }
   .glance { padding: 36px 34px; }
   .setup { padding: 32px 30px; }
-  .place { font-size: 17px; }
+  .place { font-size: 22px; }
+  .place-detail { font-size: 14px; }
 }
 
 /* ---- kiosk: one screen, no scrolling, big type, no details -------------- */
@@ -256,7 +274,8 @@ body.kiosk .glance { padding: 24px 28px; }
 body.kiosk .glance-answer { font-size: 36px; }
 body.kiosk .glance-prob-value { font-size: 72px; }
 body.kiosk .glance-when { font-size: 17px; }
-body.kiosk .place { font-size: 18px; }
+body.kiosk .place { font-size: 22px; }
+body.kiosk .place-detail { font-size: 14px; }
 body.kiosk .attr { margin-top: 14px; }
 body.kiosk [data-test="details"] { display: none; }
 
