@@ -201,5 +201,39 @@
     return out;
   }
 
-  window.__ui = { info, contrast, page, overflowing, controls, animations, openDetails, icons, textColor, clipped };
+  // Visible elements inside a hook that reach past its content box on the
+  // right (into its padding or beyond it). What a scroll container inside
+  // the hook clips doesn't count: a table that scrolls in its own box fits.
+  function sticksOut(hook) {
+    const out = [];
+    for (const root of all(hook)) {
+      if (!visible(root)) continue;
+      const cs = getComputedStyle(root);
+      const edge = root.getBoundingClientRect().right - parseFloat(cs.borderRightWidth) - parseFloat(cs.paddingRight);
+      for (const el of root.querySelectorAll("*")) {
+        if (!visible(el)) continue;
+        let right = el.getBoundingClientRect().right;
+        for (let n = el.parentElement; n && n !== root; n = n.parentElement) {
+          if (getComputedStyle(n).overflowX !== "visible") right = Math.min(right, n.getBoundingClientRect().right);
+        }
+        if (right > edge + 1) {
+          out.push(`${el.tagName.toLowerCase()}${el.className && typeof el.className === "string" ? "." + el.className.trim().replace(/\s+/g, ".") : ""}`
+            + ` ends at ${Math.round(right)} px, past the content edge of [data-test=${hook}] at ${Math.round(edge)} px`);
+        }
+      }
+    }
+    return out.slice(0, 6);
+  }
+
+  // A closed <details> hook: the space above and below its <summary>, in px.
+  function summaryGaps(hook) {
+    const d = all(hook)[0];
+    const sum = d && d.querySelector(":scope > summary");
+    if (!sum) return null;
+    const a = d.getBoundingClientRect(), b = sum.getBoundingClientRect();
+    return { above: b.top - a.top, below: a.bottom - b.bottom };
+  }
+
+  window.__ui = { info, contrast, page, overflowing, controls, animations, openDetails, icons, textColor, clipped,
+    sticksOut, summaryGaps };
 })();

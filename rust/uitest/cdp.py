@@ -164,8 +164,30 @@ class Page:
         self._inflight: set[str] = set()
         self._last_net = time.monotonic()
         self._loaded = False
+        self._fakes: dict[str, list[tuple[int, str]]] = {}
         for domain in ("Page", "Runtime", "Log", "Network"):
             self.send(f"{domain}.enable")
+
+    def fake(self, responses: dict[str, list[tuple[int, str]]]):
+        """Answer the next requests to these paths with (status, JSON body), in
+        order; once a path's list is used up, its requests reach the app again.
+        Call before goto(); the fakes are served while the page is pumped."""
+        self._fakes = {path: list(seq) for path, seq in responses.items()}
+        self.send("Fetch.enable", {"patterns": [{"urlPattern": f"*{path}*"} for path in responses]})
+
+    def _paused(self, p: dict):
+        import base64
+        import urllib.parse
+        path = urllib.parse.urlsplit(p["request"]["url"]).path
+        seq = self._fakes.get(path)
+        if not seq:
+            self.send("Fetch.continueRequest", {"requestId": p["requestId"]})
+            return
+        status, body = seq.pop(0)
+        self.send("Fetch.fulfillRequest", {
+            "requestId": p["requestId"], "responseCode": status,
+            "responseHeaders": [{"name": "Content-Type", "value": "application/json"}],
+            "body": base64.b64encode(body.encode()).decode()})
 
     def send(self, method, params=None, timeout=30.0):
         return self.b.send(method, params, self.session, timeout)
@@ -191,6 +213,8 @@ class Page:
                 self._last_net = time.monotonic()
             elif m == "Page.loadEventFired":
                 self._loaded = True
+            elif m == "Fetch.requestPaused":
+                self._paused(p)
 
     def goto(self, url: str, timeout: float = 20.0, idle: float = 0.5):
         """Navigate and wait for the load event plus `idle` seconds without network activity."""

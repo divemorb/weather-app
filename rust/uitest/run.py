@@ -9,8 +9,10 @@ times must be shown in the location's time zone. The checks read what the
 page shows through stable ``data-test`` hooks: content, not layout (see
 ``qwen/web/00_brief.md``, "UI contract"). Generic checks: no console errors
 or CSP violations, same-origin requests only, contrast (WCAG AA) in both
-themes, no horizontal overflow at 360 px, the kiosk view without
-scrolling, control sizes, reduced motion, the size budget. The JS unit
+themes, no horizontal overflow at 360 px (and nothing sticking out of the
+Details card), the kiosk view without scrolling, control sizes, reduced
+motion, the size budget, and that bad data or a failed /api/config doesn't
+stop the page (faked responses, see ``cdp.Page.fake``). The JS unit
 tests (``unit/*.test.mjs``, ``node --test``) are checks too.
 
     # in the sandbox, after `cargo build`:
@@ -53,8 +55,10 @@ _spec.loader.exec_module(contract)
 
 from cdp import Browser  # noqa: E402
 from expect import (  # noqa: E402
-    ACCURACY_HEAD, ANSWER, ATTRIBUTION_LINKS, BUDGET_BYTES, FIXED, KIOSK_MIN_FONT, KIOSK_SIZES, LOCALES, MODEL_LABELS,
-    NOW, RADAR_CAPTION, SCENARIO, SOURCES, TZ, WEIGHTS, WHEN, WIZARD_DETAIL, WIZARD_LABEL)
+    ACCURACY_HEAD, ANSWER, ATTRIBUTION_LINKS, BUDGET_BYTES, CONFIG_RETRY_S, FIXED, KIOSK_CHART_LABEL_PX, KIOSK_CHART_MIN,
+    KIOSK_CHART_MIN_W, KIOSK_MIN_FONT,
+    KIOSK_SIZES, LOCALES, MODEL_LABELS, NOW, RADAR_CAPTION, SCENARIO, SOURCE_KIND, SOURCES, TZ, WEIGHTS, WHEN,
+    WIZARD_DETAIL, WIZARD_LABEL)
 from fakeup import FakeUpstream  # noqa: E402
 from scenarios import SCENARIOS  # noqa: E402
 
@@ -70,8 +74,10 @@ RADAR = ["radar-steps", "radar-labels", "radar-caption", "radar-dry", "radar-max
 NOW_CHECKS = list(NOW)
 CHART = ["chart-svg", "chart-series", "chart-legend", "chart-y-labels", "chart-x-labels", "chart-unit", "chart-dry"]
 DETAILS = ["details-closed", "details-weights", "details-signals", "countdown-radar", "countdown-models",
-           "countdown-page", "source-rows", "source-errors", "accuracy-table"]
+           "countdown-page", "source-rows", "source-errors", "accuracy-table", "details-fit", "details-compact"]
 KIOSK = [f"kiosk-{w}x{h}" for w, h in KIOSK_SIZES]
+KIOSK_CHART = [f"kiosk-chart-{w}x{h}" for w, h in KIOSK_SIZES]
+REFRESH = ["refresh-render-error", "refresh-config-retry"]
 
 
 def check_names(scenario: str, lang: str) -> list[str]:
@@ -81,14 +87,14 @@ def check_names(scenario: str, lang: str) -> list[str]:
             names = [n for n in names if not n.startswith("chart-") or n == "chart-dry"]
             names += ["theme-toggle"] if lang == "en" else []
         else:
-            names += ["reduced-motion"] if lang == "en" else []
+            names += KIOSK_CHART + (["reduced-motion"] + REFRESH if lang == "en" else [])
         return names
     if scenario == "errors":
         return (COMMON + ["rain-answer", "rain-when", "rain-probability", "radar-unavailable", "now-unavailable",
                           "chart-unavailable"] + [n for n in DETAILS if n not in ("details-weights", "details-signals")])
     if scenario == "accuracy":
         return ["console", "requests", "location", "location-detail", "rain-probability", "details-closed",
-                "accuracy-table", "accuracy-head", "accuracy-note"]
+                "accuracy-table", "accuracy-head", "accuracy-note", "details-fit", "details-compact", "overflow-360"]
     if scenario == "unconfigured":
         return ["console", "requests", "lang", "setup-visible", "theme-light", "theme-dark", "theme-icon",
                 "contrast-light", "contrast-dark", "overflow-360", "buttons"]
@@ -197,7 +203,7 @@ CLOCK = """(() => {
 
 class UIPage:
     def __init__(self, browser, base, sc_now, lang, width=1280, height=900, scheme="light",
-                 reduced=False, query=""):
+                 reduced=False, query="", fakes=None):
         self.lang, self.locale, self.base = lang, LOCALES[lang], base
         self.p = browser.new_page()
         mobile = width < 600
@@ -211,6 +217,8 @@ class UIPage:
             {"name": "prefers-color-scheme", "value": scheme},
             {"name": "prefers-reduced-motion", "value": "reduce" if reduced else "no-preference"}]})
         self.p.send("Page.addScriptToEvaluateOnNewDocument", {"source": CLOCK % sc_now})
+        if fakes:
+            self.p.fake(fakes)
         self.p.goto(base + "/" + query)
         self.settle()
 
@@ -468,6 +476,13 @@ def check_details(pg: UIPage, sc: str, exp: dict, names: list[str], add):
         if inside:
             problems.append(f"visible before opening the details: {inside}")
     add("details-closed", problems)
+    if det and det["tag"] == "details" and not det["open"]:
+        g = pg.js('__ui.summaryGaps("details")')
+        if g and g["below"] > g["above"] + 6:
+            add("details-compact", [f"closed [data-test=details]: {g['below']:.0f} px below the summary, "
+                                    f"{g['above']:.0f} px above it (at most 6 px more below than above)"])
+        else:
+            add("details-compact", [])
     if not det or det["tag"] != "details":
         for check in DETAILS[1:]:
             add(check, ['not checked: needs a <details data-test="details"> to open'])
@@ -492,14 +507,16 @@ def check_details(pg: UIPage, sc: str, exp: dict, names: list[str], add):
         got = [e["attrs"].get("data-source") for e in rows]
         problems = [] if sorted(got) == sorted(SOURCES) else [f"[data-test=source-row] data-source: {got}, expected {list(SOURCES)}"]
         for e in rows:
-            up = SOURCES.get(e["attrs"].get("data-source"), "")
-            if up and up not in e["text"]:
-                problems.append(f"source row {e['attrs'].get('data-source')}: {e['text']!r} lacks {up!r}")
+            key = e["attrs"].get("data-source")
+            for want in (SOURCES.get(key, ""), SOURCE_KIND.get(key, {}).get(lang, "")):
+                if want and not has(e["text"], want):
+                    problems.append(f"source row {key}: {e['text']!r} lacks {want!r}")
         add("source-rows", problems)
     if "source-errors" in names:
         n = sum(e["visible"] for e in pg.ui("source-error"))
         want = exp.get("source_errors", 0)
         add("source-errors", [] if n == want else [f"{n} visible [data-test=source-error], expected {want}"])
+    add("details-fit", pg.js('__ui.sticksOut("details")'))
     if "accuracy-table" in names:
         add("accuracy-table", accuracy_problems(pg, exp))
     if "accuracy-head" in names:
@@ -689,7 +706,7 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
             add("contrast-dark", contrast_problems(pg))
             shot(pg, "desktop-dark")
             done(pg)
-    if name in ("live", "rain", "errors", "unconfigured"):
+    if name in ("live", "rain", "errors", "unconfigured", "accuracy"):
         # C: phone, 360 px, everything opened
         pg = UIPage(browser, base, sc["now"], lang, width=360, height=740)
         pg.js("__ui.openDetails()")
@@ -697,6 +714,7 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
         info = pg.js("__ui.page()")
         add("overflow-360", [] if info["sw"] <= 361 and info["iw"] <= 361 else
             [f"page is {info['sw']} px wide at 360 px (horizontal scrolling): {pg.js('__ui.overflowing()')}"])
+        add("details-fit", [f"at 360 px: {p}" for p in pg.js('__ui.sticksOut("details")')])
         shot(pg, "phone-360")
         done(pg)
     if name == "unconfigured":
@@ -711,10 +729,16 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
         for size in KIOSK_SIZES:
             pg = UIPage(browser, base, sc["now"], lang, width=size[0], height=size[1], query="?kiosk")
             check_kiosk(pg, exp, size, add)
+            if f"kiosk-chart-{size[0]}x{size[1]}" in names:
+                add(f"kiosk-chart-{size[0]}x{size[1]}", kiosk_chart_problems(pg, size))
             shot(pg, f"kiosk-{size[0]}x{size[1]}", full=False)
             done(pg)
     if "theme-toggle" in names:
         add("theme-toggle", theme_toggle(browser, base, sc, lang, done))
+    if "refresh-render-error" in names:
+        add("refresh-render-error", refresh_render_error(browser, base, sc, lang))
+    if "refresh-config-retry" in names:
+        add("refresh-config-retry", refresh_config_retry(browser, base, sc, lang))
     if "reduced-motion" in names:
         pg = UIPage(browser, base, sc["now"], lang, reduced=True)
         time.sleep(0.3)
@@ -726,6 +750,82 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
     foreign = sorted({u for u in requests if not (u.startswith(own) or u.startswith("data:"))})
     add("requests", [f"request outside the app: {u}" for u in foreign])
     add("console", list(dict.fromkeys(errors))[:8])
+
+
+def kiosk_chart_problems(pg: UIPage, size) -> list[str]:
+    """The chart fills its share of the kiosk screen instead of a short strip."""
+    w, h = size
+    els = [e for e in pg.ui("chart") if e["visible"]]
+    if not els:
+        return ["[data-test=chart] not visible in the kiosk view"]
+    r, problems = els[0]["rect"], []
+    if r["h"] < KIOSK_CHART_MIN * h:
+        problems.append(f"[data-test=chart] is {r['h']:.0f} px high at {w}x{h}, "
+                        f"at least {KIOSK_CHART_MIN * h:.0f} px ({KIOSK_CHART_MIN:.0%} of the screen height)")
+    if r["w"] < KIOSK_CHART_MIN_W * w:
+        problems.append(f"[data-test=chart] is {r['w']:.0f} px wide at {w}x{h}, "
+                        f"at least {KIOSK_CHART_MIN_W * w:.0f} px ({KIOSK_CHART_MIN_W:.0%} of the screen width)")
+    # what is drawn (labels, lines) must use the box: taller must not mean letterboxed
+    drawn = [e["rect"] for hook in ("chart-y-label", "chart-x-label", "chart-series") for e in pg.ui(hook) if e["rendered"]]
+    if drawn:
+        span = max(d["right"] for d in drawn) - min(d["x"] for d in drawn)
+        if span < 0.85 * r["w"]:
+            problems.append(f"the chart draws {span:.0f} px wide inside its {r['w']:.0f} px box "
+                            "(letterboxed: the plot must use the box's width)")
+    labels = [e for e in pg.ui("chart-x-label") if e["visible"]]
+    if labels and labels[0]["rect"]["h"] < KIOSK_CHART_LABEL_PX:
+        problems.append(f"[data-test=chart-x-label] is drawn {labels[0]['rect']['h']:.1f} px high in the kiosk "
+                        f"view, at least {KIOSK_CHART_LABEL_PX} px (a scaled-down SVG shrinks its text)")
+    return problems
+
+
+def _page_errors(pg: UIPage) -> list[str]:
+    pg.p.pump()
+    return [e for e in pg.p.errors if e.startswith("exception:")]
+
+
+def refresh_render_error(browser, base, sc, lang) -> list[str]:
+    """Malformed data that today's renderers can't draw: the radar steps and an
+    accuracy row are null. The other parts must still render, nothing may
+    throw uncaught, and the next page reload must still be scheduled."""
+    pg = UIPage(browser, base, sc["now"], lang, fakes={
+        "/api/radar/next-hour": [(200, '{"available": true, "steps": [null]}')],
+        "/api/model-accuracy": [(200, '{"models": {"icon_d2": null}}')]})
+    time.sleep(1.5)  # the countdowns tick once a second
+    problems = [f"uncaught: {e}" for e in _page_errors(pg)]
+    temp = pg.ui("now-temp")
+    if not temp or not temp[0]["visible"] or not re.search(r"\d", temp[0]["text"]):
+        problems.append("[data-test=now-temp] not shown: one part's bad data must not stop the others")
+    if not any(e["rendered"] for e in pg.ui("chart-series")):
+        problems.append("no [data-test=chart-series]: one part's bad data must not stop the others")
+    page = pg.js("(document.querySelector('[data-test=countdown-page]') || {}).textContent || ''")
+    m = re.search(r"(\d+):(\d{2})", page)
+    if not m or int(m.group(1)) * 60 + int(m.group(2)) == 0:
+        problems.append(f"[data-test=countdown-page] shows {page!r}: no page reload is scheduled")
+    pg.close()
+    return problems
+
+
+def refresh_config_retry(browser, base, sc, lang) -> list[str]:
+    """/api/config fails once at startup (503): the page must try again by
+    itself and show the place and the forecast within CONFIG_RETRY_S."""
+    pg = UIPage(browser, base, sc["now"], lang, fakes={"/api/config": [(503, '{"detail": "unavailable"}')]})
+    end = time.monotonic() + CONFIG_RETRY_S
+    loc = ""
+    while time.monotonic() < end:
+        pg.p.pump()
+        loc = pg.js("(document.querySelector('[data-test=location]') || {}).textContent || ''")
+        temp = pg.js("(document.querySelector('[data-test=now-temp]') || {}).textContent || ''")
+        if "52.520" in loc and re.search(r"\d", temp):
+            break
+        time.sleep(0.5)
+    else:
+        pg.close()
+        return [f"/api/config failed once at startup; {CONFIG_RETRY_S} s later the place reads {loc!r} "
+                "and the forecast is not shown: the page must retry by itself"]
+    problems = [f"uncaught: {e}" for e in _page_errors(pg)]
+    pg.close()
+    return problems
 
 
 def theme_toggle(browser, base, sc, lang, done) -> list[str]:

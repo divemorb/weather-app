@@ -114,6 +114,9 @@ SCENARIO = {
 
 WEIGHTS = {"en": ["50%", "30%", "20%"], "de": ["50 %", "30 %", "20 %"]}
 SOURCES = {"radar": "DWD (Bright Sky)", "current": "DWD (Bright Sky)", "forecast": "Open-Meteo", "ensemble": "Open-Meteo"}
+# Which feed a source row is: the names of the page parts it feeds (two rows share each upstream).
+SOURCE_KIND = {"radar": {"en": "Radar", "de": "Radar"}, "current": {"en": "Now", "de": "Jetzt"},
+               "forecast": {"en": "Models", "de": "Modelle"}, "ensemble": {"en": "Ensemble", "de": "Ensemble"}}
 ATTRIBUTION_LINKS = ["dwd.de", "brightsky.dev", "open-meteo.com", "openstreetmap.org/copyright"]
 
 # The wizard saves the first search result: a long Nominatim label, shown in full at 360 px.
@@ -122,4 +125,8 @@ WIZARD_DETAIL = ["52.522", "13.414", TZ]
 
 KIOSK_SIZES = [(1280, 800), (1920, 1080)]
 KIOSK_MIN_FONT = {"rain-answer": 28, "now-temp": 40}
+KIOSK_CHART_MIN = 0.22  # the chart's height as a share of the kiosk screen (1280x800: 176 px)
+KIOSK_CHART_MIN_W = 0.44  # and its width (about the right column's: 1280 -> 563 px)
+KIOSK_CHART_LABEL_PX = 11  # the drawn height of an x-axis label (12 px text at scale 1 is about 14 px)
+CONFIG_RETRY_S = 20  # a failed /api/config at startup: the page has retried and shows the forecast by then
 BUDGET_BYTES = 150 * 1024
