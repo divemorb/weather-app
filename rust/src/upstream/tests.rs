@@ -181,6 +181,25 @@ async fn fetch_parses_json_and_sends_params() {
 }
 
 #[tokio::test]
+async fn fetch_json_capped_roundtrips_upstream_floats() {
+    // Lockstep finding: Open-Meteo sent this 17-digit generationtime; the
+    // stored f64 must be exactly "0.40209293365478516".parse::<f64>().
+    use crate::testutil::fake_upstream::{FakeResponse, FakeUpstream};
+    let fake = FakeUpstream::start();
+    fake.set(
+        "/bs/current_weather",
+        FakeResponse::Raw(r#"{"generationtime_ms": 0.40209293365478516}"#.to_string()),
+    );
+    let client = http_client(5.0).unwrap();
+    let value = fetch_json_capped(&client, &format!("{}/bs/current_weather", fake.base), &[])
+        .await
+        .unwrap();
+    let expected: f64 = "0.40209293365478516".parse().unwrap();
+    assert_eq!(value["generationtime_ms"].as_f64().unwrap(), expected);
+    assert!(value.to_string().contains("0.40209293365478516"));
+}
+
+#[tokio::test]
 async fn fetch_http_error_is_source_error() {
     use crate::testutil::fake_upstream::{FakeResponse, FakeUpstream};
     let fake = FakeUpstream::start();
