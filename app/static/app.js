@@ -78,7 +78,9 @@ async function loadGlance() {
       getJSON("/api/rain-probability"),
       getJSON("/api/radar/next-hour"),
     ]);
-    renderGlance(rain, radar, lang, locale, tz);
+    /* The radius comes from the config loaded once at startup, not from a
+     * fetch per refresh (the caption under the radar strip). */
+    renderGlance(rain, radar, lang, locale, tz, cfg && cfg.radar_radius_km);
   } catch (e) {
     console.warn(e); // keep the old content; a failure is not a page error
   }

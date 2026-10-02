@@ -97,7 +97,18 @@
           <span class="glance-prob-value" id="rain-probability" data-test="rain-probability"></span>
           <span class="glance-prob-label muted" id="glance-prob-label">chance of rain in the next 60 min</span>
         </div>
-        <div class="radar-strip" id="radar-strip"></div>
+        <div class="radar">
+          <p class="radar-unavailable" id="radar-unavailable" data-test="radar-unavailable" hidden></p>
+          <div class="radar-visual" id="radar-visual" hidden>
+            <div class="radar-top">
+              <span class="radar-max" id="radar-max" data-test="radar-max" hidden></span>
+              <p class="radar-dry" id="radar-dry" data-test="radar-dry" hidden></p>
+            </div>
+            <div class="radar-strip" id="radar-strip" role="img"></div>
+            <div class="radar-labels" id="radar-labels" aria-hidden="true"></div>
+            <p class="radar-caption" id="radar-caption" data-test="radar-caption" hidden></p>
+          </div>
+        </div>
       </section>
     </main>
 

@@ -19,6 +19,8 @@
   --border: #e0e3e8;
   --accent: #2563eb;      /* the one accent: rain */
   --accent-soft: #e8effc; /* accent tint (selected search result) */
+  --track: #e9ecf1;       /* the empty radar track */
+  --track-rain: #dbe6fa;  /* the track under a rainy column */
   --bad: #cf222e;
   --hover: rgb(31 35 40 / 0.06);
   --focus-ring: rgb(37 99 235 / 0.25);
@@ -37,6 +39,8 @@
   --border: #2e333b;
   --accent: #74b3ff;
   --accent-soft: #1d2c42;
+  --track: #23272e;
+  --track-rain: #24344d;
   --bad: #ff8f88;
   --hover: rgb(232 234 237 / 0.08);
   --focus-ring: rgb(116 179 255 / 0.3);
@@ -192,7 +196,63 @@ button:focus-visible, a:focus-visible {
 
 .glance-prob-label { font-size: 14px; color: var(--muted); line-height: 1.45; }
 
-.radar-strip { margin-top: 26px; }
+/* The 60-minute strip (W4): one column per five-minute step, the axis
+ * under it and the caption with the radar radius. */
+.radar { margin-top: 26px; }
+
+/* The row above the tracks: the max-amount badge when it rains, the dry
+ * line when it doesn't — one slot, so nothing jumps when it switches. */
+.radar-top { position: relative; height: 20px; margin-bottom: 6px; }
+
+.radar-max {
+  position: absolute; top: 0;
+  transform: translateX(-50%);
+  font-size: 13px; font-weight: 600; line-height: 20px;
+  color: var(--accent); font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.radar-dry {
+  margin: 0; padding: 0 4px; text-align: center;
+  font-size: 14px; line-height: 20px; color: var(--muted);
+}
+
+/* A column is its track — always visible, even dry — with the rain fill
+ * inside, bottom-aligned; the fill's height is set from JS (CSSOM). */
+.radar-strip {
+  display: flex; align-items: flex-end; gap: 3px;
+  height: 56px;
+}
+
+.radar-col {
+  flex: 1; min-width: 0; height: 100%;
+  display: flex; align-items: flex-end;
+  background: var(--track); border-radius: 3px;
+  overflow: hidden;
+}
+.radar-col.is-rain { background: var(--track-rain); }
+
+.radar-fill {
+  width: 100%; height: 0;
+  background: var(--accent); border-radius: 3px 3px 0 0;
+}
+
+/* The axis: the first step, two in between, the end of the hour. */
+.radar-labels {
+  position: relative; height: 16px; margin-top: 6px;
+  font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums;
+}
+.radar-labels .radar-label {
+  position: absolute; top: 0; white-space: nowrap;
+}
+.radar-labels .rl-a { left: 0; }
+.radar-labels .rl-b { left: 33.333%; transform: translateX(-50%); }
+.radar-labels .rl-c { left: 66.667%; transform: translateX(-50%); }
+.radar-labels .rl-d { left: 100%; transform: translateX(-100%); }
+
+.radar-caption { margin: 10px 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+
+.radar-unavailable { margin: 0; font-size: 14px; color: var(--muted); }
 
 /* ---- setup wizard ------------------------------------------------------- */
 
@@ -276,6 +336,11 @@ body.kiosk .glance-prob-value { font-size: 72px; }
 body.kiosk .glance-when { font-size: 17px; }
 body.kiosk .place { font-size: 22px; }
 body.kiosk .place-detail { font-size: 14px; }
+body.kiosk .radar { margin-top: 18px; }
+body.kiosk .radar-top { height: 18px; margin-bottom: 5px; }
+body.kiosk .radar-strip { height: 44px; }
+body.kiosk .radar-labels { margin-top: 5px; }
+body.kiosk .radar-caption { margin-top: 8px; }
 body.kiosk .attr { margin-top: 14px; }
 body.kiosk [data-test="details"] { display: none; }
 
