@@ -1,10 +1,14 @@
-/* setup.js — the location wizard, as a module (step W2).
+/* setup.js — the location wizard (module since step W2; step W9 moved
+ * every text of the section into i18n.js, so index.html stays language-
+ * neutral and the German page shows German labels, placeholders and
+ * messages).
  *
- * initSetup({lang, isConfigured, onSaved}) wires the <section data-test=
- * "setup"> markup and remembers the callback for a saved location;
- * openSetup("first"|"change") shows the wizard (first hides <main>).
- * No <form> on purpose: the CSP is form-action 'none', so all buttons are
- * type="button" and Enter in the search field triggers the search.
+ * initSetup({lang, isConfigured, onSaved}) fills the (empty) <section
+ * data-test="setup"> markup and remembers the callback for a saved
+ * location; openSetup("first"|"change") shows the wizard (first hides
+ * <main>). No <form> on purpose: the CSP is form-action 'none', so all
+ * buttons are type="button" and Enter in the search field triggers the
+ * search.
  */
 import { t } from "./i18n.js";
 import { ApiError, getJSON, postJSON } from "./api.js";
@@ -83,6 +87,11 @@ export function initSetup(opts) {
   els.latLabel.textContent = t(lang, "setup.lat");
   els.lonLabel.textContent = t(lang, "setup.lon");
   els.tzLabel.textContent = t(lang, "setup.tz");
+  /* The placeholders keep the dot as decimal point: the fields are parsed
+   * with Number(), so a German "48,137" would not be accepted. */
+  els.lat.placeholder = t(lang, "setup.lat-placeholder");
+  els.lon.placeholder = t(lang, "setup.lon-placeholder");
+  els.tz.placeholder = t(lang, "setup.tz-placeholder");
   els.save.textContent = t(lang, "setup.save");
   els.cancel.textContent = t(lang, "setup.cancel");
   els.note.textContent = t(lang, "setup.note");

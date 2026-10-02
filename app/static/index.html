@@ -19,7 +19,7 @@
           <path stroke="currentColor" stroke-width="2.2" stroke-linecap="round" d="M11.5 25l-1.3 3.4M17.5 25l-1.3 3.4M23.5 25l-1.3 3.4" />
         </svg>
         <div class="brand-text">
-          <span class="place" id="location" data-test="location">…</span>
+          <span class="place" id="location" data-test="location"></span>
           <p class="place-detail muted" id="location-detail" data-test="location-detail"></p>
         </div>
       </div>
@@ -42,63 +42,56 @@
       </div>
     </header>
 
-    <!-- Setup wizard: shown until a location is saved -->
+    <!-- Setup wizard: shown until a location is saved. Its texts live in
+         i18n.js; setup.js fills the empty elements (step W9). -->
     <section class="card setup" id="setup" data-test="setup" hidden>
-      <div class="card-head"><h2 id="setup-title">Set your location</h2></div>
-      <p class="muted setup-intro" id="setup-intro">
-        Pick the spot this app watches for rain. It is stored in the app's
-        database and drives the radar, the models and the accuracy tracking.
-      </p>
+      <div class="card-head"><h2 id="setup-title"></h2></div>
+      <p class="muted setup-intro" id="setup-intro"></p>
 
       <div class="setup-block">
-        <label class="setup-label" for="setup-search" id="setup-search-label">Search an address or place</label>
+        <label class="setup-label" for="setup-search" id="setup-search-label"></label>
         <div class="setup-search-row">
-          <input id="setup-search" data-test="setup-search" type="text" autocomplete="off" spellcheck="false"
-                 placeholder="Address or place, e.g. Marienplatz 1, München" />
-          <button id="setup-search-btn" data-test="setup-search-button" class="btn btn-wide" type="button">Search</button>
+          <input id="setup-search" data-test="setup-search" type="text" autocomplete="off" spellcheck="false" />
+          <button id="setup-search-btn" data-test="setup-search-button" class="btn btn-wide" type="button"></button>
         </div>
         <ul class="setup-results" id="setup-results" hidden></ul>
       </div>
 
-      <div class="setup-divider" aria-hidden="true"><span id="setup-divider">or coordinates</span></div>
+      <div class="setup-divider" aria-hidden="true"><span id="setup-divider"></span></div>
 
       <div class="setup-block">
         <div class="setup-coords">
           <div>
-            <label class="setup-label" for="setup-lat" id="setup-lat-label">Latitude</label>
-            <input id="setup-lat" data-test="setup-lat" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 48.137" />
+            <label class="setup-label" for="setup-lat" id="setup-lat-label"></label>
+            <input id="setup-lat" data-test="setup-lat" type="text" inputmode="decimal" autocomplete="off" />
           </div>
           <div>
-            <label class="setup-label" for="setup-lon" id="setup-lon-label">Longitude</label>
-            <input id="setup-lon" data-test="setup-lon" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 11.575" />
+            <label class="setup-label" for="setup-lon" id="setup-lon-label"></label>
+            <input id="setup-lon" data-test="setup-lon" type="text" inputmode="decimal" autocomplete="off" />
           </div>
         </div>
-        <label class="setup-label" for="setup-tz" id="setup-tz-label">Timezone</label>
-        <input id="setup-tz" data-test="setup-tz" type="text" autocomplete="off" spellcheck="false" placeholder="Europe/Berlin" />
+        <label class="setup-label" for="setup-tz" id="setup-tz-label"></label>
+        <input id="setup-tz" data-test="setup-tz" type="text" autocomplete="off" spellcheck="false" />
       </div>
 
       <div class="setup-actions">
-        <button id="setup-save" data-test="setup-save" class="btn btn-wide btn-primary" type="button">Save location</button>
-        <button id="setup-cancel" data-test="setup-cancel" class="btn btn-wide" type="button" hidden>Cancel</button>
+        <button id="setup-save" data-test="setup-save" class="btn btn-wide btn-primary" type="button"></button>
+        <button id="setup-cancel" data-test="setup-cancel" class="btn btn-wide" type="button" hidden></button>
       </div>
 
       <p class="setup-status" id="setup-status" data-test="setup-status" aria-live="polite"></p>
 
-      <p class="setup-note muted" id="setup-note">
-        Address search uses OpenStreetMap Nominatim; the text is sent from this
-        app's server. Radar covers Germany only; elsewhere the forecast uses the
-        weather models only.
-      </p>
+      <p class="setup-note muted" id="setup-note"></p>
     </section>
 
     <!-- Data: the glance first (W2); Now (W5), chart (W6), details (W7) follow -->
     <main id="dashboard">
       <section class="card glance" id="glance">
-        <h1 class="glance-answer" id="rain-answer" data-test="rain-answer">Loading…</h1>
+        <h1 class="glance-answer" id="rain-answer" data-test="rain-answer"></h1>
         <p class="glance-when" id="rain-when" data-test="rain-when" hidden></p>
         <div class="glance-prob">
           <span class="glance-prob-value" id="rain-probability" data-test="rain-probability"></span>
-          <span class="glance-prob-label muted" id="glance-prob-label">chance of rain in the next 60 min</span>
+          <span class="glance-prob-label muted" id="glance-prob-label"></span>
         </div>
         <div class="radar">
           <p class="radar-unavailable" id="radar-unavailable" data-test="radar-unavailable" hidden></p>
@@ -116,7 +109,7 @@
 
       <!-- Now (W5): current conditions, temperature and condition big -->
       <section class="card now" id="now">
-        <h2 class="now-title" id="now-title">Now</h2>
+        <h2 class="now-title" id="now-title"></h2>
         <p class="now-unavailable" id="now-unavailable" data-test="now-unavailable" hidden></p>
         <div class="now-body" id="now-body">
           <div class="now-main">
@@ -125,35 +118,35 @@
           </div>
           <dl class="now-grid">
             <div class="now-cell">
-              <dt class="now-label" id="now-feels-label">Feels like</dt>
+              <dt class="now-label" id="now-feels-label"></dt>
               <dd class="now-value" id="now-feels" data-test="now-feels"></dd>
             </div>
             <div class="now-cell">
-              <dt class="now-label" id="now-wind-label">Wind</dt>
+              <dt class="now-label" id="now-wind-label"></dt>
               <dd class="now-value" id="now-wind" data-test="now-wind"></dd>
             </div>
             <div class="now-cell">
-              <dt class="now-label" id="now-gusts-label">Gusts</dt>
+              <dt class="now-label" id="now-gusts-label"></dt>
               <dd class="now-value" id="now-gust" data-test="now-gust"></dd>
             </div>
             <div class="now-cell">
-              <dt class="now-label" id="now-humidity-label">Humidity</dt>
+              <dt class="now-label" id="now-humidity-label"></dt>
               <dd class="now-value" id="now-humidity" data-test="now-humidity"></dd>
             </div>
             <div class="now-cell">
-              <dt class="now-label" id="now-pressure-label">Pressure</dt>
+              <dt class="now-label" id="now-pressure-label"></dt>
               <dd class="now-value" id="now-pressure" data-test="now-pressure"></dd>
             </div>
             <div class="now-cell">
-              <dt class="now-label" id="now-dewpoint-label">Dew point</dt>
+              <dt class="now-label" id="now-dewpoint-label"></dt>
               <dd class="now-value" id="now-dewpoint" data-test="now-dewpoint"></dd>
             </div>
             <div class="now-cell">
-              <dt class="now-label" id="now-clouds-label">Clouds</dt>
+              <dt class="now-label" id="now-clouds-label"></dt>
               <dd class="now-value" id="now-clouds" data-test="now-clouds"></dd>
             </div>
             <div class="now-cell">
-              <dt class="now-label" id="now-rain-label">Rain last hour</dt>
+              <dt class="now-label" id="now-rain-label"></dt>
               <dd class="now-value" id="now-rain" data-test="now-rain"></dd>
             </div>
           </dl>
@@ -165,8 +158,8 @@
            without data the status lines take the plot's place -->
       <section class="card chart" id="chart-card">
         <div class="chart-head">
-          <h2 class="chart-title" id="chart-title">Next 24 hours</h2>
-          <span class="chart-unit" id="chart-unit" data-test="chart-unit" hidden>mm/h</span>
+          <h2 class="chart-title" id="chart-title"></h2>
+          <span class="chart-unit" id="chart-unit" data-test="chart-unit" hidden></span>
         </div>
         <p class="chart-status" id="chart-unavailable" data-test="chart-unavailable" hidden></p>
         <p class="chart-status" id="chart-dry" data-test="chart-dry" hidden></p>
@@ -178,7 +171,7 @@
            fills #details-body from /api/rain-probability, /api/sources,
            /api/schedule and /api/model-accuracy -->
       <details class="card details" id="details" data-test="details">
-        <summary id="details-summary"><span class="details-title" id="details-title">Details</span></summary>
+        <summary id="details-summary"><span class="details-title" id="details-title"></span></summary>
         <div class="details-body" id="details-body"></div>
       </details>
     </main>

@@ -23,8 +23,10 @@ document.documentElement.lang = lang;
 
 const $ = (id) => document.getElementById(id);
 
-/* Fixed texts the user reads: aria-labels, the loading answer and the
- * footer (W9 moves the remaining fixed texts out of index.html). */
+/* Fixed texts the user reads: aria-labels, the loading answer, the
+ * probability label, the chart title and the footer. Since W9 every page
+ * text lives in i18n.js and the modules fill the (empty) elements, so
+ * index.html stays language-neutral. */
 $("location-btn").setAttribute("aria-label", t(lang, "location.aria"));
 $("theme-toggle").setAttribute("aria-label", t(lang, "theme.aria"));
 $("glance-prob-label").textContent = t(lang, "glance.prob-label");
