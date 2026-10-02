@@ -7,8 +7,11 @@
  * of widening the page.
  */
 
-/* The card's padding lives around the body; the summary keeps its own. */
+/* The card's padding lives around the body; the summary keeps its own.
+ * Closed, the card is just the summary: the bottom padding stays in step
+ * with the top, the larger one below only makes sense around the body. */
 .details { padding: 4px 22px 22px; }
+.details:not([open]) { padding-bottom: 4px; }
 
 .details summary {
   min-height: 44px; /* the bare line is 22 px, the check wants at least 24 */
@@ -19,8 +22,11 @@
 
 .details-title { color: var(--text); }
 
+/* One constrained column: an implicit auto column would grow to the
+ * accuracy table's min-content width and push the card's content out. */
 .details-body {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 24px;
   padding-top: 4px;
   border-top: 1px solid var(--border);
@@ -77,7 +83,9 @@
   gap: 10px;
 }
 
-/* Name and age on one line, the error (if any) below it. */
+/* Feed name and age on one line, the error (if any) below it. The feed
+ * is the page part the source drives (Radar, Now, Models, Ensemble);
+ * two rows share an upstream, so the upstream's name stays, muted. */
 .source-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -86,7 +94,11 @@
   font-size: 14px; line-height: 1.45;
 }
 
-.source-name { min-width: 0; overflow-wrap: break-word; }
+.source-what { min-width: 0; overflow-wrap: break-word; }
+
+.source-name { font-weight: 600; }
+
+.source-upstream { color: var(--muted); }
 
 .source-age {
   color: var(--muted);
@@ -159,4 +171,5 @@
 @media (min-width: 720px) {
   .details { padding: 8px 30px 30px; }
   .details summary { padding: 14px 0; }
+  .details:not([open]) { padding-bottom: 8px; }
 }

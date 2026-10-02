@@ -211,8 +211,18 @@ function refreshSection() {
   return { wrap: sec, values };
 }
 
-/* The four sources in API order: the upstream name, the age (and the
- * "stale" marker), the last error under the row when it is set. */
+/* Which page part a source feeds: two rows share an upstream, so each
+ * row also names the feed (Radar, Now, Models, Ensemble). */
+const FEED_KEYS = {
+  radar: "weight.radar",
+  current: "now.title",
+  forecast: "weight.models",
+  ensemble: "weight.ensemble",
+};
+
+/* The four sources in API order: the feed it drives, the upstream's name
+ * muted next to it, the age (and the "stale" marker), the last error
+ * under the row when it is set. */
 function sourcesSection(sources) {
   const sec = section(t(lang, "details.sources"));
   const list = document.createElement("div");
@@ -223,9 +233,15 @@ function sourcesSection(sources) {
     row.className = "source-row";
     row.setAttribute("data-test", "source-row");
     row.setAttribute("data-source", key);
+    const what = document.createElement("span");
+    what.className = "source-what";
     const name = document.createElement("span");
     name.className = "source-name";
-    name.textContent = (s && s.upstream) || key;
+    name.textContent = t(lang, FEED_KEYS[key]);
+    const upstream = document.createElement("span");
+    upstream.className = "source-upstream";
+    upstream.textContent = (s && s.upstream) || key;
+    what.append(name, " ", upstream);
     const age = document.createElement("span");
     age.className = "source-age";
     const parts = [];
@@ -236,7 +252,7 @@ function sourcesSection(sources) {
       parts.push(t(lang, "age.na"));
     }
     age.textContent = parts.join(" · ");
-    row.append(name, age);
+    row.append(what, age);
     if (s && s.last_error) {
       const err = document.createElement("p");
       err.className = "source-error";
