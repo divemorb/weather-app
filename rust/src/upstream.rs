@@ -29,9 +29,22 @@ impl std::error::Error for SourceError {}
 /// User-Agent (its usage policy; the default ones get a 403).
 pub const USER_AGENT: &str = "WetterLocal/1.0 (self-hosted home weather app)";
 
-/// The HTTP client for upstream requests: total timeout, our User-Agent,
-/// and no redirects (httpx doesn't follow them, so a 3xx is an error).
+/// The HTTP client for upstream requests: TLS via the ring provider,
+/// total timeout, our User-Agent, and no redirects (httpx doesn't follow
+/// them, so a 3xx is an error).
 pub fn http_client(timeout_seconds: f64) -> Result<reqwest::Client, String> {
+    // reqwest's "rustls-no-provider" feature ships rustls without a
+    // default crypto provider, and reqwest panics when a client is built
+    // before one is installed. Install the ring provider here, the one
+    // function every client comes from: `install_default` returns `Err`
+    // only when a provider is already installed (the second client, or a
+    // parallel test), which is fine and must not fail the build.
+    if rustls::crypto::ring::default_provider()
+        .install_default()
+        .is_err()
+    {
+        // A provider was already installed; keep using it.
+    }
     let timeout = std::time::Duration::try_from_secs_f64(timeout_seconds)
         .unwrap_or(std::time::Duration::from_secs(20));
     reqwest::Client::builder()

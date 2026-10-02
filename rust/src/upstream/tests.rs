@@ -302,6 +302,16 @@ async fn fetch_unknown_path_is_source_error() {
 }
 
 #[test]
+fn http_client_installs_ring_as_the_default_tls_provider() {
+    let _client = http_client(5.0).unwrap();
+    let default = rustls::crypto::CryptoProvider::get_default().unwrap();
+    assert_eq!(
+        default.cipher_suites.len(),
+        rustls::crypto::ring::default_provider().cipher_suites.len()
+    );
+}
+
+#[test]
 fn ensemble_payload_names_members() {
     let payload = crate::testutil::make_ensemble_payload(
         &["2026-09-25T06:00"],
