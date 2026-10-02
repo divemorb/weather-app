@@ -1,10 +1,12 @@
-/* app.js — the page's entry module (step W2).
+/* app.js — the page's entry module (step W2, the Details card in W7).
  *
  * Sets the language (<html lang>, the aria-labels, the footer) and the
  * theme, then reads /api/config: unconfigured -> the wizard in "first"
- * mode; configured -> the glance (/api/rain-probability +
- * /api/radar/next-hour) and a reload every 60 s. A failed fetch keeps the
- * old content and logs with console.warn (failures are not page errors).
+ * mode; configured -> the glance, the Now section, the chart and the
+ * details. A failed fetch keeps the old content and logs with
+ * console.warn (failures are not page errors). The page reload is
+ * scheduled by details.js (10 s after a backend refresh, at the latest
+ * every 60 s) via the onReload callback.
  */
 import { pickLang, t } from "./i18n.js";
 import { getJSON } from "./api.js";
@@ -12,6 +14,7 @@ import { locationText, locationDetail } from "./format.js";
 import { renderGlance } from "./glance.js";
 import { initNow, renderNow } from "./now.js";
 import { renderChart } from "./chart.js";
+import { initDetails, renderDetails } from "./details.js";
 import { initSetup, openSetup } from "./setup.js";
 
 const lang = pickLang(navigator.languages);
@@ -66,7 +69,6 @@ $("theme-toggle").addEventListener("click", () => {
 /* ---- state and loading ---- */
 let cfg = null;
 let tz = "UTC";
-let loadTimer = null;
 
 /* The header's place line and the muted detail under it (the time zone,
  * plus the coordinates when the place shows a label); set everywhere a
@@ -84,26 +86,31 @@ const chartEls = {
   unit: $("chart-unit"),
 };
 
+/* One refresh: the glance, the Now section, the chart and the details.
+ * Each endpoint fails on its own (a failing source never breaks the
+ * other parts), so a null reaches the renderer, which shows its
+ * "unavailable" state. */
 async function loadGlance() {
-  try {
-    const [rain, radar, now, models] = await Promise.all([
-      getJSON("/api/rain-probability"),
-      getJSON("/api/radar/next-hour"),
-      getJSON("/api/now"),
-      getJSON("/api/models/24h"),
-    ]);
-    /* The radius comes from the config loaded once at startup, not from a
-     * fetch per refresh (the caption under the radar strip). */
-    renderGlance(rain, radar, lang, locale, tz, cfg && cfg.radar_radius_km);
-    renderNow(now, lang, locale, tz);
-    renderChart(chartEls, models, lang, locale, tz);
-  } catch (e) {
-    console.warn(e); // keep the old content; a failure is not a page error
-  }
-}
-
-function startLoop() {
-  if (!loadTimer) loadTimer = setInterval(loadGlance, 60 * 1000);
+  const fetchOrNull = (path) =>
+    getJSON(path).catch((e) => {
+      console.warn(e); // keep the old content; a failure is not a page error
+      return null;
+    });
+  const [rain, radar, now, models, sources, schedule, accuracy] = await Promise.all([
+    fetchOrNull("/api/rain-probability"),
+    fetchOrNull("/api/radar/next-hour"),
+    fetchOrNull("/api/now"),
+    fetchOrNull("/api/models/24h"),
+    fetchOrNull("/api/sources"),
+    fetchOrNull("/api/schedule"),
+    fetchOrNull("/api/model-accuracy"),
+  ]);
+  /* The radius comes from the config loaded once at startup, not from a
+   * fetch per refresh (the caption under the radar strip). */
+  renderGlance(rain, radar, lang, locale, tz, cfg && cfg.radar_radius_km);
+  renderNow(now, lang, locale, tz);
+  renderChart(chartEls, models, lang, locale, tz);
+  renderDetails({ rain, sources, schedule, accuracy });
 }
 
 (async function start() {
@@ -118,12 +125,19 @@ function startLoop() {
   if (cfg.location) tz = cfg.location.timezone || "UTC";
   setPlace(cfg.location);
   if (cfg.configured === false || !cfg.location) {
-    openSetup("first"); // ask for the location; the loop starts after a save
+    openSetup("first"); // ask for the location; the reload starts after a save
     return;
   }
-  await loadGlance();
-  startLoop();
+  await loadGlance(); // the page reload is scheduled inside (details.js)
 })();
+
+/* The Details card: the schedule, the countdowns and the page reload
+ * live there; onReload runs one refresh, which reschedules the next. */
+initDetails(lang, locale, {
+  onReload: () => {
+    loadGlance();
+  },
+});
 
 initSetup({
   lang,
@@ -133,11 +147,9 @@ initSetup({
       cfg = await getJSON("/api/config");
       if (cfg.location) tz = cfg.location.timezone || "UTC";
       setPlace(cfg.location);
-      await loadGlance();
+      await loadGlance(); // the reload is scheduled inside (details.js)
     } catch (e) {
       console.warn(e);
-      return;
     }
-    startLoop();
   },
 });

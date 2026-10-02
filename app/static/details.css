@@ -1,0 +1,162 @@
+/* details.css — the Details card (step W7): signals and weights, the
+ * refresh countdowns, the data sources and the model accuracy table.
+ *
+ * Calm continuation of the cards in style.css: small caps headings,
+ * tabular numbers, one muted colour for the quiet parts. The accuracy
+ * table may outgrow a phone, so it scrolls inside .table-scroll instead
+ * of widening the page.
+ */
+
+/* The card's padding lives around the body; the summary keeps its own. */
+.details { padding: 4px 22px 22px; }
+
+.details summary {
+  min-height: 44px; /* the bare line is 22 px, the check wants at least 24 */
+  padding: 12px 0;
+  font-size: 15px; font-weight: 600; letter-spacing: -0.01em;
+  cursor: pointer;
+}
+
+.details-title { color: var(--text); }
+
+.details-body {
+  display: grid;
+  gap: 24px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+
+.details-section h3 {
+  margin: 0 0 10px;
+  font-size: 12px; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* The signal and weight lines: one line each, quiet. */
+.detail-line {
+  margin: 0 0 8px;
+  font-size: 14px; line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: break-word;
+}
+.detail-line:last-child { margin-bottom: 0; }
+.detail-line .sep { color: var(--muted); padding: 0 2px; }
+
+/* The refresh countdowns: one tile per job plus the page reload. */
+.refresh-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.refresh-tile {
+  background: var(--field);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.refresh-value {
+  display: block;
+  font-size: 20px; line-height: 1.2; font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.refresh-label {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px; line-height: 1.4;
+  color: var(--muted);
+}
+
+/* The data sources: name, age, the "stale" marker; the error under it. */
+.source-list {
+  margin: 0; padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+/* Name and age on one line, the error (if any) below it. */
+.source-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 12px;
+  font-size: 14px; line-height: 1.45;
+}
+
+.source-name { min-width: 0; overflow-wrap: break-word; }
+
+.source-age {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.source-error {
+  grid-column: 1 / -1;
+  margin: 3px 0 0;
+  font-size: 12px; line-height: 1.45;
+  color: var(--bad);
+  overflow-wrap: break-word;
+}
+
+/* The accuracy table: the first column left, the numbers right; rows
+ * below the sample minimum are muted (still AA on the card). */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.accuracy-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.accuracy-table th,
+.accuracy-table td {
+  padding: 7px 10px;
+  text-align: right;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+.accuracy-table thead th {
+  font-size: 12px; font-weight: 600;
+  color: var(--muted);
+}
+
+.accuracy-table tbody tr:last-child td { border-bottom: 0; }
+
+.accuracy-table th:first-child,
+.accuracy-table td:first-child { text-align: left; }
+
+.accuracy-table tr.low td { color: var(--muted); }
+
+.accuracy-status { margin: 0; font-size: 14px; color: var(--muted); }
+
+.accuracy-no-rain {
+  margin: 0 0 10px;
+  font-size: 13px; line-height: 1.5;
+  color: var(--muted);
+}
+
+.accuracy-note {
+  margin: 12px 0 0;
+  font-size: 12px; line-height: 1.55;
+  color: var(--muted);
+}
+
+/* Wider screens: the countdown tiles sit in a row. */
+@media (min-width: 600px) {
+  .refresh-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+@media (min-width: 720px) {
+  .details { padding: 8px 30px 30px; }
+  .details summary { padding: 14px 0; }
+}

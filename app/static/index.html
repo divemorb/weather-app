@@ -6,6 +6,7 @@
   <title>Local Rain Forecast</title>
   <link rel="stylesheet" href="/style.css" />
   <link rel="stylesheet" href="/chart.css" />
+  <link rel="stylesheet" href="/details.css" />
   <link rel="stylesheet" href="/kiosk.css" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 6C32 6 12 30 12 42a20 20 0 0 0 40 0C52 30 32 6 32 6Z' fill='%2358a6ff'/%3E%3C/svg%3E" />
 </head>
@@ -172,6 +173,14 @@
         <div class="chart-body" id="chart-body"></div>
         <ul class="chart-legend" id="chart-legend" hidden></ul>
       </section>
+
+      <!-- Details (W7): the technical parts, collapsed on load; details.js
+           fills #details-body from /api/rain-probability, /api/sources,
+           /api/schedule and /api/model-accuracy -->
+      <details class="card details" id="details" data-test="details">
+        <summary id="details-summary"><span class="details-title" id="details-title">Details</span></summary>
+        <div class="details-body" id="details-body"></div>
+      </details>
     </main>
 
     <footer class="attr" id="attribution" data-test="attribution"></footer>

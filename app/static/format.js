@@ -245,3 +245,25 @@ export function fmtCountdown(ms) {
   const s = String(total % 60).padStart(2, "0");
   return h > 0 ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
 }
+
+/* Has any model seen a rain hour at all (a hit or a miss)? Without one,
+ * the accuracy table can only show false alarms, and a 100 % hit rate
+ * means nothing yet (the "no rain measured" note). */
+export function rainObserved(models) {
+  const entries = models && typeof models === "object" ? Object.values(models) : [];
+  return entries.some((m) => (m.hits || 0) + (m.misses || 0) > 0);
+}
+
+/* The accuracy table's row order: the models with enough data first,
+ * each group by event accuracy, best first. Returns the model names.
+ * Ties keep the API order (stable sort). */
+export function sortAccuracy(models) {
+  const names = models && typeof models === "object" ? Object.keys(models) : [];
+  return [...names].sort((a, b) => {
+    const ma = models[a] || {};
+    const mb = models[b] || {};
+    if (!!ma.enough_data !== !!mb.enough_data) return ma.enough_data ? -1 : 1;
+    const acc = (m) => (typeof m.event_accuracy === "number" ? m.event_accuracy : -1);
+    return acc(mb) - acc(ma);
+  });
+}
