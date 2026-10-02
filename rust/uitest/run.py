@@ -10,7 +10,7 @@ page shows through stable ``data-test`` hooks: content, not layout (see
 ``qwen/web/00_brief.md``, "UI contract"). Generic checks: no console errors
 or CSP violations, same-origin requests only, contrast (WCAG AA) in both
 themes, no horizontal overflow at 360 px (and nothing sticking out of the
-Details card), the kiosk view without scrolling, control sizes, reduced
+Details card), the kiosk view without scrolling and its cards filled, control sizes, reduced
 motion, the size budget, and that bad data or a failed /api/config doesn't
 stop the page (faked responses, see ``cdp.Page.fake``). The JS unit
 tests (``unit/*.test.mjs``, ``node --test``) are checks too.
@@ -56,7 +56,7 @@ _spec.loader.exec_module(contract)
 from cdp import Browser  # noqa: E402
 from expect import (  # noqa: E402
     ACCURACY_HEAD, ANSWER, ATTRIBUTION_LINKS, BUDGET_BYTES, CONFIG_RETRY_S, FIXED, KIOSK_CHART_LABEL_PX, KIOSK_CHART_MIN,
-    KIOSK_CHART_MIN_W, KIOSK_MIN_FONT,
+    KIOSK_CHART_MIN_W, KIOSK_DRY_CHART_MAX, KIOSK_FILL, KIOSK_FONT_SHARE, KIOSK_MIN_FONT, KIOSK_RADAR_SHARE,
     KIOSK_SIZES, LOCALES, MODEL_LABELS, NOW, RADAR_CAPTION, SCENARIO, SOURCE_KIND, SOURCES, TZ, WEIGHTS, WHEN,
     WIZARD_DETAIL, WIZARD_LABEL)
 from fakeup import FakeUpstream  # noqa: E402
@@ -77,12 +77,13 @@ DETAILS = ["details-closed", "details-weights", "details-signals", "countdown-ra
            "countdown-page", "source-rows", "source-errors", "accuracy-table", "details-fit", "details-compact"]
 KIOSK = [f"kiosk-{w}x{h}" for w, h in KIOSK_SIZES]
 KIOSK_CHART = [f"kiosk-chart-{w}x{h}" for w, h in KIOSK_SIZES]
+KIOSK_FILL_CHECKS = [f"kiosk-fill-{w}x{h}" for w, h in KIOSK_SIZES]
 REFRESH = ["refresh-render-error", "refresh-config-retry"]
 
 
 def check_names(scenario: str, lang: str) -> list[str]:
     if scenario in ("live", "rain"):
-        names = COMMON + GLANCE + RADAR + NOW_CHECKS + CHART + DETAILS + KIOSK
+        names = COMMON + GLANCE + RADAR + NOW_CHECKS + CHART + DETAILS + KIOSK + KIOSK_FILL_CHECKS
         if scenario == "live":
             names = [n for n in names if not n.startswith("chart-") or n == "chart-dry"]
             names += ["theme-toggle"] if lang == "en" else []
@@ -731,6 +732,7 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
             check_kiosk(pg, exp, size, add)
             if f"kiosk-chart-{size[0]}x{size[1]}" in names:
                 add(f"kiosk-chart-{size[0]}x{size[1]}", kiosk_chart_problems(pg, size))
+            add(f"kiosk-fill-{size[0]}x{size[1]}", kiosk_fill_problems(pg, exp, size))
             shot(pg, f"kiosk-{size[0]}x{size[1]}", full=False)
             done(pg)
     if "theme-toggle" in names:
@@ -776,6 +778,71 @@ def kiosk_chart_problems(pg: UIPage, size) -> list[str]:
     if labels and labels[0]["rect"]["h"] < KIOSK_CHART_LABEL_PX:
         problems.append(f"[data-test=chart-x-label] is drawn {labels[0]['rect']['h']:.1f} px high in the kiosk "
                         f"view, at least {KIOSK_CHART_LABEL_PX} px (a scaled-down SVG shrinks its text)")
+    return problems
+
+
+# Per kiosk card: its inner box (padding off) and the span of what it shows, measured on
+# what is drawn (text line boxes, empty boxes like the radar steps, SVGs), so a stretched
+# wrapper doesn't count as content.
+KIOSK_CARDS_JS = """(() => {
+  const out = {};
+  for (const id of ["glance", "now", "chart-card"]) {
+    const c = document.getElementById(id);
+    if (!c || !c.checkVisibility()) continue;
+    const r = c.getBoundingClientRect(), cs = getComputedStyle(c);
+    const top = r.top + parseFloat(cs.borderTopWidth) + parseFloat(cs.paddingTop);
+    const bottom = r.bottom - parseFloat(cs.borderBottomWidth) - parseFloat(cs.paddingBottom);
+    let lo = Infinity, hi = -Infinity;
+    const take = (b) => { if (b.height > 0 && b.width > 0) { lo = Math.min(lo, b.top); hi = Math.max(hi, b.bottom); } };
+    const walk = (el) => {
+      if (!el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return;
+      if (el instanceof SVGSVGElement || el.children.length === 0 && !el.textContent.trim()) {
+        take(el.getBoundingClientRect());
+        return;
+      }
+      for (const n of el.childNodes) {
+        if (n.nodeType === 3 && n.textContent.trim()) {
+          const range = document.createRange();
+          range.selectNodeContents(n);
+          for (const b of range.getClientRects()) take(b);
+        } else if (n.nodeType === 1) walk(n);
+      }
+    };
+    walk(c);
+    out[id] = { h: r.height, inner: bottom - top, span: hi > lo ? hi - lo : 0, top: lo - top, below: bottom - hi };
+  }
+  return out;
+})()"""
+
+
+def kiosk_fill_problems(pg: UIPage, exp: dict, size) -> list[str]:
+    """W9d: the wall tablet is read from across the room. The cards' content fills
+    them (larger type, no large empty bands); on a dry day the chart card is just
+    its line and Now takes the space."""
+    w, h = size
+    cards, problems = pg.js(KIOSK_CARDS_JS), []
+    for card, share in KIOSK_FILL.items():
+        c = cards.get(card)
+        if not c:
+            problems.append(f"#{card} not visible in the kiosk view")
+            continue
+        if c["span"] < share * c["inner"]:
+            problems.append(f"#{card}: its content spans {c['span']:.0f} px of the card's {c['inner']:.0f} px inner "
+                            f"height at {w}x{h} ({c['top']:.0f} px empty above it, {c['below']:.0f} px below), "
+                            f"at least {share:.0%}: larger type instead of empty bands")
+    for hook, share in KIOSK_FONT_SHARE.items():
+        els = [e for e in pg.ui(hook) if e["visible"]]
+        if els and els[0]["fontSize"] < share * h - 0.5:
+            problems.append(f"[data-test={hook}] font size {els[0]['fontSize']:.0f} px at {w}x{h}, "
+                            f"at least {share * h:.0f} px ({share:.0%} of the screen height)")
+    strip = pg.js('(() => { const s = document.getElementById("radar-strip"); '
+                  'return s && s.checkVisibility() ? s.getBoundingClientRect().height : null; })()')
+    if strip is not None and strip < KIOSK_RADAR_SHARE * h - 0.5:
+        problems.append(f"the radar strip is {strip:.0f} px high at {w}x{h}, at least {KIOSK_RADAR_SHARE * h:.0f} px")
+    chart = cards.get("chart-card")
+    if exp.get("chart") == "dry" and chart and chart["h"] > KIOSK_DRY_CHART_MAX * h + 1:
+        problems.append(f"#chart-card is {chart['h']:.0f} px high on a dry day at {w}x{h}, at most "
+                        f"{KIOSK_DRY_CHART_MAX * h:.0f} px: just its line, Now takes the rest of the column")
     return problems
 
 

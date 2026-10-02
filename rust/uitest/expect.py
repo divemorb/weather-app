@@ -128,5 +128,11 @@ KIOSK_MIN_FONT = {"rain-answer": 28, "now-temp": 40}
 KIOSK_CHART_MIN = 0.22  # the chart's height as a share of the kiosk screen (1280x800: 176 px)
 KIOSK_CHART_MIN_W = 0.44  # and its width (about the right column's: 1280 -> 563 px)
 KIOSK_CHART_LABEL_PX = 11  # the drawn height of an x-axis label (12 px text at scale 1 is about 14 px)
+# W9d, the wall tablet read from across the room: what a kiosk card shows spans this share of
+# the card's inner height (no large empty bands), sizes scale with the screen height ...
+KIOSK_FILL = {"glance": 0.6, "now": 0.55}
+KIOSK_FONT_SHARE = {"rain-answer": 0.06, "rain-probability": 0.12, "now-temp": 0.08}  # 1280x800: 48, 96, 64 px
+KIOSK_RADAR_SHARE = 0.08  # the radar strip's height (1280x800: 64 px)
+KIOSK_DRY_CHART_MAX = 0.2  # ... and on a dry day the chart card is just its line (1280x800: at most 160 px high)
 CONFIG_RETRY_S = 20  # a failed /api/config at startup: the page has retried and shows the forecast by then
 BUDGET_BYTES = 150 * 1024
