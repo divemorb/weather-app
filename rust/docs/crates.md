@@ -62,6 +62,7 @@ Verified on 2026-09-30 against the exact versions in `rust/Cargo.toml` (Rust 1.9
 
 - Without the `preserve_order` feature (not enabled), `serde_json::Map` is sorted by key: iterating an upstream object does not give the upstream's order. Where Python's order matters, the prompt says how to get it.
 - `json!({...})` writes `f64` as a float (`5.0`), integers as integers, and `None` as `null`, the same as Python's `json.dumps` as far as the parsed JSON goes.
+- The `float_roundtrip` feature is on (step R35): floats parse exactly, like Python's `json.loads`. Without it, long mantissas such as Open-Meteo's `0.40209293365478516` came out one bit off (found by the lockstep).
 
 ## base64 0.23.1 and flate2 1.1.10
 
