@@ -1,6 +1,6 @@
 {
  "now": "2026-09-30T10:27:10Z",
- "python_memory_kb": 62464,
+ "python_memory_kb": 63608,
  "upstream": [],
  "cases": {
   "healthz": {
@@ -280,8 +280,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "ed32ba1a988d8ba6a909d7d3565b3566e025f48915a8d4f9fabacc63f2276d95",
-   "length": 7380
+   "sha256": "bcd65bdf9ff945ebfd05d1ccb3f90e67843727c4ad3e45a597644d0b07a124df",
+   "length": 9362
   },
   "static/index.html": {
    "status": 200,
@@ -294,8 +294,22 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "ed32ba1a988d8ba6a909d7d3565b3566e025f48915a8d4f9fabacc63f2276d95",
-   "length": 7380
+   "sha256": "bcd65bdf9ff945ebfd05d1ccb3f90e67843727c4ad3e45a597644d0b07a124df",
+   "length": 9362
+  },
+  "static/api.js": {
+   "status": 200,
+   "headers": {
+    "content-type": "text/javascript; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "present"
+   },
+   "sha256": "ebafc57f6492b3698b8547ff94af9318e6f8c3c1ec59197a1090cf443505ed48",
+   "length": 1240
   },
   "static/app.js": {
    "status": 200,
@@ -308,8 +322,22 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "6fe34f2af9912c06235a98c01473bc259ff26b1ebb8f8595d985f289bed1b793",
-   "length": 14961
+   "sha256": "c9b5befb670a6c5786cfa40c91a7d70cd942c69a73aaed1dacdb3ebb8f23b707",
+   "length": 8301
+  },
+  "static/chart.css": {
+   "status": 200,
+   "headers": {
+    "content-type": "text/css; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "present"
+   },
+   "sha256": "5f14ec55890254af2d23597a9823a346fdc2f180e46dd36cd2e51bbe8d68ebb3",
+   "length": 1415
   },
   "static/chart.js": {
    "status": 200,
@@ -322,10 +350,24 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "f8907e77e5837c604707e5ce49b81b420e3d269939609f63d0c16061abb16a9f",
-   "length": 4031
+   "sha256": "2d0d9f97bac524640ea77459088dc7809aa40a66aa318745c875b1f7f96b3fdd",
+   "length": 7584
   },
-  "static/accuracy.js": {
+  "static/details.css": {
+   "status": 200,
+   "headers": {
+    "content-type": "text/css; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "present"
+   },
+   "sha256": "bf65aba131f2b39053b73131b6feed8ad0ed2ece38d49644e105a7f78476eef9",
+   "length": 4488
+  },
+  "static/details.js": {
    "status": 200,
    "headers": {
     "content-type": "text/javascript; charset=utf-8",
@@ -336,10 +378,10 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "d9919dd2ceb97375b626adadc09b6331776094a37fa0e1fdd69f9c5a5a09cb3c",
-   "length": 3586
+   "sha256": "7fe640fa1d7c07cc0616a2c21a55844e2616e42a55787768cd421e205d37704a",
+   "length": 14040
   },
-  "static/countdown.js": {
+  "static/format.js": {
    "status": 200,
    "headers": {
     "content-type": "text/javascript; charset=utf-8",
@@ -350,8 +392,64 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "9c8c714f074917f10e78dbabc607d9f1e3a917279b0429870efb44aacb226536",
-   "length": 4454
+   "sha256": "98ad6e4424d354a76790050a8eef64b7e4d279db87552f7de883a0900a481689",
+   "length": 11428
+  },
+  "static/glance.js": {
+   "status": 200,
+   "headers": {
+    "content-type": "text/javascript; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "present"
+   },
+   "sha256": "8e7bf1fb972fadb4cfa54636583cbad9c9cf72683d081a917e098ab6ca24b38d",
+   "length": 5813
+  },
+  "static/i18n.js": {
+   "status": 200,
+   "headers": {
+    "content-type": "text/javascript; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "present"
+   },
+   "sha256": "4f0c1b0acb148fe929292e165a1ebeef012a08e034486ef55a86b53f508d49c6",
+   "length": 12716
+  },
+  "static/kiosk.css": {
+   "status": 200,
+   "headers": {
+    "content-type": "text/css; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "present"
+   },
+   "sha256": "547fa9efda89127e396b37b42862a3daed9d477c02b7b2f77c600ab30fe8cd5a",
+   "length": 6132
+  },
+  "static/now.js": {
+   "status": 200,
+   "headers": {
+    "content-type": "text/javascript; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "present"
+   },
+   "sha256": "8e88eca8ab6cbec534d2edafa7e3fd89fa789af433db113e8fbfd4d6d0b2303c",
+   "length": 3072
   },
   "static/setup.js": {
    "status": 200,
@@ -364,8 +462,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "a4d608abe6c93e1991c3778fb8f8a59fc902204226e09cbe2b58becb28d36a19",
-   "length": 7247
+   "sha256": "5370f926956386a3864bf3e3cc24455b74f89bf1fa5cc13abd970aed03f5c8b8",
+   "length": 7906
   },
   "static/style.css": {
    "status": 200,
@@ -378,8 +476,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "2e92ec191d8ac99d06ccb113bf3739f260d77d844291e236c958fc49ce6e4dea",
-   "length": 9871
+   "sha256": "99c2fe959d5b90d09a8e9bb3b5c33011e5fe488f47f8d9b9097b97e806776e08",
+   "length": 12065
   },
   "static/app.js-revalidate": {
    "status": 304,

@@ -119,11 +119,20 @@ app/
   api_serializers.py      # pure dataclass -> JSON serializers (step 4)
   scheduler.py            # APScheduler refresh jobs
   models.py               # normalized dataclasses / API contract
-  static/index.html       # frontend markup (step 5)
-  static/style.css        # frontend styling + dark mode (step 5)
-  static/app.js           # frontend logic: fetch + render (step 5)
-  static/chart.js         # 24 h model comparison SVG chart (step 5)
-  static/accuracy.js      # "Model accuracy" card (step 6f)
+  static/index.html       # frontend markup (web-ui W2)
+  static/style.css        # the look, both themes (W3)
+  static/chart.css        # the 24 h chart card (W6)
+  static/details.css      # the Details card (W7)
+  static/kiosk.css        # the wall display, /?kiosk (W8, W9d)
+  static/app.js           # entry module: language, theme, config, refresh (W2, W9b)
+  static/api.js           # fetch helper
+  static/i18n.js          # English and German texts, language pick (W1)
+  static/format.js        # pure formatting + reload timing helpers (W1, W9b)
+  static/glance.js        # the answer, the chance, the 60-min radar strip (W2, W4)
+  static/now.js           # the Now section (W5)
+  static/chart.js         # 24 h model comparison SVG chart (W6)
+  static/details.js       # signals, countdowns, sources, accuracy; page reload (W7)
+  static/setup.js         # the location wizard (step 8, W9)
 tests/
   conftest.py
   helpers.py              # synthetic payload builders for tests

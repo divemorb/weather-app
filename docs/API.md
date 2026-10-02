@@ -142,4 +142,4 @@ Each bucket is the *strongest* rain cell within `radar.radius_km` for that 5-min
 }
 ```
 
-The frontend shows this as a countdown strip under the header (radar, models, next page reload) and reloads its data 10 s after each scheduled refresh, or every 60 s at the latest.
+The frontend shows this as three countdowns in its Details section (radar, models, next page reload) and reloads its data 10 s after each scheduled refresh, or every 60 s at the latest.

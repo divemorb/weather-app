@@ -38,7 +38,10 @@ It combines DWD rain radar with several weather models and a 50-member ensemble,
 - **Model accuracy:** per model, forecasts compared with later observations over the last 30 days: hits, misses, false alarms, event accuracy, mean error. Models with fewer than 48 compared hours are marked as not having enough data yet.
 - **Data sources:** age of each source, a "stale" flag, and the last error.
 - **Refresh countdown:** when the radar and the models are refreshed next, and when the page reloads.
+- The rain answer first (a sentence, the chance, the 60-minute radar strip); the technical parts (signals and weights, countdowns, data sources, model accuracy) in a Details section that starts closed.
+- English and German, following the browser's language.
 - Responsive layout that works on a phone. Dark and light theme (follows the system setting on first load, toggle in the header).
+- A kiosk view for a wall tablet or TV (`/?kiosk`): one screen, no scrolling, large type, no Details.
 - Credits for every data source (DWD/Bright Sky, Open-Meteo, OpenStreetMap).
 
 ### Location

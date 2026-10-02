@@ -16,15 +16,16 @@ In words: the app on your computer fetches the radar and current weather every 5
 
 ## What you see
 
-Once a location is set, the page shows:
+Once a location is set, the page shows, in English or German (following your browser's language):
 
-- **The big number at the top** — the chance of rain in the next 60 minutes, with an explanation line below it that shows how the number was built.
-- **Now** — the current conditions at your location (temperature, weather, wind, …).
-- **Next 60 min · DWD radar** — a bar with one segment per 5 minutes, showing what the radar expects in the next hour.
-- **Next 24 h · model comparison** — a line per weather model, comparing what each one predicts over the next 24 hours.
-- **Model accuracy** — how well each model's past forecasts matched what actually happened; it fills up over the first days.
-- **Data sources** — for each source, how old the cached data is, and a **stale** flag when it has gone too old.
-- **The countdown strip under the header** — three live timers: the next radar fetch ("Radar & now"), the next model fetch ("Models & ensemble") and the next page reload ("This page").
+- **The answer at the top** — one sentence such as "Rain likely in the next hour", with what the radar sees ("Radar: rain from 12:55 PM to 1:05 PM"), the chance of rain in the next 60 minutes as a big number, and a strip with one segment per 5 minutes showing the strongest rain the DWD radar expects near you.
+- **Now** — the current conditions at your location (temperature, weather, wind, gusts, humidity, pressure, dew point, clouds, rain in the last hour).
+- **Next 24 hours** — a line per weather model, comparing what each one predicts over the next 24 hours (or one line saying no rain is expected).
+- **Details** (closed until you open it) — the signals and weights behind the number, three live timers (the next radar fetch, the next model fetch, the next page reload), the data sources with the age of each one, and the model accuracy table.
+
+The header has the location button (a map pin) to change the location and a button to switch between light and dark (the page follows your system setting until you use it).
+
+**Wall display:** open `http://localhost:8000/?kiosk` on a landscape tablet or TV. That view fits on one screen without scrolling, with large type: the answer on the left, Now and the 24-hour chart on the right; it leaves out the Details.
 
 ## What you need
 
@@ -63,23 +64,24 @@ This builds the container image if needed and starts the app in the background. 
 - **Search an address or place.** Type at least 3 characters (for example `Marienplatz 1, München`) and press **Search** (or Enter). Matching results appear below the field; click the one that is yours. If only one matches, it is selected automatically.
 - **Enter coordinates.** Type the latitude and longitude into the two fields; pasting `48.137, 11.575` into either field fills both.
 
-Then **check the timezone** (it is prefilled from your browser) and press **Save location**. The location is stored in the app's data store, and the first data appears within a few seconds. From now on, the 📍 button in the header reopens the wizard.
+Then **check the timezone** (it is prefilled from your browser) and press **Save location**. The location is stored in the app's data store, and the first data appears within a few seconds. From now on, the map-pin button in the header reopens the wizard.
 
 Two notes from the wizard itself: the address search sends the text you type to OpenStreetMap's Nominatim from the app, and the radar covers Germany only — elsewhere the forecast uses the weather models only.
 
 ## Reading the page
 
-The explanation line under the big number shows how the chance was built. A typical line reads:
+Open **Details** to see how the chance was built. **Signals and weights** has two lines, for example:
 
-> Radar: yes; 3 of 6 models predict > 0.1 mm in the next hour; ensemble 42 %
+> Radar 50% · Models 30% · Ensemble 20%<br>
+> Radar: raining · Models: 3 of 5 · Ensemble: 35%
 
-It has three parts: what the radar currently sees ("Radar: yes", "Radar: no" or "Radar: not available" outside Germany), how many of the six weather models predict more than 0.1 mm of rain in the next hour, and the **ensemble** figure — the share of the 50 ensemble members that forecast rain. If you switch on accuracy weighting (see below) and there is enough history yet, the line also says "accuracy-weighted".
+The first line is how much each signal counts; the second is what each one says right now: whether the radar sees rain near you, how many of the weather models predict more than 0.1 mm of rain in the next hour, and the **ensemble** figure — the share of the 50 ensemble members that forecast rain. Outside Germany there is no radar, and its weight goes to the other two.
 
-On the **Data sources** card, **stale** means the cached copy is older than the freshness limit (10 minutes for the radar, 2 hours for the models) — the app keeps showing the old data rather than nothing, and keeps retrying. **No data** means the app has not yet managed a successful fetch from that source.
+Under **Data sources**, each row names the part of the page it feeds (Radar, Now, Models, Ensemble) and the service it comes from. **stale** means the cached copy is older than the freshness limit (10 minutes for the radar, 2 hours for the models) — the app keeps showing the old data rather than nothing, and keeps retrying. **n/a** means the app has not yet managed a successful fetch from that source.
 
-The radar is updated every 5 minutes and the models every hour; the countdown strip under the header shows when the next fetch happens and when the page reloads with fresh data.
+The radar is updated every 5 minutes and the models every hour; the timers under **Details** show when the next fetch happens and when the page reloads with fresh data.
 
-The **Model accuracy** card compares each model's past forecasts with the observations, hour by hour. It needs about 2 days of comparisons before the numbers mean anything.
+The **Model accuracy** table compares each model's past forecasts with the observations, hour by hour. It needs about 2 days of comparisons before the numbers mean anything.
 
 If you want to know exactly how the percentage is calculated, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
@@ -97,7 +99,7 @@ hostname -I
 
 ### Change the location
 
-The 📍 button in the header reopens the setup wizard. Changing the location deletes the cached data and the model-accuracy history; the app asks before it does that.
+The map-pin button in the header reopens the setup wizard. Changing the location deletes the cached data and the model-accuracy history; the app asks before it does that.
 
 ### Use another port
 
