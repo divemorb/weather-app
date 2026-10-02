@@ -7,7 +7,7 @@
 # Raspberry Pis (arm64) with zig + cargo-zigbuild; the build stage runs
 # natively, so no emulation is needed:
 #   podman build --platform linux/arm64 -f rust/Dockerfile -t localhost/wetter-rust:arm64 .
-FROM --platform=$BUILDPLATFORM docker.io/library/rust:1.98.1-slim-trixie AS build
+FROM --platform=$BUILDPLATFORM docker.io/library/rust:1.99.0-slim-trixie AS build
 # Set by podman/buildah from --platform (default: the build machine)
 ARG TARGETARCH
 # Cross toolchain, pinned (zig for x86_64 Linux hosts only)
