@@ -8,10 +8,13 @@
  * amounts use the browser's language and the location's time zone. A
  * model's line breaks at null values.
  *
- * The SVG's viewBox matches the container's pixel width, so the 12 px
+ * The SVG's viewBox matches the container's pixel size, so the 12 px
  * axis labels stay 12 px on every screen (no scaled-down mush on a
- * phone). The module stays free of DOM access at the top level, so the
- * pure helpers can be unit-tested with node.
+ * phone). In the kiosk view the viewBox matches the plot container's
+ * measured width and height, so the chart fills the card instead of a
+ * short strip (and is never scaled down letterboxed). The module stays
+ * free of DOM access at the top level, so the pure helpers can be
+ * unit-tested with node.
  */
 import { fmtNumber, fmtTime, modelLabel, niceScale } from "./format.js";
 import { t } from "./i18n.js";
@@ -23,13 +26,18 @@ export const MODEL_COLORS = ["#1f6feb", "#2da44e", "#bf8700", "#cf222e", "#8250d
 
 const NS = "http://www.w3.org/2000/svg";
 
-/* The chart's geometry for a container width in px: the viewBox matches
- * the width (clamped) so text is never scaled; a narrow container gets a
- * taller plot and a label every 6th hour instead of every 3rd; the kiosk
- * view gets a short, wide plot so the page fits one screen. */
-export function chartMetrics(containerWidth, kiosk = false) {
+/* The chart's geometry for a container in px: the viewBox matches the
+ * width (clamped) so text is never scaled; a narrow container gets a
+ * taller plot and a label every 6th hour instead of every 3rd. In the
+ * kiosk view the chart fills the card's free height: containerHeight is
+ * the measured height of the plot's container (the legend in place), and
+ * the result stays within a readable band; without a measurement the
+ * kiosk falls back to a short, wide plot. */
+export function chartMetrics(containerWidth, kiosk = false, containerHeight = 0) {
   const w = Math.round(Math.max(300, Math.min(1800, containerWidth || 720)));
-  const h = kiosk ? 100 : w < 520 ? 300 : 240;
+  let h;
+  if (kiosk) h = containerHeight > 0 ? Math.max(140, Math.min(480, Math.floor(containerHeight))) : 100;
+  else h = w < 520 ? 300 : 240;
   return { w, h, labelEvery: w < 520 && !kiosk ? 6 : 3 };
 }
 
@@ -51,7 +59,8 @@ function svgEl(tag, attrs) {
 
 /* Draw the chart (or the dry/unavailable line) into the card's elements:
  * els = { body, legend, unavailable, dry, unit }. Called on every
- * refresh; it fully replaces what it drew before. */
+ * refresh; it fully replaces what it drew before. The has-chart class on
+ * the body tells the kiosk CSS to give the body the card's free height. */
 export function renderChart(els, data, lang, locale, tz) {
   const d = chartData(data);
   let maxV = 0;
@@ -64,6 +73,7 @@ export function renderChart(els, data, lang, locale, tz) {
   }
 
   els.body.textContent = "";
+  els.body.classList.remove("has-chart");
   els.legend.textContent = "";
   for (const el of [els.legend, els.unit, els.unavailable, els.dry]) el.hidden = true;
 
@@ -80,13 +90,19 @@ export function renderChart(els, data, lang, locale, tz) {
 
   els.unit.hidden = false;
   els.unit.textContent = t(lang, "chart.unit");
+  const kiosk = document.documentElement.classList.contains("kiosk");
+  if (kiosk) buildLegend(els.legend, d.models); // in place before the height is measured
+  els.body.classList.add("has-chart");
   els.body.appendChild(buildSvg(els.body, d, maxV, lang, locale, tz));
-  buildLegend(els.legend, d.models);
+  if (!kiosk) buildLegend(els.legend, d.models);
 }
 
 function buildSvg(body, { hours, models }, maxV, lang, locale, tz) {
   const kiosk = document.documentElement.classList.contains("kiosk");
-  const { w, h, labelEvery } = chartMetrics(body.clientWidth, kiosk);
+  /* In the kiosk view the height is the container's own measured height
+   * (the legend in place, see renderChart), so the viewBox matches the
+   * box 1:1 and the browser scales nothing. */
+  const { w, h, labelEvery } = chartMetrics(body.clientWidth, kiosk, kiosk ? body.clientHeight : 0);
   const n = hours.length;
   const padL = 34, padR = 12, padT = 12, padB = 30;
   const plotW = w - padL - padR;

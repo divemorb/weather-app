@@ -33,7 +33,10 @@ test("W6: chartMetrics clamps the width, narrows narrow screens", () => {
   assert.deepEqual(chartMetrics(0), { w: 720, h: 240, labelEvery: 3 }); // missing -> the default
   assert.deepEqual(chartMetrics(284), { w: 300, h: 300, labelEvery: 6 }); // clamped, taller, sparser
   assert.deepEqual(chartMetrics(5199), { w: 1800, h: 240, labelEvery: 3 }); // clamped from above
-  assert.deepEqual(chartMetrics(1190, true), { w: 1190, h: 100, labelEvery: 3 }); // kiosk: short and wide
+  assert.deepEqual(chartMetrics(1190, true), { w: 1190, h: 100, labelEvery: 3 }); // kiosk, no measured height
+  assert.deepEqual(chartMetrics(1190, true, 250), { w: 1190, h: 250, labelEvery: 3 }); // kiosk: the card's free height
+  assert.deepEqual(chartMetrics(1190, true, 10), { w: 1190, h: 140, labelEvery: 3 }); // clamped from below
+  assert.deepEqual(chartMetrics(1190, true, 9999), { w: 1190, h: 480, labelEvery: 3 }); // clamped from above
 });
 
 test("W6: chartData is null without any usable data", () => {

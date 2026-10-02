@@ -96,6 +96,13 @@ html.kiosk .chart-head { margin-bottom: 10px; }
 html.kiosk .chart-status { font-size: 15px; }
 html.kiosk .chart-legend { margin-top: 10px; gap: 6px 16px; font-size: 13px; }
 
+/* The drawn chart takes the card's free height (head and legend aside)
+ * and chart.js draws the SVG at this box's measured size, 1:1 — no
+ * scaling, no letterboxing, the axis text stays 12 px. The class is only
+ * set when a chart is drawn, so the dry and unavailable lines keep the
+ * card's centred content. */
+html.kiosk #chart-card .chart-body.has-chart { flex: 1; min-height: 0; }
+
 /* ---- footer --------------------------------------------------------------- */
 
 html.kiosk .attr { margin-top: 0; font-size: 12px; }
