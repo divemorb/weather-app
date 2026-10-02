@@ -11,6 +11,7 @@ import { getJSON } from "./api.js";
 import { locationText, locationDetail } from "./format.js";
 import { renderGlance } from "./glance.js";
 import { initNow, renderNow } from "./now.js";
+import { renderChart } from "./chart.js";
 import { initSetup, openSetup } from "./setup.js";
 
 const lang = pickLang(navigator.languages);
@@ -25,6 +26,7 @@ $("location-btn").setAttribute("aria-label", t(lang, "location.aria"));
 $("theme-toggle").setAttribute("aria-label", t(lang, "theme.aria"));
 $("glance-prob-label").textContent = t(lang, "glance.prob-label");
 $("rain-answer").textContent = t(lang, "answer.loading");
+$("chart-title").textContent = t(lang, "chart.title");
 initNow(lang);
 $("attribution").innerHTML = t(lang, "attribution", {
   dwd: '<a href="https://www.dwd.de" target="_blank" rel="noopener">DWD</a>',
@@ -74,17 +76,27 @@ function setPlace(location) {
   $("location-detail").textContent = locationDetail(location);
 }
 
+const chartEls = {
+  body: $("chart-body"),
+  legend: $("chart-legend"),
+  unavailable: $("chart-unavailable"),
+  dry: $("chart-dry"),
+  unit: $("chart-unit"),
+};
+
 async function loadGlance() {
   try {
-    const [rain, radar, now] = await Promise.all([
+    const [rain, radar, now, models] = await Promise.all([
       getJSON("/api/rain-probability"),
       getJSON("/api/radar/next-hour"),
       getJSON("/api/now"),
+      getJSON("/api/models/24h"),
     ]);
     /* The radius comes from the config loaded once at startup, not from a
      * fetch per refresh (the caption under the radar strip). */
     renderGlance(rain, radar, lang, locale, tz, cfg && cfg.radar_radius_km);
     renderNow(now, lang, locale, tz);
+    renderChart(chartEls, models, lang, locale, tz);
   } catch (e) {
     console.warn(e); // keep the old content; a failure is not a page error
   }

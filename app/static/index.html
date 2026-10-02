@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Local Rain Forecast</title>
   <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/chart.css" />
   <link rel="stylesheet" href="/kiosk.css" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 6C32 6 12 30 12 42a20 20 0 0 0 40 0C52 30 32 6 32 6Z' fill='%2358a6ff'/%3E%3C/svg%3E" />
 </head>
@@ -157,6 +158,19 @@
           </dl>
           <p class="now-time muted" id="now-time" data-test="now-time"></p>
         </div>
+      </section>
+
+      <!-- Next 24 hours (W6): the models' precipitation as inline SVG;
+           without data the status lines take the plot's place -->
+      <section class="card chart" id="chart-card">
+        <div class="chart-head">
+          <h2 class="chart-title" id="chart-title">Next 24 hours</h2>
+          <span class="chart-unit" id="chart-unit" data-test="chart-unit" hidden>mm/h</span>
+        </div>
+        <p class="chart-status" id="chart-unavailable" data-test="chart-unavailable" hidden></p>
+        <p class="chart-status" id="chart-dry" data-test="chart-dry" hidden></p>
+        <div class="chart-body" id="chart-body"></div>
+        <ul class="chart-legend" id="chart-legend" hidden></ul>
       </section>
     </main>
 

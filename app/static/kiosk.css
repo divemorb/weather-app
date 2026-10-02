@@ -1,30 +1,55 @@
 /* Kiosk view (?kiosk): one screen, no scrolling, big type, no details.
- * Loaded by index.html; body.kiosk is set by app.js from the query. */
+ * Loaded by index.html; app.js sets body.kiosk from the query.
+ *
+ * Everything must fit 1280x800 (and 1920x1080) without scrolling, so the
+ * sections are tighter than on the phone: the probability and the
+ * temperature stay the two big numbers, the radar strip and the chart
+ * get a shorter height (chart.js reads body.kiosk for the viewBox). */
 
-body.kiosk .wrap { max-width: none; padding: 24px 32px; }
-body.kiosk .topbar { margin-bottom: 18px; }
-body.kiosk .card + .card { margin-top: 14px; }
-body.kiosk .glance { padding: 24px 28px; }
-body.kiosk .glance-answer { font-size: 36px; }
-body.kiosk .glance-prob-value { font-size: 72px; }
-body.kiosk .glance-when { font-size: 17px; }
-body.kiosk .place { font-size: 22px; }
-body.kiosk .place-detail { font-size: 14px; }
-body.kiosk .radar { margin-top: 18px; }
-body.kiosk .radar-top { height: 18px; margin-bottom: 5px; }
-body.kiosk .radar-strip { height: 44px; }
-body.kiosk .radar-labels { margin-top: 5px; }
-body.kiosk .radar-caption { margin-top: 8px; }
-body.kiosk .now { padding: 18px 26px; }
-body.kiosk .now-title { margin-bottom: 10px; }
-body.kiosk .now-temp { font-size: 56px; }
-body.kiosk .now-condition { font-size: 24px; }
+body.kiosk .wrap { max-width: none; padding: 12px 28px; }
+body.kiosk .topbar { margin-bottom: 10px; }
+body.kiosk .card + .card { margin-top: 8px; }
+
+body.kiosk .place { font-size: 20px; }
+body.kiosk .place-detail { font-size: 13px; }
+body.kiosk .actions .btn { width: 40px; height: 40px; }
+
+/* the glance */
+body.kiosk .glance { padding: 16px 20px; }
+body.kiosk .glance-answer { font-size: 30px; }
+body.kiosk .glance-when { margin-top: 6px; font-size: 15px; }
+body.kiosk .glance-prob { margin-top: 14px; }
+body.kiosk .glance-prob-value { font-size: 44px; }
+body.kiosk .glance-prob-label { font-size: 13px; }
+body.kiosk .radar { margin-top: 12px; }
+body.kiosk .radar-top { height: 16px; margin-bottom: 4px; }
+body.kiosk .radar-strip { height: 30px; }
+body.kiosk .radar-labels { height: 14px; margin-top: 4px; font-size: 11px; }
+body.kiosk .radar-caption { margin-top: 6px; font-size: 12px; }
+body.kiosk .radar-max { font-size: 12px; line-height: 16px; }
+body.kiosk .radar-dry { font-size: 12px; line-height: 16px; }
+body.kiosk .radar-unavailable { font-size: 13px; }
+
+/* now */
+body.kiosk .now { padding: 14px 20px; }
+body.kiosk .now-title { margin-bottom: 6px; font-size: 12px; }
+body.kiosk .now-temp { font-size: 48px; }
+body.kiosk .now-condition { font-size: 20px; }
 body.kiosk .now-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px 24px; margin-top: 14px;
+  gap: 6px 20px; margin-top: 10px;
 }
-body.kiosk .now-label { font-size: 13px; }
-body.kiosk .now-value { font-size: 17px; }
-body.kiosk .now-time { margin-top: 12px; font-size: 14px; }
-body.kiosk .attr { margin-top: 14px; }
+body.kiosk .now-label { font-size: 12px; }
+body.kiosk .now-value { font-size: 14px; }
+body.kiosk .now-time { margin-top: 8px; font-size: 12px; }
+body.kiosk .now-unavailable { font-size: 14px; }
+
+/* the 24 h chart: a short, wide plot (the viewBox height comes from
+ * chart.js, which reads body.kiosk) */
+body.kiosk .chart { padding: 12px 20px; }
+body.kiosk .chart-head { margin-bottom: 8px; }
+body.kiosk .chart-status { font-size: 14px; }
+body.kiosk .chart-legend { margin-top: 8px; gap: 6px 16px; font-size: 12px; }
+
+body.kiosk .attr { margin-top: 10px; font-size: 12px; }
 body.kiosk [data-test="details"] { display: none; }
