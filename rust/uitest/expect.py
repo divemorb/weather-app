@@ -58,24 +58,24 @@ RADAR_DRY = [0.0] * 12
 # "hours_start": first hour of /api/models/24h (UTC).
 SCENARIO = {
     "live": {
-        "location": ["52.520", "13.405"], "answer": "dry", "when": "none", "probability": {"en": "0%", "de": "0 %"},
+        "location": ["52.520", "13.405"], "location_detail": [TZ], "answer": "dry", "when": "none", "probability": {"en": "0%", "de": "0 %"},
         "radar": RADAR_DRY, "radar_start": "2026-09-30T10:25:00Z", "now": True,
         "chart": "dry", "models": LIVE_MODELS, "hours_start": "2026-09-30T10:00:00Z",
         "signals": {"en": ["0 of 6", "0%"], "de": ["0 von 6", "0 %"]}, "source_errors": 0, "accuracy": None,
     },
     "rain": {
-        "location": ["52.520", "13.405"], "answer": "likely", "when": "rain", "probability": {"en": "75%", "de": "75 %"},
+        "location": ["52.520", "13.405"], "location_detail": [TZ], "answer": "likely", "when": "rain", "probability": {"en": "75%", "de": "75 %"},
         "radar": RADAR_RAIN, "radar_start": "2026-09-30T10:50:00Z", "now": True,
         "chart": "lines", "models": RAIN_MODELS, "hours_start": "2026-09-30T10:00:00Z",
         "y_labels": ["0", "1", "2", "3"],  # niceScale(2.5): AROME's 2.5 mm is the maximum
         "signals": {"en": ["3 of 5", "35%"], "de": ["3 von 5", "35 %"]}, "source_errors": 0, "accuracy": None,
     },
     "errors": {
-        "location": ["52.520", "13.405"], "answer": "nodata", "when": None, "probability": None,
+        "location": ["52.520", "13.405"], "location_detail": [TZ], "answer": "nodata", "when": None, "probability": None,
         "radar": None, "now": False, "chart": "unavailable", "signals": None, "source_errors": 4, "accuracy": None,
     },
     "accuracy": {
-        "location": ["Berlin"], "probability": {"en": "78%", "de": "78 %"},
+        "location": ["Berlin"], "location_detail": ["52.520", "13.405", TZ], "probability": {"en": "78%", "de": "78 %"},
         # sorted by event accuracy, best first; (model, percent en, percent de, MAE en, MAE de)
         "accuracy": [
             ("icon_d2", "83%", "83 %", "0.14 mm", "0,14 mm"),
@@ -91,6 +91,10 @@ SCENARIO = {
 WEIGHTS = {"en": ["50%", "30%", "20%"], "de": ["50 %", "30 %", "20 %"]}
 SOURCES = {"radar": "DWD (Bright Sky)", "current": "DWD (Bright Sky)", "forecast": "Open-Meteo", "ensemble": "Open-Meteo"}
 ATTRIBUTION_LINKS = ["dwd.de", "brightsky.dev", "open-meteo.com", "openstreetmap.org/copyright"]
+
+# The wizard saves the first search result: a long Nominatim label, shown in full at 360 px.
+WIZARD_LABEL = ["Alexanderplatz", "Spandauer Vorstadt", "Mitte", "Berlin", "Deutschland"]
+WIZARD_DETAIL = ["52.522", "13.414", TZ]
 
 KIOSK_SIZES = [(1280, 800), (1920, 1080)]
 KIOSK_MIN_FONT = {"rain-answer": 28, "now-temp": 40}

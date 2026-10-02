@@ -54,7 +54,7 @@ _spec.loader.exec_module(contract)
 from cdp import Browser  # noqa: E402
 from expect import (  # noqa: E402
     ANSWER, ATTRIBUTION_LINKS, BUDGET_BYTES, FIXED, KIOSK_MIN_FONT, KIOSK_SIZES, LOCALES, MODEL_LABELS,
-    NOW, SCENARIO, SOURCES, TZ, WEIGHTS, WHEN)
+    NOW, SCENARIO, SOURCES, TZ, WEIGHTS, WHEN, WIZARD_DETAIL, WIZARD_LABEL)
 from fakeup import FakeUpstream  # noqa: E402
 from scenarios import SCENARIOS  # noqa: E402
 
@@ -63,8 +63,8 @@ ALLOWED_EXT = {".html", ".js", ".css"}
 
 # --- the list of checks (also what --list prints) ---------------------------
 
-COMMON = ["console", "requests", "lang", "location", "theme-light", "theme-dark", "contrast-light",
-          "contrast-dark", "overflow-360", "buttons", "attribution"]
+COMMON = ["console", "requests", "lang", "location", "location-detail", "theme-light", "theme-dark", "theme-icon",
+          "contrast-light", "contrast-dark", "overflow-360", "buttons", "attribution"]
 GLANCE = ["rain-answer", "rain-when", "rain-probability"]
 RADAR = ["radar-steps", "radar-labels"]
 NOW_CHECKS = list(NOW)
@@ -87,13 +87,14 @@ def check_names(scenario: str, lang: str) -> list[str]:
         return (COMMON + ["rain-answer", "rain-when", "rain-probability", "radar-unavailable", "now-unavailable",
                           "chart-unavailable"] + [n for n in DETAILS if n not in ("details-weights", "details-signals")])
     if scenario == "accuracy":
-        return ["console", "requests", "location", "rain-probability", "details-closed", "accuracy-table"]
+        return ["console", "requests", "location", "location-detail", "rain-probability", "details-closed",
+                "accuracy-table"]
     if scenario == "unconfigured":
-        return ["console", "requests", "lang", "setup-visible", "theme-light", "theme-dark", "contrast-light",
-                "contrast-dark", "overflow-360", "buttons"]
+        return ["console", "requests", "lang", "setup-visible", "theme-light", "theme-dark", "theme-icon",
+                "contrast-light", "contrast-dark", "overflow-360", "buttons"]
     if scenario == "wizard":
         return ["console", "validation"] if lang == "de" else ["console", "requests", "validation", "search",
-                                                               "save", "change"]
+                                                               "save", "location-long", "change"]
     raise ValueError(scenario)
 
 
@@ -282,6 +283,7 @@ def check_common_a(pg: UIPage, sc: str, exp: dict, add):
     add("lang", [] if info["lang"] == lang else [f'<html lang="{info["lang"]}">, expected "{lang}"'])
     if "location" in exp:
         add("location", expect_tokens(pg, "location", exp["location"]))
+        add("location-detail", expect_tokens(pg, "location-detail", exp["location_detail"]))
     add("theme-light", theme_problems(info, "light"))
     add("contrast-light", contrast_problems(pg))
     add("buttons", pg.js("__ui.controls()"))
@@ -302,6 +304,15 @@ def theme_problems(info, theme) -> list[str]:
     if theme == "dark" and lum > 0.2:
         return [f"system theme dark, but the page background is {info['bodyBg']} (luminance {lum:.2f} > 0.2)"]
     return []
+
+
+def theme_icon_problems(icons: dict) -> list[str]:
+    """The theme toggle shows one icon at a time, and a different one per theme."""
+    problems = [f"{theme} theme: [data-test=theme-toggle] shows {len(shown)} icons {shown}, expected exactly one"
+                for theme, shown in icons.items() if len(shown) != 1]
+    if not problems and icons.get("light") == icons.get("dark"):
+        problems.append(f"[data-test=theme-toggle] shows the same icon in both themes: {icons['light']}")
+    return problems
 
 
 def contrast_problems(pg) -> list[str]:
@@ -325,6 +336,14 @@ def check_glance(pg: UIPage, exp: dict, add):
         shown = [e for e in pg.ui("rain-probability") if e["visible"] and re.search(r"\d", e["text"])]
         add("rain-probability", [f"[data-test=rain-probability] shows a number without data: {shown[0]['text']!r}"]
             if shown else [])
+        # a placeholder (e.g. "—") is not rain: no accent colour, a neutral grey or the text colour
+        placeholder = [e for e in pg.ui("rain-probability") if e["visible"] and e["text"]]
+        col = pg.js('__ui.textColor("rain-probability")')
+        if placeholder and col and col["sat"] > 0.25:
+            add("rain-probability", [f"[data-test=rain-probability] shows the no-data placeholder "
+                                     f"{placeholder[0]['text']!r} in {col['hex']} (a colour, HSL saturation "
+                                     f"{col['sat']:.2f}); without data it must be neutral (text or muted colour, "
+                                     "saturation <= 0.25): the accent colour means rain"])
 
 
 def check_radar(pg: UIPage, exp: dict, add):
@@ -586,6 +605,7 @@ def run_scenario(name: str, browsers: dict, args, res: Results):
 def run_pages(name, sc, browser, base, lang, names, add, args):
     exp = SCENARIO.get(name, {})
     errors, requests = [], []
+    icons = {}  # theme -> the theme toggle's visible icons
     shots = args.shots
 
     def done(pg: UIPage):
@@ -608,6 +628,7 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
                     for p in visible_one(pg, hook)[1]]
         add("setup-visible", problems + expect_hidden(pg, "rain-answer"))
         add("theme-light", theme_problems(info, "light"))
+        icons["light"] = pg.js('__ui.icons("theme-toggle")')
         add("contrast-light", contrast_problems(pg))
         add("buttons", pg.js("__ui.controls()"))
         shot(pg, "desktop-light")
@@ -617,9 +638,11 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
         pg = UIPage(browser, base, sc["now"], lang)
         if name == "accuracy":
             add("location", expect_tokens(pg, "location", exp["location"]))
+            add("location-detail", expect_tokens(pg, "location-detail", exp["location_detail"]))
             add("rain-probability", expect_tokens(pg, "rain-probability", [exp["probability"][lang]]))
         else:
             check_common_a(pg, name, exp, add)
+            icons["light"] = pg.js('__ui.icons("theme-toggle")')
             check_glance(pg, exp, add)
             if exp["radar"] is None:
                 add("radar-unavailable", visible_one(pg, "radar-unavailable")[1]
@@ -643,6 +666,7 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
             # B: desktop, dark
             pg = UIPage(browser, base, sc["now"], lang, scheme="dark")
             add("theme-dark", theme_problems(pg.js("__ui.page()"), "dark"))
+            icons["dark"] = pg.js('__ui.icons("theme-toggle")')
             add("contrast-dark", contrast_problems(pg))
             shot(pg, "desktop-dark")
             done(pg)
@@ -659,8 +683,11 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
     if name == "unconfigured":
         pg = UIPage(browser, base, sc["now"], lang, scheme="dark")
         add("theme-dark", theme_problems(pg.js("__ui.page()"), "dark"))
+        icons["dark"] = pg.js('__ui.icons("theme-toggle")')
         add("contrast-dark", contrast_problems(pg))
         done(pg)
+    if "theme-icon" in names:
+        add("theme-icon", theme_icon_problems(icons))
     if name in ("live", "rain"):
         for size in KIOSK_SIZES:
             pg = UIPage(browser, base, sc["now"], lang, width=size[0], height=size[1], query="?kiosk")
@@ -737,6 +764,16 @@ def run_wizard(browser, base, sc, lang, add, done, shot):
     problems += expect_tokens(pg, "location", ["Alexanderplatz"])
     add("save", problems)
     shot(pg, "after-save")
+    # the saved label is long: at 360 px it shows in full (wrapped, not cut off), coordinates below
+    phone = UIPage(browser, base, sc["now"], lang, width=360, height=740)
+    problems = expect_tokens(phone, "location", WIZARD_LABEL) + phone.js('__ui.clipped("location")')
+    problems += expect_tokens(phone, "location-detail", WIZARD_DETAIL)
+    info = phone.js("__ui.page()")
+    if info["sw"] > 361:
+        problems.append(f"page is {info['sw']} px wide at 360 px: {phone.js('__ui.overflowing()')}")
+    add("location-long", problems)
+    shot(phone, "after-save-phone-360")
+    done(phone)
     problems = pg.click("location-button")
     problems += visible_one(pg, "setup")[1] + visible_one(pg, "setup-cancel")[1]
     if not problems:

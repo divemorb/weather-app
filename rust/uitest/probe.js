@@ -166,5 +166,40 @@
     for (const d of document.querySelectorAll("details")) d.open = true;
   }
 
-  window.__ui = { info, contrast, page, overflowing, controls, animations, openDetails };
+  // The visible icons (<svg>) inside a hook, by class (or the start of the markup).
+  const icons = (hook) => all(hook).flatMap((b) => [...b.querySelectorAll("svg")].filter(visible)
+    .map((s) => s.getAttribute("class") || s.innerHTML.slice(0, 60)));
+
+  // A hook's text colour as sRGB, with its HSL saturation (0 = grey).
+  function textColor(hook) {
+    const el = all(hook)[0];
+    const c = el && rgba(getComputedStyle(el).color);
+    if (!c) return null;
+    const [r, g, b] = c.slice(0, 3).map((v) => v / 255);
+    const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2;
+    const sat = max === min ? 0 : (max - min) / (1 - Math.abs(2 * l - 1));
+    return { hex: hex(c.slice(0, 3)), sat };
+  }
+
+  // Where a hook's text is cut off: the element or an ancestor that clips
+  // (overflow other than visible) and whose content is larger than its box,
+  // e.g. text-overflow: ellipsis or a line clamp. [] when all of it shows.
+  function clipped(hook) {
+    const out = [];
+    for (const el of all(hook)) {
+      for (let n = el; n && n !== document.body; n = n.parentElement) {
+        const cs = getComputedStyle(n);
+        if (cs.overflowX === "visible" && cs.overflowY === "visible") continue;
+        if (n.scrollWidth > n.clientWidth + 1 || n.scrollHeight > n.clientHeight + 1) {
+          out.push(`${n.tagName.toLowerCase()}.${[...n.classList].join(".")} clips it: content ` +
+            `${n.scrollWidth}x${n.scrollHeight} px in a ${n.clientWidth}x${n.clientHeight} px box ` +
+            `(overflow ${cs.overflowX}/${cs.overflowY}, text-overflow ${cs.textOverflow})`);
+          break;
+        }
+      }
+    }
+    return out;
+  }
+
+  window.__ui = { info, contrast, page, overflowing, controls, animations, openDetails, icons, textColor, clipped };
 })();
