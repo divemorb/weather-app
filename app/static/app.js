@@ -45,6 +45,11 @@ function applyTheme() {
 }
 applyTheme();
 mq.addEventListener("change", applyTheme);
+
+/* Kiosk view (?kiosk): the wall tablet gets one screen of big type. */
+if (new URLSearchParams(location.search).has("kiosk")) {
+  document.body.classList.add("kiosk");
+}
 $("theme-toggle").addEventListener("click", () => {
   stored = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
   try {
