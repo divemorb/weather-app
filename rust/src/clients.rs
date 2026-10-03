@@ -1,24 +1,18 @@
 //! Upstream HTTP clients: Bright Sky (DWD) and Open-Meteo (forecast and
-//! ensemble). Port of the `BrightSkyClient` class in `app/brightsky_client.py`
-//! and the `OpenMeteoClient` class in `app/openmeteo_client.py`.
+//! ensemble).
 //!
 //! The clients fetch *raw* JSON payloads only (what gets cached); the pure
 //! parsers live in `crate::brightsky` and `crate::openmeteo`. Every failure
 //! — network, HTTP status, response-size cap, a non-object body, the API
 //! `error` flag, a missing location — is a [`SourceError`], so a failing
-//! source never breaks the app (the last good cache is served instead).
+//! source never breaks the app.
 //!
-//! The aggregator owns both clients behind an `Arc` and changes the location
-//! at runtime through `set_location` (a shared reference: both clients are
-//! `Sync`). The caller passes in the shared [`reqwest::Client`] (in
-//! production: `upstream::http_client(cfg.api.timeout_seconds)`); every
-//! request goes through [`upstream::fetch_json_capped`].
-//!
-//! There is no `Utc::now()` inside the clients: a request that depends on the
-//! time (the radar window) takes it as a parameter, so `WETTER_FAKE_NOW` and
-//! the tests control time. Query values are formatted like Python's `str()`
-//! (`pyfmt::py_repr` for floats) because the contract suite compares the
-//! query strings byte for byte.
+//! Both clients are `Sync` (the aggregator shares them behind an `Arc` and
+//! changes the location at runtime through `set_location`), and none calls
+//! `Utc::now()` — time-dependent requests (the radar window) take the time
+//! as a parameter. Query values are formatted like Python's `str()`
+//! (`pyfmt::py_repr` for floats) so the queries match the Python backend
+//! byte for byte.
 
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -30,17 +24,16 @@ use crate::pyfmt;
 use crate::times;
 use crate::upstream::{self, SourceError};
 
-/// The location the clients request data for (Python's `_lat`/`_lon`).
-/// Runtime state: changed with `set_location` (step 8b). Named fields so the
-/// two coordinates can never be swapped.
+/// The location the clients request data for. Runtime state: changed with
+/// `set_location`. Named fields so the two coordinates can never be swapped.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Location {
     pub latitude: f64,
     pub longitude: f64,
 }
 
-/// Variables requested hourly per model (Python `HOURLY_VARS`); in the
-/// multi-model response every key is suffixed with the model name.
+/// Variables requested hourly per model; in the multi-model response every
+/// key is suffixed with the model name.
 pub const HOURLY_VARS: [&str; 5] = [
     "precipitation",
     "temperature_2m",
@@ -49,7 +42,7 @@ pub const HOURLY_VARS: [&str; 5] = [
     "cloud_cover",
 ];
 
-/// The initial location from the config; `None` while unconfigured (8b).
+/// The initial location from the config; `None` while unconfigured.
 fn initial_location(cfg: &AppConfig) -> Option<Location> {
     cfg.location.as_ref().map(|loc| Location {
         latitude: loc.latitude,
@@ -63,7 +56,6 @@ fn read_location(state: &Mutex<Option<Location>>) -> Option<Location> {
     *state.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// Python `set_location`: the location is runtime state (step 8b).
 fn write_location(state: &Mutex<Option<Location>>, latitude: f64, longitude: f64) {
     *state.lock().unwrap_or_else(PoisonError::into_inner) = Some(Location {
         latitude,
@@ -71,13 +63,12 @@ fn write_location(state: &Mutex<Option<Location>>, latitude: f64, longitude: f64
     });
 }
 
-/// Python `strftime("%Y-%m-%dT%H:%M:%S+00:00")` (the radar window is UTC).
+/// ISO 8601 with an explicit `+00:00` offset (the radar window is UTC).
 fn iso_offset(t: DateTime<Utc>) -> String {
     format!("{}+00:00", t.format("%Y-%m-%dT%H:%M:%S"))
 }
 
-/// Bright Sky (DWD) client (Python `app/brightsky_client.py`, class
-/// `BrightSkyClient`). `Sync`, so the aggregator can share it behind an
+/// Bright Sky (DWD) client. `Sync`, so the aggregator can share it behind an
 /// `Arc` and change the location through a shared reference.
 pub struct BrightSkyClient {
     base: String,
@@ -88,8 +79,7 @@ pub struct BrightSkyClient {
 impl BrightSkyClient {
     /// Build the client from `cfg`; `http` is the shared request client
     /// (production: `upstream::http_client(cfg.api.timeout_seconds)`). The
-    /// location comes from `cfg.location` and may be `None` while
-    /// unconfigured (step 8b).
+    /// location comes from `cfg.location` and may be `None` while unconfigured.
     pub fn new(cfg: &AppConfig, http: reqwest::Client) -> Self {
         Self {
             base: cfg.api.brightsky_base_url.trim_end_matches('/').to_string(),
@@ -98,18 +88,17 @@ impl BrightSkyClient {
         }
     }
 
-    /// Change the location (step 8b: it is runtime state).
+    /// Change the location at runtime.
     pub fn set_location(&self, latitude: f64, longitude: f64) {
         write_location(&self.location, latitude, longitude);
     }
 
-    /// The current location (`None` while unconfigured); the Python tests
-    /// read `_lat`/`_lon` back this way.
+    /// The current location (`None` while unconfigured).
     pub fn location(&self) -> Option<Location> {
         read_location(&self.location)
     }
 
-    /// Python `_location_params`; an unset location is a `SourceError`.
+    /// An unset location is a `SourceError`.
     fn location_params(&self) -> Result<Vec<(&'static str, String)>, SourceError> {
         let Some(loc) = read_location(&self.location) else {
             return Err(SourceError::new("Bright Sky: no location configured"));
@@ -120,8 +109,8 @@ impl BrightSkyClient {
         ])
     }
 
-    /// Python `_get`: GET through the capped JSON reader and require an
-    /// object payload; failures carry the endpoint in the message.
+    /// GET through the capped JSON reader and require an object payload;
+    /// failures carry the endpoint in the message.
     async fn get(
         &self,
         endpoint: &str,
@@ -148,13 +137,13 @@ impl BrightSkyClient {
 
     /// Raw `/radar` JSON for the next-hour window.
     ///
-    /// Requests `date`/`last_date` explicitly so the response contains the
-    /// nowcast (frames at or after `now`); without them the server returns
-    /// the *previous* hour (all in the past) and the radar signal would stay
-    /// dry. The window is floored to the 5-minute grid: `date =
-    /// floor(now, 5min)`, `last_date = date + 60min`, which always contains
-    /// `[now, now+1h)` (the probability layer's scan window) regardless of
-    /// the minute — the extra past frame is filtered out downstream.
+    /// `date`/`last_date` are requested explicitly so the response contains
+    /// the nowcast (frames at or after `now`); without them the server
+    /// returns the *previous* hour and the radar signal would stay dry. The
+    /// window is floored to the 5-minute grid (`date = floor(now, 5min)`,
+    /// `last_date = date + 60min`), which always contains `[now, now+1h)`
+    /// regardless of the minute — the extra past frame is filtered out
+    /// downstream.
     pub async fn fetch_radar_payload(&self, now: DateTime<Utc>) -> Result<Value, SourceError> {
         let date = now.duration_trunc(TimeDelta::minutes(5)).unwrap_or(now);
         let last_date = date + TimeDelta::hours(1);
@@ -164,11 +153,9 @@ impl BrightSkyClient {
         self.get("/radar", &params).await
     }
 
-    /// Raw `/weather` JSON for hourly records in `[start, end]`.
-    ///
-    /// Used by the aggregator's observation backfill: the response carries
-    /// both real observations (`observation_type` "current"/"historical") and
-    /// MOSMIX forecasts ("forecast"); `crate::brightsky::parse_hourly_observations`
+    /// Raw `/weather` JSON for hourly records in `[start, end]`. The
+    /// response carries both real observations (`observation_type`
+    /// "current"/"historical") and MOSMIX forecasts ("forecast"); the parser
     /// keeps only the real ones.
     pub async fn fetch_weather_payload(
         &self,
@@ -183,8 +170,7 @@ impl BrightSkyClient {
     }
 }
 
-/// Open-Meteo client: multi-model forecast + ensemble (Python
-/// `app/openmeteo_client.py`, class `OpenMeteoClient`). `Sync`, so the
+/// Open-Meteo client: multi-model forecast + ensemble. `Sync`, so the
 /// aggregator can share it behind an `Arc` and change the location through a
 /// shared reference.
 pub struct OpenMeteoClient {
@@ -199,8 +185,7 @@ pub struct OpenMeteoClient {
 impl OpenMeteoClient {
     /// Build the client from `cfg`; `http` is the shared request client
     /// (production: `upstream::http_client(cfg.api.timeout_seconds)`). The
-    /// location comes from `cfg.location` and may be `None` while
-    /// unconfigured (step 8b).
+    /// location comes from `cfg.location` and may be `None` while unconfigured.
     pub fn new(cfg: &AppConfig, http: reqwest::Client) -> Self {
         Self {
             forecast_base: cfg
@@ -216,18 +201,17 @@ impl OpenMeteoClient {
         }
     }
 
-    /// Change the location (step 8b: it is runtime state).
+    /// Change the location at runtime.
     pub fn set_location(&self, latitude: f64, longitude: f64) {
         write_location(&self.location, latitude, longitude);
     }
 
-    /// The current location (`None` while unconfigured); the Python tests
-    /// read `_lat`/`_lon` back this way.
+    /// The current location (`None` while unconfigured).
     pub fn location(&self) -> Option<Location> {
         read_location(&self.location)
     }
 
-    /// Python `_location_params`; an unset location is a `SourceError`.
+    /// An unset location is a `SourceError`.
     fn location_params(&self) -> Result<Vec<(&'static str, String)>, SourceError> {
         let Some(loc) = read_location(&self.location) else {
             return Err(SourceError::new("Open-Meteo: no location configured"));
@@ -238,8 +222,8 @@ impl OpenMeteoClient {
         ])
     }
 
-    /// Python `_get`: GET through the capped JSON reader; an object body with
-    /// a truthy `error` flag is an API error carrying the `reason`.
+    /// GET through the capped JSON reader; an object body with a truthy
+    /// `error` flag is an API error carrying the `reason`.
     async fn get(
         &self,
         url: &str,

@@ -1,14 +1,13 @@
 //! Pure per-model accuracy scoring (Python `app/accuracy.py`).
 //!
-//! Scores the *same yes/no event* the next-hour vote uses (precipitation
+//! Scores the same yes/no event the next-hour vote uses (precipitation
 //! `> threshold_mm`), not the raw millimetres: MAE alone is misleading,
-//! because during a dry spell a model that always says 0 mm has a near-zero
-//! MAE without ever being right about rain. `mae_mm` is still reported for
-//! context; the headline score is `event_accuracy`.
+//! since a model that always says 0 mm has near-zero MAE during a dry
+//! spell. `mae_mm` is still reported for context.
 
 use std::collections::BTreeMap;
 
-/// One model's accuracy (Python: the per-model dict of `model_accuracy`).
+/// One model's accuracy.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ModelAccuracy {
     pub n_samples: i64,
@@ -22,18 +21,11 @@ pub struct ModelAccuracy {
 
 /// Score forecast-vs-observation pairs, grouped per model.
 ///
-/// `rows` are raw `(model, precip_mm, observed_mm)` triples as returned by
-/// the store's `compared_forecasts` (already filtered to compared forecasts
-/// inside the accuracy window). Returns one entry per model that has at
-/// least one sample; models without samples are absent.
-///
-/// Per model: `n_samples`, `mae_mm` (mean absolute error), and the
-/// confusion counts for the rain event `> threshold_mm` (strict — a value
-/// exactly at the threshold counts as "dry", matching the vote):
-/// `hits` (rain forecast, rain observed), `misses` (dry forecast, rain
-/// observed), `false_alarms` (rain forecast, dry observed),
-/// `correct_negatives` (dry forecast, dry observed).
-/// `event_accuracy` is `(hits + correct_negatives) / n_samples`.
+/// `rows` are `(model, precip_mm, observed_mm)` triples from the store's
+/// `compared_forecasts`. Rain is strict `> threshold_mm` (a value exactly
+/// at the threshold counts as dry, matching the vote). Models without
+/// samples are absent; `event_accuracy` is
+/// `(hits + correct_negatives) / n_samples`.
 pub fn model_accuracy(
     rows: &[(String, f64, f64)],
     threshold_mm: f64,
@@ -68,8 +60,8 @@ pub fn model_accuracy(
                 correct_negatives += 1;
             }
         }
-        // Every model in `by_model` has at least one row, so `n > 0` and the
-        // divisions are defined (Python guards them with `if n else None`).
+        // Every model in `by_model` has at least one row, so `n > 0` and
+        // the divisions are defined.
         result.insert(
             model,
             ModelAccuracy {

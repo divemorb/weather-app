@@ -8,12 +8,12 @@ use crate::pyfmt::f64_to_i64;
 /// Environment lookup: `&|k| std::env::var(k).ok()` in production, a map in tests.
 pub type Env<'a> = &'a dyn Fn(&str) -> Option<String>;
 
-/// Python `_env`: unset and "" both count as unset.
+/// Unset and `""` both count as unset.
 pub fn env_str(env: Env, name: &str) -> Option<String> {
     env(name).filter(|v| !v.is_empty())
 }
 
-/// Python `_env_float`: `float(raw)` (a bad value is a startup error).
+/// Parses a float; a bad value is a startup error.
 pub fn env_f64(env: Env, name: &str, default: f64) -> Result<f64, String> {
     match env_str(env, name) {
         Some(raw) => raw.trim().parse().map_err(|_| {
@@ -23,7 +23,7 @@ pub fn env_f64(env: Env, name: &str, default: f64) -> Result<f64, String> {
     }
 }
 
-/// Python `_env_int`: `int(raw)`.
+/// Parses an integer; a bad value is a startup error.
 pub fn env_i64(env: Env, name: &str, default: i64) -> Result<i64, String> {
     match env_str(env, name) {
         Some(raw) => raw
@@ -34,7 +34,8 @@ pub fn env_i64(env: Env, name: &str, default: i64) -> Result<i64, String> {
     }
 }
 
-/// Python `_env_bool`.
+/// True for "1", "true", "yes", "on" (case-insensitive); anything else
+/// false.
 pub fn env_bool(env: Env, name: &str, default: bool) -> bool {
     match env_str(env, name) {
         Some(raw) => matches!(
@@ -45,7 +46,7 @@ pub fn env_bool(env: Env, name: &str, default: bool) -> bool {
     }
 }
 
-/// Python `float(v)` on a YAML value: numbers, numeric strings, bools (1.0/0.0).
+/// A YAML value as a float: numbers, numeric strings, bools (1.0/0.0).
 pub fn yaml_f64(v: &Value, what: &str) -> Result<f64, String> {
     match v {
         Value::Number(n) => n.as_f64().ok_or_else(|| format!("{what}: bad number")),
@@ -58,8 +59,8 @@ pub fn yaml_f64(v: &Value, what: &str) -> Result<f64, String> {
     }
 }
 
-/// Python `int(v)` on a YAML value: ints, floats truncated toward zero,
-/// integer strings, bools (1/0).
+/// A YAML value as an integer: ints, floats truncated toward zero, integer
+/// strings, bools (1/0).
 pub fn yaml_i64(v: &Value, what: &str) -> Result<i64, String> {
     match v {
         Value::Number(n) => n
@@ -75,8 +76,8 @@ pub fn yaml_i64(v: &Value, what: &str) -> Result<i64, String> {
     }
 }
 
-/// Python `raw.get(key, {}) or {}`: a missing or null section is empty; a
-/// section that isn't a mapping is an error (Python would crash on `.get`).
+/// A missing or null section is empty; a section that isn't a mapping is an
+/// error.
 pub fn section<'a>(
     raw: &'a Value,
     key: &str,
@@ -90,8 +91,7 @@ pub fn section<'a>(
     }
 }
 
-/// Like `section`, but for a subsection of an already resolved mapping
-/// (Python's `sec.get(key, {}) or {}`).
+/// Like `section`, but for a subsection of an already resolved mapping.
 pub fn subsec<'a>(
     sec: Option<&'a serde_json::Map<String, Value>>,
     key: &str,
@@ -105,7 +105,7 @@ pub fn subsec<'a>(
     }
 }
 
-/// `section.get(key, default)` as a float.
+/// The section's value for `key` as a float (`default` when absent).
 pub fn get_f64(
     sec: Option<&serde_json::Map<String, Value>>,
     key: &str,
@@ -117,7 +117,7 @@ pub fn get_f64(
     }
 }
 
-/// `section.get(key, default)` as an integer.
+/// The section's value for `key` as an integer (`default` when absent).
 pub fn get_i64(
     sec: Option<&serde_json::Map<String, Value>>,
     key: &str,
@@ -129,7 +129,7 @@ pub fn get_i64(
     }
 }
 
-/// `section.get(key, default)` as a string: a missing or null key is the
+/// The section's value for `key` as a string: a missing or null key is the
 /// default, anything that is not a string is an error.
 pub fn get_str(
     sec: Option<&serde_json::Map<String, Value>>,

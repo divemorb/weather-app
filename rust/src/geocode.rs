@@ -34,11 +34,9 @@ const MAX_CACHE_ENTRIES: usize = 100;
 ///
 /// Entries with a missing or non-string `display_name`, or with missing or
 /// non-numeric `lat`/`lon`, are skipped (upstream data is untrusted); a
-/// non-list payload is a [`SourceError`].
-///
-/// Approved deviation 8: entries whose coordinates are not finite
-/// (`"nan"`, `"inf"`) are skipped — Python keeps them and then writes
-/// invalid JSON.
+/// non-list payload is a [`SourceError`]. Entries whose coordinates are not
+/// finite (`"nan"`, `"inf"`) are skipped too — they would end up as
+/// invalid JSON downstream.
 pub fn parse_nominatim(payload: &Value) -> Result<Vec<GeocodeResult>, SourceError> {
     let entries = payload
         .as_array()
@@ -85,7 +83,7 @@ pub struct GeocodeResult {
 }
 
 impl GeocodeResult {
-    /// The wire form in the `GET /api/geocode` answer (step R29).
+    /// The wire form in the `GET /api/geocode` answer.
     pub fn to_json(&self) -> Value {
         json!({
             "label": self.label,
@@ -95,7 +93,7 @@ impl GeocodeResult {
     }
 }
 
-/// The `GET /api/geocode` answer (step R29): `{"results": [...]}`.
+/// The `GET /api/geocode` answer: `{"results": [...]}`.
 pub fn search_response(results: &[GeocodeResult]) -> Value {
     let results = results
         .iter()
@@ -104,8 +102,7 @@ pub fn search_response(results: &[GeocodeResult]) -> Value {
     json!({"results": results})
 }
 
-/// A monotonic clock in seconds (Python `time.monotonic`), for the
-/// throttle.
+/// A monotonic clock in seconds, for the throttle.
 #[derive(Clone, Copy, Debug)]
 enum Monotonic {
     /// Seconds since a process-global start instant.
@@ -172,8 +169,8 @@ fn cached_result(
     cache.get(key).cloned()
 }
 
-/// Python: clear the cache once full, then store (the guard is dropped at
-/// once, so the lock is never held across an `.await`).
+/// Clear the cache once full, then store (the guard is dropped at once, so
+/// the lock is never held across an `.await`).
 fn cache_result(
     cache: &Mutex<HashMap<String, Vec<GeocodeResult>>>,
     key: String,
@@ -186,17 +183,16 @@ fn cache_result(
     cache.insert(key, results.to_vec());
 }
 
-/// Address -> coordinates via Nominatim, throttled and cached.
-///
-/// `Sync`, so the routes share one instance as `Arc<Geocoder>`
-/// (steps R28/R29) and `search` works through `&self`.
+/// Address -> coordinates via Nominatim, throttled and cached. `Sync`, so
+/// the routes share one instance as `Arc<Geocoder>` and `search` works
+/// through `&self`.
 pub struct Geocoder {
     base: String,
     http: reqwest::Client,
     clock: Monotonic,
     sleep: ThrottleSleep,
     /// The monotonic time of the last request, or `None` while none went
-    /// out (Python `-math.inf`: the first request never sleeps).
+    /// out (the first request never sleeps).
     throttle: tokio::sync::Mutex<Option<f64>>,
     /// Lower-cased query -> results.
     cache: Mutex<HashMap<String, Vec<GeocodeResult>>>,

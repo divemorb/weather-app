@@ -3,7 +3,7 @@
 //! from the browser. On startup the stored value wins; a configured
 //! location is only *adopted* (written to the database) when nothing is
 //! stored yet. This module also decodes and validates the request body of
-//! `POST /api/location` (Python `LocationIn` + FastAPI's body handling).
+//! `POST /api/location`.
 
 use axum::http::{HeaderMap, header};
 use serde_json::{Value, json};
@@ -48,7 +48,7 @@ pub fn location_from_json(text: Option<&str>) -> Option<LocationConfig> {
         latitude,
         longitude,
         timezone: timezone.to_string(),
-        // Python: `data.get("label", "")`; a non-string label becomes "".
+        // A non-string label becomes "".
         label: obj
             .get("label")
             .and_then(Value::as_str)
@@ -102,9 +102,8 @@ pub fn location_payload(loc: &LocationConfig) -> Value {
     })
 }
 
-/// True if `name` is a real IANA timezone (approved deviation: Rust asks
-/// `chrono-tz`, not the image's tz files — see the R22 review).
-/// Path-traversal or garbage names are rejected, not just ignored.
+/// True if `name` is a real IANA timezone; path-traversal or garbage names
+/// are rejected, not just ignored.
 pub fn valid_timezone(name: &str) -> bool {
     name.parse::<chrono_tz::Tz>().is_ok()
 }
@@ -130,9 +129,9 @@ pub fn same_origin(headers: &HeaderMap) -> bool {
     origin.to_lowercase() == format!("http://{}", host.to_lowercase())
 }
 
-/// The body of `POST /api/location` after the field checks (Python
-/// `LocationIn`). The fields are private: only `validate_location_body`
-/// creates one, so holding a `LocationIn` proves the checks ran.
+/// The body of `POST /api/location` after the field checks. The fields are
+/// private: only `validate_location_body` creates one, so holding a
+/// `LocationIn` proves the checks ran.
 #[derive(Clone, Debug, PartialEq)]
 pub struct LocationIn {
     latitude: f64,
@@ -158,9 +157,8 @@ impl LocationIn {
         &self.label
     }
 
-    /// Second stage, after the same-origin check (Python's order): the
-    /// timezone must exist, and the coordinates are rounded to 3 decimals
-    /// (Python `round(x, 3)` → `py_round(x, 3)`).
+    /// Second stage, after the same-origin check: the timezone must exist,
+    /// and the coordinates are rounded to 3 decimals.
     pub fn into_location(self) -> Result<LocationConfig, UnknownTimezone> {
         if !valid_timezone(&self.timezone) {
             return Err(UnknownTimezone);
@@ -192,7 +190,7 @@ pub struct FieldError {
     pub msg: &'static str,
 }
 
-/// FastAPI + pydantic: decode and validate the request body.
+/// Decode and validate the request body.
 pub fn validate_location_body(
     content_type: Option<&str>,
     body: &[u8],
@@ -313,9 +311,8 @@ fn field_error(name: &'static str, msg: &'static str) -> FieldError {
     }
 }
 
-/// Python `Field(ge=min, le=max, allow_inf_nan=False)` for the coordinates:
-/// missing, not a number (or not finite) or out of range are errors; the
-/// bounds are included.
+/// Coordinate check: missing, not a number (or not finite) or out of range
+/// are errors; the bounds are included.
 fn check_coordinate(
     raw: Option<&Value>,
     min: f64,
@@ -362,9 +359,9 @@ impl std::fmt::Display for BodyError {
 
 impl std::error::Error for BodyError {}
 
-/// Python's `JSONDecodeError.pos` for a serde_json error: the character
-/// offset where parsing failed (serde counts lines and byte columns; at the
-/// end of the input Python points one past the last character).
+/// The character offset where a serde_json error occurred (serde counts
+/// lines and byte columns; at the end of the input the offset is one past
+/// the last character).
 fn json_error_pos(text: &str, err: &serde_json::Error) -> usize {
     if err.is_eof() {
         return text.chars().count();
@@ -378,8 +375,8 @@ fn json_error_pos(text: &str, err: &serde_json::Error) -> usize {
     text.char_indices().take_while(|(i, _)| *i < byte).count()
 }
 
-/// FastAPI reads a JSON body only for `application/json` or
-/// `application/<something>+json` (any case, parameters ignored).
+/// JSON content type: `application/json` or `application/<something>+json`
+/// (any case, parameters ignored).
 fn is_json_content_type(value: Option<&str>) -> bool {
     let Some(value) = value else {
         return false;

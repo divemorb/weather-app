@@ -1,14 +1,11 @@
-//! Scheduler-driven cache refreshes (Python `app/aggregator.py`, part 1a).
+//! Scheduler-driven cache refreshes (Python `app/aggregator.py`).
 //!
-//! The *decisions* (radar vote, model votes, ensemble share, weighted
-//! combination) are pure functions in `crate::probability`; this module only
-//! moves data: the scheduler fetches the upstream payloads into the SQLite
-//! cache, and `cache_meta` / `source_status` report per-source freshness.
+//! The decisions (radar vote, model votes, ensemble share, weighted
+//! combination) are pure functions in `crate::probability`; this module
+//! only moves data: the scheduler fetches upstream payloads into the
+//! SQLite cache, and `cache_meta` / `source_status` report freshness.
 //! A failing source never breaks the app — the last good cache is served
 //! (with its age) and the error is recorded for `/api/sources`.
-//!
-//! R25b adds `_record_forecast_history` and `backfill_observations` at the
-//! end of `refresh_models`.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{Mutex, RwLock};
@@ -64,9 +61,9 @@ impl Job {
     }
 }
 
-/// The runtime state the scheduler, the routes and the background refresh
-/// share (later as `Arc<Aggregator>`). Every method takes `&self`; the locks
-/// are held only for a copy or a small change, never across an `.await`.
+/// The runtime state shared by the scheduler, the routes and the
+/// background refresh. Every method takes `&self`; the locks are held only
+/// for a copy or a small change, never across an `.await`.
 pub struct Aggregator {
     cfg: RwLock<AppConfig>,
     store: Store,
@@ -112,7 +109,7 @@ impl Aggregator {
             .now()
     }
 
-    /// Tests move the clock (Python monkeypatches `utcnow`).
+    /// Tests move the clock.
     #[cfg(test)]
     pub fn set_clock(&self, clock: Clock) {
         *self
@@ -133,11 +130,10 @@ impl Aggregator {
         &self.openmeteo
     }
 
-    /// Python `apply_location` + `Aggregator.set_location` (step 8b). When
-    /// the location moved more than ~1 km, all data belonging to the old
-    /// location is deleted first; then the location is persisted, pushed to
-    /// both clients and made effective. A first location stores without
-    /// clearing. The skip flags are reset so the next refresh fetches again.
+    /// When the location moved more than ~1 km, all data for the old
+    /// location is deleted first. Then the location is persisted and pushed
+    /// to both clients. A first location stores without clearing. The skip
+    /// flags are reset so the next refresh fetches again.
     pub fn set_location(&self, loc: LocationConfig) -> Result<(), StoreError> {
         if location::moved(self.cfg().location.as_ref(), &loc) {
             self.store.clear_location_data()?;
@@ -157,11 +153,10 @@ impl Aggregator {
         Ok(())
     }
 
-    // -- refresh (called by the scheduler, never per page load) ------------
+    // -- refresh (called by the scheduler, never per page load) --
 
-    /// Python `skip_without_location`: no location configured yet -> the
-    /// refresh is skipped, logged once per job; the flag is cleared by
-    /// `set_location` (location deleted, step 8d).
+    /// No location configured yet -> the refresh is skipped, logged once
+    /// per job; the flag is cleared by `set_location`.
     fn skip_without_location(&self, job: Job) -> bool {
         let has_location = self.cfg().location.is_some();
         let mut skips = self
@@ -180,11 +175,9 @@ impl Aggregator {
         }
     }
 
-    /// Python `_fetch_into_cache`: store the payload and drop the last error
-    /// (log `cache refreshed: {key}`), or record the error and keep the
-    /// stale cache (a warning). A `StoreError` from `put_cache` is an
-    /// internal failure: it is logged and the refresh goes on (Python would
-    /// abort the rest of that refresh).
+    /// Store the payload and drop the last error, or record the error and
+    /// keep the stale cache. A `StoreError` from `put_cache` is an internal
+    /// failure: it is logged and the refresh goes on.
     fn store_fetched(&self, source: Source, fetched: Result<Value, SourceError>) {
         let key = source.key();
         match fetched {
@@ -211,7 +204,7 @@ impl Aggregator {
     /// Fetch Bright Sky `current_weather` + radar into the cache. Each
     /// endpoint is fetched independently so one failure does not discard the
     /// other; failures keep the stale cache and are recorded. No-op (logged
-    /// once per job) while no location is configured (8b).
+    /// once per job) while no location is configured.
     pub async fn refresh_radar(&self) {
         if self.skip_without_location(Job::Radar) {
             return;
@@ -224,7 +217,7 @@ impl Aggregator {
 
     /// Fetch Open-Meteo forecast + ensemble into the cache (failures keep
     /// the stale cache and are recorded). No-op (logged once) while no
-    /// location is configured (step 8b).
+    /// location is configured.
     pub async fn refresh_models(&self) {
         if self.skip_without_location(Job::Models) {
             return;
@@ -237,10 +230,9 @@ impl Aggregator {
         self.backfill_observations().await;
     }
 
-    /// Python `_record_forecast_history`: append this hour's model
-    /// forecasts to `forecast_history`. History is a nicety: every failure
-    /// (a missing or unparseable cache, a database error) is logged or
-    /// swallowed and never breaks the refresh.
+    /// Append this hour's model forecasts to `forecast_history`. History
+    /// is a nicety: every failure (a missing or unparseable cache, a
+    /// database error) is logged or swallowed and never breaks the refresh.
     fn record_forecast_history(&self) {
         let now = self.now();
         let cached = match self.store.get_cache(Source::Forecast, now) {
@@ -264,14 +256,11 @@ impl Aggregator {
         }
     }
 
-    /// Python `backfill_observations`: fill `observed_mm` in
-    /// `forecast_history` from DWD observations.
-    ///
-    /// Fetches the last 48 h of Bright Sky `/weather` hourly records and
-    /// writes each real observation (`observation_type != "forecast"`) for
-    /// its hour start (`timestamp - 1h`). Run from the hourly model refresh
-    /// — never on a page load; failures are logged and swallowed (a
-    /// failing source never breaks a refresh).
+    /// Fill `observed_mm` in `forecast_history` from DWD observations:
+    /// fetch the last 48 h of Bright Sky `/weather` hourly records and
+    /// write each real observation (`observation_type != "forecast"`) for
+    /// its hour start (`timestamp - 1h`). Never runs on a page load;
+    /// failures are logged and swallowed.
     pub async fn backfill_observations(&self) {
         let now = self.now();
         let payload = match self
@@ -315,8 +304,8 @@ impl Aggregator {
                 return;
             }
         }
-        // Remember which stations the observations came from (P2); the
-        // value is canonical JSON, byte-identical to the Python backend's.
+        // Remember which stations the observations came from; the value is
+        // canonical JSON, byte-identical to the Python backend's.
         let station_list = stations::observation_stations(&payload, now);
         if let Err(err) = self.store.set_meta(
             stations::OBSERVATION_STATIONS_KEY,
@@ -329,12 +318,10 @@ impl Aggregator {
         tracing::info!("observation backfill: {count} hourly observations written");
     }
 
-    // -- read model (page loads) --------------------------------------------
+    // -- read model (page loads) --
 
-    /// Python `Aggregator.cache_meta`: `available` / `age_seconds` / `stale`
-    /// for one source. `age_seconds` is None when the source has never been
-    /// fetched. Used by `source_status` and by the API endpoints that attach
-    /// a data-age badge to a single source's payload.
+    /// `available` / `age_seconds` / `stale` for one source. `age_seconds`
+    /// is None when the source has never been fetched.
     pub fn cache_meta(&self, source: Source) -> Result<CacheMeta, StoreError> {
         let cfg = self.cfg();
         let age = self
@@ -352,8 +339,8 @@ impl Aggregator {
         })
     }
 
-    /// Python `get_source_status`: per-source `upstream` / `last_error` /
-    /// `available` / `age_seconds` / `stale`, for the UI.
+    /// Per-source `upstream` / `last_error` / `available` / `age_seconds` /
+    /// `stale`, for the UI.
     pub fn source_status(&self) -> Result<Value, StoreError> {
         let last_error = self
             .last_error

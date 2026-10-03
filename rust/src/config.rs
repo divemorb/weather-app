@@ -1,9 +1,9 @@
-//! Application configuration: `weather.yaml` plus environment overrides.
+//! Application configuration: `weather.yaml` plus environment overrides
+//! (Python `app/config.py`).
 //!
-//! Port of `app/config.py`; the Python app is the specification. Environment
-//! variables take precedence over the YAML file. All timestamps are UTC;
-//! `location.timezone` is a *display* timezone only (consumed by the
-//! frontend).
+//! Environment variables take precedence over the YAML file. All timestamps
+//! are UTC; `location.timezone` is a *display* timezone only (consumed by
+//! the frontend).
 
 pub mod values;
 
@@ -17,9 +17,9 @@ use values::{
     Env, env_bool, env_f64, env_i64, env_str, get_f64, get_i64, get_str, section, subsec,
 };
 
-/// The home location. `None` while unconfigured (step 8b): it comes from the
-/// env vars, from the YAML `location:` block, or — at runtime — from the
-/// database where the app stores it (setup wizard).
+/// The home location. `None` while unconfigured: it comes from the env vars,
+/// from the YAML `location:` block, or — at runtime — from the database
+/// where the app stores it (setup wizard).
 #[derive(Debug, Clone, PartialEq)]
 pub struct LocationConfig {
     pub latitude: f64,
@@ -85,8 +85,8 @@ impl ProbabilityConfig {
             ("models", self.weight_models),
             ("ensemble", self.weight_ensemble),
         ];
-        // Python computes `sum(w.values())`: a compensated sum, not plain
-        // left-to-right addition (for 0.1 + 0.2 + 0.3 it is exactly 0.6).
+        // A compensated sum (like Python's `sum`), not plain left-to-right
+        // addition: for 0.1 + 0.2 + 0.3 it is exactly 0.6.
         let total = pyfmt::py_sum(w.iter().map(|(_, v)| *v));
         if total <= 0.0 {
             return Err("at least one probability source weight must be > 0".to_string());
@@ -143,9 +143,9 @@ impl Default for SchedulingConfig {
     }
 }
 
-/// Per-model accuracy scoring (step 6e): a rolling window of `window_days`
-/// and a minimum of `min_samples` compared hours before the accuracy is
-/// treated as reliable.
+/// Per-model accuracy scoring: a rolling window of `window_days` and a
+/// minimum of `min_samples` compared hours before the accuracy is treated
+/// as reliable.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct AccuracyConfig {
     pub window_days: i64,
@@ -197,9 +197,8 @@ pub struct AppConfig {
     pub use_accuracy_weights: bool,
 }
 
-/// Python `_load_yaml`: a missing file is `{}`; a *falsy* document is
-/// `{}` too (`yaml.safe_load(fh) or {}`); any other non-mapping top level
-/// is an error, like Python's `ValueError`.
+/// A missing file is `{}`, and so is a *falsy* document; any other
+/// non-mapping top level is an error.
 fn load_yaml(path: &Path) -> Result<Value, String> {
     let Ok(text) = std::fs::read_to_string(path) else {
         return Ok(Value::Object(Map::new()));
@@ -228,11 +227,11 @@ fn is_falsy(v: &Value) -> bool {
     }
 }
 
-/// Python `_load_location`: env vars win when *both* `LATITUDE` and
-/// `LONGITUDE` are set (they are one source); otherwise the YAML
-/// `location:` block counts when both coordinates are numbers. Any other mix
-/// is incomplete — `None` (unconfigured; the setup wizard asks, step 8).
-/// There is no hard-coded default location.
+/// Env vars win when *both* `LATITUDE` and `LONGITUDE` are set (they are
+/// one source); otherwise the YAML `location:` block counts when both
+/// coordinates are numbers. Any other mix is incomplete — `None`
+/// (unconfigured; the setup wizard asks). There is no hard-coded default
+/// location.
 fn load_location(raw: &Value, env: Env) -> Result<Option<LocationConfig>, String> {
     let env_lat = env_str(env, "LATITUDE");
     let env_lon = env_str(env, "LONGITUDE");
@@ -240,8 +239,8 @@ fn load_location(raw: &Value, env: Env) -> Result<Option<LocationConfig>, String
 
     let (latitude, longitude) =
         if let (Some(lat), Some(lon)) = (env_lat.as_deref(), env_lon.as_deref()) {
-            // A value that does not parse as a float means unconfigured, not an
-            // error (Python: `except ValueError: return None`).
+            // A value that does not parse as a float means unconfigured,
+            // not an error.
             match (lat.trim().parse::<f64>(), lon.trim().parse::<f64>()) {
                 (Ok(latitude), Ok(longitude)) => (latitude, longitude),
                 _ => return Ok(None),
@@ -278,8 +277,8 @@ fn load_location(raw: &Value, env: Env) -> Result<Option<LocationConfig>, String
 
 /// Load configuration from YAML, with environment overrides. The file is
 /// `path`, else `WEATHER_CONFIG`, else `/app/weather.yaml` (the image puts
-/// the file there; Python's repo-root default does not apply in the image).
-/// A missing file counts as `{}` (all defaults).
+/// the file there; the Python repo-root default does not apply in the
+/// image). A missing file counts as `{}` (all defaults).
 pub fn load_config(path: Option<&Path>, env: Env) -> Result<AppConfig, String> {
     let path = path
         .map(PathBuf::from)

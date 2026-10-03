@@ -2,7 +2,7 @@
 //!
 //! Pure functions: raw upstream JSON in, normalized data out. Upstream data
 //! is untrusted, so a wrong type or a missing key becomes a `SourceError`
-//! (never a panic). The HTTP client itself arrives in phase 3.
+//! (never a panic).
 
 use chrono::{DateTime, TimeDelta, Utc};
 use serde_json::Value;
@@ -12,13 +12,13 @@ use crate::models::CurrentConditions;
 use crate::times::parse_iso;
 use crate::upstream::{SourceError, opt_f64, py_str, py_truthy};
 
-/// The Python `malformed_is_source_error` decorator: a payload-shape error
-/// (wrong type, missing key) becomes a `SourceError` with this wording.
+/// A payload-shape error (wrong type, missing key) becomes a `SourceError`
+/// with this wording.
 fn malformed(label: &str, exc: SourceError) -> SourceError {
     SourceError::new(format!("{label}: malformed payload ({exc})"))
 }
 
-/// Parse a `/current_weather` payload (Python `parse_current_weather`).
+/// Parse a `/current_weather` payload.
 pub fn parse_current_weather(payload: &Value) -> Result<CurrentConditions, SourceError> {
     let label = "Bright Sky current_weather";
     let w = payload
@@ -48,13 +48,12 @@ pub fn parse_current_weather(payload: &Value) -> Result<CurrentConditions, Sourc
     })
 }
 
-/// Extract hourly *observations* (Python `parse_hourly_observations`):
-/// `(hour_start, mm)` pairs in ascending order, where `hour_start =
-/// timestamp - 1h` (a record stamped `T` holds the rain of `[T-1h, T)`).
-/// Only records from non-forecast sources with `timestamp <= now` and a
-/// non-null precipitation are kept; unknown sources and bad timestamps are
-/// skipped, but a non-numeric precipitation is a `SourceError` (Python's
-/// `float()` raises there too).
+/// Extract hourly *observations*: `(hour_start, mm)` pairs in ascending
+/// order, where `hour_start = timestamp - 1h` (a record stamped `T` holds
+/// the rain of `[T-1h, T)`). Only records from non-forecast sources with
+/// `timestamp <= now` and a non-null precipitation are kept; unknown
+/// sources and bad timestamps are skipped, but a non-numeric precipitation
+/// is a `SourceError`.
 pub fn parse_hourly_observations(
     payload: &Value,
     now: DateTime<Utc>,
@@ -65,8 +64,8 @@ pub fn parse_hourly_observations(
         .ok_or_else(|| SourceError::new(format!("{label}: payload is not an object")))?;
 
     // Map source id -> observation_type. The key is the id's JSON text, so a
-    // missing id matches a missing `source_id` exactly as in Python
-    // (`None == None`). Missing/null/non-list "sources" count as empty.
+    // missing id matches a missing `source_id` (`null` == `null`).
+    // Missing/null/non-list "sources" count as empty.
     let observation_types: HashMap<String, Value> = payload
         .get("sources")
         .and_then(Value::as_array)
@@ -115,8 +114,8 @@ pub fn parse_hourly_observations(
         if stamp > now {
             continue;
         }
-        // Checked to be a non-null value above: either a number or a
-        // malformed one (Python's float() raises on the latter too).
+        // Non-null is checked above: a number passes, a malformed value is
+        // an error (not skipped).
         let mm = match opt_f64(Some(precip), "precipitation") {
             Ok(Some(mm)) => mm,
             Ok(None) => continue,
@@ -124,14 +123,14 @@ pub fn parse_hourly_observations(
         };
         out.push((stamp - TimeDelta::hours(1), mm));
     }
-    out.sort_by_key(|item| item.0); // stable, like Python's sort
+    out.sort_by_key(|item| item.0);
     Ok(out)
 }
 
-/// Station name + distance (Python `parse_station_info`): prefers a source
-/// whose `observation_type` is "current" or "historical" and which has a
-/// station name; falls back to the first listed source (its id, stringified,
-/// when it has no name — "None" when it has no id either).
+/// Station name + distance: prefers a source whose `observation_type` is
+/// "current" or "historical" and which has a station name; falls back to
+/// the first listed source (its id, stringified, when it has no name —
+/// "None" when it has no id either).
 pub fn parse_station_info(payload: &Value) -> Result<Option<(String, f64)>, SourceError> {
     let label = "Bright Sky weather";
     let sources: Vec<&Value> = payload
@@ -143,7 +142,7 @@ pub fn parse_station_info(payload: &Value) -> Result<Option<(String, f64)>, Sour
         return Ok(None);
     }
     let distance = |s: &Value| -> Result<f64, SourceError> {
-        // Python `float(s.get("distance") or 0.0)`: missing, null or 0 stay 0.0.
+        // Missing, null or 0 stay 0.0.
         opt_f64(s.get("distance"), "distance")
             .map_err(|exc| malformed(label, exc))
             .map(|d| d.unwrap_or(0.0))
