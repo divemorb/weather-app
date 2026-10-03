@@ -1,12 +1,6 @@
 //! Pure serializers that turn aggregator results into API-ready JSON
 //! (Python `app/api_serializers.py`).
 //!
-//! These are the *only* place where internal data models become the REST
-//! contract: they take plain values (no `Aggregator` / `Store`) and return
-//! `serde_json::Value`s, which keeps them trivially unit-testable and lets
-//! the axum routes stay thin (fetch from the aggregator, hand to a
-//! serializer).
-//!
 //! All timestamps are UTC ISO-8601 (`...Z`); the frontend converts to the
 //! configured display timezone.
 
@@ -53,8 +47,8 @@ fn cache_meta(meta: Option<&CacheMeta>) -> Map<String, Value> {
 ///
 /// `available` is false when there is no cached observation yet; the
 /// `conditions` object is then null and the frontend renders an empty
-/// state. `station` / `fallback` (P1) name the station the values come
-/// from and, per value, the station Bright Sky took it from instead.
+/// state. `station` / `fallback` name the station the values come from
+/// and, per value, the station Bright Sky took it from instead.
 pub fn serialize_now(
     conditions: Option<&CurrentConditions>,
     meta: Option<&CacheMeta>,
@@ -198,8 +192,8 @@ pub fn serialize_models_24h(series: &Series24h, meta: Option<&CacheMeta>) -> Val
 ///
 /// Each entry gains `enough_data` = `n_samples >= min_samples` so the UI can
 /// grey out models that have not accumulated enough compared hours.
-/// `stations` (P2) lists the observation stations behind the table,
-/// nearest first; `[]` while the backfill has not remembered any.
+/// `stations` lists the observation stations behind the table, nearest
+/// first; `[]` while the backfill has not remembered any.
 pub fn serialize_model_accuracy(
     models: &BTreeMap<String, ModelAccuracy>,
     window_days: i64,

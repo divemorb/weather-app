@@ -44,8 +44,7 @@ pub fn host_allowed(host_header: &str, extra: &HashSet<String>) -> bool {
     host == "localhost" || host.ends_with(".local") || extra.contains(&host)
 }
 
-/// Python `ALLOWED_HOSTS` parsing: `h.strip().lower() for h in raw.split(",")
-/// if h.strip()`.
+/// Python `ALLOWED_HOSTS` parsing.
 pub fn parse_allowed_hosts(raw: &str) -> HashSet<String> {
     raw.split(',')
         .map(str::trim)

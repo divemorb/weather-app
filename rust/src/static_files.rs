@@ -23,9 +23,8 @@ pub fn content_type(name: &str) -> &'static str {
     }
 }
 
-/// Read every regular file in `dir` (not recursive) into memory once, at
-/// startup. Subdirectories are skipped; the file set is fixed for the life
-/// of the process.
+/// Read every regular file in `dir` (not recursive) into memory; the file
+/// set is fixed for the life of the process.
 pub fn load(dir: &Path) -> std::io::Result<HashMap<String, StaticFile>> {
     let mut files = HashMap::new();
     for entry in std::fs::read_dir(dir)? {
@@ -50,10 +49,10 @@ pub fn load(dir: &Path) -> std::io::Result<HashMap<String, StaticFile>> {
     Ok(files)
 }
 
-/// The fallback for everything no route matched: like Starlette's
-/// StaticFiles mount, a method other than GET/HEAD is 405, an unknown path
-/// is 404 (both JSON), `/` is index.html, and a matching `If-None-Match`
-/// is 304. Only files loaded from STATIC_DIR exist, so no path can escape.
+/// The fallback for everything no route matched: non-GET/HEAD is 405, an
+/// unknown path is 404 (both JSON), `/` is index.html, a matching
+/// `If-None-Match` is 304. Only files loaded from disk exist, so no path
+/// can escape.
 pub fn respond(
     files: &HashMap<String, StaticFile>,
     method: &Method,

@@ -4,7 +4,7 @@
 
 use serde_json::Value;
 
-/// Hard cap for upstream response bodies (used by the fetch in phase 3).
+/// Hard cap for upstream response bodies.
 pub const MAX_RESPONSE_BYTES: usize = 5 * 1024 * 1024;
 
 /// A data source failed or returned an unusable payload.

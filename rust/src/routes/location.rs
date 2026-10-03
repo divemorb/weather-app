@@ -1,13 +1,11 @@
-//! `POST /api/location` and `GET /api/geocode` (Python `app/main.py`,
-//! `api_set_location` and `api_geocode`): the setup-wizard write and the
-//! address search.
+//! `POST /api/location` and `GET /api/geocode` (Python `app/main.py`):
+//! the setup-wizard write and the address search.
 //!
 //! The checks run in Python's order: the body must be valid JSON in the
 //! wizard shape first (pydantic runs before the handler, i.e. before the
 //! origin check), then the same-origin check (CSRF), then the timezone.
 //! A `StoreError` becomes the unhandled-exception answer (a plain-text
-//! 500, as on the read path); a failed address lookup is a 502, never a
-//! 500 — a failing source must not break the app.
+//! 500); a failed address lookup is a 502, never a 500.
 
 use std::sync::Arc;
 
@@ -25,15 +23,14 @@ use crate::store::StoreError;
 
 use super::AppState;
 
-/// `POST /api/location`: set the home location (setup wizard, step 8c).
+/// `POST /api/location`: set the home location (setup wizard).
 pub(crate) async fn post_location(
     State(state): State<AppState>,
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
-    // 1. the body must decode and validate (Python's pydantic `LocationIn`
-    //    runs before the handler body, so an invalid body is a 422 even
-    //    for a foreign origin).
+    // 1. validate the body first (Python's pydantic runs before the
+    //    handler): an invalid body is a 422 even for a foreign origin.
     let content_type = headers
         .get(header::CONTENT_TYPE)
         .and_then(|value| value.to_str().ok());
@@ -76,9 +73,8 @@ pub(crate) async fn post_location(
     if let Err(err) = state.aggregator.set_location(loc.clone()) {
         return store_error(err);
     }
-    // 5. one background refresh so data appears within seconds. The task is
-    //    owned by the runtime (Python keeps it in `_background_tasks` so the
-    //    event loop cannot GC it); nothing to hold onto here.
+    // 5. one background refresh so data appears within seconds; the runtime
+    //    owns the task, nothing to hold onto.
     let agg = Arc::clone(&state.aggregator);
     tokio::spawn(async move {
         initial_refresh(&agg).await;
@@ -94,8 +90,7 @@ pub(crate) async fn post_location(
         .into_response()
 }
 
-/// `GET /api/geocode`: address search for the setup wizard (Nominatim,
-/// step 8c2).
+/// `GET /api/geocode`: address search for the setup wizard (Nominatim).
 ///
 /// The typed text goes to OpenStreetMap Nominatim *from the app's server*.
 /// `q` is the **last** `q` value of the raw query pairs (Python's `Query`

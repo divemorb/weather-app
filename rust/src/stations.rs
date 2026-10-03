@@ -3,9 +3,9 @@
 //! Pure parsers that name the observation stations in Bright Sky payloads:
 //! the station a `/current_weather` payload's values come from
 //! (`weather.source_id`) and, per value, the station Bright Sky took it
-//! from instead (`weather.fallback_source_ids`) — for `GET /api/now` (P1);
-//! and the stations the `/weather` backfill's observations came from — for
-//! `GET /api/model-accuracy` (P2).
+//! from instead (`weather.fallback_source_ids`) — for `GET /api/now`; and
+//! the stations the `/weather` backfill's observations came from — for
+//! `GET /api/model-accuracy`.
 //!
 //! Payloads are untrusted: entries may miss keys or carry them mistyped
 //! (and older Bright Sky payloads have no `sources` key at all). A missing
@@ -173,7 +173,7 @@ pub fn station_and_fallback(payload: &Value) -> (Option<Station>, BTreeMap<Strin
     (station, fallback)
 }
 
-// P2: the observation stations behind the accuracy table
+// The observation stations behind the accuracy table:
 
 /// The `id` of a `sources` entry or a `weather` record as a lookup key:
 /// the id's JSON text, so a missing id matches a missing `source_id`

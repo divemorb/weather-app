@@ -19,10 +19,8 @@ use crate::pyfmt::py_hypot;
 pub use combine::*;
 
 /// Location in full-grid (x, y) cell coordinates (Python
-/// `_location_full_xy`). The sub-grid's origin is at `bbox` =
-/// (top, left, bottom, right); the requested point is `location_xy` =
-/// (px, py) measured from that origin (fractional — the location sits
-/// inside a cell).
+/// `_location_full_xy`): the sub-grid origin (top, left of `bbox`) plus
+/// the fractional `location_xy` inside it.
 fn location_full_xy(nowcast: &RadarNowcast) -> (f64, f64) {
     let (top, left) = (nowcast.bbox.0, nowcast.bbox.1);
     (
@@ -32,10 +30,8 @@ fn location_full_xy(nowcast: &RadarNowcast) -> (f64, f64) {
 }
 
 /// Distance (km) from the location to the radar cell `(cell_x, cell_y)`.
-///
-/// The grid is a uniform ~1 km physical grid, so the cell offset in grid
-/// units times the cell size is the physical offset; a plain Euclidean
-/// distance is accurate at this scale.
+/// The grid is a uniform ~1 km grid, so a plain Euclidean distance is
+/// accurate at this scale.
 pub fn cell_distance_km(nowcast: &RadarNowcast, cell_x: i64, cell_y: i64, cell_km: f64) -> f64 {
     let (loc_x, loc_y) = location_full_xy(nowcast);
     py_hypot(
@@ -72,11 +68,8 @@ pub fn radar_has_local_rain(
 }
 
 /// Strongest rain (max mm) within `radius_km` of the location in one frame.
-///
-/// Only cells whose 5-minute amount exceeds `threshold_mm` count
-/// (consistent with the radar signal's definition of "rain"), so the
-/// next-hour bar and the binary radar vote agree on what counts as local
-/// rain. Returns 0.0 when no qualifying cell lies within the radius.
+/// Only cells above `threshold_mm` count, so this and the binary radar vote
+/// agree on what counts as local rain. Returns 0.0 when none qualifies.
 pub fn max_local_rain_mm(
     nowcast: &RadarNowcast,
     frame: &RadarFrame,
@@ -197,23 +190,16 @@ pub fn model_rain_signal(votes: &[ModelVote], threshold_mm: f64) -> (Option<f64>
 
 /// Accuracy-weighted model signal (optional).
 ///
-/// Instead of counting the share of voting models with rain, each voting
-/// model's *vote* (100 if it forecasts > `threshold_mm`, else 0) is
-/// weighted by its `event_accuracy` and the signal is
-/// `100 * sum(w_i * rain_i) / sum(w_i)`. A more accurate model pulls the
-/// number toward its vote.
+/// Each voting model's vote (100 if it forecasts > `threshold_mm`, else 0)
+/// is weighted by `max(event_accuracy, 0.1)` — the floor keeps a poor model
+/// from being silenced — and the signal is
+/// `100 * sum(w_i * rain_i) / sum(w_i)`. Models without a next-hour sum do
+/// not count at all, same as `model_rain_signal`.
 ///
-/// Rules:
-///
-/// - Models without a next-hour sum (no data) do not count at all, same as
-///   `model_rain_signal`.
-/// - Weight of a model is `max(event_accuracy, 0.1)` — the 0.1 floor keeps
-///   a (poor) model from being silenced entirely. A model with no accuracy
-///   row gets the floor.
-/// - **Gate:** if *any* voting model has fewer than `min_samples` compared
-///   hours (or no accuracy row at all), the scores are not trustworthy yet
-///   and the function reports `weighted_applied = false` — the caller must
-///   fall back to `model_rain_signal` (equal weights).
+/// Gate: if any voting model has fewer than `min_samples` compared hours
+/// (or no accuracy row), the scores are not trustworthy yet and
+/// `weighted_applied = false` — the caller must fall back to
+/// `model_rain_signal`.
 ///
 /// Returns the same `(signal | None, n_rain, n_total)` as
 /// `model_rain_signal` (`n_rain`/`n_total` are always the equal-weight

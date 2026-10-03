@@ -4,7 +4,7 @@
 //!
 //! Pure functions: raw upstream JSON in, normalized data out. Upstream data
 //! is untrusted, so a wrong type or a missing key becomes a `SourceError`
-//! (never a panic). The HTTP client itself arrives in phase 3.
+//! (never a panic).
 
 use chrono::{DateTime, Utc};
 use serde_json::{Map, Value};
@@ -126,7 +126,6 @@ pub fn parse_forecast(
             &format!("precipitation_{name}"),
             label,
         )?;
-        // One list per HOURLY_VARS entry, in order.
         let mut hourly = [const { Vec::new() }; HOURLY_VARS.len()];
         for (slot, var) in hourly.iter_mut().zip(HOURLY_VARS.iter()) {
             *slot = series(payload, "hourly", &format!("{var}_{name}"), label)?;

@@ -5,7 +5,7 @@
 //!   grid (24 h chart data)
 //! * `build_radar_next_hour_bar` — 12 x 5-min local-rain bar (radar nowcast)
 //! * `build_forecast_history_rows` — rows for the forecast_history table
-//!   (optional accuracy extension, step 6)
+//!   (accuracy comparison)
 
 use std::collections::HashMap;
 
@@ -60,15 +60,12 @@ pub struct HistoryRow {
 ///
 /// Precipitation convention: the hourly value at stamp `t` is the rain of
 /// the preceding hour `[t-1h, t)`. `hours[i]` therefore carries the
-/// **start** of the hour (`t - 1h`) whose precipitation is
-/// `precipitation_mm[i]` — the value plotted at hour 10:00 comes from the
+/// **start** of that hour — the value plotted at 10:00 comes from the
 /// stamp at 11:00.
 ///
-/// All models from one Open-Meteo call share the same hourly axis, so the
-/// grid is taken from the first model with data; a model whose axis does
-/// not match is skipped rather than misaligned. `hours` are ISO-8601 UTC
-/// strings. Returns `{"hours": [...], "models": [...], "n_models": n}`
-/// where each entry in `models` is a dict with name + precipitation_mm.
+/// All models share the same hourly axis, so the grid is taken from the
+/// first model with data; a model whose axis does not match is skipped.
+/// `hours` are ISO-8601 UTC strings.
 pub fn build_24h_series(
     bundle: Option<&ForecastBundle>,
     now: DateTime<Utc>,
@@ -86,9 +83,8 @@ pub fn build_24h_series(
         return empty;
     };
 
-    // the window starts at an arbitrary offset into the axis (it is
-    // relative to now, not to the start of the axis); align every model
-    // at the same offset as the reference model
+    // the window starts at an arbitrary offset into the axis (relative to
+    // now); align every model at the same offset as the reference model
     let mut stamps: Vec<DateTime<Utc>> = Vec::new();
     let mut offset = 0_usize;
     for (i, t) in reference.hourly_time.iter().enumerate() {
@@ -149,10 +145,9 @@ pub fn build_24h_series(
 /// 12 five-minute buckets of the *local* (within `radius_km`) radar rain
 /// for the next hour, for the 60-minute bar in the UI.
 ///
-/// Returns `{"available": bool, "steps": [{"start_utc", "precip_mm"}, ...]}`
-/// with exactly `n_steps` buckets (oldest first). `precip_mm` is the
-/// strongest rain cell within the radius in that bucket (0.0 for dry); a
-/// bucket with no radar frame yet is 0.0. `available` is False when radar
+/// Returns exactly `n_steps` buckets (oldest first). `precip_mm` is the
+/// strongest rain cell within the radius in that bucket (0.0 for dry, and
+/// for a bucket with no radar frame yet). `available` is false when radar
 /// is missing or does not cover the location (the frontend then falls back
 /// to a models-only display).
 ///

@@ -6,9 +6,8 @@ use tokio::signal::unix::{Signal, SignalKind, signal};
 use wetter::routes::{AppState, build_router};
 use wetter::security::parse_allowed_hosts;
 
-/// Dispatch before the server does anything: `wetter` runs the server,
-/// `wetter snapshot PATH` copies the live database and exits. (No tracing
-/// subscriber yet: stdout carries only the snapshot report.)
+/// `wetter` runs the server; `wetter snapshot PATH` copies the live
+/// database and prints its report to stdout (no logging, so it is parseable).
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     match args.as_slice() {
@@ -42,11 +41,9 @@ fn snapshot_command(target: &str) {
 
 #[tokio::main(flavor = "current_thread")]
 async fn server() {
-    // The SIGTERM stream comes first (it can only be created inside the
-    // runtime): as PID 1 in the container, a SIGTERM without a handler is
-    // ignored, and a stop during the startup refresh would otherwise end
-    // in a kill (exit code 137). The same stream is later handed to
-    // `with_graceful_shutdown`.
+    // The SIGTERM stream is created first (it needs the runtime): as PID 1,
+    // an unhandled SIGTERM is ignored, so a stop during the startup refresh
+    // would otherwise end in a kill (exit code 137).
     let mut term = match signal(SignalKind::terminate()) {
         Ok(term) => term,
         Err(err) => {
@@ -87,7 +84,7 @@ async fn server() {
         }
     };
     // The location is runtime state: the stored value wins over env/YAML,
-    // which is only adopted on first start (written to the DB).
+    // which is adopted only on first start (then written to the DB).
     config.location = match wetter::location::resolve_startup_location(&store, &config) {
         Ok(location) => location,
         Err(err) => {

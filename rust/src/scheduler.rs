@@ -55,7 +55,7 @@ impl Scheduler {
         self.start_with_periods(agg, radar, models);
     }
 
-    /// Same with explicit periods (tests use milliseconds).
+    /// `start` with explicit periods.
     pub fn start_with_periods(
         self: &Arc<Self>,
         agg: Arc<Aggregator>,

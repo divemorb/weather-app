@@ -51,7 +51,7 @@ where
     any(method_not_allowed).get(handler)
 }
 
-/// Same for POST routes (used later for POST /api/location).
+/// A POST route whose other methods get Python's JSON 405.
 pub fn post_only<H, T>(handler: H) -> MethodRouter<AppState>
 where
     H: Handler<T, AppState>,

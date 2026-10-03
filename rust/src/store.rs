@@ -170,7 +170,7 @@ impl Store {
         self.lock_conn()
     }
 
-    // -- app meta (step 8b: the location lives here at runtime) ---------------
+    // -- app meta (the location lives here at runtime) ------------------------
 
     pub fn get_meta(&self, key: &str) -> Result<Option<String>, StoreError> {
         let conn = self.lock_conn();
@@ -191,7 +191,7 @@ impl Store {
         Ok(())
     }
 
-    /// Drop all data that belongs to the old location (step 8b, P2).
+    /// Drop all data that belongs to the old location.
     ///
     /// Called when the location changes: the cache, the forecast history
     /// and the observation stations all belong to the *old* location, so
@@ -339,13 +339,13 @@ impl Store {
 
 /// Run the one-time schema migrations, tracked in `app_meta`.
 ///
-/// v2 (step 6b/6c): `forecast_history` rows are unique per
-/// `(model, valid_from)` (upserted, see [`Store::add_forecasts`]) and
-/// labelled by hour start. All rows written before that are mislabelled,
-/// so the table is emptied once. The unique index must only exist once
-/// the old rows are gone, hence it is created here rather than in `SCHEMA`.
-/// v3 (step 6e): drop the unused `model_accuracy` table.
-/// Each step runs at most once, so this is a no-op on later startups.
+/// v2: `forecast_history` rows are unique per `(model, valid_from)`
+/// (upserted, see [`Store::add_forecasts`]) and labelled by hour start.
+/// All rows written before that are mislabelled, so the table is emptied
+/// once. The unique index must only exist once the old rows are gone,
+/// hence it is created here rather than in `SCHEMA`.
+/// v3: drop the unused `model_accuracy` table.
+/// Each migration runs at most once, so this is a no-op on later startups.
 fn migrate(conn: &mut Connection) -> Result<(), StoreError> {
     let tx = conn.transaction()?;
     let value: Option<Option<String>> = tx

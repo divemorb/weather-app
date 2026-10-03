@@ -76,9 +76,6 @@ pub fn py_round_int(x: f64) -> i64 {
     let r = x.round_ties_even();
     match f64_to_i64(r) {
         Some(n) => n,
-        // Keep the old saturating-cast results where the conversion is
-        // not possible: NaN -> 0, above the i64 range -> i64::MAX,
-        // below it -> i64::MIN.
         None if r.is_nan() => 0,
         None if r < 0.0 => i64::MIN,
         None => i64::MAX,

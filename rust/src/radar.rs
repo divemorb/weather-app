@@ -145,7 +145,6 @@ pub fn parse_radar(payload: &Value) -> Result<RadarNowcast, SourceError> {
 
     let px = position_num(llp, "x")?;
     let py = position_num(llp, "y")?;
-    // Is the requested location actually inside the returned sub-grid?
     let covered = 0.0 <= px && px < width as f64 && 0.0 <= py && py < height as f64;
 
     let n_cells = usize::try_from(n_cells)
@@ -176,8 +175,7 @@ pub fn parse_radar(payload: &Value) -> Result<RadarNowcast, SourceError> {
         for row in 0..height {
             let y = top + row;
             for col in 0..width {
-                // decode_grid guarantees grid.len() == width * height, so the
-                // index is always in range; .get keeps it panic-free anyway.
+                // decode_grid guarantees the size; .get keeps this panic-free.
                 let index = usize::try_from(row * width + col).ok();
                 let Some(&value) = index.and_then(|i| grid.get(i)) else {
                     return Err(SourceError::new(format!("{label}: frame size mismatch")));

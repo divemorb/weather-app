@@ -4,9 +4,8 @@
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 
-/// The "Now" tile (Bright Sky `/current_weather`). The three `Value` fields
-/// are passed through from the upstream JSON untouched, like Python does
-/// (`w.get("timestamp")` etc.); `Value::Null` when missing.
+/// The "Now" tile (Bright Sky `/current_weather`). The `Value` fields are
+/// passed through from the upstream JSON untouched; `Value::Null` when missing.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CurrentConditions {
     pub timestamp_utc: Value,

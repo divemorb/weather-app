@@ -59,7 +59,7 @@ pub fn make_current_payload(weather: Option<Value>) -> Value {
     json!({"weather": Value::Object(w), "sources": []})
 }
 
-/// A `/weather` payload mirroring the verified response shape: observation
+/// A `/weather` payload mirroring the real response shape: observation
 /// station 1002 ("current") with a dry hour at 16:00, a null-precipitation
 /// hour at 17:00 and 0.4 mm at 18:00; MOSMIX source 1001 ("forecast") with
 /// 19:00 and 21:00 records that must never be treated as observations.

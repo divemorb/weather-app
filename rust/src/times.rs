@@ -21,7 +21,7 @@ pub fn to_iso(t: DateTime<Utc>) -> String {
 }
 
 /// The app's clock: the real time, or a fixed instant when `WETTER_FAKE_NOW`
-/// is set (contract tests only; `main` logs a warning).
+/// is set.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Clock {
     fixed: Option<DateTime<Utc>>,

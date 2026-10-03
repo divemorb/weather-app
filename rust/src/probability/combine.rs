@@ -11,17 +11,10 @@ use crate::pyfmt::{py_fmt_0f, py_fmt_g, py_sum};
 /// Index of the hourly step that overlaps `[now, now + 1 h)` the most.
 ///
 /// Open-Meteo hourly precipitation is a *preceding-hour sum*: the value at
-/// time `t` is the rain of the hour `[t - 1 h, t)`. Picking the first stamp
-/// *after* `now` would give the clock hour that *contains* `now`: at
-/// `now = 10:50` that is the stamp 11:00, covering 10:00-11:00, of which 50
-/// minutes are already over. So instead pick the step with the largest
-/// overlap with the next 60 minutes, which works out to simply the first
-/// stamp `t` with `t >= now + 30 min`:
-///
-/// - `now = 10:00` -> stamp 11:00 (covers 10:00-11:00, 60 min overlap)
-/// - `now = 10:20` -> stamp 11:00 (40 min)
-/// - `now = 10:30` -> stamp 11:00 (30 min; tie, the earlier stamp wins)
-/// - `now = 10:50` -> stamp 12:00 (covers 11:00-12:00, 50 min)
+/// `t` is the rain of `[t - 1 h, t)`, so the first stamp *after* `now`
+/// would cover a mostly-past hour. The step with the largest overlap with
+/// the next 60 minutes is simply the first stamp `t >= now + 30 min`
+/// (ties go to the earlier stamp).
 ///
 /// Returns None when no stamp is at least 30 minutes ahead of `now` (a
 /// stale series).
@@ -122,8 +115,6 @@ pub fn combine_signals(
         return (0.0, Vec::new());
     }
 
-    // Python `base`: the radar weight is only used when the radar signal is
-    // available, otherwise the models and ensemble weights apply.
     let base_weight = |key: &str| -> f64 {
         match key {
             "radar" if radar_available => prob_cfg.weight_radar,
@@ -145,8 +136,7 @@ pub fn combine_signals(
         .zip(weights.iter())
         .map(|((k, _), w)| (k.to_string(), w / total))
         .collect();
-    // Python: `sum(weights[k] * signals[k] for k in signals)` — the
-    // normalized weight times the signal, compensated sum.
+    // Normalized weight times the signal, with Python's compensated sum.
     let prob = py_sum(
         signals
             .iter()
