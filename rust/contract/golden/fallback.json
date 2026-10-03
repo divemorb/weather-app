@@ -1,0 +1,47 @@
+{
+ "now": "2026-09-30T10:27:10Z",
+ "python_memory_kb": 65412,
+ "upstream": [
+  "/bs/current_weather?lat=52.52&lon=13.405",
+  "/bs/radar?date=2026-09-30T10:25:00+00:00&last_date=2026-09-30T11:25:00+00:00&lat=52.52&lon=13.405",
+  "/bs/weather?date=2026-09-28T10:27:10Z&last_date=2026-09-30T10:27:10Z&lat=52.52&lon=13.405&tz=UTC",
+  "/ens/v1/ensemble?forecast_days=2&hourly=precipitation&latitude=52.52&longitude=13.405&models=ecmwf_ifs025&timezone=UTC",
+  "/om/v1/forecast?forecast_days=3&hourly=precipitation,temperature_2m,apparent_temperature,wind_speed_10m,cloud_cover&latitude=52.52&longitude=13.405&minutely_15=precipitation&models=icon_d2,icon_eu,ecmwf_ifs025,gfs_seamless,arome_france,ukmo_seamless&timezone=UTC"
+ ],
+ "cases": {
+  "api/now": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "available": true,
+    "age_seconds": 0,
+    "stale": false,
+    "conditions": {
+     "timestamp_utc": "2026-09-30T10:00:00+00:00",
+     "temperature_c": 21.0,
+     "feels_like_c": 17.2,
+     "wind_speed_ms": 18.4,
+     "wind_direction_deg": 130.0,
+     "wind_gust_ms": 37.4,
+     "cloud_cover_pct": 100.0,
+     "humidity_pct": 43.0,
+     "pressure_hpa": 1025.0,
+     "dew_point_c": 8.04,
+     "precipitation_10mm": 0.0,
+     "precipitation_30mm": 0.0,
+     "precipitation_60mm": 0.0,
+     "condition": "dry",
+     "source_id": 303711
+    }
+   }
+  }
+ }
+}

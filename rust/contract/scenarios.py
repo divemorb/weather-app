@@ -28,6 +28,9 @@ LIVE = {
     "/ens/v1/ensemble": {"file": "live/ensemble.json"},
     "/nom/search": {"file": "live/nominatim_search.json"},
 }
+# the live recording with two shown values taken elsewhere (station steps):
+# cloud cover from Potsdam (listed source), dew point from an unlisted source
+FALLBACK = {**LIVE, "/bs/current_weather": {"file": "live/current_weather_fallback.json"}}
 RAIN = {**LIVE,
         "/bs/radar": {"file": "rain/radar.json"},
         "/om/v1/forecast": {"file": "rain/forecast.json"},
@@ -109,6 +112,7 @@ SCENARIOS = [
      "cases": api_cases() + SECURITY_CASES + VALIDATION_CASES},
     {"name": "live", "now": NOW_LIVE, "env": BERLIN, "routes": LIVE, "cases": api_cases()},
     {"name": "rain", "now": NOW_RAIN, "env": BERLIN, "routes": RAIN, "cases": api_cases()},
+    {"name": "fallback", "now": NOW_LIVE, "env": BERLIN, "routes": FALLBACK, "cases": [get("/api/now")]},
     {"name": "errors", "now": NOW_LIVE, "env": BERLIN, "routes": ERRORS,
      "cases": api_cases() + [get("/api/geocode?q=Alexanderplatz%20Berlin", "geocode/upstream-error")]},
     {"name": "accuracy", "now": NOW_RAIN, "env": {"USE_ACCURACY_WEIGHTS": "true"}, "routes": RAIN,
