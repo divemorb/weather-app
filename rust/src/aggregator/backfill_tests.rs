@@ -9,7 +9,18 @@ use serde_json::{Value, json};
 
 use super::testkit::*;
 use super::*;
+use crate::config::LocationConfig;
+use crate::stations::OBSERVATION_STATIONS_KEY;
 use crate::times::Clock;
+
+fn loc(latitude: f64, longitude: f64) -> LocationConfig {
+    LocationConfig {
+        latitude,
+        longitude,
+        timezone: "Europe/Berlin".to_string(),
+        label: String::new(),
+    }
+}
 
 /// Python `weather_payload_around_now`: /weather records around the frozen
 /// NOW = 2025-01-01 12:00.
@@ -156,4 +167,89 @@ async fn backfill_without_observations_is_noop() {
     agg.set_clock(Clock::fixed(now()));
     agg.backfill_observations().await; // must not raise
     assert!(filled_hours(agg.store()).is_empty());
+}
+
+// ---------------------------------------------------------------------------
+// the observation stations (P2): stored on success, kept otherwise
+// ---------------------------------------------------------------------------
+
+#[tokio::test]
+async fn failed_or_empty_backfill_keeps_the_stations() {
+    let fake = FakeUpstream::start();
+    let payloads = Payloads {
+        weather: Some(weather_payload_around_now()),
+        ..make_payloads()
+    };
+    serve(&fake, &payloads, &[]);
+    let agg = make_aggregator(make_cfg(&fake, CfgOpts::default()), memory_store());
+
+    agg.set_clock(Clock::fixed(now()));
+    agg.backfill_observations().await;
+    let stored = agg
+        .store()
+        .get_meta(OBSERVATION_STATIONS_KEY)
+        .unwrap()
+        .expect("the backfill with observations stored the stations");
+
+    // a backfill without any observation leaves the list as it was
+    let only_forecast = json!({
+        "weather": [
+            {"timestamp": "2025-01-01T12:00:00Z", "source_id": 1001, "precipitation": 1.0}
+        ],
+        "sources": [
+            {"id": 1001, "observation_type": "forecast",
+             "station_name": "BERLIN", "distance": 3000.0}
+        ],
+    });
+    fake.set("/bs/weather", FakeResponse::Json(only_forecast));
+    agg.backfill_observations().await;
+    assert_eq!(
+        agg.store().get_meta(OBSERVATION_STATIONS_KEY).unwrap(),
+        Some(stored.clone()),
+        "an empty backfill must keep the stored stations"
+    );
+
+    // and so does a failing fetch
+    fake.set("/bs/weather", FakeResponse::Status(500));
+    agg.backfill_observations().await;
+    assert_eq!(
+        agg.store().get_meta(OBSERVATION_STATIONS_KEY).unwrap(),
+        Some(stored),
+        "a failing backfill must keep the stored stations"
+    );
+}
+
+#[tokio::test]
+async fn moving_clears_the_stations_the_same_place_keeps_them() {
+    // The stations belong to the old location: a far move deletes them with
+    // the cache and the history, a move within ~1 km keeps them.
+    let fake = FakeUpstream::start();
+    let payloads = Payloads {
+        weather: Some(weather_payload_around_now()),
+        ..make_payloads()
+    };
+    serve(&fake, &payloads, &[]);
+    let agg = make_aggregator(make_cfg(&fake, CfgOpts::default()), memory_store());
+
+    agg.set_clock(Clock::fixed(now()));
+    agg.backfill_observations().await;
+    let stored = agg
+        .store()
+        .get_meta(OBSERVATION_STATIONS_KEY)
+        .unwrap()
+        .expect("the backfill stored the stations");
+
+    agg.set_location(loc(52.001, 13.001)).unwrap(); // make_cfg: 52.0/13.0
+    assert_eq!(
+        agg.store().get_meta(OBSERVATION_STATIONS_KEY).unwrap(),
+        Some(stored.clone()),
+        "a near move keeps the stored stations"
+    );
+
+    agg.set_location(loc(48.137, 11.575)).unwrap(); // Munich: far away
+    assert_eq!(
+        agg.store().get_meta(OBSERVATION_STATIONS_KEY).unwrap(),
+        None,
+        "a far move clears the stored stations"
+    );
 }
