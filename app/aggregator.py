@@ -204,6 +204,10 @@ class Aggregator:
         cond.feels_like_c = _first_hour_apparent(bundle, utcnow())
         return cond
 
+    async def get_current_payload(self) -> dict[str, Any] | None:
+        """The raw cached Bright Sky ``current_weather`` payload (station info)."""
+        return (await self._store.get_cache("current"))[0]
+
     async def get_radar_nowcast(self) -> RadarNowcast | None:
         """Cached radar parsed into 5-min frames.
 

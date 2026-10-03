@@ -223,7 +223,8 @@ async def api_now(request: Request) -> dict:
     agg: Aggregator = request.app.state.aggregator
     conditions = await agg.get_current_conditions()
     meta = await agg.cache_meta("current")
-    return serialize_now(conditions, meta)
+    payload = await agg.get_current_payload()
+    return serialize_now(conditions, meta, payload)
 
 
 @app.get("/api/rain-probability")

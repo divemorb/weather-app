@@ -18,6 +18,7 @@ class FakeAgg:
     def __init__(
         self,
         conditions=None,
+        current_payload=None,
         rain=None,
         bar=None,
         series=None,
@@ -27,6 +28,7 @@ class FakeAgg:
         cfg=None,
     ):
         self._conditions = conditions
+        self._current_payload = current_payload
         self._rain = rain
         self._bar = bar
         self._series = series
@@ -61,6 +63,9 @@ class FakeAgg:
 
     async def get_current_conditions(self):
         return self._conditions
+
+    async def get_current_payload(self):
+        return self._current_payload
 
     async def get_rain_probability(self):
         return self._rain

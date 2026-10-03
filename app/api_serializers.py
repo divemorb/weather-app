@@ -13,6 +13,7 @@ from __future__ import annotations
 from typing import Any
 
 from .models import CurrentConditions, RainProbability
+from .stations import station_and_fallback
 
 
 def _cache_meta(meta: dict[str, Any] | None) -> dict[str, Any]:
@@ -29,16 +30,22 @@ def _cache_meta(meta: dict[str, Any] | None) -> dict[str, Any]:
 def serialize_now(
     conditions: CurrentConditions | None,
     meta: dict[str, Any] | None,
+    payload: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Shape the 'Now' tile (``GET /api/now``).
 
     ``available`` is False when there is no cached observation yet; the
     ``conditions`` object is then null and the frontend renders an empty
     state.
+
+    ``payload`` is the raw ``/current_weather`` payload; when given, its
+    ``sources`` name the ``station`` the values come from and the per-value
+    ``fallback`` (see :func:`app.stations.station_and_fallback`).
     """
     if conditions is None:
         return {"available": False, "age_seconds": None, "stale": False, "conditions": None}
 
+    station, fallback = station_and_fallback(payload)
     return {
         **_cache_meta(meta),
         "conditions": {
@@ -57,6 +64,8 @@ def serialize_now(
             "precipitation_60mm": conditions.precipitation_60mm,
             "condition": conditions.condition,
             "source_id": conditions.source_id,
+            "station": station,
+            "fallback": fallback,
         },
     }
 

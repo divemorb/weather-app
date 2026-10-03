@@ -34,18 +34,25 @@ The serializers live in `app/api_serializers.py` (pure functions, unit-tested in
 {
   "available": true, "age_seconds": 12, "stale": false,
   "conditions": {
-    "timestamp_utc": "2025-01-01T12:00:00Z", "source_id": 11702,
+    "timestamp_utc": "2025-01-01T12:00:00Z", "source_id": 96160,
     "temperature_c": 5.0, "feels_like_c": 3.5,
     "wind_speed_ms": 3.0, "wind_direction_deg": 180.0, "wind_gust_ms": 6.0,
     "cloud_cover_pct": 75.0, "humidity_pct": 80.0, "pressure_hpa": 1015.0,
     "dew_point_c": 3.0,
     "precipitation_10mm": 0.0, "precipitation_30mm": 0.1, "precipitation_60mm": 0.2,
-    "condition": "Rain"
+    "condition": "Rain",
+    "station": {"name": "Berlin-Tempelhof", "distance_m": 5837.0, "lat": 52.4676,
+                "lon": 13.402, "height_m": 47.7, "dwd_station_id": "00433"},
+    "fallback": {"cloud_cover_pct": {"name": "Potsdam", "distance_m": 27915.0}}
   }
 }
 ```
 
 `conditions` is `null` (and `available: false`) until the first observation is cached.
+
+`station` names the observation station the values come from (the listed Bright Sky source whose `id` equals `source_id`): `name` (`station_name`), `distance_m`, `lat`, `lon`, `height_m` and `dwd_station_id`; a missing key is `null`. It is `null` when the payload lists no such source (older payloads may have no `sources` key at all).
+
+`fallback` says where the individual values came from instead: for each value Bright Sky took from a different listed station (`fallback_source_ids`), the **API's own field name** (`cloud_cover` → `cloud_cover_pct`, …) maps to that station's `name` and `distance_m`. Fields the API doesn't carry (`solar_60`, …) and ids of unlisted sources are left out; `{}` when nothing fell back.
 
 **`GET /api/rain-probability`**
 
