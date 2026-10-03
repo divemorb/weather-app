@@ -192,7 +192,7 @@
   width: 100%;
   max-width: 340px;
   height: auto;
-  margin-top: 14px;
+  margin: 14px auto 0;
 }
 
 .station-map .map-radius { fill: none; stroke: var(--accent); stroke-width: 1.5; }
@@ -202,6 +202,7 @@
 .station-map .map-north path { fill: none; stroke: var(--muted); stroke-width: 1.5; }
 .station-map .map-north text,
 .station-map .map-scale text { fill: var(--muted); font-size: 12px; font-family: inherit; }
+.station-map .map-label { fill: var(--text); font-size: 11px; font-family: inherit; }
 .station-map .map-scale line { stroke: var(--muted); stroke-width: 1.5; }
 
 /* Wider screens: the countdown tiles sit in a row. */

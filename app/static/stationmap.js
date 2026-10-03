@@ -126,6 +126,17 @@ function buildMap(location, marks, radiusKm, lang, locale) {
     title.textContent = m.name; // untrusted API text: textContent
     mark.appendChild(title);
     svg.appendChild(mark);
+    // The name under the mark (above it near the bottom), shifted to stay inside
+    // the map (width estimated at 6 px per character).
+    const x = Number(mark.getAttribute("cx"));
+    const y = Number(mark.getAttribute("cy"));
+    const half = Math.min((String(m.name).length * 6) / 2, c - 4);
+    const label = svgEl("text", {
+      class: "map-label", "text-anchor": "middle",
+      x: Math.min(Math.max(x, half + 4), size - half - 4), y: y > size - 50 ? y - 8 : y + 16,
+    });
+    label.textContent = m.name;
+    svg.appendChild(label);
   }
   const loc = svgEl("g", { "data-test": "map-location", class: "map-location" });
   loc.appendChild(svgEl("circle", { class: "map-loc", cx: c, cy: c, r: 5 }));
