@@ -1,6 +1,6 @@
 {
  "now": "2026-09-30T10:27:10Z",
- "python_memory_kb": 64196,
+ "python_memory_kb": 64144,
  "upstream": [],
  "cases": {
   "healthz": {
@@ -281,8 +281,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "d5cc4efcb07e0f1cb36f0b34cda0ea85b22599434742b310dd5dc965b88771a1",
-   "length": 9536
+   "sha256": "ea000f8cfaa6c233ee3bb3ca95e33bb59dfeadd43478f03aa33e2760394d0bca",
+   "length": 9490
   },
   "static/index.html": {
    "status": 200,
@@ -295,8 +295,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "d5cc4efcb07e0f1cb36f0b34cda0ea85b22599434742b310dd5dc965b88771a1",
-   "length": 9536
+   "sha256": "ea000f8cfaa6c233ee3bb3ca95e33bb59dfeadd43478f03aa33e2760394d0bca",
+   "length": 9490
   },
   "static/api.js": {
    "status": 200,
@@ -309,8 +309,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "ebafc57f6492b3698b8547ff94af9318e6f8c3c1ec59197a1090cf443505ed48",
-   "length": 1240
+   "sha256": "e94543e3be5caa7200ca809c5e7fd723bc0d3a8adf562cc7992a0fcb37cbfecb",
+   "length": 1102
   },
   "static/app.js": {
    "status": 200,
@@ -323,8 +323,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "2ba9502f9ab9c393807595209e39d6acce2f094ccd23aef83d6fcc9c3863d2df",
-   "length": 8555
+   "sha256": "f3049ef91041c6b3f25a05fb6fd8a93f22232c52942f8efafabafe38e1fd7f81",
+   "length": 8512
   },
   "static/chart.css": {
    "status": 200,
@@ -337,8 +337,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "5f14ec55890254af2d23597a9823a346fdc2f180e46dd36cd2e51bbe8d68ebb3",
-   "length": 1415
+   "sha256": "3cd3f47e4eb4efc2c803b0a7ff38bc0ca39a97b4725a637f302aa6eee8408c4b",
+   "length": 1306
   },
   "static/chart.js": {
    "status": 200,
@@ -351,8 +351,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "2d0d9f97bac524640ea77459088dc7809aa40a66aa318745c875b1f7f96b3fdd",
-   "length": 7584
+   "sha256": "204d5bab4446649dd451ef47c3d23b6fe6f95bb51fd7ae01b5046fd97118becf",
+   "length": 7103
   },
   "static/details.css": {
    "status": 200,
@@ -365,8 +365,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "037dd33de9b7654f5ef1aa1b4d6eaaee312994ea2e64b6b67cd192ad558d4f4b",
-   "length": 5770
+   "sha256": "82d2d385c65f274d037279616a07860dbd13372be655b2dead2c4a8169cb7166",
+   "length": 5383
   },
   "static/details.js": {
    "status": 200,
@@ -379,8 +379,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "f3df4b84a38252e96ebc97cbfc33bef678817b54b6eec47b864cc3c805064227",
-   "length": 14342
+   "sha256": "71bcef441defb84d88f60724234565aa62630838abdb3f9f7c02efc6556ba4e4",
+   "length": 13456
   },
   "static/format.js": {
    "status": 200,
@@ -393,8 +393,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "066549a6c25432c695141cd7ec1c79c331090185bb986feae215ac110c4078e9",
-   "length": 13344
+   "sha256": "b9c7deb5463029b3e985333ec83cfb7379e8b12da1f2a823975729134f6834c1",
+   "length": 13286
   },
   "static/glance.js": {
    "status": 200,
@@ -407,8 +407,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "8e7bf1fb972fadb4cfa54636583cbad9c9cf72683d081a917e098ab6ca24b38d",
-   "length": 5813
+   "sha256": "88f46108b795ce993494db9b9eb9c59efc266f5007860ccd338e480952bcbd16",
+   "length": 4997
   },
   "static/i18n.js": {
    "status": 200,
@@ -421,8 +421,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "728f1d0fa468ef843e9b67fdfb17f678516bc983cccddf74f19cdbce0216ceb5",
-   "length": 13389
+   "sha256": "98e94e231fb814fd02a2e55e792f80fa6bd9ef1e031486df25b7b636aa19f09b",
+   "length": 13349
   },
   "static/kiosk.css": {
    "status": 200,
@@ -435,8 +435,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "5b8162210e3f97494d4a771fe91d93d41f9f746027d51c74a07186762eea5ceb",
-   "length": 6282
+   "sha256": "7fd2672a53d62930a07d73c33b2ebd70e2fb37c9d18b4ab51c2339876838675a",
+   "length": 5589
   },
   "static/now.js": {
    "status": 200,
@@ -449,8 +449,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "5a9ed59c573633d34eec3aa3582b031b706925108b82d6ab0a886ed33cc673a3",
-   "length": 5282
+   "sha256": "0d39bdf6c2da9a10badb303d32a0491068caeb0549965c57aba1e19d597279be",
+   "length": 5070
   },
   "static/setup.js": {
    "status": 200,
@@ -463,8 +463,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "5370f926956386a3864bf3e3cc24455b74f89bf1fa5cc13abd970aed03f5c8b8",
-   "length": 7906
+   "sha256": "bb462d0d2f52872470dfcd588119549074a107d79deda9cf4d2fc9a2481ea08b",
+   "length": 7713
   },
   "static/stationmap.js": {
    "status": 200,
@@ -477,8 +477,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "bac5d07b36bf3ee447155b90ffb914d22c4775faec3e5e56c800ce205774c317",
-   "length": 7297
+   "sha256": "db31cff70c67d939c9901f7af63da453375b322e359d49372594c88ed9a767b8",
+   "length": 6762
   },
   "static/style.css": {
    "status": 200,
@@ -491,8 +491,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "e1a73b315a694df7c46a4fe4bd2fa6a454b26c49a1150272186c719162f74a12",
-   "length": 12352
+   "sha256": "0c0806d8910b654b5d2374b9a5d23e4b698ebd62e861785503d11d595fcff1d3",
+   "length": 11915
   },
   "static/app.js-revalidate": {
    "status": 304,
