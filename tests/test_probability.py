@@ -1,6 +1,6 @@
 """Unit tests for the pure rain-probability logic (no I/O, no network).
 
-These tests are the core of step 3: they pin down how the radar vote, the
+They pin down how the radar vote, the
 model votes, the ensemble share, and the weighted combination behave —
 including every fallback / edge case the aggregator relies on.
 """

@@ -187,7 +187,7 @@ async def test_client_forecast_builds_correct_params():
     assert "/forecast" in seen["url"]
     assert seen["params"].get("models") == "icon_d2,icon_eu"
     assert seen["params"].get("timezone") == "UTC"
-    # 3 days so 24 *future* hours remain even late in the UTC day (step 6b)
+    # 3 days so 24 *future* hours remain even late in the UTC day
     assert seen["params"].get("forecast_days") == "3"
     await client.aclose()
 

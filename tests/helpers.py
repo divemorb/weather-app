@@ -1,8 +1,7 @@
 """Builders for synthetic API payloads used by the unit tests (no network).
 
-These mirror the *verified* response shapes of Bright Sky and Open-Meteo so
-the parser tests exercise realistic data, including the base64+zlib radar
-grid encoding (uint16, 0.01 mm per 5 min units).
+They mirror the real response shapes of Bright Sky and Open-Meteo, including
+the base64+zlib radar grid encoding (uint16, 0.01 mm per 5 min units).
 """
 from __future__ import annotations
 

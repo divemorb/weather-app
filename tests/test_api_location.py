@@ -1,5 +1,4 @@
-"""Endpoint tests for POST /api/location (step 8c) and GET /api/geocode
-(step 8c2).
+"""Endpoint tests for POST /api/location and GET /api/geocode.
 
 Covers: a valid same-origin save (values rounded to 3 decimals, the
 effective config updated on ``app.state``), the CSRF refusal for foreign
@@ -193,7 +192,7 @@ def test_post_location_security_headers_still_present_on_403_and_422(client, cfg
 
 
 # ---------------------------------------------------------------------------
-# GET /api/geocode (step 8c2)
+# GET /api/geocode
 # ---------------------------------------------------------------------------
 def test_get_geocode_returns_results(client, cfg):
     c = client(FakeAgg(cfg=cfg))

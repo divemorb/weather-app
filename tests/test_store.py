@@ -117,7 +117,7 @@ async def test_migrates_old_db_once(tmp_path):
     db = str(tmp_path / "weather.db")
 
     # --- "old" database: v1 schema + two duplicate (model, valid_from) rows
-    #     written by the pre-6b/6c code (hourly re-inserts, mislabelled) ---
+    #     (hourly re-inserts, mislabelled) ---
     async with aiosqlite.connect(db) as db1:
         await db1.executescript(
             """
@@ -169,7 +169,7 @@ async def test_migrates_old_db_once(tmp_path):
 
 
 # ---------------------------------------------------------------------------
-# app meta + location data clearing (step 8b)
+# app meta + location data clearing
 # ---------------------------------------------------------------------------
 async def test_meta_round_trip_and_missing_key(store):
     assert await store.get_meta("location") is None
@@ -218,8 +218,8 @@ async def test_clear_location_data_wipes_cache_and_history_only(store):
 
 
 async def test_v2_db_migrates_to_v3_dropping_model_accuracy(tmp_path):
-    """A DB written by the 6c code (version 2, with the unused
-    ``model_accuracy`` table) migrates to v3 once and keeps its data."""
+    """A version-2 DB (with the unused ``model_accuracy`` table) migrates to
+    v3 once and keeps its data."""
     import aiosqlite
 
     db = str(tmp_path / "weather.db")

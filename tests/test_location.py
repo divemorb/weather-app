@@ -1,4 +1,4 @@
-"""Tests for the runtime location state (step 8b).
+"""Tests for the runtime location state.
 
 Covers the pure helpers in :mod:`app.location` (JSON round trip, ``moved``)
 and the startup resolution (stored value wins, env/YAML is adopted), plus

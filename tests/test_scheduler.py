@@ -1,9 +1,7 @@
 """Scheduler wiring: jobs really run on the event loop; schedule status.
 
-The first test drives a real :class:`AsyncIOScheduler`. The refresh jobs
-used to be plain ``def`` functions calling ``asyncio.ensure_future``;
-APScheduler runs those in a worker thread with no event loop, so every
-scheduled refresh crashed and only the startup refresh ever ran.
+The first test drives a real :class:`AsyncIOScheduler`: APScheduler runs
+plain ``def`` jobs in a worker thread with no event loop.
 """
 from __future__ import annotations
 

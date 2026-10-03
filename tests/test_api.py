@@ -1,16 +1,11 @@
-"""REST endpoint tests for the frontend contract (step 4).
+"""REST endpoint tests for the frontend contract.
 
-The aggregator is faked (no network, no real scheduler/DB): we inject a fake
-into ``app.state.aggregator`` and a real config into ``app.state.cfg``.
-
-``TestClient(app)`` is used *without* entering its context manager, so the app's
-lifespan (which would open a real DB, start the scheduler and hit the network
-for the initial refresh) never runs — each request just reads the injected
-state. This tests the routing + serialization contract in isolation.
-
-Step 8a split: the fakes/builders live in ``tests/api_fakes.py``, the
-``cfg``/``client`` fixtures in ``tests/conftest.py``, and the security tests
-in ``tests/test_api_security.py``.
+The aggregator is faked (no network, no real scheduler/DB): a fake is
+injected into ``app.state.aggregator`` and a real config into
+``app.state.cfg``. ``TestClient(app)`` is used *without* entering its
+context manager, so the app's lifespan never runs — each request just reads
+the injected state. This tests the routing + serialization contract in
+isolation; the fakes/builders live in ``tests/api_fakes.py``.
 """
 from __future__ import annotations
 
@@ -54,7 +49,7 @@ def test_api_config(client, cfg):
 
 
 def test_api_config_unconfigured(client, cfg):
-    # step 8b: no location yet -> configured=false, location=null (the
+    # no location yet -> configured=false, location=null (the
     # frontend shows the setup wizard instead of calling toFixed on null)
     from dataclasses import replace
 

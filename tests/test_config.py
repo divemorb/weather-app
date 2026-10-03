@@ -95,7 +95,7 @@ def test_weight_fallback_without_radar():
 
 
 # ---------------------------------------------------------------------------
-# location is optional (step 8b: the app runs unconfigured)
+# location is optional (the app runs unconfigured)
 # ---------------------------------------------------------------------------
 def test_no_location_in_yaml_and_no_env_is_unconfigured(make_config, monkeypatch):
     for var in ("LATITUDE", "LONGITUDE", "TIMEZONE"):

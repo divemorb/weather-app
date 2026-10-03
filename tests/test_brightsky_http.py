@@ -1,8 +1,7 @@
-"""HTTP-layer tests for the Bright Sky client (step 8a, moved out of
-test_brightsky_client.py).
+"""HTTP-layer tests for the Bright Sky client.
 
-Uses ``httpx2.MockTransport`` to avoid any real requests. The parser tests
-stay in ``test_brightsky_client.py``.
+Uses ``httpx2.MockTransport`` to avoid any real requests; the parser tests
+live in ``tests/test_brightsky_client.py``.
 """
 from __future__ import annotations
 

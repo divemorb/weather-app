@@ -1,4 +1,4 @@
-"""Integration tests for the hourly observation backfill (step 6d).
+"""Integration tests for the hourly observation backfill.
 
 The clients are stubbed (no network); the Store is a real in-memory SQLite
 db. The clock is monkeypatched on ``app.aggregator.utcnow``: history is

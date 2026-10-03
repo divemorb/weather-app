@@ -1,9 +1,9 @@
-"""Fakes + builders for the REST endpoint tests (step 8a, moved out of
-test_api.py).
+"""Fakes and builders for the REST endpoint tests.
 
-The aggregator is faked (no network, no real scheduler/DB): we inject a fake
-into ``app.state.aggregator`` and a real config into ``app.state.cfg``.
-The ``cfg`` / ``client`` fixtures live in ``tests/conftest.py``.
+The aggregator is faked (no network, no real scheduler/DB): a fake is
+injected into ``app.state.aggregator`` and a real config into
+``app.state.cfg``. The ``cfg`` / ``client`` fixtures live in
+``tests/conftest.py``.
 """
 from __future__ import annotations
 
@@ -42,13 +42,13 @@ class FakeAgg:
             "stale": False,
         }
         self._cfg = cfg
-        # records of the location writes (step 8c)
+        # records of the location writes
         self.set_location_calls = []
 
     @property
     def cfg(self):
-        """The effective config (step 8c: ``POST /api/location`` reads it
-        back to update ``app.state.cfg``)."""
+        """The effective config (``POST /api/location`` reads it back to
+        update ``app.state.cfg``)."""
         return self._cfg
 
     async def set_location(self, loc) -> None:
@@ -82,7 +82,7 @@ class FakeAgg:
         return self._accuracy
 
     async def get_observation_stations(self):
-        """The remembered observation stations (P2); [] by default."""
+        """The remembered observation stations; [] by default."""
         return self._stations if self._stations is not None else []
 
     async def get_source_status(self):

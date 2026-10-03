@@ -1,8 +1,7 @@
-"""Security endpoint tests (step 8a, moved out of test_api.py).
+"""Security endpoint tests.
 
 Covers: no CORS, the security headers on 200/400/500 responses, API docs
-off by default (step 7b) and the Host-header check against DNS rebinding
-(step 7g).
+off by default, and the Host-header check against DNS rebinding.
 """
 from __future__ import annotations
 
@@ -12,7 +11,7 @@ from app.main import host_allowed
 from tests.api_fakes import FakeAgg, make_sources
 
 # ---------------------------------------------------------------------------
-# security: no CORS, security headers, docs off (step 7b)
+# no CORS, security headers, docs off
 # ---------------------------------------------------------------------------
 _SECURITY_HEADERS = {
     "Content-Security-Policy": (
@@ -88,7 +87,7 @@ def test_unhandled_error_500_still_carries_security_headers(client):
 
 
 # ---------------------------------------------------------------------------
-# security: Host header check against DNS rebinding (step 7g)
+# Host header check against DNS rebinding
 # ---------------------------------------------------------------------------
 @pytest.mark.parametrize(
     "host",

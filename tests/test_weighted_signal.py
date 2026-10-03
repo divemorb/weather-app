@@ -1,9 +1,4 @@
-"""Unit tests for the accuracy-weighted model signal (step 6g).
-
-Split out of ``test_probability.py`` (step 6h): the ``_vote`` helper and the
-``test_weighted_*`` / ``test_explanation_accuracy_weighted_flag`` tests.
-No behavior change.
-"""
+"""Unit tests for the accuracy-weighted model signal."""
 from __future__ import annotations
 
 from datetime import datetime, timezone

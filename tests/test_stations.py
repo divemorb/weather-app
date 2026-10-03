@@ -1,7 +1,7 @@
-"""Unit tests for the pure station parsers (``app/stations.py``, steps P1, P2).
+"""Unit tests for the pure station parsers (``app/stations.py``).
 
-The spec tests (``tests/test_station.py``, ``test_now_*`` / S5) fix the JSON
-contract through the API; these pin the parsers' behaviour on untrusted
+The API-level tests (``tests/test_station.py``) fix the JSON contract
+through the API; these pin the parsers' behaviour on untrusted
 payload shapes (missing ``sources`` key, missing/mistyped entry keys) and on
 the stored-value round trip (canonical JSON, broken values read as empty).
 """
@@ -120,7 +120,7 @@ def test_station_and_fallback_lists_every_carried_field():
 
 
 # ---------------------------------------------------------------------------
-# P2: the observation stations
+# the observation stations
 # ---------------------------------------------------------------------------
 
 def test_observation_stations_counts_kept_records_nearest_first():

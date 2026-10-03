@@ -1,4 +1,4 @@
-"""Unit tests for the pure per-model accuracy scorer (step 6e).
+"""Unit tests for the pure per-model accuracy scorer.
 
 The scorer evaluates the same yes/no event the next-hour vote uses
 (``> threshold_mm``), so a model that is always dry during a dry spell

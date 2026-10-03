@@ -1,6 +1,6 @@
 """Unit tests for the pure API serializers (no I/O, no network, no FastAPI).
 
-These pin the exact JSON contract the frontend (step 5) consumes, including
+These pin the exact JSON contract the frontend consumes, including
 the empty/unavailable fallbacks.
 """
 from __future__ import annotations

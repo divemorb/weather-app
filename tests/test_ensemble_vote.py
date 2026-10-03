@@ -1,8 +1,4 @@
-"""Unit tests for the ensemble vote (pure logic, no I/O, no network).
-
-Split out of ``test_probability.py`` (step 6h): the ``_ensemble`` helper and
-the ``test_ensemble_vote_*`` tests. No behavior change.
-"""
+"""Unit tests for the ensemble vote (pure logic, no I/O, no network)."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -90,7 +86,7 @@ def test_ensemble_vote_skips_null_members():
 
 
 # ---------------------------------------------------------------------------
-# Best-overlap hour selection (step 6i): the picked stamp is the first one
+# Best-overlap hour selection: the picked stamp is the first one
 # with t >= now + 30 min. Stamps here are 12:00, 13:00, 14:00, 15:00.
 # Each test puts rain in exactly one index, so the result proves which
 # index was picked (50% = picked, 0% = a different index was picked).
@@ -123,8 +119,7 @@ def test_ensemble_vote_best_overlap_now_11h30_tie_prefers_earlier_stamp():
 
 def test_ensemble_vote_best_overlap_now_11h50_picks_13h00():
     # now = 11:50 -> 13:00 covers 12:00-13:00 (50 min overlap with the next
-    # 60 min, more than 12:00's 10) — the old first-stamp-after-now rule
-    # would have wrongly picked 12:00.
+    # 60 min, more than 12:00's 10).
     data = _ensemble([[0.0, 5.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]])
     vote = ensemble_vote(data, 0.1, NOW - timedelta(minutes=10))
     assert vote.n_rain_members == 1

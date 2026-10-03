@@ -1,4 +1,4 @@
-"""Tests for the Nominatim address search (step 8c2).
+"""Tests for the Nominatim address search.
 
 Parser tests are pure (real-shaped sample from the live API); client tests
 use ``httpx2.MockTransport`` with a constant fake clock and a fake sleep that
