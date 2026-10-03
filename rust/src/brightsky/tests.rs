@@ -1,7 +1,6 @@
 use super::*;
 use serde_json::json;
 
-/// `NOW_WEATHER` in the Python tests: 2026-09-27T20:00:00Z.
 fn now_weather() -> DateTime<Utc> {
     parse_iso("2026-09-27T20:00:00Z").unwrap()
 }
@@ -136,8 +135,7 @@ fn parse_hourly_observations_empty_payload() {
 #[test]
 fn parse_hourly_observations_non_numeric_precipitation_raises() {
     // A record that passes every skip check but carries a non-numeric
-    // precipitation is a SourceError for the whole call (Python's float()
-    // raises there too).
+    // precipitation is a SourceError for the whole call.
     let payload = crate::testutil::make_weather_payload(
         Some(json!([
             {"timestamp": "2026-09-27T16:00:00+00:00", "source_id": 1002,

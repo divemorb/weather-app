@@ -1,11 +1,7 @@
-//! `valid_timezone`, `same_origin` (Python `app.location.same_origin`) and
-//! the JSON shapes of `errors_json` / `location_payload`.
+//! `valid_timezone`, `same_origin` and the JSON shapes of
+//! `errors_json` / `location_payload`.
 
 use super::*;
-
-// ---------------------------------------------------------------------------
-// valid_timezone
-// ---------------------------------------------------------------------------
 
 #[test]
 fn valid_timezone_accepts_iana_names() {
@@ -44,10 +40,6 @@ fn valid_timezone_rejects_garbage_and_paths() {
         assert!(!valid_timezone(name), "{name:?}");
     }
 }
-
-// ---------------------------------------------------------------------------
-// same_origin
-// ---------------------------------------------------------------------------
 
 fn hdrs(pairs: &[(&str, &str)]) -> HeaderMap {
     let mut headers = HeaderMap::new();
@@ -91,10 +83,6 @@ fn same_origin_without_origin() {
     ])));
     assert!(same_origin(&hdrs(&[("host", host)])));
 }
-
-// ---------------------------------------------------------------------------
-// errors_json / location_payload
-// ---------------------------------------------------------------------------
 
 #[test]
 fn errors_json_shape() {

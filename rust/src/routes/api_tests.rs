@@ -1,6 +1,5 @@
-//! Tests for the GET API endpoints (ports of `tests/test_api.py` and two
-//! of `tests/test_api_security.py`), against a real aggregator over the
-//! fake upstream instead of Python's `FakeAgg`.
+//! Tests for the GET API endpoints, against a real aggregator over the
+//! fake upstream.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -100,7 +99,6 @@ fn assert_security_headers(headers: &HeaderMap) {
     );
 }
 
-/// `test_api_config`.
 #[tokio::test]
 async fn api_config() {
     let fake = FakeUpstream::start();
@@ -142,8 +140,6 @@ async fn api_config() {
     assert_eq!(body["models"], Value::from(cfg.models.forecast));
 }
 
-/// `test_api_config_unconfigured` (Python: `cfg` replaced by
-/// `replace(load_config(), location=None)`).
 #[tokio::test]
 async fn api_config_unconfigured() {
     let fake = FakeUpstream::start();
@@ -161,7 +157,6 @@ async fn api_config_unconfigured() {
     assert_eq!(body["location"], Value::Null);
 }
 
-/// `test_api_now_empty`: an aggregator with an empty cache.
 #[tokio::test]
 async fn api_now_empty() {
     let fake = FakeUpstream::start();
@@ -174,7 +169,6 @@ async fn api_now_empty() {
     assert_eq!(body["age_seconds"], Value::Null);
 }
 
-/// `test_api_rain_probability_no_data`.
 #[tokio::test]
 async fn api_rain_probability_no_data() {
     let fake = FakeUpstream::start();
@@ -187,7 +181,6 @@ async fn api_rain_probability_no_data() {
     assert!(body["explanation"].as_str().unwrap().contains("No data"));
 }
 
-/// `test_api_radar_next_hour_unavailable`: still 12 buckets, all dry.
 #[tokio::test]
 async fn api_radar_next_hour_unavailable() {
     let fake = FakeUpstream::start();
@@ -199,9 +192,7 @@ async fn api_radar_next_hour_unavailable() {
     assert_eq!(body["steps"].as_array().unwrap().len(), 12);
 }
 
-/// `test_api_models_24h_empty`. The Python test's `available is True`
-/// comes from its `FakeAgg`'s canned meta; the real app (empty cache)
-/// reports the forecast source as unavailable.
+/// empty cache: the forecast source is reported unavailable.
 #[tokio::test]
 async fn api_models_24h_empty() {
     let fake = FakeUpstream::start();
@@ -215,7 +206,6 @@ async fn api_models_24h_empty() {
     assert_eq!(body["n_models"], serde_json::json!(0));
 }
 
-/// `test_api_model_accuracy_empty`.
 #[tokio::test]
 async fn api_model_accuracy_empty() {
     let fake = FakeUpstream::start();
@@ -228,8 +218,6 @@ async fn api_model_accuracy_empty() {
     assert_eq!(body["min_samples"], serde_json::json!(48));
 }
 
-/// `test_api_sources`: all four payloads cached 60 s ago, so every
-/// `age_seconds` is 60 and nothing is stale.
 #[tokio::test]
 async fn api_sources() {
     let fake = FakeUpstream::start();
@@ -267,7 +255,6 @@ async fn api_sources() {
     assert_eq!(body["ensemble"]["stale"], Value::Bool(false));
 }
 
-/// `test_api_schedule`: the radar job has a next run, the models job not.
 #[tokio::test]
 async fn api_schedule() {
     let fake = FakeUpstream::start();
@@ -294,7 +281,6 @@ async fn api_schedule() {
     assert_eq!(body["jobs"]["models"]["next_run_utc"], Value::Null);
 }
 
-/// `test_no_cors_for_foreign_origin`.
 #[tokio::test]
 async fn no_cors_for_foreign_origin() {
     let fake = FakeUpstream::start();
@@ -305,8 +291,7 @@ async fn no_cors_for_foreign_origin() {
     assert!(!headers.contains_key("access-control-allow-origin"));
 }
 
-/// `test_unhandled_error_500_still_carries_security_headers`: a broken
-/// store makes `/api/now` fail with the middleware's plain-text 500.
+/// a broken store makes `/api/now` fail with the middleware's plain-text 500.
 #[tokio::test]
 async fn unhandled_error_500_still_carries_security_headers() {
     let fake = FakeUpstream::start();

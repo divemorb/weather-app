@@ -1,4 +1,4 @@
-//! The Bright Sky HTTP-layer tests (Python `tests/test_brightsky_http.py`).
+//! Bright Sky HTTP-layer tests.
 
 use super::*;
 use serde_json::json;
@@ -7,7 +7,6 @@ use crate::testutil;
 use crate::testutil::fake_upstream::{FakeResponse, FakeUpstream};
 use crate::upstream::MAX_RESPONSE_BYTES;
 
-/// Python `test_client_fetch_weather_payload_requests_window`.
 #[tokio::test]
 async fn client_fetch_weather_payload_requests_window() {
     let fake = FakeUpstream::start();
@@ -30,7 +29,6 @@ async fn client_fetch_weather_payload_requests_window() {
     assert_eq!(req.param("lon"), Some("13.0"));
 }
 
-/// Python `test_client_fetch_weather_payload_http_error`.
 #[tokio::test]
 async fn client_fetch_weather_payload_http_error() {
     let fake = FakeUpstream::start();
@@ -43,7 +41,6 @@ async fn client_fetch_weather_payload_http_error() {
     assert!(err.to_string().contains("/weather"));
 }
 
-/// Python `test_client_fetch_current_uses_correct_endpoint`.
 #[tokio::test]
 async fn client_fetch_current_uses_correct_endpoint() {
     let fake = FakeUpstream::start();
@@ -60,7 +57,6 @@ async fn client_fetch_current_uses_correct_endpoint() {
     assert_eq!(req.param("lon"), Some("13.0"));
 }
 
-/// Python `test_client_radar_endpoint`.
 #[tokio::test]
 async fn client_radar_endpoint() {
     let fake = FakeUpstream::start();
@@ -82,10 +78,9 @@ async fn client_radar_endpoint() {
     assert!(req.path.contains("/radar"));
 }
 
-/// Python `test_fetch_radar_requests_next_hour_window`: the radar request
-/// must cover [now, now+1h) so the response includes the nowcast (frames at
-/// or after 'now'); without it Bright Sky returns the previous hour only
-/// (all in the past) and the radar signal stays dry.
+/// The radar request must cover [now, now+1h) so the response includes the
+/// nowcast (frames at or after 'now'); without it Bright Sky returns the
+/// previous hour only (all in the past) and the radar signal stays dry.
 #[tokio::test]
 async fn fetch_radar_requests_next_hour_window() {
     let fake = FakeUpstream::start();
@@ -109,7 +104,6 @@ async fn fetch_radar_requests_next_hour_window() {
     assert_eq!(req.param("last_date"), Some("2026-09-25T07:20:00+00:00"));
 }
 
-/// Python `test_client_http_error_raises_source_error`.
 #[tokio::test]
 async fn client_http_error_raises_source_error() {
     let fake = FakeUpstream::start();
@@ -122,9 +116,8 @@ async fn client_http_error_raises_source_error() {
     assert!(err.to_string().contains("Bright Sky /current_weather"));
 }
 
-/// Python `test_client_rejects_body_over_response_size_cap`: a body above
-/// MAX_RESPONSE_BYTES must be aborted with a SourceError, never fully
-/// buffered (memory + SQLite cache protection).
+/// A body above MAX_RESPONSE_BYTES must be aborted with a SourceError, never
+/// fully buffered (memory + SQLite cache protection).
 #[tokio::test]
 async fn client_rejects_body_over_response_size_cap() {
     let fake = FakeUpstream::start();
@@ -143,9 +136,8 @@ async fn client_rejects_body_over_response_size_cap() {
     assert!(err.to_string().contains("cap"));
 }
 
-/// Python `test_client_deeply_nested_json_raises_source_error`: 200 KB of
-/// nested brackets is far below the size cap but makes the parser fail; it
-/// must surface as a SourceError.
+/// 200 KB of nested brackets is far below the size cap but makes the parser
+/// fail; it must surface as a SourceError.
 #[tokio::test]
 async fn client_deeply_nested_json_raises_source_error() {
     let fake = FakeUpstream::start();
@@ -159,8 +151,6 @@ async fn client_deeply_nested_json_raises_source_error() {
     assert!(err.to_string().contains("not valid JSON"));
 }
 
-/// Python `test_client_normal_body_still_parses_with_streaming`: the
-/// streamed path still returns parsed objects.
 #[tokio::test]
 async fn client_normal_body_still_parses_with_streaming() {
     let fake = FakeUpstream::start();

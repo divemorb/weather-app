@@ -1,5 +1,4 @@
-//! The Open-Meteo HTTP-layer tests (the HTTP tests of Python
-//! `tests/test_openmeteo_client.py`).
+//! Open-Meteo HTTP-layer tests.
 
 use super::*;
 use serde_json::{Value, json};
@@ -25,7 +24,6 @@ const MIN15: [&str; 8] = [
     "2026-09-25T01:45",
 ];
 
-/// Python `_forecast_payload()`.
 fn forecast_payload() -> Value {
     testutil::make_forecast_payload(
         &["icon_d2", "icon_eu"],
@@ -111,8 +109,7 @@ fn forecast_payload() -> Value {
     )
 }
 
-/// Python `_ensemble_payload()`: 4 hours, control + 3 members
-/// (member01..03).
+/// 4 hours, control + 3 members (member01..03).
 fn ensemble_payload() -> Value {
     testutil::make_ensemble_payload(
         &HOURS,
@@ -125,7 +122,6 @@ fn ensemble_payload() -> Value {
     )
 }
 
-/// Python `test_client_forecast_builds_correct_params`.
 #[tokio::test]
 async fn client_forecast_builds_correct_params() {
     let fake = FakeUpstream::start();
@@ -138,11 +134,10 @@ async fn client_forecast_builds_correct_params() {
     assert!(req.path.contains("/forecast"));
     assert_eq!(req.param("models"), Some("icon_d2,icon_eu"));
     assert_eq!(req.param("timezone"), Some("UTC"));
-    // 3 days so 24 *future* hours remain even late in the UTC day (step 6b)
+    // 3 days so 24 *future* hours remain even late in the UTC day
     assert_eq!(req.param("forecast_days"), Some("3"));
 }
 
-/// Python `test_client_ensemble_builds_correct_params`.
 #[tokio::test]
 async fn client_ensemble_builds_correct_params() {
     let fake = FakeUpstream::start();
@@ -160,7 +155,6 @@ async fn client_ensemble_builds_correct_params() {
     assert_eq!(req.param("models"), Some("ecmwf_ifs025"));
 }
 
-/// Python `test_client_api_error_json_raises_source_error`.
 #[tokio::test]
 async fn client_api_error_json_raises_source_error() {
     let fake = FakeUpstream::start();
@@ -176,8 +170,6 @@ async fn client_api_error_json_raises_source_error() {
     assert_eq!(err.to_string(), "Open-Meteo error: invalid model");
 }
 
-/// Python `test_client_rejects_body_over_response_size_cap` (Open-Meteo):
-/// the same cap as the Bright Sky client.
 #[tokio::test]
 async fn client_rejects_body_over_response_size_cap() {
     let fake = FakeUpstream::start();

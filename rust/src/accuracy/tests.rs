@@ -12,8 +12,7 @@ fn approx(actual: f64, expected: f64) -> bool {
     (actual - expected).abs() <= tol
 }
 
-/// Build `(model, precip_mm, observed_mm)` rows from per-model pairs, in
-/// order (like the Python `rows_for` helper over an ordered dict).
+/// Build `(model, precip_mm, observed_mm)` rows from per-model pairs, in order.
 fn rows_for(pairs_by_model: &[(&str, &[(f64, f64)])]) -> Vec<(String, f64, f64)> {
     let mut rows = Vec::new();
     for &(model, pairs) in pairs_by_model {

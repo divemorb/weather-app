@@ -63,7 +63,7 @@ fn start(dir: &Path, base: &str, port: u16) -> Child {
         .unwrap()
 }
 
-/// The sandbox has no `kill` binary, only the shell builtin.
+/// Send SIGTERM via the shell builtin `kill`.
 #[cfg(test)]
 fn sigterm(child: &Child) {
     let ok = Command::new("sh")

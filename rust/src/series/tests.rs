@@ -3,19 +3,19 @@ use crate::models::{ForecastBundle, ModelSeries, RadarCell, RadarFrame, RadarNow
 use crate::times::parse_iso;
 use chrono::{DateTime, Datelike, TimeDelta, TimeZone, Timelike, Utc};
 
-/// The Python tests' `NOW` constant: 2025-01-01 12:00 UTC.
+/// The fixed `NOW`: 2025-01-01 12:00 UTC.
 fn now() -> DateTime<Utc> {
     at(2025, 1, 1, 12, 0)
 }
 
-/// A tz-aware UTC stamp with seconds 0 (the Python tests' datetimes).
+/// A tz-aware UTC stamp with seconds 0.
 fn at(year: i32, month: u32, day: u32, hour: u32, minute: u32) -> DateTime<Utc> {
     Utc.with_ymd_and_hms(year, month, day, hour, minute, 0)
         .unwrap()
 }
 
-/// The Python tests' `_model`: hourly axis stamped at whole hours from
-/// `start` (default `NOW`), values `hourly`.
+/// Hourly axis stamped at whole hours from `start` (default `NOW`), values
+/// `hourly`.
 fn model(name: &str, hourly: Vec<Option<f64>>, start: Option<DateTime<Utc>>) -> ModelSeries {
     let base = start.unwrap_or_else(now);
     let naive = base.naive_utc();
@@ -35,7 +35,7 @@ fn cell(x: i64, y: i64, mm: f64) -> RadarCell {
     RadarCell { x, y, mm }
 }
 
-/// The Python tests' `_frame`: `NOW` + `offset_min` minutes.
+/// Frame at `NOW` + `offset_min` minutes.
 fn frame(offset_min: i64, cells: Vec<RadarCell>) -> RadarFrame {
     RadarFrame {
         time_utc: now() + TimeDelta::minutes(offset_min),
@@ -44,8 +44,8 @@ fn frame(offset_min: i64, cells: Vec<RadarCell>) -> RadarFrame {
     }
 }
 
-/// `RadarNowcast` with the Python helper defaults: bbox (0, 0, 10, 10),
-/// location (5.0, 5.0).
+/// `RadarNowcast` with fixed defaults: bbox (0, 0, 10, 10), location
+/// (5.0, 5.0).
 fn nowcast(frames: Vec<RadarFrame>, covered: bool) -> RadarNowcast {
     RadarNowcast {
         frames,
@@ -57,9 +57,6 @@ fn nowcast(frames: Vec<RadarFrame>, covered: bool) -> RadarNowcast {
     }
 }
 
-// ---------------------------------------------------------------------------
-// build_24h_series
-// ---------------------------------------------------------------------------
 #[test]
 fn test_24h_series_empty_bundle() {
     let out = build_24h_series(None, now(), 24);
@@ -176,9 +173,6 @@ fn test_24h_series_empty_when_all_models_null() {
     assert_eq!(out, Series24h::default());
 }
 
-// ---------------------------------------------------------------------------
-// build_forecast_history_rows
-// ---------------------------------------------------------------------------
 #[test]
 fn test_history_rows_labelled_by_hour_start_and_future_only() {
     // axis stamped 12:00..35:00, issued at 10:20
@@ -298,9 +292,6 @@ fn test_history_rows_skip_model_with_null_data() {
     );
 }
 
-// ---------------------------------------------------------------------------
-// build_radar_next_hour_bar
-// ---------------------------------------------------------------------------
 #[test]
 fn test_bar_none_nowcast_is_unavailable() {
     let out = build_radar_next_hour_bar(None, now(), 5.0, 1.0, 0.05, 12);

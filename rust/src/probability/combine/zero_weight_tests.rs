@@ -1,13 +1,8 @@
 //! Zero-weight fallback of [`combine_signals`]: when the configured weights
-//! of the available signals sum to <= 0, every available signal gets weight
-//! 1.0 (Python `app/probability.py`, `combine_signals`).
-//!
-//! The expected values were obtained by running the Python function.
+//! of the available signals sum to <= 0, every available signal gets weight 1.0.
 
 use super::*;
 
-/// A `ProbabilityConfig` with the given weights and the thresholds used by
-/// the other combine tests.
 fn prob_cfg(weight_radar: f64, weight_models: f64, weight_ensemble: f64) -> ProbabilityConfig {
     ProbabilityConfig {
         weight_radar,

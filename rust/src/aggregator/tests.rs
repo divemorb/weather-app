@@ -17,10 +17,6 @@ fn loc(latitude: f64, longitude: f64) -> LocationConfig {
     }
 }
 
-// ---------------------------------------------------------------------------
-// refresh + cache
-// ---------------------------------------------------------------------------
-
 #[tokio::test]
 async fn refresh_radar_caches_payloads() {
     let fake = FakeUpstream::start();
@@ -166,10 +162,6 @@ async fn source_status_marks_stale() {
     assert!(status["radar"]["age_seconds"].is_i64());
 }
 
-// ---------------------------------------------------------------------------
-// unconfigured -> no fetch calls (step 8b)
-// ---------------------------------------------------------------------------
-
 #[tokio::test]
 async fn aggregator_without_location_makes_no_fetch_calls() {
     let fake = FakeUpstream::start();
@@ -210,10 +202,6 @@ async fn aggregator_without_location_makes_no_fetch_calls() {
             .is_none()
     );
 }
-
-// ---------------------------------------------------------------------------
-// set_location (step 8b)
-// ---------------------------------------------------------------------------
 
 #[tokio::test]
 async fn set_location_first_time_stores_without_clearing() {

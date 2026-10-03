@@ -52,7 +52,7 @@ fn opt_f64_numbers() {
 
 #[test]
 fn opt_f64_rejects_strings_and_bools() {
-    // Approved difference: Python's float() would accept these.
+    // Python's float() would accept these; we do not.
     assert!(opt_f64(Some(&json!("1.5")), "x").is_err());
     assert!(opt_f64(Some(&json!(true)), "x").is_err());
 }
@@ -182,8 +182,8 @@ async fn fetch_parses_json_and_sends_params() {
 
 #[tokio::test]
 async fn fetch_json_capped_roundtrips_upstream_floats() {
-    // Lockstep finding: Open-Meteo sent this 17-digit generationtime; the
-    // stored f64 must be exactly "0.40209293365478516".parse::<f64>().
+    // Open-Meteo sent this 17-digit generationtime; the stored f64 must be
+    // exactly "0.40209293365478516".parse::<f64>().
     use crate::testutil::fake_upstream::{FakeResponse, FakeUpstream};
     let fake = FakeUpstream::start();
     fake.set(

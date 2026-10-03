@@ -1,7 +1,7 @@
 use super::*;
 use std::collections::HashMap;
 
-/// The `base_data` fixture from tests/test_config.py, as YAML text.
+/// The shared YAML config fixture.
 fn base_yaml() -> String {
     [
         "location:",
@@ -42,7 +42,6 @@ fn load(path: Option<&Path>, env: &HashMap<String, String>) -> Result<AppConfig,
     load_config(path, &|k| env.get(k).cloned())
 }
 
-/// The `make_config` fixture: write a YAML config into a temp dir.
 fn make_config(dir: &Path, yaml: &str) -> PathBuf {
     let path = dir.join("weather.yaml");
     std::fs::write(&path, yaml).unwrap();
@@ -123,9 +122,8 @@ fn accuracy_from_yaml() {
 
 #[test]
 fn weight_normalization_with_radar() {
-    // Python reads the deployment's weather.yaml here; the default path
-    // (/app/weather.yaml) is absent in the sandbox, so the builtin defaults
-    // apply — the assertions hold either way.
+    // The default path (/app/weather.yaml) may be absent, so the builtin
+    // defaults apply — the assertions hold either way.
     let cfg = load(None, &env_lookup(&[])).unwrap();
     let w = cfg.probability.weights(true).unwrap();
     assert!((w.iter().map(|(_, v)| *v).sum::<f64>() - 1.0).abs() < 1e-9);
@@ -146,10 +144,7 @@ fn weight_fallback_without_radar() {
     assert!((ensemble - 0.4).abs() < 1e-9);
 }
 
-// ---------------------------------------------------------------------------
-// location is optional (step 8b: the app runs unconfigured)
-// ---------------------------------------------------------------------------
-
+// location is optional: the app can run unconfigured
 #[test]
 fn no_location_in_yaml_and_no_env_is_unconfigured() {
     let dir = tempfile::tempdir().unwrap();
@@ -205,14 +200,10 @@ fn env_location_without_yaml() {
     assert_eq!(loc.timezone, "Europe/Berlin");
 }
 
-// ---------------------------------------------------------------------------
-// R7: falsy YAML documents, env error hints, py_sum weights, Default impls
-// ---------------------------------------------------------------------------
-
 #[test]
 fn falsy_yaml_documents_load_defaults() {
-    // Python: `yaml.safe_load(fh) or {}` — every falsy document (null,
-    // false, 0, 0.0, "", []) loads as `{}`, i.e. all builtin defaults.
+    // Every falsy document (null, false, 0, 0.0, "", []) loads as `{}`,
+    // i.e. all builtin defaults.
     let dir = tempfile::tempdir().unwrap();
     for doc in [
         "false",
@@ -243,7 +234,7 @@ fn falsy_yaml_documents_load_defaults() {
 #[test]
 fn non_falsy_non_mapping_yaml_is_an_error() {
     // A non-empty list, a non-empty string or `true` is a truthy
-    // non-mapping: rejected, like Python's `ValueError`.
+    // non-mapping: rejected.
     let dir = tempfile::tempdir().unwrap();
     for doc in ["[1]", "\"text\"", "true"] {
         let path = make_config(dir.path(), doc);
@@ -254,7 +245,7 @@ fn non_falsy_non_mapping_yaml_is_an_error() {
 
 #[test]
 fn env_f64_error_has_plain_digits_hint() {
-    // `1_000` stays an error on purpose (approved difference from Python).
+    // `1_000` is rejected on purpose (no underscores).
     let env = env_lookup(&[("RADAR_RADIUS_KM", "1_000")]);
     let err = values::env_f64(&|k| env.get(k).cloned(), "RADAR_RADIUS_KM", 5.0).unwrap_err();
     assert_eq!(
@@ -283,9 +274,9 @@ fn weights_01_02_03_normalized_by_py_sum() {
         radar_cell_rain_threshold_mm: 0.05,
     };
     let w = prob.weights(true).unwrap();
-    // Python's `sum([0.1, 0.2, 0.3])` is exactly 0.6 (compensated), so the
-    // normalized weights are exactly 0.1 / 0.6 etc.; plain addition would
-    // give a total of 0.6000000000000001 and different bits.
+    // py_sum's compensated addition gives exactly 0.6 for 0.1 + 0.2 + 0.3,
+    // so the normalized weights are exactly 0.1 / 0.6 etc.; plain addition
+    // would give a total of 0.6000000000000001 and different bits.
     assert_eq!(w.len(), 3);
     assert_eq!(w[0], ("radar", 0.1 / 0.6));
     assert_eq!(w[1], ("models", 0.2 / 0.6));
@@ -294,7 +285,6 @@ fn weights_01_02_03_normalized_by_py_sum() {
 
 #[test]
 fn config_defaults_match_python_dataclasses() {
-    // The literals are the dataclass defaults from app/config.py.
     assert_eq!(
         RadarConfig::default(),
         RadarConfig {

@@ -1,8 +1,4 @@
-//! Tests for the runtime location state (Python `tests/test_location.py`,
-//! from `test_location_json_round_trip` through
-//! `test_startup_nothing_everywhere_is_unconfigured`). The R22 tables for
-//! `validate_location_body` / `into_location` live in the `validate`
-//! submodule; `valid_timezone`, `same_origin` and the JSON shapes in `misc`.
+//! Tests for the runtime location state.
 
 use super::*;
 
@@ -20,10 +16,7 @@ fn loc(latitude: f64, longitude: f64, timezone: &str, label: &str) -> LocationCo
     }
 }
 
-// ---------------------------------------------------------------------------
 // JSON round trip (app_meta value)
-// ---------------------------------------------------------------------------
-
 #[test]
 fn location_json_round_trip() {
     let l = loc(52.52, 13.405, "Europe/Berlin", "Berlin");
@@ -58,10 +51,6 @@ fn location_json_defaults_missing_label() {
     assert_eq!((l.latitude, l.longitude), (52.0, 13.0));
 }
 
-// ---------------------------------------------------------------------------
-// moved()
-// ---------------------------------------------------------------------------
-
 #[test]
 fn moved_none_old_is_not_a_move() {
     assert!(!moved(None, &loc(52.0, 13.0, "Europe/Berlin", "")));
@@ -92,11 +81,6 @@ fn moved_beyond_epsilon_is_a_move() {
     assert!(moved(Some(&old), &loc(52.0, 13.02, "", "")));
 }
 
-// ---------------------------------------------------------------------------
-// resolve_startup_location
-// ---------------------------------------------------------------------------
-
-/// The test fixture: a fresh on-disk database in a temp dir.
 fn fresh_store() -> (tempfile::TempDir, Store) {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("weather.db");
@@ -104,8 +88,6 @@ fn fresh_store() -> (tempfile::TempDir, Store) {
     (dir, store)
 }
 
-/// Python's `make_cfg()` in tests/aggregator_support.py: 52.0/13.0,
-/// timezone `Europe/Berlin`, label `""`.
 fn make_cfg() -> AppConfig {
     let mut cfg = crate::config::load_config(None, &|_| None).unwrap();
     cfg.location = Some(loc(52.0, 13.0, "Europe/Berlin", ""));

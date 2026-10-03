@@ -1,6 +1,5 @@
-//! Tests ported from `tests/test_ensemble_vote.py`,
-//! `tests/test_weighted_signal.py` and the combine/explanation tests of
-//! `tests/test_probability.py`.
+//! Tests for `combine_signals`, `ensemble_vote`, and the weighted/explanation
+//! model signal.
 
 use super::*;
 use std::collections::BTreeMap;
@@ -11,7 +10,6 @@ use crate::probability::{model_rain_signal, weighted_model_signal};
 use crate::times::parse_iso;
 use chrono::{DateTime, TimeDelta, Utc};
 
-/// The Python tests' `NOW` constant: 2025-01-01 12:00 UTC.
 fn now() -> DateTime<Utc> {
     parse_iso("2025-01-01T12:00:00Z").expect("valid stamp")
 }
@@ -34,9 +32,8 @@ fn approx(actual: f64, expected: f64) -> bool {
     (actual - expected).abs() <= tol
 }
 
-/// The Python tests' `_ensemble` helper: four hourly steps stamped
-/// 12:00, 13:00, 14:00, 15:00; `members[i]` is the series of member `i`
-/// (index 0 = 12:00).
+/// Four hourly steps stamped 12:00, 13:00, 14:00, 15:00; `members[i]` is
+/// the series of member `i` (index 0 = 12:00).
 fn ensemble(members: Vec<Vec<Option<f64>>>) -> EnsembleData {
     EnsembleData {
         hourly_time: (0..4).map(|i| now() + TimeDelta::hours(i as i64)).collect(),
@@ -45,7 +42,6 @@ fn ensemble(members: Vec<Vec<Option<f64>>>) -> EnsembleData {
     }
 }
 
-/// The Python tests' `_vote` helper.
 fn vote(name: &str, mm: Option<f64>) -> ModelVote {
     ModelVote {
         name: name.to_string(),
@@ -53,7 +49,6 @@ fn vote(name: &str, mm: Option<f64>) -> ModelVote {
     }
 }
 
-/// One Python accuracy row (`n_samples`, `event_accuracy`, `mae_mm`).
 fn accuracy_row(n_samples: i64, event_accuracy: f64, mae_mm: f64) -> ModelAccuracy {
     ModelAccuracy {
         n_samples,
@@ -66,9 +61,6 @@ fn accuracy_row(n_samples: i64, event_accuracy: f64, mae_mm: f64) -> ModelAccura
     }
 }
 
-// ---------------------------------------------------------------------------
-// ensemble vote (tests/test_ensemble_vote.py)
-// ---------------------------------------------------------------------------
 #[test]
 fn ensemble_vote_share() {
     // now = 11:30 -> the next hour is [11:30, 12:30); the first step stamped
@@ -148,12 +140,10 @@ fn ensemble_vote_skips_null_members() {
     assert!(approx(vote.probability_pct.unwrap(), 100.0));
 }
 
-// ---------------------------------------------------------------------------
-// Best-overlap hour selection (step 6i): the picked stamp is the first one
-// with t >= now + 30 min. Stamps here are 12:00, 13:00, 14:00, 15:00.
-// Each test puts rain in exactly one index, so the result proves which
-// index was picked (50% = picked, 0% = a different index was picked).
-// ---------------------------------------------------------------------------
+// Best-overlap hour selection: the picked stamp is the first one with
+// t >= now + 30 min. Stamps here are 12:00, 13:00, 14:00, 15:00. Each test
+// puts rain in exactly one index, so the result proves which index was
+// picked (50% = picked, 0% = a different index was picked).
 #[test]
 fn ensemble_vote_best_overlap_now_11h00_picks_12h00() {
     // now = 11:00 -> 12:00 covers 11:00-12:00 entirely (60 min overlap)
@@ -195,8 +185,7 @@ fn ensemble_vote_best_overlap_now_11h30_tie_prefers_earlier_stamp() {
 #[test]
 fn ensemble_vote_best_overlap_now_11h50_picks_13h00() {
     // now = 11:50 -> 13:00 covers 12:00-13:00 (50 min overlap with the next
-    // 60 min, more than 12:00's 10) — the old first-stamp-after-now rule
-    // would have wrongly picked 12:00.
+    // 60 min, more than 12:00's 10).
     let data = ensemble(vec![
         vec![Some(0.0), Some(5.0), Some(0.0), Some(0.0)],
         vec![Some(0.0), Some(0.0), Some(0.0), Some(0.0)],
@@ -218,9 +207,6 @@ fn ensemble_vote_best_overlap_stale_under_30_min_is_none() {
     assert_eq!(vote.probability_pct, None);
 }
 
-// ---------------------------------------------------------------------------
-// accuracy-weighted model signal (tests/test_weighted_signal.py)
-// ---------------------------------------------------------------------------
 #[test]
 fn weighted_signal_equal_accuracy_matches_plain_signal() {
     // all accuracies 1.0 (>= min_samples) -> equal weights -> same as
@@ -322,9 +308,6 @@ fn explanation_accuracy_weighted_flag() {
     );
 }
 
-// ---------------------------------------------------------------------------
-// combination (tests/test_probability.py, from test_combine_all_signals_weighted)
-// ---------------------------------------------------------------------------
 #[test]
 fn combine_all_signals_weighted() {
     let (prob, weights) = combine_signals(&PROB, true, Some(true), Some(50.0), Some(25.0));
@@ -373,9 +356,6 @@ fn combine_clamps_to_100() {
     assert_eq!(prob, 100.0);
 }
 
-// ---------------------------------------------------------------------------
-// explanation (tests/test_probability.py)
-// ---------------------------------------------------------------------------
 #[test]
 fn explanation_all_sources() {
     let text = build_explanation(true, Some(true), 3, 6, Some(42.0), 0.1, false);

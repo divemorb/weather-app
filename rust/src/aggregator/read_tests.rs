@@ -1,7 +1,4 @@
-//! Ports of the read-model tests from `tests/test_aggregator.py`
-//! (`test_get_current_conditions_with_feels_like` to the end; the
-//! `test_get_rain_probability*` tests come in R26b). The frozen clock is
-//! the test kit's fixed `NOW`; Python's `store` fixture is `memory_store`.
+//! Read-model tests. The frozen clock is the test kit's fixed `NOW`.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -21,7 +18,6 @@ fn approx(actual: f64, expected: f64) -> bool {
     (actual - expected).abs() <= tol
 }
 
-/// One `forecast_history` row (Python tests pass dicts).
 fn row(
     model: &str,
     issued_at: &str,
@@ -38,18 +34,13 @@ fn row(
     }
 }
 
-/// Python `make_aggregator(cfg, store, None, all_payloads)`: only the
-/// Open-Meteo sources are served (no Bright Sky data).
+/// Only the Open-Meteo sources are served (no Bright Sky data).
 fn openmeteo_only_payloads() -> Payloads {
     let mut payloads = make_payloads();
     payloads.current = None;
     payloads.radar = None;
     payloads
 }
-
-// ---------------------------------------------------------------------------
-// read model (part 2a)
-// ---------------------------------------------------------------------------
 
 #[tokio::test]
 async fn get_current_conditions_with_feels_like() {

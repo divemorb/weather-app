@@ -2,7 +2,6 @@ use super::*;
 use crate::models::{CurrentConditions, RainProbability};
 use crate::series::{ModelHours, RadarBar, RadarStep, Series24h};
 
-/// The Python tests' `META_FRESH`.
 fn meta_fresh() -> CacheMeta {
     CacheMeta {
         available: true,
@@ -11,7 +10,6 @@ fn meta_fresh() -> CacheMeta {
     }
 }
 
-/// The Python tests' `make_conditions`.
 fn make_conditions() -> CurrentConditions {
     CurrentConditions {
         timestamp_utc: json!("2025-01-01T12:00:00Z"),
@@ -32,7 +30,6 @@ fn make_conditions() -> CurrentConditions {
     }
 }
 
-/// The Python tests' `make_rain`.
 fn make_rain() -> RainProbability {
     RainProbability {
         probability_pct: 75.0,
@@ -46,9 +43,6 @@ fn make_rain() -> RainProbability {
     }
 }
 
-// ---------------------------------------------------------------------------
-// serialize_now
-// ---------------------------------------------------------------------------
 #[test]
 fn now_with_conditions() {
     let conditions = make_conditions();
@@ -130,8 +124,8 @@ fn now_missing_conditions_is_null() {
     );
 }
 
-/// Python `serialize_now(None, meta)` ignores `meta` and always answers the
-/// fixed "no cached observation" shape (review R17b).
+/// `serialize_now(None, meta)` ignores `meta` and always answers the fixed
+/// "no cached observation" shape.
 #[test]
 fn now_missing_conditions_ignores_meta() {
     assert_eq!(
@@ -154,9 +148,6 @@ fn now_missing_conditions_ignores_meta() {
     );
 }
 
-// ---------------------------------------------------------------------------
-// serialize_rain_probability
-// ---------------------------------------------------------------------------
 #[test]
 fn rain_probability_full() {
     let rain = make_rain();
@@ -186,9 +177,6 @@ fn rain_probability_none_meta_yields_none_ages() {
     assert_eq!(body["models_age_seconds"], json!(null));
 }
 
-// ---------------------------------------------------------------------------
-// serialize_radar_next_hour
-// ---------------------------------------------------------------------------
 #[test]
 fn radar_bar_full() {
     let bar = RadarBar {
@@ -226,9 +214,6 @@ fn radar_bar_unavailable() {
     );
 }
 
-// ---------------------------------------------------------------------------
-// serialize_models_24h
-// ---------------------------------------------------------------------------
 #[test]
 fn models_24h_full() {
     let series = Series24h {
@@ -267,9 +252,6 @@ fn models_24h_empty() {
     );
 }
 
-// ---------------------------------------------------------------------------
-// serialize_model_accuracy
-// ---------------------------------------------------------------------------
 #[test]
 fn model_accuracy_full() {
     let mut models: BTreeMap<String, ModelAccuracy> = BTreeMap::new();

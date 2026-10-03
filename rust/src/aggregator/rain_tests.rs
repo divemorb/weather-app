@@ -1,6 +1,5 @@
-//! Ports of the `test_get_rain_probability*` tests from
-//! `tests/test_aggregator.py` (R26b). The frozen clock is the test kit's
-//! fixed `NOW`; Python's `store` fixture is `memory_store`.
+//! Tests for `get_rain_probability`; the frozen clock is the test kit's
+//! fixed `NOW`.
 
 use super::testkit::*;
 use crate::models::RainProbability;
@@ -17,8 +16,7 @@ fn approx(actual: f64, expected: f64) -> bool {
     (actual - expected).abs() <= tol
 }
 
-/// The weight of one signal in `weights_used` (signal order: radar, models,
-/// ensemble).
+/// The weight of one signal in `weights_used`.
 fn weight(prob: &RainProbability, name: &str) -> f64 {
     prob.weights_used
         .iter()
@@ -26,10 +24,10 @@ fn weight(prob: &RainProbability, name: &str) -> f64 {
         .map_or(0.0, |(_, w)| *w)
 }
 
-/// Python `_accuracy_rows`: n compared forecast rows for one model, all
-/// inside the 30-day window. Rows start at `start_hour` so different models
-/// can occupy different hours (`set_observation` matches on `valid_from`
-/// only, so shared hours would pick up each other's observations).
+/// n compared forecast rows for one model, all inside the 30-day window.
+/// Rows start at `start_hour` so different models can occupy different
+/// hours (`set_observation` matches on `valid_from` only, so shared hours
+/// would pick up each other's observations).
 fn accuracy_rows(model: &str, n: usize, start_hour: usize) -> Vec<HistoryRow> {
     (0..n)
         .map(|i| HistoryRow {
@@ -42,8 +40,7 @@ fn accuracy_rows(model: &str, n: usize, start_hour: usize) -> Vec<HistoryRow> {
         .collect()
 }
 
-/// Python `make_aggregator(cfg, store, None, all_payloads)`: only the
-/// Open-Meteo sources are served (no Bright Sky data).
+/// Only the Open-Meteo sources are served (no Bright Sky data).
 fn openmeteo_only_payloads() -> Payloads {
     let mut payloads = make_payloads();
     payloads.current = None;
@@ -210,7 +207,7 @@ async fn get_rain_probability_no_weights_when_disabled() {
     let fake = FakeUpstream::start();
     let payloads = make_payloads();
     serve(&fake, &payloads, &[]);
-    // flag explicitly off (Python passes `use_accuracy_weights=False`)
+    // flag explicitly off
     let opts = CfgOpts {
         use_accuracy_weights: false,
         ..CfgOpts::default()
@@ -242,8 +239,7 @@ async fn get_rain_probability_accuracy_read_failure_falls_back() {
 
     agg.refresh_radar().await;
     agg.refresh_models().await;
-    // make the read fail for real (Python monkeypatches
-    // `compared_forecasts` to raise):
+    // make the read fail for real:
     agg.store()
         .lock_for_tests()
         .execute_batch("DROP TABLE forecast_history")

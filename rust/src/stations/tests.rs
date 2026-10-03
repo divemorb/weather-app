@@ -1,5 +1,4 @@
-//! Unit tests for `crate::stations` (the Rust port of `app/stations.py`,
-//! checked against `tests/test_station.py`).
+//! Unit tests for `crate::stations`.
 
 use std::collections::BTreeMap;
 
@@ -50,7 +49,7 @@ fn potsdam_fallback() -> FallbackEntry {
     }
 }
 
-// P1: /api/now station + fallback
+// /api/now station + fallback
 
 #[test]
 fn station_names_the_source_of_the_values() {
@@ -175,7 +174,7 @@ fn station_keeps_the_payload_number_types() {
     assert_eq!(station.unwrap().distance_m, Some(json!(100)));
 }
 
-// P2: the observation stations behind the accuracy table
+// the observation stations behind the accuracy table
 
 fn at(hour: &str) -> String {
     format!("2025-01-01T{hour}:00Z")
@@ -223,9 +222,9 @@ fn later() -> DateTime<Utc> {
         .with_timezone(&Utc)
 }
 
-/// The mixed-source records of `tests/test_station.py`: Friedrichshain
-/// (2 h, one without precipitation), Tempelhof (3 h), MOSMIX (never an
-/// observation), Müggelsee (2 h, one after `later()`), one unknown source.
+/// The mixed-source records: Friedrichshain (2 h, one without precipitation),
+/// Tempelhof (3 h), MOSMIX (never an observation), Müggelsee (2 h, one after
+/// `later()`), one unknown source.
 fn mixed_payload() -> Value {
     let records = [
         record("09:00", 312070, Some(0.0)),
@@ -330,7 +329,7 @@ fn observation_stations_duplicate_id_later_entry_wins() {
     assert_eq!(stations[0].hours, 1);
 }
 
-// the canonical JSON (lockstep: the Python app writes the same bytes)
+// the canonical JSON
 
 #[test]
 fn stations_to_json_is_python_canonical() {

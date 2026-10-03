@@ -1,8 +1,6 @@
-//! Endpoint tests for `POST /api/location` and `GET /api/geocode`: ports of
-//! all 14 tests in `tests/test_api_location.py`, against a real aggregator
-//! over the fake upstream (Python's `FakeAgg`/`FakeGeocoder` become
-//! `agg.cfg().location` and the fake's `/nom/search` answer). A successful
-//! save spawns a background refresh, which tolerates the fake's 404s.
+//! Endpoint tests for `POST /api/location` and `GET /api/geocode`, against
+//! a real aggregator over the fake upstream. A successful save spawns a
+//! background refresh, which tolerates the fake's 404s.
 
 use std::sync::Arc;
 
@@ -66,7 +64,6 @@ fn assert_security_headers(headers: &HeaderMap) {
     );
 }
 
-/// `test_post_location_ok_rounds_and_updates_cfg`.
 #[tokio::test]
 async fn post_location_ok_rounds_and_updates_cfg() {
     let fake = FakeUpstream::start();
@@ -82,7 +79,7 @@ async fn post_location_ok_rounds_and_updates_cfg() {
     assert_eq!(status, StatusCode::OK);
     let body = body_json(&body);
     assert_eq!(body["ok"], Value::Bool(true));
-    // 48.13749 -> 48.137, 11.57552 -> 11.576 (verified rounding)
+    // 48.13749 -> 48.137, 11.57552 -> 11.576
     assert_eq!(
         body["location"],
         serde_json::json!({
@@ -100,7 +97,6 @@ async fn post_location_ok_rounds_and_updates_cfg() {
     assert_eq!(body["location"]["latitude"], serde_json::json!(48.137));
 }
 
-/// `test_post_location_empty_label_defaults`.
 #[tokio::test]
 async fn post_location_empty_label_defaults() {
     let fake = FakeUpstream::start();
@@ -121,7 +117,6 @@ async fn post_location_empty_label_defaults() {
     );
 }
 
-/// `test_post_location_foreign_origin_is_403`.
 #[tokio::test]
 async fn post_location_foreign_origin_is_403() {
     let fake = FakeUpstream::start();
@@ -147,7 +142,7 @@ async fn post_location_foreign_origin_is_403() {
     assert_eq!(agg.cfg().location, CfgOpts::default().location);
 }
 
-/// `test_post_location_null_origin_is_403`: `Origin: null` counts as cross-site.
+/// `Origin: null` counts as cross-site.
 #[tokio::test]
 async fn post_location_null_origin_is_403() {
     let fake = FakeUpstream::start();
@@ -165,7 +160,7 @@ async fn post_location_null_origin_is_403() {
     assert_eq!(agg.cfg().location, CfgOpts::default().location);
 }
 
-/// `test_post_location_cross_site_fetch_is_403`: no Origin, `Sec-Fetch-Site: cross-site`.
+/// no Origin, `Sec-Fetch-Site: cross-site`.
 #[tokio::test]
 async fn post_location_cross_site_fetch_is_403() {
     let fake = FakeUpstream::start();
@@ -186,7 +181,7 @@ async fn post_location_cross_site_fetch_is_403() {
     assert_eq!(agg.cfg().location, CfgOpts::default().location);
 }
 
-/// `test_post_location_same_origin_headers_allowed`: the normal same-origin wizard request.
+/// the normal same-origin request.
 #[tokio::test]
 async fn post_location_same_origin_headers_allowed() {
     let fake = FakeUpstream::start();
@@ -206,7 +201,7 @@ async fn post_location_same_origin_headers_allowed() {
     assert_eq!(status, StatusCode::OK);
 }
 
-/// `test_post_location_nan_is_422_not_500`: NaN is a JSON decode error (status-only compare).
+/// NaN is a JSON decode error (status-only compare).
 #[tokio::test]
 async fn post_location_nan_is_422_not_500() {
     let fake = FakeUpstream::start();
@@ -231,7 +226,6 @@ async fn post_location_nan_is_422_not_500() {
     assert_eq!(agg.cfg().location, CfgOpts::default().location);
 }
 
-/// `test_post_location_out_of_range_is_422`.
 #[tokio::test]
 async fn post_location_out_of_range_is_422() {
     let fake = FakeUpstream::start();
@@ -254,7 +248,6 @@ async fn post_location_out_of_range_is_422() {
     assert_eq!(agg.cfg().location, CfgOpts::default().location);
 }
 
-/// `test_post_location_bad_timezone_is_422`.
 #[tokio::test]
 async fn post_location_bad_timezone_is_422() {
     let fake = FakeUpstream::start();
@@ -277,7 +270,7 @@ async fn post_location_bad_timezone_is_422() {
     assert_eq!(agg.cfg().location, CfgOpts::default().location);
 }
 
-/// `test_post_location_text_plain_body_is_422`: a cross-site form posts text/plain.
+/// a cross-site form posts text/plain.
 #[tokio::test]
 async fn post_location_text_plain_body_is_422() {
     let fake = FakeUpstream::start();
@@ -295,7 +288,6 @@ async fn post_location_text_plain_body_is_422() {
     assert_eq!(agg.cfg().location, CfgOpts::default().location);
 }
 
-/// `test_post_location_security_headers_still_present_on_403_and_422`.
 #[tokio::test]
 async fn post_location_security_headers_still_present_on_403_and_422() {
     let fake = FakeUpstream::start();
@@ -324,7 +316,7 @@ async fn post_location_security_headers_still_present_on_403_and_422() {
     assert_security_headers(&headers);
 }
 
-/// `test_get_geocode_returns_results`: the fake geocoder is the fake's `/nom/search`.
+/// the geocoder points at the fake's `/nom/search`.
 #[tokio::test]
 async fn get_geocode_returns_results() {
     let fake = FakeUpstream::start();
@@ -358,7 +350,7 @@ async fn get_geocode_returns_results() {
     assert_eq!(requests[0].param("q"), Some("Marienplatz München"));
 }
 
-/// `test_get_geocode_source_error_is_502`: a failed lookup is a 502, never a 500.
+/// a failed lookup is a 502, never a 500.
 #[tokio::test]
 async fn get_geocode_source_error_is_502() {
     let fake = FakeUpstream::start();
@@ -379,7 +371,7 @@ async fn get_geocode_source_error_is_502() {
     );
 }
 
-/// `test_get_geocode_query_too_short_is_422`: no request goes out.
+/// no request goes out.
 #[tokio::test]
 async fn get_geocode_query_too_short_is_422() {
     let fake = FakeUpstream::start();

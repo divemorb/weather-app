@@ -69,9 +69,6 @@ fn forecast_payload() -> Value {
     )
 }
 
-// ---------------------------------------------------------------------------
-// parse_forecast
-// ---------------------------------------------------------------------------
 #[test]
 fn parse_forecast_all_models_present() {
     let bundle =
@@ -158,7 +155,7 @@ fn parse_forecast_error_flag_raises() {
 #[test]
 fn parse_forecast_missing_timestamp_raises_source_error() {
     // a non-string in the time list: untrusted payload, must be a
-    // SourceError (the request path only catches that), not a TypeError
+    // SourceError (the request path only catches that), not a panic
     let payload = json!({
         "latitude": 52.0,
         "longitude": 13.0,
@@ -173,8 +170,7 @@ fn parse_forecast_missing_timestamp_raises_source_error() {
 
 #[test]
 fn parse_forecast_null_section_raises_source_error() {
-    // a section present but not an object (null included): Python crashes
-    // on `.get` and the decorator wraps it as a SourceError
+    // a section present but not an object (null included) is a SourceError
     let payload = json!({"minutely_15": null, "hourly": {"time": HOURS}});
     assert!(parse_forecast(&payload, &["icon_d2".into()]).is_err());
     let payload = json!({"minutely_15": {"time": MIN15}, "hourly": [1, 2]});
@@ -186,7 +182,7 @@ fn parse_forecast_unparseable_timestamp_raises_source_error() {
     let payload = json!({"hourly": {"time": ["2026-09-25T00:00", "not-a-time"]}});
     let err = parse_forecast(&payload, &[]).unwrap_err();
     assert!(err.to_string().contains("malformed"));
-    // a null time list is malformed too: Python iterates `None` there
+    // a null time list is malformed too
     let payload = json!({"hourly": {"time": null}});
     assert!(parse_forecast(&payload, &[]).is_err());
 }
@@ -196,9 +192,6 @@ fn parse_forecast_non_object_payload_raises_source_error() {
     assert!(parse_forecast(&json!([1, 2]), &[]).is_err());
 }
 
-// ---------------------------------------------------------------------------
-// parse_ensemble
-// ---------------------------------------------------------------------------
 fn ensemble_payload() -> Value {
     // 4 hours, control + 3 members (member01..03)
     crate::testutil::make_ensemble_payload(
@@ -260,7 +253,7 @@ fn parse_ensemble_wrong_type_raises_source_error() {
 
 #[test]
 fn parse_ensemble_missing_hourly_gives_empty() {
-    // Python's `payload.get("hourly", {})`: a missing section is empty
+    // a missing section is empty
     let data = parse_ensemble(&json!({"latitude": 52.0, "longitude": 13.0})).unwrap();
     assert!(data.hourly_time.is_empty());
     assert!(data.control_precip_mm.is_empty());
@@ -269,8 +262,7 @@ fn parse_ensemble_missing_hourly_gives_empty() {
 
 #[test]
 fn parse_ensemble_member_key_matching() {
-    // The Python regex `precipitation_member(\d+)$` with `search`: only a
-    // trailing run of digits after (the last) `precipitation_member`
+    // Only a trailing run of digits after (the last) `precipitation_member`
     // counts; the control key `precipitation` is not a member key.
     let payload = json!({"hourly": {
         "time": HOURS,

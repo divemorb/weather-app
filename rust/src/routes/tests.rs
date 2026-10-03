@@ -85,7 +85,6 @@ async fn healthz_ok() {
     assert_security_headers(&headers);
 }
 
-/// `test_foreign_host_header_rejected_with_security_headers`.
 #[tokio::test]
 async fn foreign_host_header_rejected_with_security_headers() {
     let (status, headers, body) = call("GET", "/healthz", "evil.example:8000", &[]).await;
@@ -114,8 +113,8 @@ async fn post_healthz_405_no_allow() {
     assert_security_headers(&headers);
 }
 
-/// `test_responses_are_revalidated` (the static-file leg: `/app.js` carries
-/// `Cache-Control: no-cache` and an ETag, with the security headers).
+/// the static-file leg: `/app.js` carries `Cache-Control: no-cache` and an
+/// ETag, with the security headers.
 #[tokio::test]
 async fn responses_are_revalidated() {
     let (status, headers, _body) = call("GET", "/app.js", "127.0.0.1:8000", &[]).await;
@@ -128,7 +127,6 @@ async fn responses_are_revalidated() {
     assert_security_headers(&headers);
 }
 
-/// `test_unchanged_static_file_answers_304`.
 #[tokio::test]
 async fn unchanged_static_file_answers_304() {
     let (_status, headers, _body) = call("GET", "/app.js", "127.0.0.1:8000", &[]).await;

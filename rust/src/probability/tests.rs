@@ -4,8 +4,7 @@ use crate::models::{ForecastBundle, ModelSeries, ModelVote, RadarCell, RadarFram
 use crate::times::parse_iso;
 use chrono::{DateTime, TimeDelta, Utc};
 
-/// The Python tests' `NOW` constant: 2025-01-01 12:00 UTC (already on the
-/// hour, so it doubles as the `_series` base).
+/// 2025-01-01 12:00 UTC (on the hour, so it doubles as the series base).
 fn now() -> DateTime<Utc> {
     parse_iso("2025-01-01T12:00:00Z").expect("valid stamp")
 }
@@ -46,8 +45,6 @@ fn frame(offset_min: i64, cells: Vec<RadarCell>) -> RadarFrame {
     }
 }
 
-/// `RadarNowcast` with the Python helper defaults: bbox (0, 0, 10, 10),
-/// location (5.0, 5.0), covered.
 fn nowcast(frames: Vec<RadarFrame>) -> RadarNowcast {
     RadarNowcast {
         frames,
@@ -78,9 +75,6 @@ fn series(name: &str, min15: &[Option<f64>], hourly: &[Option<f64>]) -> ModelSer
     }
 }
 
-// ---------------------------------------------------------------------------
-// geometry
-// ---------------------------------------------------------------------------
 #[test]
 fn cell_distance_zero_at_location() {
     let nc = nowcast(vec![frame(0, vec![])]); // loc at (5, 5)
@@ -107,9 +101,7 @@ fn cell_distance_uses_cell_size() {
     assert!(approx(cell_distance_km(&nc, 6, 5, 2.0), 2.0));
 }
 
-// ---------------------------------------------------------------------------
 // max local rain per frame (feeds the next-hour bar)
-// ---------------------------------------------------------------------------
 #[test]
 fn max_local_rain_strongest_in_radius() {
     let nc = nowcast(vec![frame(0, vec![])]);
@@ -142,9 +134,6 @@ fn max_local_rain_empty_frame_is_zero() {
     );
 }
 
-// ---------------------------------------------------------------------------
-// radar signal
-// ---------------------------------------------------------------------------
 #[test]
 fn radar_rain_when_cell_in_radius_exceeds_threshold() {
     let nc = nowcast(vec![frame(0, vec![cell(5, 5, 0.2)])]); // at location, 0.2 > 0.05
@@ -232,9 +221,6 @@ fn radar_has_local_rain_scans_all_frames() {
     ));
 }
 
-// ---------------------------------------------------------------------------
-// model votes
-// ---------------------------------------------------------------------------
 #[test]
 fn sum_next_hour_skips_step_stamped_at_now() {
     // minutely_15 value at t covers [t-15min, t): the step stamped NOW

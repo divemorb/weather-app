@@ -1,7 +1,4 @@
-//! Ports of `tests/test_geocode.py` (all 10), plus the approved deviation 8
-//! (non-finite coordinates are skipped) and the concurrent-throttle case.
-//! Python's `httpx2.MockTransport` becomes
-//! `testutil::fake_upstream::FakeUpstream` serving `/search`.
+//! Tests for the Nominatim geocoder, against `FakeUpstream` serving `/search`.
 
 use super::*;
 use std::sync::{Arc, Mutex};
@@ -9,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use crate::testutil::fake_upstream::{FakeResponse, FakeUpstream};
 use serde_json::json;
 
-/// A real-shaped Nominatim response: "lat"/"lon" are strings; no match -> [].
+/// A real-shaped Nominatim response: "lat"/"lon" are strings.
 fn nominatim_sample() -> Value {
     json!([
         {
@@ -34,10 +31,6 @@ fn http() -> reqwest::Client {
 fn geocoder(fake: &FakeUpstream, sleeps: &Arc<Mutex<Vec<f64>>>) -> Geocoder {
     Geocoder::new_for_test(&fake.base, http(), Monotonic::Fixed(1000.0), sleeps.clone())
 }
-
-// ---------------------------------------------------------------------------
-// parser (pure)
-// ---------------------------------------------------------------------------
 
 #[test]
 fn parse_nominatim_real_shaped_sample() {
@@ -114,7 +107,7 @@ fn parse_nominatim_caps_at_five() {
 
 #[test]
 fn parse_nominatim_floats_like_python() {
-    // Verified Python behaviour: " 48.1 " -> 48.1, "1_1" -> 11.0,
+    // float() semantics: " 48.1 " -> 48.1, "1_1" -> 11.0,
     // true -> 1.0, "1e2" -> 100.0, "-0" -> -0.0.
     let payload = json!([
         {"display_name": "a", "lat": " 48.1 ", "lon": "1_1"},
@@ -146,8 +139,8 @@ fn parse_nominatim_floats_like_python() {
 
 #[test]
 fn parse_nominatim_skips_non_finite_coordinates() {
-    // Approved deviation 8: "nan"/"inf" strings, nulls and non-numeric
-    // values skip the entry (Python would write invalid JSON later).
+    // "nan"/"inf" strings, nulls and non-numeric values skip the entry
+    // (they would end up as invalid JSON later).
     let payload = json!([
         {"display_name": "nan", "lat": "nan", "lon": "11.0"},
         {"display_name": "inf", "lat": "48.0", "lon": "inf"},
@@ -164,10 +157,6 @@ fn parse_nominatim_skips_non_finite_coordinates() {
         }]
     );
 }
-
-// ---------------------------------------------------------------------------
-// Geocoder client (FakeUpstream, fake clock + sleep)
-// ---------------------------------------------------------------------------
 
 #[tokio::test]
 async fn search_request_carries_user_agent_and_jsonv2_params() {
@@ -261,8 +250,8 @@ async fn search_upstream_error_is_source_error_and_not_cached() {
 
 #[tokio::test]
 async fn search_throttles_concurrent_searches() {
-    // Real clock and real sleep (the one test that really waits ~1.1 s):
-    // two concurrent searches must still be spaced by the full spacing.
+    // Real clock and real sleep: two concurrent searches must still be
+    // spaced by the full spacing.
     let fake = FakeUpstream::start();
     fake.set("/search", FakeResponse::Json(nominatim_sample()));
     let g = Arc::new(Geocoder::new(&fake.base, http()));

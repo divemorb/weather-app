@@ -1,6 +1,6 @@
-//! The four tests of `tests/test_backfill.py`: the hourly observation
-//! backfill fills only already-stored hours, is triggered by the model
-//! refresh, never breaks a refresh and is a no-op without observations.
+//! The hourly observation backfill fills only already-stored hours, is
+//! triggered by the model refresh, never breaks a refresh and is a no-op
+//! without observations.
 
 use std::collections::HashMap;
 
@@ -22,8 +22,7 @@ fn loc(latitude: f64, longitude: f64) -> LocationConfig {
     }
 }
 
-/// Python `weather_payload_around_now`: /weather records around the frozen
-/// NOW = 2025-01-01 12:00.
+/// /weather records around the frozen NOW = 2025-01-01 12:00.
 ///
 /// Station 1002 is the "current" observation source; 1001 is the MOSMIX
 /// "forecast" source. Stamps 09:00..15:00 cover hours 08:00..14:00
@@ -58,8 +57,8 @@ fn weather_payload_around_now() -> Value {
     })
 }
 
-/// Python `_filled_hours`: `valid_from -> observed_mm` for all observed
-/// rows (both models carry the same value per hour, so one entry per hour).
+/// `valid_from -> observed_mm` for all observed rows (both models carry the
+/// same value per hour, so one entry per hour).
 fn filled_hours(store: &Store) -> HashMap<String, f64> {
     let conn = store.lock_for_tests();
     let mut stmt = conn
@@ -81,7 +80,6 @@ fn filled_hours(store: &Store) -> HashMap<String, f64> {
     out
 }
 
-/// Python `SELECT COUNT(*) AS n FROM forecast_history`.
 fn forecast_history_count(store: &Store) -> usize {
     let conn = store.lock_for_tests();
     let n: i64 = conn
@@ -169,9 +167,7 @@ async fn backfill_without_observations_is_noop() {
     assert!(filled_hours(agg.store()).is_empty());
 }
 
-// ---------------------------------------------------------------------------
-// the observation stations (P2): stored on success, kept otherwise
-// ---------------------------------------------------------------------------
+// observation stations: stored on success, kept otherwise
 
 #[tokio::test]
 async fn failed_or_empty_backfill_keeps_the_stations() {

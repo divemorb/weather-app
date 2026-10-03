@@ -127,18 +127,16 @@ fn snapshot_leaves_out_uncommitted_writes() {
         ])
         .unwrap();
 
-    // A second connection holds an uncommitted write transaction...
+    // A second connection holds an uncommitted write transaction.
     let writer = rusqlite::Connection::open(&db).unwrap();
     writer
         .execute_batch("BEGIN IMMEDIATE; DELETE FROM forecast_history;")
         .unwrap();
 
-    // ...the snapshot succeeds and still counts the committed rows...
     let target = dir.path().join("copy.db");
     let stats = snapshot(&db, &target).unwrap();
     assert_eq!(stats.history_rows, 3);
 
-    // ...and the rollback restores them in the live database.
     writer.execute_batch("ROLLBACK").unwrap();
     let stats = snapshot(&db, &dir.path().join("copy2.db")).unwrap();
     assert_eq!(stats.history_rows, 3);

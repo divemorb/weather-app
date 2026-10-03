@@ -4,7 +4,6 @@ fn extra_hosts() -> HashSet<String> {
     ["pi.fritz.box"].into_iter().map(String::from).collect()
 }
 
-/// `test_host_allowed_accepted` (plus the zone-id cases).
 #[test]
 fn host_allowed_accepted() {
     let extra = extra_hosts();
@@ -22,7 +21,6 @@ fn host_allowed_accepted() {
     }
 }
 
-/// `test_host_allowed_rejected` (plus the zone and leading-zero cases).
 #[test]
 fn host_allowed_rejected() {
     let extra = extra_hosts();

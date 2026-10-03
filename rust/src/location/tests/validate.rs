@@ -1,5 +1,5 @@
-//! The R22 validation tables for `validate_location_body` (Python FastAPI +
-//! pydantic 2.13) and for `LocationIn::into_location`.
+//! Validation tables for `validate_location_body` and
+//! `LocationIn::into_location`.
 
 use super::*;
 
@@ -226,7 +226,7 @@ fn validate_empty_body() {
 
 #[test]
 fn validate_json_error_positions() {
-    // Python `json.dumps(V)` uses `", "` / `": "` separators.
+    // The bodies use `", "` / `": "` separators.
     for (text, pos) in [
         ("abc".to_string(), 0usize),
         (r#"{"a": }"#.to_string(), 6),
@@ -291,10 +291,6 @@ fn validate_utf8_bom_is_stripped() {
     assert_eq!((in_.latitude(), in_.longitude()), (1.0, 1.0));
     assert_eq!(in_.label(), "");
 }
-
-// ---------------------------------------------------------------------------
-// into_location
-// ---------------------------------------------------------------------------
 
 /// Build a `LocationIn` the only way there is: through the validation.
 fn location_in(latitude: f64, longitude: f64, timezone: &str) -> LocationIn {
