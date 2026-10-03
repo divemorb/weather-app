@@ -1,6 +1,6 @@
 {
  "now": "2026-09-30T10:27:10Z",
- "python_memory_kb": 64796,
+ "python_memory_kb": 65248,
  "upstream": [
   "/bs/current_weather?lat=52.52&lon=13.405",
   "/bs/radar?date=2026-09-30T10:25:00+00:00&last_date=2026-09-30T11:25:00+00:00&lat=52.52&lon=13.405",

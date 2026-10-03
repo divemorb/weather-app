@@ -47,7 +47,7 @@ ERRORS = {
 API = ["/healthz", "/api/config", "/api/now", "/api/rain-probability", "/api/radar/next-hour",
        "/api/models/24h", "/api/model-accuracy", "/api/sources", "/api/schedule"]
 STATIC = ["index.html", "api.js", "app.js", "chart.css", "chart.js", "details.css", "details.js", "format.js", "glance.js",
-          "i18n.js", "kiosk.css", "now.js", "setup.js", "style.css"]
+          "i18n.js", "kiosk.css", "now.js", "setup.js", "stationmap.js", "style.css"]
 
 
 def get(path, name=None, **kw):

@@ -1,6 +1,6 @@
 {
  "now": "2026-09-30T10:27:10Z",
- "python_memory_kb": 64076,
+ "python_memory_kb": 63900,
  "upstream": [],
  "cases": {
   "healthz": {
@@ -281,8 +281,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "bcd65bdf9ff945ebfd05d1ccb3f90e67843727c4ad3e45a597644d0b07a124df",
-   "length": 9362
+   "sha256": "d5cc4efcb07e0f1cb36f0b34cda0ea85b22599434742b310dd5dc965b88771a1",
+   "length": 9536
   },
   "static/index.html": {
    "status": 200,
@@ -295,8 +295,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "bcd65bdf9ff945ebfd05d1ccb3f90e67843727c4ad3e45a597644d0b07a124df",
-   "length": 9362
+   "sha256": "d5cc4efcb07e0f1cb36f0b34cda0ea85b22599434742b310dd5dc965b88771a1",
+   "length": 9536
   },
   "static/api.js": {
    "status": 200,
@@ -323,8 +323,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "c9b5befb670a6c5786cfa40c91a7d70cd942c69a73aaed1dacdb3ebb8f23b707",
-   "length": 8301
+   "sha256": "2ba9502f9ab9c393807595209e39d6acce2f094ccd23aef83d6fcc9c3863d2df",
+   "length": 8555
   },
   "static/chart.css": {
    "status": 200,
@@ -365,8 +365,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "bf65aba131f2b39053b73131b6feed8ad0ed2ece38d49644e105a7f78476eef9",
-   "length": 4488
+   "sha256": "b731dac9a461c99532ac5130c832b31c162b65449679e2ca0bb2ad0d3dd7ecc7",
+   "length": 5681
   },
   "static/details.js": {
    "status": 200,
@@ -379,8 +379,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "7fe640fa1d7c07cc0616a2c21a55844e2616e42a55787768cd421e205d37704a",
-   "length": 14040
+   "sha256": "f3df4b84a38252e96ebc97cbfc33bef678817b54b6eec47b864cc3c805064227",
+   "length": 14342
   },
   "static/format.js": {
    "status": 200,
@@ -393,8 +393,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "98ad6e4424d354a76790050a8eef64b7e4d279db87552f7de883a0900a481689",
-   "length": 11428
+   "sha256": "066549a6c25432c695141cd7ec1c79c331090185bb986feae215ac110c4078e9",
+   "length": 13344
   },
   "static/glance.js": {
    "status": 200,
@@ -421,8 +421,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "4f0c1b0acb148fe929292e165a1ebeef012a08e034486ef55a86b53f508d49c6",
-   "length": 12716
+   "sha256": "728f1d0fa468ef843e9b67fdfb17f678516bc983cccddf74f19cdbce0216ceb5",
+   "length": 13389
   },
   "static/kiosk.css": {
    "status": 200,
@@ -435,8 +435,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "547fa9efda89127e396b37b42862a3daed9d477c02b7b2f77c600ab30fe8cd5a",
-   "length": 6132
+   "sha256": "5b8162210e3f97494d4a771fe91d93d41f9f746027d51c74a07186762eea5ceb",
+   "length": 6282
   },
   "static/now.js": {
    "status": 200,
@@ -449,8 +449,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "8e88eca8ab6cbec534d2edafa7e3fd89fa789af433db113e8fbfd4d6d0b2303c",
-   "length": 3072
+   "sha256": "5a9ed59c573633d34eec3aa3582b031b706925108b82d6ab0a886ed33cc673a3",
+   "length": 5282
   },
   "static/setup.js": {
    "status": 200,
@@ -466,6 +466,20 @@
    "sha256": "5370f926956386a3864bf3e3cc24455b74f89bf1fa5cc13abd970aed03f5c8b8",
    "length": 7906
   },
+  "static/stationmap.js": {
+   "status": 200,
+   "headers": {
+    "content-type": "text/javascript; charset=utf-8",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "present"
+   },
+   "sha256": "d22ce29b9270a6c2b1a620937bcc1e5434656ed421b68dd6407a35160f018c10",
+   "length": 6751
+  },
   "static/style.css": {
    "status": 200,
    "headers": {
@@ -477,8 +491,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "99c2fe959d5b90d09a8e9bb3b5c33011e5fe488f47f8d9b9097b97e806776e08",
-   "length": 12065
+   "sha256": "e1a73b315a694df7c46a4fe4bd2fa6a454b26c49a1150272186c719162f74a12",
+   "length": 12352
   },
   "static/app.js-revalidate": {
    "status": 304,
