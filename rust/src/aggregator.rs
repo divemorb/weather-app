@@ -24,6 +24,7 @@ use crate::openmeteo::parse_forecast;
 use crate::pyfmt::py_round_int;
 use crate::serializers::CacheMeta;
 use crate::series::build_forecast_history_rows;
+use crate::stations;
 use crate::store::{Source, Store, StoreError};
 use crate::times::{Clock, to_iso};
 use crate::upstream::SourceError;
@@ -313,6 +314,16 @@ impl Aggregator {
                 tracing::error!("observation backfill: writing observations failed: {err}");
                 return;
             }
+        }
+        // Remember which stations the observations came from (P2); the
+        // value is canonical JSON, byte-identical to the Python backend's.
+        let station_list = stations::observation_stations(&payload, now);
+        if let Err(err) = self.store.set_meta(
+            stations::OBSERVATION_STATIONS_KEY,
+            &stations::stations_to_json(&station_list),
+        ) {
+            tracing::error!("observation backfill: writing observations failed: {err}");
+            return;
         }
         let count = observations.len();
         tracing::info!("observation backfill: {count} hourly observations written");

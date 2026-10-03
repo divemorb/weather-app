@@ -68,7 +68,13 @@ pub(crate) async fn api_now(State(state): State<AppState>) -> Result<Json<Value>
     let agg: &Aggregator = &state.aggregator;
     let conditions = agg.get_current_conditions()?;
     let meta = agg.cache_meta(Source::Current)?;
-    Ok(Json(serialize_now(conditions.as_ref(), Some(&meta))))
+    let (station, fallback) = agg.current_station_and_fallback()?;
+    Ok(Json(serialize_now(
+        conditions.as_ref(),
+        Some(&meta),
+        station.as_ref(),
+        &fallback,
+    )))
 }
 
 /// `GET /api/rain-probability`: the combined % with the per-signal data age
@@ -115,10 +121,12 @@ pub(crate) async fn api_model_accuracy(
     let agg: &Aggregator = &state.aggregator;
     let cfg = agg.cfg();
     let models = agg.get_model_accuracy()?;
+    let stations = agg.get_observation_stations()?;
     Ok(Json(serialize_model_accuracy(
         &models,
         cfg.accuracy.window_days,
         cfg.accuracy.min_samples,
+        &stations,
     )))
 }
 

@@ -18,6 +18,9 @@ use crate::accuracy::ModelAccuracy;
 use crate::models::{CurrentConditions, RainProbability};
 use crate::pyfmt::py_round;
 use crate::series::{RadarBar, Series24h};
+use crate::stations::{
+    FallbackEntry, ObsStation, Station, fallback_entry_json, observation_entry_json, station_json,
+};
 
 /// Freshness of one cached source (Python `Aggregator.cache_meta`).
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -50,8 +53,14 @@ fn cache_meta(meta: Option<&CacheMeta>) -> Map<String, Value> {
 ///
 /// `available` is false when there is no cached observation yet; the
 /// `conditions` object is then null and the frontend renders an empty
-/// state.
-pub fn serialize_now(conditions: Option<&CurrentConditions>, meta: Option<&CacheMeta>) -> Value {
+/// state. `station` / `fallback` (P1) name the station the values come
+/// from and, per value, the station Bright Sky took it from instead.
+pub fn serialize_now(
+    conditions: Option<&CurrentConditions>,
+    meta: Option<&CacheMeta>,
+    station: Option<&Station>,
+    fallback: &BTreeMap<String, FallbackEntry>,
+) -> Value {
     // Python returns the fixed "no cached observation" shape and ignores
     // `meta` when there are no conditions.
     let Some(conditions) = conditions else {
@@ -63,11 +72,22 @@ pub fn serialize_now(conditions: Option<&CurrentConditions>, meta: Option<&Cache
         });
     };
     let mut out = cache_meta(meta);
-    out.insert("conditions".into(), conditions_json(conditions));
+    out.insert(
+        "conditions".into(),
+        conditions_json(conditions, station, fallback),
+    );
     Value::Object(out)
 }
 
-fn conditions_json(c: &CurrentConditions) -> Value {
+fn conditions_json(
+    c: &CurrentConditions,
+    station: Option<&Station>,
+    fallback: &BTreeMap<String, FallbackEntry>,
+) -> Value {
+    let fallback: Map<String, Value> = fallback
+        .iter()
+        .map(|(field, entry)| (field.clone(), fallback_entry_json(entry)))
+        .collect();
     json!({
         "timestamp_utc": c.timestamp_utc,
         "temperature_c": c.temperature_c,
@@ -84,6 +104,8 @@ fn conditions_json(c: &CurrentConditions) -> Value {
         "precipitation_60mm": c.precipitation_60mm,
         "condition": c.condition,
         "source_id": c.source_id,
+        "station": station_json(station),
+        "fallback": Value::Object(fallback),
     })
 }
 
@@ -176,10 +198,13 @@ pub fn serialize_models_24h(series: &Series24h, meta: Option<&CacheMeta>) -> Val
 ///
 /// Each entry gains `enough_data` = `n_samples >= min_samples` so the UI can
 /// grey out models that have not accumulated enough compared hours.
+/// `stations` (P2) lists the observation stations behind the table,
+/// nearest first; `[]` while the backfill has not remembered any.
 pub fn serialize_model_accuracy(
     models: &BTreeMap<String, ModelAccuracy>,
     window_days: i64,
     min_samples: i64,
+    stations: &[ObsStation],
 ) -> Value {
     let mut serialized: Map<String, Value> = Map::new();
     for (name, stats) in models {
@@ -210,10 +235,12 @@ pub fn serialize_model_accuracy(
         );
         serialized.insert(name.clone(), Value::Object(entry));
     }
+    let stations: Vec<Value> = stations.iter().map(observation_entry_json).collect();
     json!({
         "window_days": window_days,
         "min_samples": min_samples,
         "models": Value::Object(serialized),
+        "stations": Value::Array(stations),
     })
 }
 

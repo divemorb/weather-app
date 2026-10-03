@@ -19,6 +19,7 @@ pub mod serializers;
 pub mod series;
 pub mod snapshot;
 pub mod static_files;
+pub mod stations;
 pub mod store;
 pub mod times;
 pub mod upstream;

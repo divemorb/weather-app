@@ -53,8 +53,24 @@ fn make_rain() -> RainProbability {
 fn now_with_conditions() {
     let conditions = make_conditions();
     let meta = meta_fresh();
+    let station = Station {
+        name: Some("Berlin-Tempelhof".to_string()),
+        distance_m: Some(json!(5837.0)),
+        lat: Some(json!(52.4676)),
+        lon: Some(json!(13.402)),
+        height_m: Some(json!(47.7)),
+        dwd_station_id: Some("00433".to_string()),
+    };
+    let mut fallback: BTreeMap<String, FallbackEntry> = BTreeMap::new();
+    fallback.insert(
+        "cloud_cover_pct".to_string(),
+        FallbackEntry {
+            name: Some("Potsdam".to_string()),
+            distance_m: Some(json!(27915.0)),
+        },
+    );
     assert_eq!(
-        serialize_now(Some(&conditions), Some(&meta)),
+        serialize_now(Some(&conditions), Some(&meta), Some(&station), &fallback),
         json!({
             "available": true,
             "age_seconds": 12,
@@ -75,15 +91,36 @@ fn now_with_conditions() {
                 "precipitation_60mm": null,
                 "condition": "Rain",
                 "source_id": 1,
+                "station": {
+                    "name": "Berlin-Tempelhof",
+                    "distance_m": 5837.0,
+                    "lat": 52.4676,
+                    "lon": 13.402,
+                    "height_m": 47.7,
+                    "dwd_station_id": "00433",
+                },
+                "fallback": {
+                    "cloud_cover_pct": {"name": "Potsdam", "distance_m": 27915.0},
+                },
             },
         })
     );
 }
 
 #[test]
+fn now_without_station_names_null_and_empty_fallback() {
+    let conditions = make_conditions();
+    let meta = meta_fresh();
+    let got = serialize_now(Some(&conditions), Some(&meta), None, &BTreeMap::new());
+    let conditions = got["conditions"].clone();
+    assert_eq!(conditions["station"], Value::Null);
+    assert_eq!(conditions["fallback"], json!({}));
+}
+
+#[test]
 fn now_missing_conditions_is_null() {
     assert_eq!(
-        serialize_now(None, None),
+        serialize_now(None, None, None, &BTreeMap::new()),
         json!({
             "available": false,
             "age_seconds": null,
@@ -104,7 +141,9 @@ fn now_missing_conditions_ignores_meta() {
                 available: true,
                 age_seconds: Some(42),
                 stale: false,
-            })
+            }),
+            None,
+            &BTreeMap::new()
         ),
         json!({
             "available": false,
@@ -258,11 +297,27 @@ fn model_accuracy_full() {
             event_accuracy: Some(0.5),
         },
     );
+    let stations = [ObsStation {
+        name: Some("Berlin-Friedrichshain/Spree".to_string()),
+        distance_m: Some(json!(1860.0)),
+        lat: Some(json!(52.51)),
+        lon: Some(json!(13.427)),
+        dwd_station_id: Some("17473".to_string()),
+        hours: 37,
+    }];
     assert_eq!(
-        serialize_model_accuracy(&models, 30, 48),
+        serialize_model_accuracy(&models, 30, 48, &stations),
         json!({
             "window_days": 30,
             "min_samples": 48,
+            "stations": [{
+                "name": "Berlin-Friedrichshain/Spree",
+                "distance_m": 1860.0,
+                "lat": 52.51,
+                "lon": 13.427,
+                "dwd_station_id": "17473",
+                "hours": 37,
+            }],
             "models": {
                 "icon_d2": {
                     "n_samples": 100,
@@ -292,7 +347,7 @@ fn model_accuracy_full() {
 #[test]
 fn model_accuracy_empty() {
     assert_eq!(
-        serialize_model_accuracy(&BTreeMap::new(), 30, 48),
-        json!({"window_days": 30, "min_samples": 48, "models": {}})
+        serialize_model_accuracy(&BTreeMap::new(), 30, 48, &[]),
+        json!({"window_days": 30, "min_samples": 48, "models": {}, "stations": []})
     );
 }

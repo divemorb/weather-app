@@ -25,6 +25,10 @@ use crate::probability::{
 use crate::pyfmt::py_round;
 use crate::radar::parse_radar;
 use crate::series::{RadarBar, Series24h, build_24h_series, build_radar_next_hour_bar};
+use crate::stations::{
+    FallbackEntry, OBSERVATION_STATIONS_KEY, ObsStation, Station, station_and_fallback,
+    stations_from_json,
+};
 use crate::store::{Source, StoreError};
 use crate::times::to_iso;
 
@@ -58,6 +62,19 @@ impl Aggregator {
         let bundle = self.forecast_bundle()?;
         cond.feels_like_c = first_hour_apparent(bundle.as_ref(), now);
         Ok(Some(cond))
+    }
+
+    /// Python `get_current_payload` + `station_and_fallback` (P1): the
+    /// station the cached `current_weather` values come from and, per value,
+    /// the station Bright Sky took it from instead (None / `{}` while
+    /// nothing is cached or nothing is listed).
+    pub fn current_station_and_fallback(
+        &self,
+    ) -> Result<(Option<Station>, BTreeMap<String, FallbackEntry>), StoreError> {
+        let Some((payload, _age)) = self.store.get_cache(Source::Current, self.now())? else {
+            return Ok((None, BTreeMap::new()));
+        };
+        Ok(station_and_fallback(&payload))
     }
 
     /// Python `get_radar_nowcast`: the cached radar parsed into 5-min
@@ -209,6 +226,14 @@ impl Aggregator {
             &rows,
             cfg.probability.model_rain_threshold_mm,
         ))
+    }
+
+    /// Python `get_observation_stations` (P2): the observation stations of
+    /// the last backfill, `[]` when none is stored or the stored value is
+    /// broken (a broken value must not break the page).
+    pub fn get_observation_stations(&self) -> Result<Vec<ObsStation>, StoreError> {
+        let stored = self.store.get_meta(OBSERVATION_STATIONS_KEY)?;
+        Ok(stations_from_json(stored.as_deref()))
     }
 }
 

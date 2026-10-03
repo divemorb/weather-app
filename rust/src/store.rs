@@ -191,15 +191,20 @@ impl Store {
         Ok(())
     }
 
-    /// Drop all cached payloads and forecast history (step 8b).
+    /// Drop all data that belongs to the old location (step 8b, P2).
     ///
-    /// Called when the location changes: both tables belong to the *old*
-    /// location, so they must not be served for the new one. (The accuracy
-    /// window shrinks accordingly; there is nothing to re-compute.)
+    /// Called when the location changes: the cache, the forecast history
+    /// and the observation stations all belong to the *old* location, so
+    /// none of it may be served for the new one. (The accuracy window
+    /// shrinks accordingly; there is nothing to re-compute.)
     pub fn clear_location_data(&self) -> Result<(), StoreError> {
         let conn = self.lock_conn();
         conn.execute("DELETE FROM source_cache", [])?;
         conn.execute("DELETE FROM forecast_history", [])?;
+        conn.execute(
+            "DELETE FROM app_meta WHERE key = 'observation_stations'",
+            [],
+        )?;
         Ok(())
     }
 
