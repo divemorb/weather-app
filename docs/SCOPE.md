@@ -16,7 +16,7 @@ It combines DWD rain radar with several weather models and a 50-member ensemble,
 
 **Users:** one household with one location. The person who runs it can copy commands into a terminal but is not necessarily a developer.
 
-**Development approach:** the project also serves as a testbed for a local AI coding agent (Qwen via the Continue extension). The rules the agent follows are in `.continue/rules/weather-projectrules.md`. This shapes how the code is organized (small pure functions, many tests), not what the app does.
+**Development approach:** the project also serves as a testbed for a local AI coding agent (Qwen). Its rules are in `.continue/rules/weather-projectrules.md`. This shapes how the code is organized (small pure functions, many tests), not what the app does.
 
 ## Features
 

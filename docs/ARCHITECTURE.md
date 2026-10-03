@@ -100,48 +100,44 @@ The upstreams timestamp precipitation differently; the backend normalizes everyt
 
 ## Project layout
 
+v2 runs the Rust app in `rust/`. The Python app in `app/` (v1) stays as the reference implementation: the contract suite records its answers and checks the Rust app against them.
+
 ```
-weather.yaml              # all runtime configuration
-docker-compose.yml        # local deployment
-Dockerfile
-requirements.txt
-app/
-  main.py                 # FastAPI app + REST contract
-  config.py               # YAML + env configuration
-  store.py                # SQLite: source cache + forecast history
-  times.py                # UTC time helpers
-  brightsky_client.py     # DWD client (current_weather, radar, /weather)
-  openmeteo_client.py     # Open-Meteo forecast + ensemble client
-  aggregator.py           # cache refresh + read-model (step 3)
-  probability.py          # pure rain-probability logic (step 3)
-  accuracy.py             # pure per-model accuracy scoring (step 6e)
-  series.py               # pure API-series helpers (24 h + radar bar)
-  api_serializers.py      # pure dataclass -> JSON serializers (step 4)
-  scheduler.py            # APScheduler refresh jobs
-  models.py               # normalized dataclasses / API contract
-  static/index.html       # frontend markup (web-ui W2)
-  static/style.css        # the look, both themes (W3)
-  static/chart.css        # the 24 h chart card (W6)
-  static/details.css      # the Details card (W7)
-  static/kiosk.css        # the wall display, /?kiosk (W8, W9d)
-  static/app.js           # entry module: language, theme, config, refresh (W2, W9b)
-  static/api.js           # fetch helper
-  static/i18n.js          # English and German texts, language pick (W1)
-  static/format.js        # pure formatting + reload timing helpers (W1, W9b)
-  static/glance.js        # the answer, the chance, the 60-min radar strip (W2, W4)
-  static/now.js           # the Now section (W5)
-  static/chart.js         # 24 h model comparison SVG chart (W6)
-  static/details.js       # signals, countdowns, sources, accuracy; page reload (W7)
-  static/setup.js         # the location wizard (step 8, W9)
-tests/
-  conftest.py
-  helpers.py              # synthetic payload builders for tests
-  test_accuracy.py        # pure accuracy scorer (step 6e)
-  test_config.py
-  test_times.py
-  test_brightsky_client.py
-  test_openmeteo_client.py
-  test_backfill.py        # observation backfill (step 6d)
+weather.yaml              # runtime configuration (baked into the image)
+docker-compose.yml        # deployment: the Rust app (v2)
+rust/
+  Dockerfile              # static binary on a distroless image
+  docker-compose.yml      # variant with an explicitly named volume
+  src/main.rs             # the binary: server, `wetter snapshot PATH`
+  src/config.rs           # weather.yaml + environment overrides
+  src/store.rs            # SQLite: source cache, forecast history, app_meta
+  src/clients.rs          # HTTP clients for Bright Sky and Open-Meteo
+  src/brightsky.rs        # Bright Sky parsers (current weather, observations)
+  src/radar.rs            # radar frame decoding
+  src/openmeteo.rs        # model forecast + ensemble parsers
+  src/aggregator.rs       # refreshes, observation backfill, read model
+  src/probability.rs      # rain probability for the next 60 minutes
+  src/accuracy.rs         # per-model accuracy scoring
+  src/series.rs           # 24 h series, radar bar
+  src/stations.rs         # the weather stations behind the data
+  src/serializers.rs      # JSON shapes of the API
+  src/routes.rs           # HTTP routes
+  src/security.rs         # host check, security headers
+  src/scheduler.rs        # refresh jobs
+  src/location.rs         # the home location (runtime state)
+  src/geocode.rs          # address search (Nominatim)
+  src/snapshot.rs         # consistent copy of the database
+  src/static_files.rs     # serves app/static
+  src/pyfmt.rs, times.rs  # number and time formatting as the Python app does it
+  contract/               # API contract suite: goldens from the Python app, run against Rust
+  uitest/                 # page checks in headless Chromium
+app/                      # the Python app (v1, reference implementation)
+  static/                 # the web page, served by both apps:
+    index.html, *.css     #   markup and styles (kiosk.css: the wall display)
+    app.js                #   entry module: language, theme, config, refresh
+    glance.js, now.js, chart.js, details.js, stationmap.js, setup.js
+    format.js, i18n.js    #   pure formatting, English and German texts
+tests/                    # tests of the Python app
 ```
 
 ## Location lifecycle
@@ -158,7 +154,7 @@ flowchart TD
     uncfg -->|setup wizard or button| post["POST /api/location"]
     ready -->|wizard or button| post
     post --> moved{"Moved more than about 1 km?"}
-    moved -->|yes| clear["Delete cache + forecast history"] --> save["Save to the database"]
+    moved -->|yes| clear["Delete cache, forecast history, observation stations"] --> save["Save to the database"]
     moved -->|no| save
     save --> refresh["Start a refresh right away"]
 ```

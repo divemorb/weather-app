@@ -62,7 +62,7 @@ Verified on 2026-09-30 against the exact versions in `rust/Cargo.toml` (Rust 1.9
 
 - Without the `preserve_order` feature (not enabled), `serde_json::Map` is sorted by key: iterating an upstream object does not give the upstream's order. Where Python's order matters, the prompt says how to get it.
 - `json!({...})` writes `f64` as a float (`5.0`), integers as integers, and `None` as `null`, the same as Python's `json.dumps` as far as the parsed JSON goes.
-- The `float_roundtrip` feature is on (step R35): floats parse exactly, like Python's `json.loads`. Without it, long mantissas such as Open-Meteo's `0.40209293365478516` came out one bit off (found by the lockstep).
+- The `float_roundtrip` feature is on: floats parse exactly, like Python's `json.loads`. Without it, long mantissas such as Open-Meteo's `0.40209293365478516` came out one bit off (found by the lockstep).
 
 ## base64 0.23.1 and flate2 1.1.10
 
@@ -98,7 +98,7 @@ Features: `rustls`, `gzip`, `query` (no `json`, no `stream`, no `blocking`).
 - Background work: `tokio::spawn(async move { agg.refresh().await })` with a cloned `Arc`. Two things at once: `tokio::join!(a(), b())`.
 - Timers: `tokio::time::interval_at(tokio::time::Instant::now() + period, period)` (first tick one period after start), with `.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip)`. `tokio::time::sleep(d).await` waits.
 
-## axum extras for phase 3
+## axum extras
 
 - Raw query pairs (all of them, in order, percent-decoded, invalid UTF-8 becomes U+FFFD): handler argument `axum::extract::Query(pairs): Query<Vec<(String, String)>>`. Don't deserialize into a struct: a repeated key is then an error, while Python takes the last value.
 - Raw body plus headers: handler arguments `headers: axum::http::HeaderMap, body: axum::body::Bytes` (the body must be the last argument). axum's default body limit is 2 MB (bigger bodies get 413).
