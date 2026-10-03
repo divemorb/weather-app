@@ -7,7 +7,7 @@ needed, so it runs in the watchdog's sandbox). Python is
 compared as its AST without docstrings; Rust, JS and CSS as their token text
 with comments removed (string, char and template literals kept verbatim,
 whitespace outside them ignored); HTML without ``<!-- -->`` comments;
-Markdown and other text are not compared (prose is reviewed). A new or
+Markdown: its fenced code blocks only (the prose is reviewed). A new or
 deleted code file is a change. Prints one line per file and exits 1 on any
 code change.
 
@@ -79,8 +79,15 @@ def html_key(src: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"<!--.*?-->", " ", src, flags=re.S)).strip()
 
 
+def md_key(src: str) -> str:
+    """Markdown: only the fenced code blocks (the commands) must stay; prose may change."""
+    return "\n".join(re.findall(r"^```.*?^```", src, flags=re.S | re.M))
+
+
 def key(path: str, src: str) -> str | None:
     ext = path.rsplit(".", 1)[-1]
+    if ext == "md":
+        return md_key(src)
     if ext == "py":
         return py_key(src)
     if ext in ("rs", "js", "mjs", "css"):
@@ -92,6 +99,7 @@ def key(path: str, src: str) -> str | None:
 
 ROOTS = ["app", "tests", "rust/src", "rust/tests", "rust/uitest", "rust/contract"]
 CODE = {"py", "rs", "js", "mjs", "css", "html"}
+DOCS = ["README.md", "docs/*.md", "rust/docs/*.md", "rust/contract/README.md", "rust/uitest/README.md"]
 
 
 def code_files() -> list[str]:
@@ -100,6 +108,8 @@ def code_files() -> list[str]:
         for p in pathlib.Path(root).rglob("*"):
             if p.is_file() and p.suffix[1:] in CODE and "__pycache__" not in p.parts:
                 out.append(str(p))
+    for pattern in DOCS:
+        out += [str(p) for p in pathlib.Path(".").glob(pattern)]
     return sorted(out)
 
 
