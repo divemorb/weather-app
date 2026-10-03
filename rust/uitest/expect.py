@@ -123,6 +123,19 @@ ATTRIBUTION_LINKS = ["dwd.de", "brightsky.dev", "open-meteo.com", "openstreetmap
 WIZARD_LABEL = ["Alexanderplatz", "Spandauer Vorstadt", "Mitte", "Berlin", "Deutschland"]
 WIZARD_DETAIL = ["52.522", "13.414", TZ]
 
+# The stations behind the data (live and rain: the same Bright Sky recordings). Now: the
+# current_weather source; the observation stations: the backfill's /weather sources, nearest
+# first (hours = observations in the recording before "now"). On the map one mark per DWD
+# station id (BERLIN-TEMPELHOF is both): bearing from the location in degrees, distance in km.
+NOW_STATION = {"en": ["Berlin-Tempelhof", "5.8 km"], "de": ["Berlin-Tempelhof", "5,8 km"]}
+OBS_STATIONS = [  # (name, distance en / de, hours)
+    ("Berlin-Friedrichshain/Spree", "1.9 km", "1,9 km", "37"),
+    ("BERLIN-TEMPELHOF", "5.6 km", "5,6 km", "10"),
+]
+MAP_MARKS = {"00433": (182, 5.837), "17473": (127, 1.86)}
+MAP_RADIUS_KM = 1.0  # the test config's radar radius
+MAP_BEARING_TOLERANCE = 20  # degrees
+
 KIOSK_SIZES = [(1280, 800), (1920, 1080)]
 KIOSK_MIN_FONT = {"rain-answer": 28, "now-temp": 40}
 KIOSK_CHART_MIN = 0.22  # the chart's height as a share of the kiosk screen (1280x800: 176 px)

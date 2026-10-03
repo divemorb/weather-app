@@ -32,6 +32,7 @@ Check names are ``scenario/lang/check`` (``rain/de/now-wind``), plus
 from __future__ import annotations
 
 import argparse
+import math
 import calendar
 import fnmatch
 import importlib.util
@@ -56,7 +57,8 @@ _spec.loader.exec_module(contract)
 from cdp import Browser  # noqa: E402
 from expect import (  # noqa: E402
     ACCURACY_HEAD, ANSWER, ATTRIBUTION_LINKS, BUDGET_BYTES, CONFIG_RETRY_S, FIXED, KIOSK_CHART_LABEL_PX, KIOSK_CHART_MIN,
-    KIOSK_CHART_MIN_W, KIOSK_DRY_CHART_MAX, KIOSK_FILL, KIOSK_FONT_SHARE, KIOSK_MIN_FONT, KIOSK_RADAR_SHARE,
+    KIOSK_CHART_MIN_W, KIOSK_DRY_CHART_MAX, MAP_BEARING_TOLERANCE, MAP_MARKS, MAP_RADIUS_KM, NOW_STATION,
+    OBS_STATIONS, KIOSK_FILL, KIOSK_FONT_SHARE, KIOSK_MIN_FONT, KIOSK_RADAR_SHARE,
     KIOSK_SIZES, LOCALES, MODEL_LABELS, NOW, RADAR_CAPTION, SCENARIO, SOURCE_KIND, SOURCES, TZ, WEIGHTS, WHEN,
     WIZARD_DETAIL, WIZARD_LABEL)
 from fakeup import FakeUpstream  # noqa: E402
@@ -79,11 +81,12 @@ KIOSK = [f"kiosk-{w}x{h}" for w, h in KIOSK_SIZES]
 KIOSK_CHART = [f"kiosk-chart-{w}x{h}" for w, h in KIOSK_SIZES]
 KIOSK_FILL_CHECKS = [f"kiosk-fill-{w}x{h}" for w, h in KIOSK_SIZES]
 REFRESH = ["refresh-render-error", "refresh-config-retry"]
+STATIONS = ["now-station", "now-fallback", "observation-stations", "station-map"]
 
 
 def check_names(scenario: str, lang: str) -> list[str]:
     if scenario in ("live", "rain"):
-        names = COMMON + GLANCE + RADAR + NOW_CHECKS + CHART + DETAILS + KIOSK + KIOSK_FILL_CHECKS
+        names = COMMON + GLANCE + RADAR + NOW_CHECKS + CHART + DETAILS + KIOSK + KIOSK_FILL_CHECKS + STATIONS
         if scenario == "live":
             names = [n for n in names if not n.startswith("chart-") or n == "chart-dry"]
             names += ["theme-toggle"] if lang == "en" else []
@@ -92,10 +95,12 @@ def check_names(scenario: str, lang: str) -> list[str]:
         return names
     if scenario == "errors":
         return (COMMON + ["rain-answer", "rain-when", "rain-probability", "radar-unavailable", "now-unavailable",
-                          "chart-unavailable"] + [n for n in DETAILS if n not in ("details-weights", "details-signals")])
+                          "chart-unavailable", "now-station", "station-map"] + [n for n in DETAILS if n not in ("details-weights", "details-signals")])
     if scenario == "accuracy":
         return ["console", "requests", "location", "location-detail", "rain-probability", "details-closed",
                 "accuracy-table", "accuracy-head", "accuracy-note", "details-fit", "details-compact", "overflow-360"]
+    if scenario == "fallback":
+        return ["console", "now-station", "now-fallback"]
     if scenario == "unconfigured":
         return ["console", "requests", "lang", "setup-visible", "theme-light", "theme-dark", "theme-icon",
                 "contrast-light", "contrast-dark", "overflow-360", "buttons"]
@@ -105,7 +110,7 @@ def check_names(scenario: str, lang: str) -> list[str]:
     raise ValueError(scenario)
 
 
-UI_SCENARIOS = ["live", "rain", "errors", "accuracy", "unconfigured", "wizard"]
+UI_SCENARIOS = ["live", "rain", "errors", "accuracy", "unconfigured", "wizard", "fallback"]
 SCENARIO_LANGS = {"wizard": ["de", "en"]}  # the German validation runs before the English save
 
 
@@ -517,6 +522,10 @@ def check_details(pg: UIPage, sc: str, exp: dict, names: list[str], add):
         n = sum(e["visible"] for e in pg.ui("source-error"))
         want = exp.get("source_errors", 0)
         add("source-errors", [] if n == want else [f"{n} visible [data-test=source-error], expected {want}"])
+    if "observation-stations" in names:
+        add("observation-stations", observation_station_problems(pg))
+    if "station-map" in names:
+        add("station-map", station_map_problems(pg, exp))
     add("details-fit", pg.js('__ui.sticksOut("details")'))
     if "accuracy-table" in names:
         add("accuracy-table", accuracy_problems(pg, exp))
@@ -562,7 +571,8 @@ def check_kiosk(pg: UIPage, exp: dict, size, add_kiosk):
         problems.append(f"page is {info['sh']} px high at {w}x{h}: it must fit without scrolling")
     if info["sw"] > w + 1:
         problems.append(f"page is {info['sw']} px wide at {w}x{h}: {pg.js('__ui.overflowing()')}")
-    hooks = ["rain-answer", "rain-probability", "now-temp", "radar-step"] + (["chart-dry"] if exp["chart"] == "dry" else ["chart"])
+    hooks = (["rain-answer", "rain-probability", "now-temp", "now-station", "radar-step"]
+             + (["chart-dry"] if exp["chart"] == "dry" else ["chart"]))
     for hook in hooks:
         els = pg.ui(hook)
         if not els or not all(e["visible"] for e in els):
@@ -657,6 +667,12 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
 
     if name == "wizard":
         run_wizard(browser, base, sc, lang, add, done, shot)
+    elif name == "fallback":
+        pg = UIPage(browser, base, sc["now"], lang)
+        add("now-station", expect_tokens(pg, "now-station", NOW_STATION[lang]))
+        add("now-fallback", now_fallback_problems(pg))
+        shot(pg, "desktop-light")
+        done(pg)
     elif name == "unconfigured":
         pg = UIPage(browser, base, sc["now"], lang)
         info = pg.js("__ui.page()")
@@ -689,9 +705,13 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
                 check_radar(pg, exp, add)
             if exp["now"]:
                 check_now(pg, add)
+                add("now-station", expect_tokens(pg, "now-station", NOW_STATION[lang]))
+                add("now-fallback", [f"{n} visible [data-test=now-fallback]: no value fell back here"
+                                     for n in [sum(e["visible"] for e in pg.ui("now-fallback"))] if n])
             else:
                 add("now-unavailable", expect_text(pg, "now-unavailable", FIXED["now.unavailable"][lang])
                     + expect_hidden(pg, "now-temp"))
+                add("now-station", expect_hidden(pg, "now-station"))
             check_chart(pg, exp, add)
         shot(pg, "desktop-light")
         check_details(pg, name, exp, names, add)
@@ -752,6 +772,86 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
     foreign = sorted({u for u in requests if not (u.startswith(own) or u.startswith("data:"))})
     add("requests", [f"request outside the app: {u}" for u in foreign])
     add("console", list(dict.fromkeys(errors))[:8])
+
+
+def now_fallback_problems(pg: UIPage) -> list[str]:
+    """fallback scenario: cloud cover came from Potsdam (one mark at that value); the dew
+    point's fallback source isn't listed, so no mark for it."""
+    marks = [e for e in pg.ui("now-fallback") if e["visible"]]
+    if len(marks) != 1:
+        return [f"{len(marks)} visible [data-test=now-fallback], expected 1 (cloud cover from Potsdam)"]
+    m, problems = marks[0], []
+    if m["attrs"].get("data-field") != "cloud_cover_pct":
+        problems.append(f'[data-test=now-fallback] data-field={m["attrs"].get("data-field")!r}, expected "cloud_cover_pct"')
+    if not has(m["text"] + " " + m["attrs"].get("aria-label", "") + " " + m["attrs"].get("title", ""), "Potsdam"):
+        problems.append(f"[data-test=now-fallback] {m['text']!r} doesn't name Potsdam")
+    return problems
+
+
+def observation_station_problems(pg: UIPage) -> list[str]:
+    rows = [e for e in pg.ui("observation-station") if e["visible"]]
+    if len(rows) != len(OBS_STATIONS):
+        return [f"{len(rows)} visible [data-test=observation-station], expected {len(OBS_STATIONS)} (nearest first)"]
+    problems = []
+    for e, (name, km_en, km_de, hours) in zip(rows, OBS_STATIONS):
+        for want in (name, km_en if pg.lang == "en" else km_de, hours):
+            if not has(e["text"], want):
+                problems.append(f"observation station row {e['text']!r} lacks {want!r} (rows nearest first)")
+    return problems
+
+
+def station_map_problems(pg: UIPage, exp: dict) -> list[str]:
+    """The schematic map: the location in the middle, one mark per DWD station at its bearing
+    and in distance order, the radar radius as a circle to the same scale, north and a scale."""
+    marks = [e for e in pg.ui("map-station") if e["visible"]]
+    if not exp.get("now"):
+        return [f"{len(marks)} visible [data-test=map-station] without any station data"] if marks else []
+    svg, problems = visible_one(pg, "station-map")
+    if not svg:
+        return problems
+    if svg["tag"] != "svg" or svg["attrs"].get("role") != "img" or not svg["attrs"].get("aria-label"):
+        problems.append('[data-test=station-map] must be an <svg role="img" aria-label="…">')
+    loc, p = visible_one(pg, "map-location")
+    problems += p
+    for hook in ("map-radius", "map-north", "map-scale"):
+        problems += visible_one(pg, hook)[1]
+    scale = [e for e in pg.ui("map-scale") if e["visible"]]
+    if scale and "km" not in scale[0]["text"]:
+        problems.append(f"[data-test=map-scale] {scale[0]['text']!r} has no km")
+    got = {e["attrs"].get("data-station"): e for e in marks}
+    if sorted(got) != sorted(MAP_MARKS):
+        return problems + [f"[data-test=map-station] data-station {sorted(got)}, expected {sorted(MAP_MARKS)} "
+                           "(one mark per DWD station id)"]
+    if not loc:
+        return problems
+
+    def centre(e):
+        r = e["rect"]
+        return r["x"] + r["w"] / 2, r["y"] + r["h"] / 2
+
+    lx, ly = centre(loc)
+    px = {}
+    for sid, (bearing, km) in MAP_MARKS.items():
+        x, y = centre(got[sid])
+        dx, dy = x - lx, y - ly
+        px[sid] = math.hypot(dx, dy)
+        angle = math.degrees(math.atan2(dx, -dy)) % 360
+        off = min(abs(angle - bearing), 360 - abs(angle - bearing))
+        if off > MAP_BEARING_TOLERANCE:
+            problems.append(f"map mark {sid} at {angle:.0f}° from the location, expected {bearing}° "
+                            f"(±{MAP_BEARING_TOLERANCE}°; north is up)")
+    near, far = sorted(MAP_MARKS, key=lambda k: MAP_MARKS[k][1])
+    if px[near] >= px[far]:
+        problems.append(f"map mark {near} ({MAP_MARKS[near][1]} km) is not nearer the centre than {far} "
+                        f"({MAP_MARKS[far][1]} km)")
+    radius = [e for e in pg.ui("map-radius") if e["visible"]]
+    if radius and px[far] > 0:
+        r_px = max(radius[0]["rect"]["w"], radius[0]["rect"]["h"]) / 2
+        want = px[far] * MAP_RADIUS_KM / MAP_MARKS[far][1]
+        if not 0.7 * want <= r_px <= 1.3 * want:
+            problems.append(f"[data-test=map-radius] radius {r_px:.1f} px, expected about {want:.1f} px "
+                            f"({MAP_RADIUS_KM} km at the stations' scale)")
+    return problems
 
 
 def kiosk_chart_problems(pg: UIPage, size) -> list[str]:
