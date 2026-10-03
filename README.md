@@ -31,12 +31,14 @@ The header has the location button (a map pin) to change the location and a butt
 
 - **Podman** (with podman-compose) or **Docker** (with Compose), on the machine that will run the app. A *container* is the isolated little environment the app runs in, and the *volume* is the app's data store on your disk.
 - An **internet connection** — the weather data is downloaded from free services.
-- **About 200 MB of disk** for the container image, plus a little extra for the cached data.
-- **About 50 MB of RAM** while it runs.
+- **About 15 MB of disk** for the container image, plus a little extra for the cached data.
+- **About 10 MB of RAM** while it runs.
 
 One geographic limit: **the radar covers Germany only.** Elsewhere the app automatically drops the radar from the calculation and computes the rain chance from the weather models and the ensemble alone — the page tells you when that is the case.
 
 ## Install and first start
+
+Upgrading from v1 (the Python app)? Follow [docs/MIGRATION.md](docs/MIGRATION.md); your data is kept.
 
 Get the code onto your machine:
 
@@ -57,7 +59,7 @@ With Docker the same command is:
 docker compose up -d --build
 ```
 
-This builds the container image if needed and starts the app in the background. Now open `http://localhost:8000` in your browser.
+This builds the container image if needed (the first build compiles the app: a few minutes, longer on a Raspberry Pi) and starts the app in the background. Now open `http://localhost:8000` in your browser.
 
 **The setup wizard appears**, because the app ships without a location. It is titled "Set your location" and explains: "Pick the spot this app watches for rain." You have two ways to set it:
 

@@ -1,31 +1,25 @@
 # Local weather app — run on your home network
 #   docker compose up -d --build
 #   open http://localhost:8000
+# v2 (Rust): same service, container, port and volume as v1, so an upgrade
+# keeps the data (see docs/MIGRATION.md).
 services:
   weather:
-    build: .
+    build:
+      context: .
+      dockerfile: rust/Dockerfile
     container_name: weather-app
     ports:
-      - "${PORT:-8000}:8000"
-    # All runtime config (location, radius, weights, models, cadence) lives in
-    # weather.yaml at the repo root and is baked into the image. Rebuild (or
-    # re-run `docker compose up -d --build`) after changing it.
-    # Optional: to override the published host port without editing the file,
-    # run:  PORT=9000 docker compose up -d
+      - "${PORT:-8000}:8000"   # another host port: PORT=9000 docker compose up -d
+    # weather.yaml is baked into the image: rebuild after changing it.
     environment:
       DATABASE_PATH: /data/weather.db
-      # ALLOWED_HOSTS: "pi.fritz.box"   # extra host names (router DNS); IPs, localhost and *.local always work
+      # ALLOWED_HOSTS: "pi.fritz.box"   # extra host names; IPs, localhost and *.local always work
+      # USE_ACCURACY_WEIGHTS: "true"    # weight the models by their accuracy (after ~2 days)
     volumes:
       - weather-data:/data
-    # The app schedules its own refreshes (radar 5 min, models hourly);
-    # keep the container alive and restart it on crash/host reboot.
     restart: always
-    # No privileged access needed; these are read-only public APIs.
-    # Hardened (step 7d): the image runs as the non-root `app` user
-    # (uid 1000) on a read-only root filesystem. Only /data (volume) and
-    # /tmp (tmpfs) are writable; all capabilities are dropped, no new
-    # privileges can be gained, and the process count is bounded. The
-    # /tmp tmpfs is bounded at 16 MB with noexec/nosuid/nodev.
+    # Non-root (uid 1000), read-only root filesystem; only /data and /tmp are writable.
     read_only: true
     tmpfs:
       - /tmp:size=16m,noexec,nosuid,nodev
@@ -37,4 +31,3 @@ services:
 
 volumes:
   weather-data:
-
