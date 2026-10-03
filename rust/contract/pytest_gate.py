@@ -3,7 +3,9 @@
 
 Every test outside the ``--pending`` files must pass. A test inside them
 (spec tests written before their step) must pass only when its node id
-matches a ``--require`` pattern (fnmatch); otherwise its failure is
+matches a ``--require`` pattern that starts with ``tests/`` (fnmatch; the
+watchdog passes the same patterns to the contract and UI harnesses, where
+``*`` means all of theirs); otherwise its failure is
 reported, not counted. Prints ``pytest: N passed, M failed, K of them
 required`` and exits 1 when a required test failed (or pytest itself broke).
 
@@ -39,7 +41,7 @@ def main() -> int:
     def required(node: str) -> bool:
         if node.split("::", 1)[0] not in args.pending:
             return True
-        return any(fnmatch.fnmatchcase(node, p) for p in args.require)
+        return any(fnmatch.fnmatchcase(node, p) for p in args.require if p.startswith("tests/"))
 
     passed = [n for n, s in results.items() if s == "PASSED"]
     failed = [n for n, s in results.items() if s != "PASSED"]
