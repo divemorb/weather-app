@@ -135,6 +135,7 @@ async fn server() {
             return;
         }
     }
+    scheduler.schedule_models_retry(&agg);
     tracing::info!("weather app started (db={})", config.database_path);
     let extra_hosts = parse_allowed_hosts(&std::env::var("ALLOWED_HOSTS").unwrap_or_default());
     let static_dir = std::env::var("STATIC_DIR").unwrap_or_else(|_| "/app/static".to_string());

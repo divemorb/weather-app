@@ -177,6 +177,15 @@ impl Aggregator {
 
     /// Store the payload and drop the last error, or record the error and
     /// keep the stale cache. A `StoreError` from `put_cache` is an internal
+    /// Whether the last models refresh failed for the forecast or the ensemble.
+    pub fn models_failed(&self) -> bool {
+        let errors = self
+            .last_error
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        errors.contains_key(&Source::Forecast) || errors.contains_key(&Source::Ensemble)
+    }
+
     /// failure: it is logged and the refresh goes on.
     fn store_fetched(&self, source: Source, fetched: Result<Value, SourceError>) {
         let key = source.key();

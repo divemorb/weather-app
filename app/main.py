@@ -51,7 +51,7 @@ from .location import (
     valid_timezone,
 )
 from .openmeteo_client import OpenMeteoClient
-from .scheduler import build_scheduler, initial_refresh, schedule_status
+from .scheduler import build_scheduler, initial_refresh, schedule_models_retry, schedule_status
 from .store import Store
 from .upstream import SourceError
 
@@ -80,6 +80,7 @@ async def lifespan(app: FastAPI):
     scheduler.start()
     # Warm the cache at startup; a failing source must not block startup.
     await initial_refresh(aggregator)
+    schedule_models_retry(scheduler, aggregator, cfg)
 
     app.state.cfg = cfg
     app.state.aggregator = aggregator
@@ -339,7 +340,13 @@ async def api_set_location(request: Request, body: LocationIn) -> dict:
     request.app.state.cfg = agg.cfg
     # One background refresh so data appears within seconds; the task is
     # kept in _background_tasks so it cannot be GC'd before it finishes.
-    task = asyncio.create_task(initial_refresh(agg))
+    scheduler = getattr(request.app.state, "scheduler", None)
+
+    async def _refresh() -> None:
+        await initial_refresh(agg)
+        schedule_models_retry(scheduler, agg, agg.cfg)
+
+    task = asyncio.create_task(_refresh())
     _background_tasks.add(task)
     task.add_done_callback(_background_tasks.discard)
     return {"ok": True, "location": location_payload(loc)}

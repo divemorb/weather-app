@@ -76,8 +76,12 @@ pub(crate) async fn post_location(
     // 5. one background refresh so data appears within seconds; the runtime
     //    owns the task, nothing to hold onto.
     let agg = Arc::clone(&state.aggregator);
+    let scheduler = state.scheduler.clone();
     tokio::spawn(async move {
         initial_refresh(&agg).await;
+        if let Some(scheduler) = scheduler {
+            scheduler.schedule_models_retry(&agg);
+        }
     });
     // 6. the saved (rounded) location.
     (

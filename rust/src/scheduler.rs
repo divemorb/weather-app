@@ -9,6 +9,7 @@
 //! keeps the stale cache and records the last error.
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -24,6 +25,10 @@ use crate::times::to_iso;
 #[derive(Default)]
 pub struct Scheduler {
     next_runs: Mutex<HashMap<Job, DateTime<Utc>>>,
+    /// A pending retry of a failed models refresh, and its generation (a
+    /// newer retry replaces it).
+    models_retry: Mutex<Option<DateTime<Utc>>>,
+    retry_generation: AtomicU64,
 }
 
 impl Scheduler {
@@ -31,13 +36,71 @@ impl Scheduler {
         Self::default()
     }
 
-    /// The next run of `job`, `None` while it has not started yet.
+    /// The next run of `job` (a pending models retry if it comes first),
+    /// `None` while it has not started yet.
     pub fn next_run(&self, job: Job) -> Option<DateTime<Utc>> {
+        let regular = self.regular_next_run(job);
+        let retry = match job {
+            Job::Models => *self
+                .models_retry
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+            Job::Radar => None,
+        };
+        match (regular, retry) {
+            (Some(r), Some(t)) => Some(r.min(t)),
+            (r, t) => r.or(t),
+        }
+    }
+
+    fn regular_next_run(&self, job: Job) -> Option<DateTime<Utc>> {
         self.next_runs
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get(&job)
             .copied()
+    }
+
+    /// After a failed models refresh, try again after the radar interval
+    /// instead of an hour later; repeats while it fails. Skipped when the
+    /// regular run comes sooner; a new retry replaces a pending one.
+    pub fn schedule_models_retry(self: &Arc<Self>, agg: &Arc<Aggregator>) {
+        let minutes = agg.cfg().scheduling.radar_interval_minutes.max(1);
+        self.schedule_models_retry_after(agg, interval(minutes));
+    }
+
+    fn schedule_models_retry_after(self: &Arc<Self>, agg: &Arc<Aggregator>, delay: Duration) {
+        if !agg.models_failed() {
+            return;
+        }
+        let run_at = agg.now() + TimeDelta::from_std(delay).unwrap_or(TimeDelta::zero());
+        if self
+            .regular_next_run(Job::Models)
+            .is_some_and(|regular| regular <= run_at)
+        {
+            return;
+        }
+        let generation = self.retry_generation.fetch_add(1, Ordering::SeqCst) + 1;
+        *self
+            .models_retry
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(run_at);
+        tracing::info!("models refresh failed: retrying at {}", to_iso(run_at));
+        let scheduler = Arc::clone(self);
+        let agg = Arc::clone(agg);
+        tokio::spawn(async move {
+            tokio::time::sleep(delay).await;
+            if scheduler.retry_generation.load(Ordering::SeqCst) != generation {
+                return; // replaced by a newer retry
+            }
+            *scheduler
+                .models_retry
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+            tracing::info!("models refresh retry");
+            agg.refresh_models().await;
+            scheduler.schedule_models_retry_after(&agg, delay);
+        });
     }
 
     pub fn set_next_run(&self, job: Job, t: DateTime<Utc>) {
@@ -83,6 +146,7 @@ impl Scheduler {
                         Job::Models => {
                             tracing::info!("scheduled models refresh");
                             agg.refresh_models().await;
+                            scheduler.schedule_models_retry(&agg);
                         }
                     }
                 }

@@ -215,9 +215,7 @@ class Aggregator:
         return (await self._store.get_cache("current"))[0]
 
     async def get_radar_nowcast(self) -> RadarNowcast | None:
-        """Cached radar parsed into 5-min frames; radius filtering happens in
-        the probability logic (cells carry full-grid coordinates; the
-        nowcast carries bbox + location)."""
+        """Cached radar as 5-min frames (the probability logic applies the radius)."""
         payload, _age = await self._store.get_cache("radar")
         if payload is None:
             return None
@@ -325,9 +323,7 @@ class Aggregator:
         )
 
     async def get_24h_model_comparison(self) -> dict[str, Any]:
-        """Hourly precipitation per model for the next 24 h (chart data);
-        the window is relative to *now* (first hour = current hour), not the
-        UTC calendar day (see :func:`build_24h_series`)."""
+        """Hourly precipitation per model for the 24 h from the current hour."""
         return build_24h_series(await self._get_forecast_bundle(), utcnow())
 
     async def get_model_accuracy(self) -> dict[str, dict[str, Any]]:
@@ -343,6 +339,10 @@ class Aggregator:
         since = to_iso(now - timedelta(days=self._cfg.accuracy.window_days))
         rows = await self._store.compared_forecasts(since)
         return model_accuracy(rows, self._cfg.probability.model_rain_threshold_mm)
+
+    def models_failed(self) -> bool:
+        """Whether the last models refresh failed for the forecast or the ensemble."""
+        return "forecast" in self._last_error or "ensemble" in self._last_error
 
     async def get_observation_stations(self) -> list[dict[str, Any]]:
         """The observation stations of the last backfill; [] when none stored."""
