@@ -25,6 +25,7 @@ import {
   fmtPercent, modelLabel, nextLoadDelay, rainObserved, sortAccuracy,
 } from "./format.js";
 import { t } from "./i18n.js";
+import { stationsSection } from "./stationmap.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -135,6 +136,9 @@ export function renderDetails(data) {
   const rain = data && data.rain;
   const sources = data && data.sources;
   const accuracy = data && data.accuracy;
+  const now = data && data.now;
+  const location = data && data.location;
+  const radiusKm = data && data.radiusKm;
 
   const frag = document.createDocumentFragment();
   const add = (builder) => {
@@ -158,6 +162,8 @@ export function renderDetails(data) {
   }
   add(() => sourcesSection(sources));
   add(() => accuracySection(accuracy));
+  const stations = stationsSection({ now, accuracy, location, radiusKm, lang, locale, section });
+  if (stations) add(() => stations);
 
   /* Nothing rendered? Keep the old card instead of an empty one. */
   if (frag.childElementCount > 0) {

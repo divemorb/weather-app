@@ -163,6 +163,47 @@
   color: var(--muted);
 }
 
+/* The stations (W1): one row per observation station, then the schematic
+ * map. The map is an inline SVG at its box's own scale (no stretching), so
+ * the bearings and distances stay true. */
+.obs-list {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.obs-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 12px;
+  font-size: 14px; line-height: 1.45;
+  overflow-wrap: break-word;
+}
+
+.obs-meta {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.station-map {
+  display: block;
+  width: 100%;
+  max-width: 340px;
+  height: auto;
+  margin-top: 14px;
+}
+
+.station-map .map-radius { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+.station-map .map-loc { fill: var(--text); }
+.station-map .map-loc-hole { fill: var(--card); }
+.station-map .map-mark { fill: var(--accent); stroke: var(--card); stroke-width: 1; }
+.station-map .map-north path { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+.station-map .map-north text,
+.station-map .map-scale text { fill: var(--muted); font-size: 12px; font-family: inherit; }
+.station-map .map-scale line { stroke: var(--muted); stroke-width: 1.5; }
+
 /* Wider screens: the countdown tiles sit in a row. */
 @media (min-width: 600px) {
   .refresh-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }

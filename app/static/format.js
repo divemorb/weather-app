@@ -136,6 +136,49 @@ export function locationDetail(location) {
   return parts.join(" · ");
 }
 
+/* The station's offset from the location, flat approximation (exact enough
+ * at station distances): dx = Δlon·cos(lat)·111.32 km east,
+ * dy = Δlat·110.57 km north. { bearing: degrees clockwise from north,
+ * 0 ≤ b < 360, km: the distance }. null when a coordinate is missing. */
+export function stationOffsetKm(from, to) {
+  if (!from || typeof from !== "object" || !to || typeof to !== "object") return null;
+  const lat = Number(from.lat ?? from.latitude);
+  const lon = Number(from.lon ?? from.longitude);
+  const lat2 = Number(to.lat ?? to.latitude);
+  const lon2 = Number(to.lon ?? to.longitude);
+  if (![lat, lon, lat2, lon2].every(Number.isFinite)) return null;
+  const dy = (lat2 - lat) * 110.57; // km north
+  const dx = (lon2 - lon) * Math.cos((lat * Math.PI) / 180) * 111.32; // km east
+  const km = Math.hypot(dx, dy);
+  const bearing = (Math.atan2(dx, dy) * 180) / Math.PI;
+  return { bearing: (bearing + 360) % 360, km };
+}
+
+/* The map's marks: one per DWD station id — Now's station and an
+ * observation station with the same id are one mark, and the Now's
+ * station's coordinates win (it is the freshest). Returns
+ * { id, name, lat, lon, distance_m, isNow } in first-seen order
+ * (Now's station first, then the observation stations' API order). */
+export function stationMarks(station, stations) {
+  const marks = new Map();
+  const add = (s, isNow) => {
+    if (!s || typeof s !== "object") return;
+    const id = s.dwd_station_id == null ? null : String(s.dwd_station_id);
+    if (id === null || marks.has(id)) return;
+    marks.set(id, {
+      id,
+      name: typeof s.name === "string" ? s.name : "",
+      lat: Number(s.lat),
+      lon: Number(s.lon),
+      distance_m: typeof s.distance_m === "number" ? s.distance_m : null,
+      isNow,
+    });
+  };
+  add(station, true);
+  if (Array.isArray(stations)) for (const s of stations) add(s, false);
+  return [...marks.values()];
+}
+
 const MODEL_LABELS = {
   icon_d2: "ICON-D2 (DWD)",
   icon_eu: "ICON-EU (DWD)",

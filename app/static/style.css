@@ -295,6 +295,11 @@ button:focus-visible, a:focus-visible {
 
 .now-time { margin: 16px 0 0; font-size: 13px; }
 
+/* W1: who measured "Now" (a quiet line), and the small note at a value
+ * Bright Sky took from another station. */
+.now-station { margin: 4px 0 0; font-size: 13px; overflow-wrap: break-word; }
+.now-fallback { margin-left: 6px; font-size: 11px; font-weight: 400; color: var(--muted); }
+
 .now-unavailable { margin: 2px 0 0; font-size: 15px; color: var(--muted); }
 
 /* ---- setup wizard ------------------------------------------------------- */

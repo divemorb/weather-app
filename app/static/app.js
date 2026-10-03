@@ -141,7 +141,16 @@ async function refresh() {
   renderPart("glance", () => renderGlance(data.rain, data.radar, lang, locale, tz, cfg && cfg.radar_radius_km));
   renderPart("now", () => renderNow(data.now, lang, locale, tz));
   renderPart("chart", () => renderChart(chartEls, data.models, lang, locale, tz));
-  renderPart("details", () => renderDetails({ rain: data.rain, sources: data.sources, accuracy: data.accuracy }));
+  /* The stations section (details.js) needs the Now's station and the
+   * location's coordinates, the radar radius comes from the config. */
+  renderPart("details", () => renderDetails({
+    rain: data.rain,
+    sources: data.sources,
+    accuracy: data.accuracy,
+    now: data.now,
+    location: cfg && cfg.location,
+    radiusKm: cfg && cfg.radar_radius_km,
+  }));
   /* The reload can't be skipped: it is scheduled after the renderers,
    * whatever failed in them. */
   scheduleFrom(data.schedule);

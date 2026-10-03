@@ -9,7 +9,7 @@
  * "no observation" line and hides the values.
  */
 import {
-  DASH, conditionKey, fmtMm, fmtPercent, fmtPressure, fmtTemp, fmtTime, fmtWind, windDir,
+  DASH, conditionKey, fmtMm, fmtNumber, fmtPercent, fmtPressure, fmtTemp, fmtTime, fmtWind, windDir,
 } from "./format.js";
 import { t } from "./i18n.js";
 
@@ -29,6 +29,23 @@ const els = {
   clouds: $("now-clouds"),
   rain: $("now-rain"),
   time: $("now-time"),
+  station: $("now-station"),
+};
+
+/* Which value a /api/now fallback entry points at: the conditions field's
+ * cell (the wind direction falls back with the wind speed, so both map to
+ * the wind value). A field the page does not show gets no note. */
+const FIELD_CELL = {
+  temperature_c: "temp",
+  feels_like_c: "feels",
+  wind_speed_ms: "wind",
+  wind_direction_deg: "wind",
+  wind_gust_ms: "gust",
+  humidity_pct: "humidity",
+  pressure_hpa: "pressure",
+  dew_point_c: "dewpoint",
+  cloud_cover_pct: "clouds",
+  precipitation_60mm: "rain",
 };
 
 /* The section's own texts (title, the grid's labels); called once from
@@ -52,6 +69,8 @@ export function renderNow(now, lang, locale, tz) {
     els.body.hidden = true;
     els.unavailable.hidden = false;
     els.unavailable.textContent = t(lang, "now.unavailable");
+    els.station.hidden = true;
+    els.station.textContent = "";
     return;
   }
   els.unavailable.hidden = true;
@@ -72,4 +91,39 @@ export function renderNow(now, lang, locale, tz) {
   els.clouds.textContent = fmtPercent(c.cloud_cover_pct, locale);
   els.rain.textContent = fmtMm(c.precipitation_60mm, locale);
   els.time.textContent = `${t(lang, "now.as-of")} ${fmtTime(c.timestamp_utc, locale, tz)}`;
+  renderStation(c, lang, locale);
+  renderFallback(c, lang);
+}
+
+/* The muted line under the values: who measured "Now" (the station's name
+ * and its distance in km). Hidden when /api/now carries no station. */
+function renderStation(c, lang, locale) {
+  const st = c.station && typeof c.station === "object" ? c.station : null;
+  if (!st || typeof st.name !== "string" || st.name === "") {
+    els.station.hidden = true;
+    els.station.textContent = "";
+    return;
+  }
+  const km = typeof st.distance_m === "number" ? fmtNumber(st.distance_m / 1000, locale, 1) : DASH;
+  els.station.textContent = t(lang, "now.station", { name: st.name, km });
+  els.station.hidden = false;
+}
+
+/* A value Bright Sky took from another station: a small muted note at the
+ * value, one per fallback field the page shows (none when fallback is {}).
+ * The station names are untrusted API text: textContent, never innerHTML. */
+function renderFallback(c, lang) {
+  for (const note of els.body.querySelectorAll("[data-test=now-fallback]")) note.remove();
+  const fb = c.fallback && typeof c.fallback === "object" ? c.fallback : null;
+  if (!fb) return;
+  for (const [field, src] of Object.entries(fb)) {
+    const cell = FIELD_CELL[field];
+    if (!cell || !src || typeof src.name !== "string" || src.name === "") continue;
+    const note = document.createElement("span");
+    note.className = "now-fallback";
+    note.setAttribute("data-test", "now-fallback");
+    note.setAttribute("data-field", field);
+    note.textContent = t(lang, "now.fallback", { name: src.name });
+    els[cell].appendChild(note);
+  }
 }

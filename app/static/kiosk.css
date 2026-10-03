@@ -107,6 +107,8 @@ html.kiosk .now-grid {
 html.kiosk .now-label { font-size: 13px; }
 html.kiosk .now-value { font-size: 15px; }
 html.kiosk .now-time { margin-top: 12px; font-size: max(13px, 1.6vh); }
+html.kiosk .now-station { margin-top: 6px; font-size: max(13px, 1.6vh); }
+html.kiosk .now-fallback { margin-left: 6px; font-size: max(11px, 1.3vh); }
 html.kiosk .now-unavailable { font-size: 16px; }
 
 /* On a dry day Now takes the chart's height: two wider columns of
