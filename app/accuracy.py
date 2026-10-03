@@ -1,4 +1,4 @@
-"""Pure per-model accuracy scoring (step 6e).
+"""Pure per-model accuracy scoring.
 
 Scores the *same yes/no event* the next-hour vote uses (precipitation
 ``> threshold_mm``), not the raw millimetres: MAE alone is misleading,
@@ -16,18 +16,10 @@ def model_accuracy(
 ) -> dict[str, dict[str, float | int | None]]:
     """Score forecast-vs-observation pairs, grouped per model.
 
-    ``rows`` are raw ``(model, precip_mm, observed_mm)`` triples as returned
-    by :meth:`app.store.Store.compared_forecasts` (already filtered to
-    compared forecasts inside the accuracy window). Returns one dict per
-    model that has at least one sample; models without samples are absent.
-
-    Per model: ``n_samples``, ``mae_mm`` (mean absolute error), and the
-    confusion counts for the rain event ``> threshold_mm`` (strict — a
-    value exactly at the threshold counts as "dry", matching the vote):
-    ``hits`` (rain forecast, rain observed), ``misses`` (dry forecast, rain
-    observed), ``false_alarms`` (rain forecast, dry observed),
-    ``correct_negatives`` (dry forecast, dry observed).
-    ``event_accuracy`` is ``(hits + correct_negatives) / n_samples``.
+    ``rows`` are ``(model, precip_mm, observed_mm)`` triples from
+    :meth:`app.store.Store.compared_forecasts`; models without samples are
+    absent from the result. The rain event is ``> threshold_mm`` (strict:
+    a value at the threshold counts as "dry", matching the vote).
     """
     by_model: dict[str, list[tuple[float, float]]] = {}
     for model, precip, observed in rows:

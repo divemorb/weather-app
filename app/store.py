@@ -69,16 +69,15 @@ class Store:
     async def _migrate(self) -> None:
         """Run the one-time schema migrations, tracked in ``app_meta``.
 
-        v2 (step 6b/6c): ``forecast_history`` rows are unique per
-        ``(model, valid_from)`` (upserted, see :meth:`add_forecasts`) and
-        labelled by hour start. All rows written before that are
-        mislabelled, so the table is emptied once. The unique index must
-        only exist once the old rows are gone, hence it is created here
-        rather than in ``_SCHEMA``.
-        v3 (step 6e): drop the unused ``model_accuracy`` table; accuracy
-        is now computed on demand from ``forecast_history``.
-        Each step runs at most once; the key is updated in place, so this
-        is a no-op on every later startup.
+        v2: ``forecast_history`` rows became unique per ``(model,
+        valid_from)`` (upserted, see :meth:`add_forecasts`) and labelled by
+        hour start; rows written before that are mislabelled, so the table
+        is emptied once. The unique index must only exist once the old rows
+        are gone, hence it is created here rather than in ``_SCHEMA``.
+        v3: drop the unused ``model_accuracy`` table; accuracy is now
+        computed on demand from ``forecast_history``.
+        Each migration runs at most once; the key is updated in place, so
+        this is a no-op on every later startup.
         """
         assert self._db is not None
         async with self._db.execute(
@@ -108,7 +107,7 @@ class Store:
             await self._db.close()
             self._db = None
 
-    # -- app meta (step 8b: the location lives here at runtime) ---------------
+    # -- app meta (the location lives here at runtime) -------------------------
     async def get_meta(self, key: str) -> str | None:
         assert self._db is not None
         async with self._db.execute("SELECT value FROM app_meta WHERE key = ?", (key,)) as cur:
@@ -125,12 +124,11 @@ class Store:
         await self._db.commit()
 
     async def clear_location_data(self) -> None:
-        """Drop all data that belongs to the old location (step 8b, P2).
+        """Drop all data that belongs to the old location.
 
         Called when the location changes: the cache, the forecast history
         and the observation stations all belong to the *old* location, so
-        none of it may be served for the new one. (The accuracy window
-        shrinks accordingly; there is nothing to re-compute.)
+        none of it may be served for the new one.
         """
         assert self._db is not None
         await self._db.execute("DELETE FROM source_cache")
@@ -171,10 +169,10 @@ class Store:
     async def add_forecasts(self, rows: list[dict[str, Any]]) -> None:
         """Upsert this hour's forecasts (idempotent per ``model + valid_from``).
 
-        Re-running the same refresh updates the row in place, keeping the
-        *latest* forecast issued before the hour started (the shortest lead
-        time — what the next-hour vote uses). A row that already has an
-        observation is never touched.
+        Re-running a refresh updates the row in place, keeping the *latest*
+        forecast issued before the hour started (the shortest lead time —
+        what the next-hour vote uses). A row that already has an observation
+        is never touched.
         """
         if not rows:
             return
@@ -197,11 +195,10 @@ class Store:
     async def set_observation(self, valid_from: str, observed_mm: float) -> None:
         """Set the observation for the hour starting at ``valid_from``.
 
-        The *latest* observation for the hour wins: Bright Sky may publish a
-        corrected value for an already-seen hour, and the backfill re-reads
-        the last 48 h on every hourly refresh, so an unconditional update is
-        what we want here. (The guard in :meth:`add_forecasts` is different —
-        it protects the *forecast* of an already observed hour.)
+        The *latest* observation wins: Bright Sky may publish a corrected
+        value for an already-seen hour, and the backfill re-reads the last
+        48 h on every hourly refresh. (The guard in :meth:`add_forecasts` is
+        different — it protects the *forecast* of an already observed hour.)
         """
         assert self._db is not None
         await self._db.execute(
@@ -218,11 +215,10 @@ class Store:
     ) -> list[tuple[str, float, float]]:
         """Raw ``(model, precip_mm, observed_mm)`` rows for scored forecasts.
 
-        Only rows that already have an observation and whose hour started
-        at or after ``since_iso`` (UTC ISO-8601, lexicographic comparison is
-        safe for this fixed format) are returned. All the math (MAE,
-        event counts, accuracy) is done in Python by
-        :func:`app.accuracy.model_accuracy` — the store only moves data.
+        Only rows with an observation whose hour started at or after
+        ``since_iso`` (UTC ISO-8601; lexicographic comparison is safe for
+        this fixed format) are returned. All the math is done in Python by
+        :func:`app.accuracy.model_accuracy`.
         """
         assert self._db is not None
         async with self._db.execute(

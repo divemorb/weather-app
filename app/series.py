@@ -4,7 +4,6 @@
                                       common UTC grid (24 h chart data)
   * ``build_radar_next_hour_bar``   — 12 x 5-min local-rain bar (radar nowcast)
   * ``build_forecast_history_rows`` — rows for the forecast_history table
-                                      (optional accuracy extension, step 6)
 """
 from __future__ import annotations
 
@@ -21,20 +20,15 @@ def build_24h_series(
 ) -> dict[str, Any]:
     """Hourly precipitation per model for the next ``n_hours`` hours.
 
-    The axis is relative to ``now``, not the UTC calendar day: only stamps
-    ``t > now`` are kept, so the first entry is always the *current* hour.
+    The axis is relative to ``now`` (not the UTC day): only stamps
+    ``t > now`` are kept. Convention: the hourly value at stamp ``t`` is
+    the rain of the preceding hour ``[t-1h, t)``, so ``hours[i]`` carries
+    the hour's *start* (``t - 1h``) for the value ``precipitation_mm[i]``.
 
-    Precipitation convention: the hourly value at stamp ``t`` is the rain of
-    the preceding hour ``[t-1h, t)``. ``hours[i]`` therefore carries the
-    **start** of the hour (``t - 1h``) whose precipitation is
-    ``precipitation_mm[i]`` — the value plotted at hour 10:00 comes from the
-    stamp at 11:00.
-
-    All models from one Open-Meteo call share the same hourly axis, so the
-    grid is taken from the first model with data; a model whose axis does
-    not match is skipped rather than misaligned. ``hours`` are ISO-8601 UTC
-    strings. Returns ``{"hours": [...], "models": [...], "n_models": n}``
-    where each entry in ``models`` is a dict with name + precipitation_mm.
+    The common grid is taken from the first model with data; a model whose
+    axis does not match is skipped. ``hours`` are ISO-8601 UTC strings; the
+    return shape is ``{"hours", "models", "n_models"}`` where each model
+    entry has name + precipitation_mm.
     """
     if bundle is None:
         return {"hours": [], "models": [], "n_models": 0}
@@ -48,9 +42,8 @@ def build_24h_series(
     n = len(stamps)
     if n == 0:
         return {"hours": [], "models": [], "n_models": 0}
-    # the window starts at an arbitrary offset into the axis (it is relative
-    # to now, not to the start of the axis); align every model at the same
-    # offset as the reference model
+    # the window starts at an arbitrary offset into the axis (it is
+    # relative to now); align every model at the reference's offset
     offset = reference.hourly_time.index(stamps[0])
     models: list[dict[str, Any]] = []
     for m in bundle.models:
@@ -89,16 +82,14 @@ def build_radar_next_hour_bar(
     for the next hour, for the 60-minute bar in the UI.
 
     Returns ``{"available": bool, "steps": [{"start_utc", "precip_mm"}, ...]}``
-    with exactly ``n_steps`` buckets (oldest first). ``precip_mm`` is the
-    strongest rain cell within the radius in that bucket (0.0 for dry); a
-    bucket with no radar frame yet is 0.0. ``available`` is False when radar
-    is missing or does not cover the location (the frontend then falls back to
-    a models-only display).
+    with exactly ``n_steps`` buckets (oldest first); ``precip_mm`` is the
+    strongest rain cell within the radius in that bucket (0.0 for dry or
+    when no frame covers it). ``available`` is False when radar is missing
+    or does not cover the location (the frontend falls back to models-only).
 
-    ``now`` is floored to the 5-minute grid before the buckets are laid out,
-    so every bucket start sits on the same grid as the radar frame
-    timestamps (the client floors its request the same way) — this is what
-    makes frame-to-bucket matching exact rather than approximate.
+    ``now`` is floored to the 5-minute grid so every bucket start sits on
+    the same grid as the radar frame timestamps (the client floors its
+    request the same way) — this makes frame-to-bucket matching exact.
     """
     grid_now = now.replace(
         minute=(now.minute // 5) * 5, second=0, microsecond=0
@@ -129,19 +120,14 @@ def build_forecast_history_rows(
 ) -> list[dict[str, Any]]:
     """One row per model per hour that has *not started yet* at ``issued_at``.
 
-    Precipitation convention: the hourly value at stamp ``t`` covers the
-    preceding hour ``[t-1h, t)`` — so ``valid_from = t - 1h`` and
-    ``valid_to = t`` (not ``t + 1h``, which would be one hour late). Only
-    rows with ``valid_from >= issued_at`` are kept: an hour that is already
-    in progress is not a forecast, and its value would be partially
-    observed, so storing it would bias the accuracy comparison.
+    The hourly value at stamp ``t`` covers the preceding hour ``[t-1h, t)``,
+    so ``valid_from = t - 1h`` and ``valid_to = t`` (not ``t + 1h``). Hours
+    already in progress are skipped: their value would be partially
+    observed, biasing the accuracy comparison. Rows with null precipitation
+    are skipped. ``issued_at`` is the moment the forecast was fetched.
 
-    Rows with null precipitation are skipped (nothing to verify later).
-    ``issued_at`` is the moment the forecast was fetched.
-
-    The cap is on *future* hours: with the 3-day forecast axis, the raw
-    slice would drop next-day hours when issued late in the UTC day, so we
-    filter first and keep the first ``n_hours`` remaining rows per model.
+    The ``n_hours`` cap is on *future* hours: with the 3-day axis, a raw
+    slice would drop next-day hours when issued late in the UTC day.
     """
     rows: list[dict[str, Any]] = []
     for m in bundle.models:

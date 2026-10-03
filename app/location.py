@@ -1,14 +1,11 @@
-"""Location as runtime state (step 8b).
+"""Location as runtime state.
 
-The home location is no longer a fixed configuration: it is stored in the
-database (``app_meta`` key ``"location"``) and can be set or changed from
-the browser (setup wizard, step 8d). On startup the stored value wins; a
-location from env/YAML is only *adopted* (written to the database) when
-nothing is stored yet, so an existing install keeps its location when
-``weather.yaml`` loses the ``location:`` block.
-
-Everything here is a small pure helper plus one async function; the store
-only moves data.
+The home location is stored in the database (``app_meta`` key
+``"location"``) and can be set or changed from the browser (setup wizard).
+On startup the stored value wins; a location from env/YAML is only
+*adopted* (written to the database) when nothing is stored yet, so an
+existing install keeps its location when ``weather.yaml`` loses the
+``location:`` block.
 """
 from __future__ import annotations
 
@@ -48,8 +45,8 @@ def location_to_json(loc: LocationConfig) -> str:
 def location_from_json(text: str | None) -> LocationConfig | None:
     """Parse the stored JSON; bad JSON, missing keys or wrong types -> None.
 
-    Never raises: a corrupted value means "no stored location", which the
-    startup resolution then falls back to env/YAML (or unconfigured).
+    Never raises: a corrupted value means "no stored location", and startup
+    resolution then falls back to env/YAML (or unconfigured).
     """
     if text is None:
         return None
@@ -77,9 +74,9 @@ def location_from_json(text: str | None) -> LocationConfig | None:
 def moved(old: LocationConfig | None, new: LocationConfig) -> bool:
     """True when ``new`` is a *different* location than ``old``.
 
-    ``old is None`` (first location ever) is not a move: there is nothing to
-    throw away. Otherwise latitude **or** longitude differing by more than
-    ``MOVED_EPSILON`` (≈1 km) counts as moved.
+    ``old is None`` (first location ever) is not a move; otherwise latitude
+    **or** longitude differing by more than ``MOVED_EPSILON`` (≈1 km)
+    counts.
     """
     if old is None:
         return False
@@ -91,11 +88,11 @@ def moved(old: LocationConfig | None, new: LocationConfig) -> bool:
 async def resolve_startup_location(
     store: Store, cfg: AppConfig
 ) -> LocationConfig | None:
-    """The location the app starts with (step 8b).
+    """The location the app starts with.
 
     Precedence: the stored ``app_meta`` location wins; else the env/YAML
-    location from the config is *adopted* (written to the database so it
-    survives a ``weather.yaml`` that later loses the block); else ``None``
+    location is *adopted* (written to the database so it survives a
+    ``weather.yaml`` that later loses the block); else ``None``
     (unconfigured — the setup wizard will ask).
     """
     stored = location_from_json(await store.get_meta(LOCATION_KEY))
@@ -129,14 +126,13 @@ async def apply_location(
     openmeteo: Any,
     loc: LocationConfig,
 ) -> AppConfig:
-    """Make ``loc`` the effective location (step 8b) and return the new cfg.
+    """Make ``loc`` the effective location and return the new cfg.
 
-    When the location actually *moved* (more than ~1 km away), all data
-    belonging to the old location is deleted first (``clear_location_data``).
-    Then the location is persisted (``app_meta``), pushed to both clients
-    (``set_location``) and the effective config is returned with the new
-    location. A first location (``cfg.location is None``) stores without
-    clearing — there is nothing to throw away.
+    When the location actually *moved* (more than ~1 km away), all data of
+    the old location is deleted first (``clear_location_data``); a first
+    location (``cfg.location is None``) stores without clearing. Then the
+    location is persisted (``app_meta``) and pushed to both clients
+    (``set_location``).
     """
     if moved(cfg.location, loc):
         await store.clear_location_data()
@@ -147,7 +143,7 @@ async def apply_location(
 
 
 # ---------------------------------------------------------------------------
-# POST /api/location (step 8c)
+# POST /api/location
 # ---------------------------------------------------------------------------
 class LocationIn(BaseModel):
     """Request body for ``POST /api/location`` (validated before the
@@ -163,12 +159,12 @@ class LocationIn(BaseModel):
 
 def valid_timezone(name: str) -> bool:
     """True if ``name`` is a real IANA timezone the image's tz database can
-    load. Path-traversal or garbage names are rejected, not just ignored."""
+    load (path-traversal or garbage names are rejected, not just ignored)."""
     try:
         zoneinfo.ZoneInfo(name)
         return True
     except (ValueError, zoneinfo.ZoneInfoNotFoundError):  # the latter is a
-        return False  # KeyError subclass (verified)
+        return False  # KeyError subclass
 
 
 def same_origin(request: Request) -> bool:

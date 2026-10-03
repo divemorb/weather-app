@@ -49,7 +49,7 @@ class ProbabilityConfig:
         """Return the normalized weights for the sources that are available.
 
         Without radar coverage (outside Germany) the radar weight is dropped
-        and the remaining weights are re-normalized to sum to 1.
+        and the rest are re-normalized to sum to 1.
         """
         w = {
             "radar": self.weight_radar if radar_available else 0.0,
@@ -85,7 +85,7 @@ class SchedulingConfig:
 
 @dataclass(frozen=True)
 class AccuracyConfig:
-    """Per-model accuracy scoring (step 6e).
+    """Per-model accuracy scoring.
 
     Forecasts are compared against observations over a rolling window
     (``window_days``); a model needs at least ``min_samples`` compared
@@ -107,9 +107,9 @@ class ApiConfig:
 
 @dataclass(frozen=True)
 class AppConfig:
-    #: The home location. ``None`` while unconfigured (step 8b): it comes
-    #: from the env vars, from the YAML ``location:`` block, or — at
-    #: runtime — from the database where the app stores it (setup wizard).
+    #: The home location. ``None`` while unconfigured: it comes from the env
+    #: vars, from the YAML ``location:`` block, or — at runtime — from the
+    #: database (setup wizard).
     location: LocationConfig | None
     radar: RadarConfig
     probability: ProbabilityConfig
@@ -161,10 +161,10 @@ def _load_location(raw: dict) -> LocationConfig | None:
 
     Both coordinates must come from the same source: only when *both*
     ``LATITUDE`` and ``LONGITUDE`` are set do they count; otherwise the YAML
-    block counts when *both* keys are present. Any other mix is incomplete —
-    ``None`` (unconfigured; the setup wizard asks for the location, step 8).
-    There is no hard-coded default location: the repo must not contain one.
-    ``TIMEZONE`` / ``location.timezone`` still default to ``Europe/Berlin``.
+    block counts when *both* keys are present; any other mix is
+    ``None`` (unconfigured — the setup wizard asks). There is no hard-coded
+    default location. ``TIMEZONE`` / ``location.timezone`` still default to
+    ``Europe/Berlin``.
     """
     env_lat = _env("LATITUDE")
     env_lon = _env("LONGITUDE")

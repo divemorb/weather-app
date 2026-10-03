@@ -1,19 +1,16 @@
-"""Address search via OpenStreetMap Nominatim (step 8c2, setup wizard).
-
-The user types an address or place into the wizard; this module resolves it
-to coordinates. Verified against the live API:
+"""Address search via OpenStreetMap Nominatim (setup wizard).
 
   * ``GET /search?q=<text>&format=jsonv2&limit=5&addressdetails=0`` answers
     with a JSON **list**; each entry has ``"lat"`` / ``"lon"`` as **strings**
     (e.g. ``"48.1374990"``) and a ``"display_name"``. No match -> ``[]``.
-  * A **custom ``User-Agent`` is required**: the httpx2 default
-    (``python-httpx/...``) and an empty UA get a 403.
+  * A **custom ``User-Agent`` is required**: the httpx2 default and an empty
+    UA get a 403.
   * Usage policy: max 1 request per second, search only on an explicit
     button press (no autocomplete), cache results.
 
-Upstream data is untrusted: a non-list payload becomes
-:exc:`SourceError` (via :func:`app.upstream.malformed_is_source_error`), and
-the body is read through :func:`app.upstream.stream_json_capped`.
+Upstream data is untrusted: a non-list payload becomes :exc:`SourceError`
+(via :func:`app.upstream.malformed_is_source_error`), and the body is read
+through :func:`app.upstream.stream_json_capped`.
 """
 from __future__ import annotations
 
@@ -37,18 +34,16 @@ USER_AGENT = "WetterLocal/1.0 (self-hosted home weather app)"
 _MIN_REQUEST_SPACING_SECONDS = 1.1
 
 #: In-memory result cache size (lower-cased query -> results); cleared
-#: before a new entry once full. Good enough for a single-user app.
+#: wholesale once full (fine for a single-user app).
 _MAX_CACHE_ENTRIES = 100
 
 
 @malformed_is_source_error("Nominatim search")
 def parse_nominatim(payload: Any) -> list[dict[str, Any]]:
-    """Parse a Nominatim ``/search`` payload into wizard result dicts.
-
-    Up to 5 ``{"label", "latitude", "longitude"}`` dicts. Entries with
-    missing or non-numeric fields are skipped (upstream data is
-    untrusted); a non-list payload (or any shape error) becomes
-    :exc:`SourceError`.
+    """Parse a Nominatim ``/search`` payload into up to 5
+    ``{"label", "latitude", "longitude"}`` dicts, skipping entries with
+    missing or non-numeric fields (upstream data is untrusted). A non-list
+    payload becomes :exc:`SourceError`.
     """
     if not isinstance(payload, list):
         raise SourceError("Nominatim search: expected a JSON list")
@@ -73,9 +68,9 @@ def parse_nominatim(payload: Any) -> list[dict[str, Any]]:
 class Geocoder:
     """Address -> coordinates via Nominatim, throttled and cached.
 
-    The constructor takes a **transport** (not a client) so the custom
-    ``User-Agent`` is set in tests too, and injectable ``clock`` / ``sleep``
-    so the throttle is testable without real waiting.
+    Takes a **transport** (not a client) so the custom ``User-Agent``
+    header is set here, and injectable ``clock`` / ``sleep`` so the
+    throttle is testable without real waiting.
     """
 
     def __init__(
@@ -102,9 +97,9 @@ class Geocoder:
         """Resolve ``query`` to up to 5 ``{"label", "latitude", "longitude"}``
         dicts; ``[]`` when Nominatim has no match.
 
-        A cache hit returns before taking the lock and never sleeps. On a
-        miss the throttle guarantees >= 1.1 s since the previous *request*
-        (Nominatim usage policy: max 1 request per second).
+        A cache hit never sleeps; on a miss the throttle waits until
+        >= 1.1 s have passed since the previous *request* (Nominatim usage
+        policy).
         """
         key = query.lower()
         cached = self._cache.get(key)

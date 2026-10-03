@@ -1,12 +1,12 @@
-"""The weather stations behind the data (station steps P1, P2).
+"""The weather stations behind the data.
 
 Pure parsers that name the observation stations in Bright Sky payloads:
 
 * the station a ``/current_weather`` payload's values come from (``weather
   source_id``) and, per value, the station Bright Sky took it from instead
-  (``weather.fallback_source_ids``) — for ``GET /api/now`` (P1);
+  (``weather.fallback_source_ids``) — for ``GET /api/now``;
 * the stations the ``/weather`` backfill's observations came from — for
-  ``GET /api/model-accuracy`` (P2).
+  ``GET /api/model-accuracy``.
 
 Payloads are untrusted: a payload may have no ``sources`` key at all (older
 Bright Sky versions and the test helpers) and entries may miss keys or carry
@@ -127,7 +127,7 @@ def station_and_fallback(
 
 
 # ---------------------------------------------------------------------------
-# P2: the observation stations behind the accuracy table
+# The observation stations behind the accuracy table
 # ---------------------------------------------------------------------------
 
 #: The ``app_meta`` key holding the observation stations of the last
@@ -159,17 +159,17 @@ def _observation_entry(source: dict[str, Any], hours: int) -> dict[str, Any]:
 
 
 def observation_stations(payload: dict[str, Any] | None, now: datetime) -> list[dict[str, Any]]:
-    """The stations a ``/weather`` payload's observations came from (P2).
+    """The stations a ``/weather`` payload's observations came from.
 
     Counts the records exactly as
     :func:`app.brightsky_client.parse_hourly_observations` keeps them (known
     source, ``observation_type != "forecast"``, precipitation not None,
     ``timestamp <= now``) and returns one entry per source with at least
-    one kept record (``hours`` = how many): ``name`` (``station_name``),
-    ``distance_m``, ``lat``, ``lon``, ``dwd_station_id`` — sorted nearest
-    first, a source without a usable distance last, then by name, then
-    payload order. Entries may miss keys or carry them mistyped — then the
-    field is None (null in JSON); nothing raises. The Rust port mirrors this.
+    one kept record (``hours`` = how many): ``name``, ``distance_m``,
+    ``lat``, ``lon``, ``dwd_station_id`` — sorted nearest first, a source
+    without a usable distance last, then by name, then payload order. A
+    missing or mistyped field is None (null in JSON); nothing raises. The
+    Rust port mirrors this.
     """
     if not isinstance(payload, dict):
         return []
@@ -232,14 +232,14 @@ def _stored_entry_ok(entry: dict[str, Any]) -> bool:
 
 
 def stations_from_json(text: str | None) -> list[dict[str, Any]]:
-    """The stored value back to a list, or ``[]`` (P2).
+    """The stored value back to a list, or ``[]``.
 
     ``text`` must be a JSON list of the stored entries (name /
     dwd_station_id: string or null; distance_m / lat / lon: number or null;
     hours: non-negative integer); anything else — no value, bad JSON, wrong
     shape, a mistyped field — reads as ``[]``: a broken value must not break
-    the page, and the Rust port decodes the same bytes. A surviving entry is
-    returned in the full six-key shape (a missing optional key as null).
+    the page. A surviving entry is returned in the full six-key shape (a
+    missing optional key as null). The Rust port decodes the same bytes.
     """
     if text is None:
         return []

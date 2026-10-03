@@ -1,9 +1,8 @@
 """Pure (network-free) rain-probability logic for the next 60 minutes.
 
-Every *decision* the aggregator makes lives here as a plain function on the
-normalized dataclasses from :mod:`app.models`. No I/O, no hidden clock: the
-aggregator pulls cached payloads, hands them to these functions, and
-publishes the results. Keeping the logic pure is what makes it unit-testable.
+Every *decision* the aggregator makes lives here as a plain function on
+the normalized dataclasses from :mod:`app.models` — no I/O, no hidden
+clock.
 
 Three independent signals, combined linearly (see README):
 
@@ -87,10 +86,9 @@ def max_local_rain_mm(
 ) -> float:
     """Strongest rain (max mm) within ``radius_km`` of the location in one frame.
 
-    Only cells whose 5-minute amount exceeds ``threshold_mm`` count (consistent
-    with the radar signal's definition of "rain"), so the next-hour bar and the
-    binary radar vote agree on what counts as local rain. Returns 0.0 when no
-    qualifying cell lies within the radius.
+    Only cells whose 5-minute amount exceeds ``threshold_mm`` count, so the
+    next-hour bar and the binary radar vote agree on what counts as local
+    rain. Returns 0.0 when no qualifying cell lies within the radius.
     """
     best = 0.0
     for cell in frame.cells:
@@ -140,9 +138,9 @@ def sum_next_hour(
     """Sum of the 15-min steps ending in the window ``[now, now + 1 h)``.
 
     Open-Meteo minutely_15 precipitation is a *preceding-interval sum*: the
-    value at timestamp ``t`` is the rain of ``[t - 15 min, t)``. So the steps
-    that make up the next hour are those with ``now < t <= now + 1 h``; a step
-    stamped exactly ``now`` already covers the past 15 minutes and is skipped.
+    value at ``t`` is the rain of ``[t - 15 min, t)``, so the steps that make
+    up the next hour are those with ``now < t <= now + 1 h``; a step stamped
+    exactly ``now`` already covers the past 15 minutes and is skipped.
 
     Returns None when no step falls in that window (stale/missing series) or
     when any involved value is missing: a model without data does not vote
@@ -198,29 +196,29 @@ def weighted_model_signal(
     threshold_mm: float,
     min_samples: int,
 ) -> tuple[float | None, int, int, bool]:
-    """Accuracy-weighted model signal (optional, step 6g).
+    """Accuracy-weighted model signal (optional).
 
-    Instead of counting the share of voting models with rain, each voting
-    model's *vote* (100 if it forecasts > ``threshold_mm``, else 0) is
-    weighted by its ``event_accuracy`` (see :func:`app.accuracy.model_accuracy`)
-    and the signal is ``100 * sum(w_i * rain_i) / sum(w_i)``. A more accurate
-    model pulls the number toward its vote.
+    Each voting model's *vote* (100 if it forecasts > ``threshold_mm``,
+    else 0) is weighted by its ``event_accuracy`` (see
+    :func:`app.accuracy.model_accuracy`): the signal is
+    ``100 * sum(w_i * rain_i) / sum(w_i)``, so a more accurate model pulls
+    the number toward its vote.
 
     Rules:
 
     - Models without a next-hour sum (no data) do not count at all, same as
       :func:`model_rain_signal`.
-    - Weight of a model is ``max(event_accuracy, 0.1)`` — the 0.1 floor
-      keeps a (poor) model from being silenced entirely. A model with no
-      accuracy row gets the floor.
+    - A model's weight is ``max(event_accuracy, 0.1)`` — the 0.1 floor keeps
+      a (poor) model from being silenced entirely; a model with no accuracy
+      row gets the floor.
     - **Gate:** if *any* voting model has fewer than ``min_samples`` compared
-      hours (or no accuracy row at all), the scores are not trustworthy yet
-      and the function reports ``weighted_applied = False`` — the caller
-      must fall back to :func:`model_rain_signal` (equal weights).
+      hours (or no accuracy row), the scores are not trustworthy yet and
+      ``weighted_applied = False`` is reported — the caller must fall back
+      to :func:`model_rain_signal` (equal weights).
 
     Returns the same ``(signal | None, n_rain, n_total)`` as
-    :func:`model_rain_signal` (``n_rain``/``n_total`` are always the
-    equal-weight counts, for the explanation) plus ``weighted_applied``.
+    :func:`model_rain_signal` (always the equal-weight counts, for the
+    explanation) plus ``weighted_applied``.
     """
     available = [v for v in votes if v.precip_next_hour_mm is not None]
     if not available:
@@ -259,17 +257,15 @@ def _hour_index_best_overlap(times: list[datetime], now: datetime) -> int | None
     """Index of the hourly step that overlaps ``[now, now + 1 h)`` the most.
 
     Open-Meteo hourly precipitation is a *preceding-hour sum*: the value at
-    time ``t`` is the rain of the hour ``[t - 1 h, t)``. Picking the first
-    stamp *after* ``now`` would give the clock hour that *contains* ``now``:
-    at ``now = 10:50`` that is the stamp 11:00, covering 10:00-11:00, of
-    which 50 minutes are already over. So instead pick the step with the
-    largest overlap with the next 60 minutes, which works out to simply the
-    first stamp ``t`` with ``t >= now + 30 min``:
+    ``t`` is the rain of ``[t - 1 h, t)``. Picking the first stamp *after*
+    ``now`` would give the clock hour *containing* ``now``; instead pick the
+    step with the largest overlap with the next 60 minutes, which is simply
+    the first stamp ``t >= now + 30 min``:
 
-    - ``now = 10:00`` -> stamp 11:00 (covers 10:00-11:00, 60 min overlap)
+    - ``now = 10:00`` -> stamp 11:00 (60 min overlap)
     - ``now = 10:20`` -> stamp 11:00 (40 min)
     - ``now = 10:30`` -> stamp 11:00 (30 min; tie, the earlier stamp wins)
-    - ``now = 10:50`` -> stamp 12:00 (covers 11:00-12:00, 50 min)
+    - ``now = 10:50`` -> stamp 12:00 (50 min)
 
     Returns None when no stamp is at least 30 minutes ahead of ``now``
     (a stale series).
@@ -376,9 +372,9 @@ def build_explanation(
     e.g. ``Radar: yes; 3 of 6 models predict > 0.1 mm in the next hour,
     accuracy-weighted; ensemble 42 %``
 
-    ``accuracy_weighted`` (step 6g) is only True when the accuracy-weighted
-    model signal was actually applied — the flag, not the config switch — so
-    the text never claims weighting that the gate fell back from.
+    ``accuracy_weighted`` is only True when the accuracy-weighted model
+    signal was actually applied — the flag, not the config switch — so the
+    text never claims weighting that the gate fell back from.
     """
     if radar_available and radar_raining is not None:
         radar_part = "Radar: yes" if radar_raining else "Radar: no"

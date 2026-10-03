@@ -1,6 +1,6 @@
 """Open-Meteo clients: multi-model forecast + ensemble.
 
-Verified API facts (checked live):
+API facts:
 
   * Forecast: ``https://api.open-meteo.com/v1/forecast``
     - model names use underscores; with several models every variable key is
@@ -11,16 +11,15 @@ Verified API facts (checked live):
       apparent_temperature °C, wind_speed_10m km/h, cloud_cover %.
   * Ensemble: ``https://ensemble-api.open-meteo.com/v1/ensemble`` (different
     host) returns ``hourly.precipitation`` (control) plus
-    ``precipitation_member01`` .. ``precipitation_member50``. There is NO
+    ``precipitation_member01`` .. ``precipitation_member50``. There is no
     ready-made probability: we compute the rain probability ourselves as the
-    share of members above the threshold (step 3).
+    share of members above the threshold.
 
 The parsers (:func:`parse_forecast`, :func:`parse_ensemble`) are pure
-functions so they are unit-testable without any network. The client raises
-:exc:`SourceError` on any failure. Payload protection (step 7c): the
-parsers are wrapped with :func:`malformed_is_source_error` and the HTTP
-layer reads bodies through :func:`stream_json_capped` (size cap) — see
-``app/brightsky_client.py`` for the convention.
+functions; the client raises :exc:`SourceError` on any failure. Payload
+protection: the parsers are wrapped with :func:`malformed_is_source_error`
+and the HTTP layer reads bodies through :func:`stream_json_capped`
+(size cap) — see ``app/brightsky_client.py`` for the convention.
 """
 from __future__ import annotations
 
@@ -136,7 +135,7 @@ class OpenMeteoClient:
         self._forecast_base = cfg.api.open_meteo_base_url.rstrip("/")
         self._ensemble_base = cfg.api.ensemble_base_url.rstrip("/")
         self._timeout = cfg.api.timeout_seconds
-        loc = cfg.location  # None while unconfigured (step 8b)
+        loc = cfg.location  # None while unconfigured
         self._lat = loc.latitude if loc is not None else None
         self._lon = loc.longitude if loc is not None else None
         self._forecast_models: list[str] = list(cfg.models.forecast)
@@ -149,7 +148,7 @@ class OpenMeteoClient:
             await self._http.aclose()
 
     def set_location(self, latitude: float, longitude: float) -> None:
-        """Change the location (step 8b: it is runtime state)."""
+        """Change the location (it is runtime state)."""
         self._lat = latitude
         self._lon = longitude
 

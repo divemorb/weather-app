@@ -60,13 +60,13 @@ _SOURCES: dict[str, tuple[str, str]] = {
     "ensemble": ("Open-Meteo", "stale_models_minutes"),
 }
 
-#: jobs whose "no location yet" skip was already logged (step 8b)
+#: jobs whose "no location yet" skip was already logged
 _skips_logged: set[str] = set()
 
 
 def skip_without_location(agg: "Aggregator", job: str) -> bool:
-    """True when the refresh must be skipped: no location configured yet
-    (step 8b); logged once per job, cleared by ``set_location``."""
+    """True when the refresh must be skipped: no location configured yet;
+    logged once per job, cleared by ``set_location``."""
     if agg.cfg.location is not None:
         _skips_logged.discard(job)
         return False
@@ -92,15 +92,15 @@ class Aggregator:
 
     @property
     def cfg(self) -> AppConfig:
-        """The effective config; its ``location`` tracks the DB (step 8b)."""
+        """The effective config; its ``location`` tracks the DB."""
         return self._cfg
 
     async def set_location(self, loc: LocationConfig) -> None:
-        """Store a new location (step 8b); see :func:`app.location.apply_location`."""
+        """Store a new location; see :func:`app.location.apply_location`."""
         self._cfg = await apply_location(
             self._store, self._cfg, self._brightsky, self._openmeteo, loc
         )
-        _skips_logged.clear()  # log a future skip (location deleted, step 8d)
+        _skips_logged.clear()  # log a future skip (location deleted)
 
     # -- refresh (called by the scheduler, never per page load) ------------
 
@@ -109,7 +109,7 @@ class Aggregator:
 
         Each endpoint is fetched independently so one failure does not
         discard the other; failures keep the stale cache and are recorded.
-        No-op (logged once per job) while no location is configured (8b).
+        No-op (logged once per job) while no location is configured.
         """
         if skip_without_location(self, "radar"):
             return
@@ -120,10 +120,9 @@ class Aggregator:
         """Fetch Open-Meteo forecast + ensemble into the cache.
 
         After a successful forecast refresh, hourly rows are appended to
-        ``forecast_history`` (feeds the step-6 accuracy extension), and the
-        hourly observation backfill fills in ``observed_mm`` for hours that
-        have already passed (step 6d). No-op (logged once) while no location
-        is configured (step 8b).
+        ``forecast_history`` (feeds the accuracy extension), and the hourly
+        observation backfill fills in ``observed_mm`` for hours that have
+        already passed. No-op (logged once) while no location is configured.
         """
         if skip_without_location(self, "models"):
             return
@@ -261,7 +260,7 @@ class Aggregator:
 
         See README "How the rain probability is calculated". With
         ``use_accuracy_weights`` the model signal is weighted per model by
-        event accuracy (step 6g, equal-weight fallback); always returns a
+        event accuracy (equal-weight fallback); always returns a
         :class:`RainProbability` so the UI degrades gracefully.
         """
         now = utcnow()
@@ -274,9 +273,9 @@ class Aggregator:
             nowcast, now, self._cfg.radar, prob_cfg
         )
         if self._cfg.use_accuracy_weights:
-            # step 6g: the pure function gates internally — insufficient
-            # samples or a failing accuracy read ({} below) both fall back
-            # to equal weights.
+            # the pure function gates internally — insufficient samples or a
+            # failing accuracy read ({} below) both fall back to equal
+            # weights.
             try:
                 accuracy = await self.get_model_accuracy()
             except Exception:
@@ -332,13 +331,13 @@ class Aggregator:
         return build_24h_series(await self._get_forecast_bundle(), utcnow())
 
     async def get_model_accuracy(self) -> dict[str, dict[str, Any]]:
-        """Per-model accuracy over the configured window (step 6e).
+        """Per-model accuracy over the configured window.
 
         Compares stored forecasts against the observed rain of the same
         hour — the same ``> model_rain_threshold_mm`` event the next-hour
         vote uses; raw rows come from the store, the math is the pure
-        :func:`model_accuracy`. Returns ``{}`` for ``models`` while
-        nothing has been compared yet.
+        :func:`model_accuracy`. Returns ``{}`` while nothing has been
+        compared yet.
         """
         now = utcnow()
         since = to_iso(now - timedelta(days=self._cfg.accuracy.window_days))
@@ -346,7 +345,7 @@ class Aggregator:
         return model_accuracy(rows, self._cfg.probability.model_rain_threshold_mm)
 
     async def get_observation_stations(self) -> list[dict[str, Any]]:
-        """The observation stations of the last backfill (P2); [] when none stored."""
+        """The observation stations of the last backfill; [] when none stored."""
         return stations_from_json(await self._store.get_meta(OBSERVATION_STATIONS_KEY))
 
     async def get_source_status(self) -> dict[str, dict[str, Any]]:

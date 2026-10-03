@@ -1,7 +1,6 @@
 """Bright Sky (DWD) client.
 
-Verified API facts (checked live + against the official ``brightsky``
-library's response models):
+API facts (also in the official ``brightsky`` library's response models):
 
   * Base URL has NO version prefix: ``https://api.brightsky.dev``
   * ``GET /current_weather?lat=..&lon=..`` -> ``{"weather": {...}}``
@@ -21,13 +20,13 @@ library's response models):
       ``"historical"`` are real observations, ``"forecast"`` is the MOSMIX
       forecast. ``precipitation`` at timestamp ``T`` is the rain of the
       *preceding* hour ``[T-1h, T)`` (same convention as Open-Meteo hourly).
-      Used for the hourly observation backfill (step 6d).
+      Used for the hourly observation backfill.
 
 The parsers (:func:`parse_current_weather`, :func:`parse_radar`,
 :func:`parse_hourly_observations`, :func:`parse_station_info`) are pure
-functions so they are unit-testable without any network. The client raises
-:exc:`SourceError` on any failure so the aggregator can degrade gracefully
-(a failing source must never block the app). ``parse_radar`` rejects grids
+functions; the client raises :exc:`SourceError` on any failure so the
+aggregator can degrade gracefully (a failing source must never block the
+app). ``parse_radar`` rejects grids
 above :data:`MAX_RADAR_CELLS` before decoding, and :func:`_decode_grid`
 caps decompression at the expected size (zip-bomb guard).
 
@@ -65,7 +64,7 @@ MAX_RADAR_CELLS = 250_000
 
 
 # ---------------------------------------------------------------------------
-# Pure parsers (no network) — the unit-tested contract
+# Pure parsers (no network)
 # ---------------------------------------------------------------------------
 @malformed_is_source_error("Bright Sky current_weather")
 def parse_current_weather(payload: dict[str, Any]) -> CurrentConditions:
@@ -271,7 +270,7 @@ class BrightSkyClient:
     def __init__(self, cfg: AppConfig, client: httpx2.AsyncClient | None = None):
         self._base = cfg.api.brightsky_base_url.rstrip("/")
         self._timeout = cfg.api.timeout_seconds
-        loc = cfg.location  # None while unconfigured (step 8b)
+        loc = cfg.location  # None while unconfigured
         self._lat = loc.latitude if loc is not None else None
         self._lon = loc.longitude if loc is not None else None
         self._owns_client = client is None
@@ -282,7 +281,7 @@ class BrightSkyClient:
             await self._http.aclose()
 
     def set_location(self, latitude: float, longitude: float) -> None:
-        """Change the location (step 8b: it is runtime state)."""
+        """Change the location (it is runtime state)."""
         self._lat = latitude
         self._lon = longitude
 
@@ -337,8 +336,8 @@ class BrightSkyClient:
     async def fetch_weather_payload(self, start: datetime, end: datetime) -> dict[str, Any]:
         """Raw ``/weather`` JSON for hourly records in ``[start, end]``.
 
-        Used by the aggregator's observation backfill (step 6d): the response
-        carries both real observations (``observation_type``
+        Used by the aggregator's observation backfill: the response carries
+        both real observations (``observation_type``
         ``"current"``/``"historical"``) and MOSMIX forecasts (``"forecast"``);
         :func:`parse_hourly_observations` keeps only the real ones.
         """

@@ -1,8 +1,6 @@
-"""Normalized data models shared between clients, aggregation and the API.
-
-These dataclasses are the internal contract: clients parse raw payloads into
-them, the aggregator consumes them, and the REST layer serializes them.
-"""
+"""Normalized data models shared between clients, aggregation and the API:
+the internal contract (clients parse into them, the REST layer serializes
+them)."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -15,11 +13,10 @@ from typing import Any
 # ---------------------------------------------------------------------------
 @dataclass
 class CurrentConditions:
-    """'Now' tile.
+    """'Now' tile, primarily from Bright Sky ``/current_weather`` (DWD).
 
-    Primarily from Bright Sky ``/current_weather`` (DWD). ``feels_like_c``
-    is None from Bright Sky (no apparent-temperature field) and is filled by
-    the aggregator from Open-Meteo's ``apparent_temperature``.
+    ``feels_like_c`` is None from Bright Sky (no such field); the aggregator
+    fills it from Open-Meteo's ``apparent_temperature``.
     """
 
     timestamp_utc: str | None = None
@@ -70,7 +67,7 @@ class RadarNowcast:
     grid_width: int = 0
     grid_height: int = 0
     bbox: tuple[int, int, int, int] = (0, 0, 0, 0)  # top, left, bottom, right
-    location_xy: tuple[float, float] = (0.0, 0.0)   # (x, y) of the location
+    location_xy: tuple[float, float] = (0.0, 0.0)
 
 
 # ---------------------------------------------------------------------------

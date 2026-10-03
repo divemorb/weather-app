@@ -1,8 +1,7 @@
 """Small UTC time helpers shared by clients and the aggregator.
 
-Everything in the app is UTC. These helpers keep "next N minutes/hours from
-now" logic consistent and unit-testable (``now`` is always an explicit
-argument rather than a hidden clock).
+Everything in the app is UTC; ``now`` is always an explicit argument
+rather than a hidden clock.
 """
 from __future__ import annotations
 
@@ -15,9 +14,8 @@ def utcnow() -> dt.datetime:
 
 
 def parse_iso(stamp: str) -> dt.datetime:
-    """Parse an ISO-8601 stamp (Open-Meteo/Bright Sky use ``...Z`` or offsets).
-
-    Returns a timezone-aware UTC datetime.
+    """Parse an ISO-8601 stamp (sources use ``...Z`` or offsets); the result
+    is a timezone-aware UTC datetime.
     """
     s = stamp.strip()
     if s.endswith("Z"):
@@ -34,10 +32,10 @@ def to_iso(value: dt.datetime) -> str:
 
 
 def first_index_at_or_after(times: list[str], now: dt.datetime) -> int:
-    """Index of the first timestamp >= ``now`` (binary search).
+    """Index of the first timestamp >= ``now``.
 
-    ``times`` must be sorted ascending ISO-8601 strings. Returns ``len(times)``
-    when every timestamp is before ``now``.
+    ``times`` must be sorted ascending ISO-8601 strings; returns
+    ``len(times)`` when every timestamp is before ``now``.
     """
     lo, hi = 0, len(times)
     while lo < hi:

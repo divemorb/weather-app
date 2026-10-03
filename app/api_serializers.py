@@ -1,9 +1,8 @@
 """Pure serializers that turn aggregator results into API-ready JSON dicts.
 
-These are the *only* place where internal dataclasses become the REST
-contract. They take plain values (no ``Aggregator`` / ``Store``) and return
-JSON-serializable dicts, which keeps them trivially unit-testable and lets the
-FastAPI routes stay thin (fetch from the aggregator, hand to a serializer).
+The only place where internal dataclasses become the REST contract: they
+take plain values (no ``Aggregator`` / ``Store``) and return
+JSON-serializable dicts.
 
 All timestamps are UTC ISO-8601 (``...Z``); the frontend converts to the
 configured display timezone.
@@ -34,13 +33,10 @@ def serialize_now(
 ) -> dict[str, Any]:
     """Shape the 'Now' tile (``GET /api/now``).
 
-    ``available`` is False when there is no cached observation yet; the
-    ``conditions`` object is then null and the frontend renders an empty
-    state.
-
-    ``payload`` is the raw ``/current_weather`` payload; when given, its
-    ``sources`` name the ``station`` the values come from and the per-value
-    ``fallback`` (see :func:`app.stations.station_and_fallback`).
+    ``available`` is False (and ``conditions`` null) while no observation
+    is cached. ``payload`` is the raw ``/current_weather`` payload; when
+    given, its ``sources`` name the ``station`` and per-value ``fallback``
+    (see :func:`app.stations.station_and_fallback`).
     """
     if conditions is None:
         return {"available": False, "age_seconds": None, "stale": False, "conditions": None}
@@ -77,9 +73,8 @@ def serialize_rain_probability(
 ) -> dict[str, Any]:
     """Shape the headline rain probability (``GET /api/rain-probability``).
 
-    Includes the per-signal data age (radar + models) so the UI can show how
-    fresh the underlying data is without a second round-trip to
-    ``/api/sources``.
+    Includes the per-signal data age so the UI can show data freshness
+    without a second round-trip to ``/api/sources``.
     """
     return {
         "probability_pct": rain.probability_pct,
@@ -98,8 +93,7 @@ def serialize_rain_probability(
 def serialize_radar_next_hour(bar: dict[str, Any], meta: dict[str, Any] | None) -> dict[str, Any]:
     """Shape the 60-minute radar bar (``GET /api/radar/next-hour``).
 
-    Passes through the pure ``build_radar_next_hour_bar`` result and adds the
-    radar cache freshness so the frontend can flag a stale nowcast.
+    Adds the radar cache freshness so the frontend can flag a stale nowcast.
     """
     return {
         **_cache_meta(meta),
@@ -131,11 +125,9 @@ def serialize_model_accuracy(
 
     ``models`` is the pure :func:`app.accuracy.model_accuracy` result
     (``{}`` while nothing has been compared yet); each entry gains
-    ``enough_data`` = ``n_samples >= min_samples`` so the UI can grey out
-    models that have not accumulated enough compared hours. ``stations``
-    (P2) lists the observation stations behind the table, nearest first;
-    ``None`` (or an empty list) serializes as ``[]`` while the backfill
-    has not remembered any.
+    ``enough_data`` = ``n_samples >= min_samples``. ``stations`` lists the
+    observation stations behind the table, nearest first; ``None``
+    serializes as ``[]``.
     """
     serialized: dict[str, dict[str, Any]] = {}
     for name, stats in models.items():

@@ -1,9 +1,8 @@
-"""Shared upstream HTTP plumbing (step 8a, moved out of brightsky_client).
+"""Shared upstream HTTP plumbing.
 
-Payload protection (step 7c, security hardening): upstream data is
-*untrusted*. The parsers on the request path are wrapped with
-:func:`malformed_is_source_error`, so a wrong type or missing key raises
-:exc:`SourceError` instead of an unhandled 500. Both HTTP clients read
+Upstream data is *untrusted*: the parsers on the request path are wrapped
+with :func:`malformed_is_source_error`, so a wrong type or missing key
+raises :exc:`SourceError` instead of an unhandled 500. Both clients read
 bodies through :func:`stream_json_capped`, which aborts above
 :data:`MAX_RESPONSE_BYTES` (memory + SQLite cache protection).
 """
@@ -15,9 +14,8 @@ from typing import Any, Callable
 
 import httpx2
 
-#: Hard cap for upstream response bodies (memory + SQLite cache protection).
-#: Real payloads are ~20 KB (forecast), ~16 KB (ensemble), ~9 KB (radar) and
-#: ~1.4 KB (current), so 5 MB is far above anything legitimate.
+#: Cap for upstream response bodies; real payloads are ≤ ~20 KB, so 5 MB is
+#: far above anything legitimate (memory + SQLite cache protection).
 MAX_RESPONSE_BYTES = 5 * 1024 * 1024
 
 
@@ -25,9 +23,8 @@ class SourceError(Exception):
     """A data source failed or returned an unusable payload."""
 
 
-#: Payload-shape errors: upstream data is untrusted, so a wrong type or a
-#: missing key must surface as :exc:`SourceError` (which the request path
-#: catches) rather than as an unhandled 500.
+#: Payload-shape errors re-raised as :exc:`SourceError` by
+#: :func:`malformed_is_source_error`.
 _MALFORMED_TYPES = (
     KeyError,
     TypeError,
@@ -39,11 +36,9 @@ _MALFORMED_TYPES = (
 
 
 def malformed_is_source_error(label: str) -> Callable:
-    """Decorator: re-raise payload-shape errors as :exc:`SourceError`.
+    """Re-raise payload-shape errors as :exc:`SourceError`.
 
-    Applied to the parsers on the request path. A :exc:`SourceError` raised
-    inside the parser is not in ``_MALFORMED_TYPES`` and passes through
-    unchanged, with its original message.
+    A :exc:`SourceError` raised inside the parser passes through unchanged.
     """
 
     def wrap(func: Callable) -> Callable:
@@ -64,13 +59,9 @@ async def stream_json_capped(
 ) -> Any:
     """GET ``url`` and parse the JSON body, aborting above MAX_RESPONSE_BYTES.
 
-    Shared by both upstream clients (Bright Sky, Open-Meteo): untrusted
-    servers could otherwise answer with multi-GB bodies that exhaust memory
-    and the SQLite cache. The ``content-length`` header is checked up front;
-    chunked/lying responses are caught while streaming.
-
-    Raises :exc:`SourceError` for HTTP errors, size violations, and
-    undecodable bodies.
+    Untrusted servers could otherwise answer with multi-GB bodies that
+    exhaust memory and the SQLite cache. Raises :exc:`SourceError` for HTTP
+    errors, size violations and undecodable bodies.
     """
     try:
         async with http.stream("GET", url, params=params) as resp:
@@ -99,7 +90,7 @@ async def stream_json_capped(
         raise SourceError(f"request failed: {exc}") from exc
     try:
         return json.loads(body)
-    # RecursionError: deeply nested JSON ("[[[[…") is far below the size cap
-    # but exhausts the parser's recursion limit; it is not a ValueError.
+    # Deeply nested JSON ("[[[[…") is far below the size cap but exhausts the
+    # parser's recursion limit; it is a RecursionError, not a ValueError.
     except (ValueError, RecursionError) as exc:
         raise SourceError(f"response is not valid JSON: {exc}") from exc

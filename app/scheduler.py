@@ -3,12 +3,12 @@
 Radar (Bright Sky): every N minutes (default 5) — never on page load.
 Models (Open-Meteo): every M minutes (default 60).
 
-The jobs are coroutines: APScheduler's asyncio executor runs them as tasks
-on the app's event loop, so a slow or failing upstream can't block the
-scheduler, and ``max_instances=1`` skips a run while the previous one is
-still busy. (A plain ``def`` job would run in a worker thread, where there
-is no event loop to schedule the refresh on.) The aggregator itself
-tolerates :exc:`SourceError` (keeps the stale cache, records the last error).
+The jobs are coroutines run by APScheduler's asyncio executor on the
+app's event loop, so a slow upstream can't block the scheduler;
+``max_instances=1`` skips a run while the previous one is still busy.
+(A plain ``def`` job would run in a worker thread, with no event loop to
+schedule the refresh on.) The aggregator tolerates :exc:`SourceError`
+(keeps the stale cache, records the last error).
 """
 from __future__ import annotations
 
@@ -66,9 +66,8 @@ def build_scheduler(cfg: AppConfig, aggregator: Aggregator) -> AsyncIOScheduler:
 def schedule_status(scheduler: Any, cfg: AppConfig) -> dict[str, Any]:
     """Next run time per refresh job, for the UI countdown.
 
-    ``server_time_utc`` lets the browser correct for its own clock offset.
-    ``next_run_utc`` is None while the scheduler isn't running (a job added
-    before ``start()`` has no next run time yet).
+    ``server_time_utc`` lets the browser correct its clock offset;
+    ``next_run_utc`` is None while the scheduler isn't running.
     """
     intervals = {
         "radar_refresh": cfg.scheduling.radar_interval_minutes,
@@ -87,10 +86,8 @@ def schedule_status(scheduler: Any, cfg: AppConfig) -> dict[str, Any]:
 
 
 async def initial_refresh(aggregator: Aggregator) -> None:
-    """Warm the cache once at startup (before the scheduler takes over).
-
-    Both refreshes run concurrently; a slow/failing source can't delay
-    startup (each refresh already tolerates SourceError internally).
+    """Warm the cache once at startup; both refreshes run concurrently and
+    tolerate source errors, so a slow upstream can't delay startup.
     """
     results = await asyncio.gather(
         _guarded(aggregator.refresh_radar, "radar"),

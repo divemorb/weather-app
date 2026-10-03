@@ -9,13 +9,13 @@ display timezone):
   GET /api/rain-probability     -> combined % + per-source breakdown
   GET /api/radar/next-hour      -> 12 x 5-min radar bar (mm per step)
   GET /api/models/24h           -> hourly precipitation per model (24 points)
-  GET /api/model-accuracy       -> per-model forecast accuracy (window, 6e)
+  GET /api/model-accuracy       -> per-model forecast accuracy (window)
   GET /api/sources              -> per-source age / staleness / errors
   GET /api/schedule             -> next backend refresh per job (UI countdown)
-  GET /api/geocode              -> address search results (setup wizard, 8c2)
+  GET /api/geocode              -> address search results (setup wizard)
   POST /api/location            -> set the home location (setup wizard)
 
-Static frontend:  GET / (static/index.html, step 5)
+Static frontend:  GET / (static/index.html)
 """
 from __future__ import annotations
 
@@ -67,13 +67,13 @@ async def lifespan(app: FastAPI):
     store = Store(cfg.database_path)
     await store.connect()
 
-    # The location is runtime state (step 8b): the stored value wins over
-    # env/YAML, which is only adopted on first start (written to the DB).
+    # The location is runtime state: the stored value wins over env/YAML,
+    # which is only adopted on first start (written to the DB).
     cfg = replace(cfg, location=await resolve_startup_location(store, cfg))
 
     brightsky = BrightSkyClient(cfg)
     openmeteo = OpenMeteoClient(cfg)
-    geocoder = Geocoder(cfg.api.nominatim_base_url)  # address search (8c2)
+    geocoder = Geocoder(cfg.api.nominatim_base_url)  # address search
     aggregator = Aggregator(cfg, store, brightsky, openmeteo)
 
     scheduler = build_scheduler(cfg, aggregator)
@@ -96,9 +96,9 @@ async def lifespan(app: FastAPI):
         await store.close()
 
 
-# API docs are off by default (security #10): the app is a no-login LAN app,
-# so the full API contract should not be browsable by every device on the
-# network. Enable with ENABLE_API_DOCS=true (development only).
+# API docs are off by default: the app is a no-login LAN app, so the full
+# API contract should not be browsable by every device on the network.
+# Enable with ENABLE_API_DOCS=true (development only).
 _docs_enabled = _env_bool("ENABLE_API_DOCS", False)
 
 app = FastAPI(
@@ -110,13 +110,13 @@ app = FastAPI(
     openapi_url="/openapi.json" if _docs_enabled else None,
 )
 
-# No CORSMiddleware on purpose (security #4): the frontend is same-origin, so
-# CORS is not needed. Without CORS headers, a foreign website can still
-# *send* a request to the API but cannot *read* the answer (opaque
-# response), which closes the leak of the home location from /api/config.
+# No CORSMiddleware on purpose: the frontend is same-origin, so CORS is not
+# needed. Without CORS headers, a foreign website can still *send* a request
+# to the API but cannot *read* the answer (opaque response), which closes
+# the leak of the home location from /api/config.
 
-# Security headers on every response (security #13): API, static files and
-# error responses alike (the middleware below also answers unhandled 500s).
+# Security headers on every response: API, static files and error responses
+# alike (the middleware below also answers unhandled 500s).
 #   CSP            default-src 'self' — no external scripts/styles/frames
 #                  (img-src data: for the inline favicon in index.html);
 #                  object-src/base-uri/form-action/frame-ancestors locked
@@ -135,11 +135,11 @@ _SECURITY_HEADERS = {
 }
 
 
-# Host header check (security #14): the app only answers requests whose Host
-# header names this app — an IP literal, localhost, a .local mDNS name, or
-# one of ALLOWED_HOSTS (port ignored). Any other domain (e.g. a rebinding
-# attack from evil.example) is rejected with 400, so a website whose DNS
-# flips to this host's LAN IP can never be treated as same-origin.
+# Host header check: the app only answers requests whose Host header names
+# this app — an IP literal, localhost, a .local mDNS name, or one of
+# ALLOWED_HOSTS (port ignored). Any other domain (e.g. a rebinding attack
+# from evil.example) is rejected with 400, so a website whose DNS flips to
+# this host's LAN IP can never be treated as same-origin.
 _EXTRA_HOSTS = frozenset(
     h.strip().lower() for h in os.environ.get("ALLOWED_HOSTS", "").split(",") if h.strip()
 )
@@ -186,7 +186,7 @@ async def add_security_headers(request: Request, call_next):
 
 # FastAPI's default 422 handler echoes the rejected input; a JSON body with
 # NaN would then crash JSON rendering (500). Answer with the error messages
-# only — never the input (step 8c).
+# only — never the input.
 @app.exception_handler(RequestValidationError)
 async def validation_error(request: Request, exc: RequestValidationError):
     return JSONResponse(
@@ -204,8 +204,8 @@ async def healthz() -> dict:
 async def api_config(request: Request) -> dict:
     cfg: AppConfig = request.app.state.cfg
     return {
-        # step 8b: "configured" tells the frontend whether to show the
-        # setup wizard; "location" is null while unconfigured.
+        # "configured" tells the frontend whether to show the setup wizard;
+        # "location" is null while unconfigured.
         "configured": cfg.location is not None,
         "location": location_payload(cfg.location) if cfg.location is not None else None,
         "radar_radius_km": cfg.radar.radius_km,
@@ -254,13 +254,13 @@ async def api_models_24h(request: Request) -> dict:
 
 @app.get("/api/model-accuracy")
 async def api_model_accuracy(request: Request) -> dict:
-    """Per-model accuracy over the configured window (step 6e, stations P2).
+    """Per-model accuracy over the configured window.
 
     Compares stored forecasts against observed rain using the same
     ``> model_rain_threshold_mm`` event the next-hour vote uses. Returns an
     empty ``models`` dict while nothing has been compared yet, and
-    ``stations`` (the observation stations, P2) ``[]`` until the
-    backfill has remembered any.
+    ``stations`` (the observation stations) ``[]`` until the backfill has
+    remembered any.
     """
     agg: Aggregator = request.app.state.aggregator
     cfg: AppConfig = request.app.state.cfg
@@ -290,7 +290,7 @@ async def api_geocode(
     request: Request,
     q: str = Query(min_length=3, max_length=200, description="Address or place"),
 ) -> dict:
-    """Address search for the setup wizard (Nominatim, step 8c2).
+    """Address search for the setup wizard (Nominatim).
 
     The typed text goes to OpenStreetMap Nominatim *from the app's server*
     (coordinates entered directly never leave the app). A failed lookup is
@@ -306,13 +306,13 @@ async def api_geocode(
 
 
 #: Keeps references to fire-and-forget refresh tasks so they are not
-#: garbage-collected mid-flight (step 8c).
+#: garbage-collected mid-flight.
 _background_tasks: set[asyncio.Task] = set()
 
 
 @app.post("/api/location")
 async def api_set_location(request: Request, body: LocationIn) -> dict:
-    """Set the home location (setup wizard, step 8c).
+    """Set the home location (setup wizard).
 
     Same-origin JSON only: a foreign page can *send* a POST to a LAN app
     even without CORS (CSRF), so the write is refused for foreign origins.
