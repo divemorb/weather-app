@@ -1,6 +1,6 @@
 {
  "now": "2026-09-30T10:27:10Z",
- "python_memory_kb": 63116,
+ "python_memory_kb": 64796,
  "upstream": [
   "/bs/current_weather?lat=52.52&lon=13.405",
   "/bs/radar?date=2026-09-30T10:25:00+00:00&last_date=2026-09-30T11:25:00+00:00&lat=52.52&lon=13.405",
@@ -89,7 +89,16 @@
      "precipitation_30mm": 0.0,
      "precipitation_60mm": 0.0,
      "condition": "dry",
-     "source_id": 303711
+     "source_id": 303711,
+     "station": {
+      "name": "Berlin-Tempelhof",
+      "distance_m": 5837.0,
+      "lat": 52.4676,
+      "lon": 13.402,
+      "height_m": 47.7,
+      "dwd_station_id": "00433"
+     },
+     "fallback": {}
     }
    }
   },
@@ -422,7 +431,25 @@
    "json": {
     "window_days": 30,
     "min_samples": 48,
-    "models": {}
+    "models": {},
+    "stations": [
+     {
+      "name": "Berlin-Friedrichshain/Spree",
+      "distance_m": 1860.0,
+      "lat": 52.51,
+      "lon": 13.427,
+      "dwd_station_id": "17473",
+      "hours": 37
+     },
+     {
+      "name": "BERLIN-TEMPELHOF",
+      "distance_m": 5576.0,
+      "lat": 52.47,
+      "lon": 13.4,
+      "dwd_station_id": "00433",
+      "hours": 10
+     }
+    ]
    }
   },
   "api/sources": {
