@@ -1,4 +1,4 @@
-/* Wetter — styles (step W3: calm and minimal, glance first).
+/* Wetter — styles.
  *
  * Light theme is the default on :root; the dark theme is an override on
  * :root[data-theme="dark"] (set by app.js). One accent colour, the rain
@@ -115,9 +115,8 @@ a:hover { text-decoration: underline; }
 .actions .btn:hover { background: var(--hover); }
 .actions .btn .icon { width: 22px; height: 22px; display: block; }
 
-/* The moon invites dark mode; the sun invites light. The selectors must
- * reach into .actions .btn to out-weight ".btn .icon { display: block }",
- * or the light theme shows both icons. */
+/* The selectors must reach into .actions .btn to out-weight ".btn .icon
+ * { display: block }", or the light theme shows both icons. */
 .actions .btn .icon-sun { display: none; }
 :root[data-theme="dark"] .actions .btn .icon-sun { display: block; }
 :root[data-theme="dark"] .actions .btn .icon-moon { display: none; }
@@ -138,7 +137,6 @@ a:hover { text-decoration: underline; }
 }
 .setup .btn:hover { border-color: var(--muted); background: var(--hover); }
 
-/* The primary action: a quiet dark (light in dark mode) fill. */
 .setup .btn-primary { background: var(--text); border-color: var(--text); color: var(--bg); }
 .setup .btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
 
@@ -196,8 +194,6 @@ button:focus-visible, a:focus-visible {
 
 .glance-prob-label { font-size: 14px; color: var(--muted); line-height: 1.45; }
 
-/* The 60-minute strip (W4): one column per five-minute step, the axis
- * under it and the caption with the radar radius. */
 .radar { margin-top: 26px; }
 
 /* The row above the tracks: the max-amount badge when it rains, the dry
@@ -218,7 +214,7 @@ button:focus-visible, a:focus-visible {
 }
 
 /* A column is its track — always visible, even dry — with the rain fill
- * inside, bottom-aligned; the fill's height is set from JS (CSSOM). */
+ * inside, bottom-aligned; the fill's height is set from JS. */
 .radar-strip {
   display: flex; align-items: flex-end; gap: 3px;
   height: 56px;
@@ -237,7 +233,6 @@ button:focus-visible, a:focus-visible {
   background: var(--accent); border-radius: 3px 3px 0 0;
 }
 
-/* The axis: the first step, two in between, the end of the hour. */
 .radar-labels {
   position: relative; height: 16px; margin-top: 6px;
   font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums;
@@ -271,7 +266,6 @@ button:focus-visible, a:focus-visible {
 
 .now-condition { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
 
-/* The quiet grid: label above value, two columns from 360 px up. */
 .now-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -295,7 +289,7 @@ button:focus-visible, a:focus-visible {
 
 .now-time { margin: 16px 0 0; font-size: 13px; }
 
-/* W1: who measured "Now" (a quiet line), and the small note at a value
+/* Who measured "Now" (a quiet line), and the small note at a value
  * Bright Sky took from another station. */
 .now-station { margin: 4px 0 0; font-size: 13px; overflow-wrap: break-word; }
 .now-fallback { margin-left: 6px; font-size: 11px; font-weight: 400; color: var(--muted); }

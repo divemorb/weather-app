@@ -43,7 +43,7 @@
     </header>
 
     <!-- Setup wizard: shown until a location is saved. Its texts live in
-         i18n.js; setup.js fills the empty elements (step W9). -->
+         i18n.js; setup.js fills the empty elements. -->
     <section class="card setup" id="setup" data-test="setup" hidden>
       <div class="card-head"><h2 id="setup-title"></h2></div>
       <p class="muted setup-intro" id="setup-intro"></p>
@@ -84,7 +84,7 @@
       <p class="setup-note muted" id="setup-note"></p>
     </section>
 
-    <!-- Data: the glance first (W2); Now (W5), chart (W6), details (W7) follow -->
+    <!-- Data: the glance first; Now, chart and details follow -->
     <main id="dashboard">
       <section class="card glance" id="glance">
         <h1 class="glance-answer" id="rain-answer" data-test="rain-answer"></h1>
@@ -107,7 +107,7 @@
         </div>
       </section>
 
-      <!-- Now (W5): current conditions, temperature and condition big -->
+      <!-- Now: current conditions, temperature and condition big -->
       <section class="card now" id="now">
         <h2 class="now-title" id="now-title"></h2>
         <p class="now-unavailable" id="now-unavailable" data-test="now-unavailable" hidden></p>
@@ -151,12 +151,12 @@
             </div>
           </dl>
           <p class="now-time muted" id="now-time" data-test="now-time"></p>
-          <!-- W1: who measured "Now" — hidden when /api/now has no station -->
+          <!-- Who measured "Now" — hidden when /api/now has no station -->
           <p class="now-station muted" id="now-station" data-test="now-station" hidden></p>
         </div>
       </section>
 
-      <!-- Next 24 hours (W6): the models' precipitation as inline SVG;
+      <!-- Next 24 hours: the models' precipitation as inline SVG;
            without data the status lines take the plot's place -->
       <section class="card chart" id="chart-card">
         <div class="chart-head">
@@ -169,7 +169,7 @@
         <ul class="chart-legend" id="chart-legend" hidden></ul>
       </section>
 
-      <!-- Details (W7): the technical parts, collapsed on load; details.js
+      <!-- Details: the technical parts, collapsed on load; details.js
            fills #details-body from /api/rain-probability, /api/sources,
            /api/schedule and /api/model-accuracy -->
       <details class="card details" id="details" data-test="details">

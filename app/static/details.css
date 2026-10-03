@@ -1,5 +1,5 @@
-/* details.css — the Details card (step W7): signals and weights, the
- * refresh countdowns, the data sources and the model accuracy table.
+/* details.css — the Details card: signals and weights, the refresh
+ * countdowns, the data sources and the model accuracy table.
  *
  * Calm continuation of the cards in style.css: small caps headings,
  * tabular numbers, one muted colour for the quiet parts. The accuracy
@@ -8,13 +8,13 @@
  */
 
 /* The card's padding lives around the body; the summary keeps its own.
- * Closed, the card is just the summary: the bottom padding stays in step
- * with the top, the larger one below only makes sense around the body. */
+ * Closed, the card is just the summary, so the bottom padding shrinks to
+ * the top's. */
 .details { padding: 4px 22px 22px; }
 .details:not([open]) { padding-bottom: 4px; }
 
 .details summary {
-  min-height: 44px; /* the bare line is 22 px, the check wants at least 24 */
+  min-height: 44px; /* the bare line is 22 px; the row needs at least 24 */
   padding: 12px 0;
   font-size: 15px; font-weight: 600; letter-spacing: -0.01em;
   cursor: pointer;
@@ -39,7 +39,6 @@
   color: var(--muted);
 }
 
-/* The signal and weight lines: one line each, quiet. */
 .detail-line {
   margin: 0 0 8px;
   font-size: 14px; line-height: 1.5;
@@ -49,7 +48,6 @@
 .detail-line:last-child { margin-bottom: 0; }
 .detail-line .sep { color: var(--muted); padding: 0 2px; }
 
-/* The refresh countdowns: one tile per job plus the page reload. */
 .refresh-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -75,7 +73,6 @@
   color: var(--muted);
 }
 
-/* The data sources: name, age, the "stale" marker; the error under it. */
 .source-list {
   margin: 0; padding: 0;
   list-style: none;
@@ -83,9 +80,9 @@
   gap: 10px;
 }
 
-/* Feed name and age on one line, the error (if any) below it. The feed
- * is the page part the source drives (Radar, Now, Models, Ensemble);
- * two rows share an upstream, so the upstream's name stays, muted. */
+/* The feed is the page part the source drives (Radar, Now, Models,
+ * Ensemble); two rows can share an upstream, so the upstream's name
+ * stays, muted. */
 .source-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -163,9 +160,9 @@
   color: var(--muted);
 }
 
-/* The stations (W1): one row per observation station, then the schematic
- * map. The map is an inline SVG at its box's own scale (no stretching), so
- * the bearings and distances stay true. */
+/* The stations: one row per observation station, then the schematic map.
+ * The map is an inline SVG at its box's own scale (no stretching), so the
+ * bearings and distances stay true. */
 .obs-list {
   margin: 0;
   display: grid;
@@ -205,7 +202,6 @@
 .station-map .map-label { fill: var(--text); font-size: 11px; font-family: inherit; }
 .station-map .map-scale line { stroke: var(--muted); stroke-width: 1.5; }
 
-/* Wider screens: the countdown tiles sit in a row. */
 @media (min-width: 600px) {
   .refresh-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }

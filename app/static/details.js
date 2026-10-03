@@ -1,8 +1,8 @@
-/* details.js — the Details card (step W7), the page reload (step W9b).
+/* details.js — the Details card and the page reload.
  *
  * One <details data-test="details"> (closed on load) after the forecast;
- * details.js fills its body from four endpoints, fetched by app.js on
- * every refresh:
+ * its body is filled from four endpoints, fetched by app.js on every
+ * refresh:
  *   - the signals (radar, models, ensemble) and the weights in use,
  *     from /api/rain-probability (without data: a dash),
  *   - the refresh countdowns (radar, models, next page reload) from
@@ -44,7 +44,7 @@ let loadTimer = null;
 let nextLoadAt = 0; // Date.now() ms of the next page reload
 let valueEls = null; // the three countdown value spans
 
-/* ---- the schedule and the reload (the old countdown.js behaviour) ---- */
+/* ---- the schedule and the reload ---- */
 
 function applySchedule(s) {
   if (!s || typeof s !== "object" || !s.jobs || typeof s.jobs !== "object") {
@@ -61,9 +61,9 @@ function serverNow() {
 }
 
 /* Next page reload: every PAGE_REFRESH_MS, or sooner right after a
- * backend refresh (the refresh normally finishes within a few seconds).
- * The delay is the pure nextLoadDelay() (format.js); this only sets the
- * timer, and it always sets it — even on bad data, the page reloads. */
+ * backend refresh. The delay is the pure nextLoadDelay() (format.js);
+ * this only sets the timer, and it always sets it — even on bad data,
+ * the page reloads. */
 function scheduleNextLoad() {
   let delay;
   try {
@@ -80,9 +80,9 @@ function scheduleNextLoad() {
   }, delay);
 }
 
-/* Apply the /api/schedule data and schedule the next page reload.
- * app.js calls this after every refresh, after the renderers, so the
- * reload happens whatever failed in them. It never throws. */
+/* Apply the /api/schedule data and schedule the next page reload. Called
+ * after every refresh, after the renderers, so the reload happens
+ * whatever failed in them. Never throws. */
 export function scheduleFrom(scheduleData) {
   try {
     applySchedule(scheduleData);
@@ -130,8 +130,8 @@ export function initDetails(l, loc, opts) {
 /* The body, rebuilt on every refresh. Each section renders on its own
  * (one bad endpoint keeps the card, never the empty half of it): the new
  * body is built in a detached fragment and only swapped in at the end.
- * Scheduling the next reload is not part of the body — app.js calls
- * scheduleFrom() afterwards, so it happens whatever failed here. */
+ * The next reload is scheduled afterwards, by app.js, whatever failed
+ * here. */
 export function renderDetails(data) {
   const rain = data && data.rain;
   const sources = data && data.sources;
@@ -191,7 +191,6 @@ function line(hook) {
   return p;
 }
 
-/* One line of "part · part · part". */
 function fillLine(p, parts) {
   for (let i = 0; i < parts.length; i++) {
     if (i) {
@@ -204,9 +203,6 @@ function fillLine(p, parts) {
   }
 }
 
-/* Signals and weights: the weights in use (a dash without data) and the
- * current signals — radar raining or not, how many models see rain, the
- * ensemble's own probability. */
 function signalsSection(rain) {
   const sec = section(t(lang, "details.signals-weights"));
   const weightsLine = line("details-weights");
@@ -235,8 +231,6 @@ function signalsSection(rain) {
   return sec;
 }
 
-/* The three countdown tiles (radar, models, page reload); the values are
- * updated by tick(), the reload itself by scheduleNextLoad(). */
 function refreshSection() {
   const sec = section(t(lang, "details.refresh"));
   const grid = document.createElement("div");
@@ -273,9 +267,8 @@ const FEED_KEYS = {
   ensemble: "weight.ensemble",
 };
 
-/* The four sources in API order: the feed it drives, the upstream's name
- * muted next to it, the age (and the "stale" marker), the last error
- * under the row when it is set. */
+/* The four sources in API order; the last error goes under the row when
+ * it is set. */
 function sourcesSection(sources) {
   const sec = section(t(lang, "details.sources"));
   const list = document.createElement("div");
@@ -319,9 +312,6 @@ function sourcesSection(sources) {
   return sec;
 }
 
-/* The accuracy: without any compared model the status line; otherwise
- * the table (the no-rain note above it when no rain has been measured
- * yet) and the note that explains the columns. */
 function accuracySection(accuracy) {
   const sec = section(t(lang, "details.accuracy"));
   const models = accuracy && accuracy.models && typeof accuracy.models === "object"
@@ -351,9 +341,8 @@ function accuracySection(accuracy) {
   return sec;
 }
 
-/* The table in a scrollable container (a phone must not widen): header
- * row with the plain column names, one row per model, the rows without
- * enough data last and greyed (but still readable). */
+/* The table in a scrollable container (a phone must not widen): the rows
+ * without enough data come last and greyed (but still readable). */
 function buildTable(models) {
   const scroll = document.createElement("div");
   scroll.className = "table-scroll";

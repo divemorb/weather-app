@@ -1,7 +1,7 @@
-/* chart.css — the 24 h model chart (step W6): the card's head (title and
- * the mm/h unit), the status lines, the inline SVG and the legend. The
- * SVG is built by chart.js; the axis text uses the muted text colour, so
- * it passes WCAG contrast in both themes. */
+/* chart.css — the 24 h model chart: the card's head (title and the mm/h
+ * unit), the status lines, the inline SVG and the legend. The axis text
+ * uses the muted text colour, so it passes WCAG contrast in both themes.
+ */
 
 .chart-head {
   display: flex; align-items: baseline; justify-content: space-between;
@@ -19,11 +19,10 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The "no data" and "dry" lines take the plot's place. */
 .chart-status { margin: 4px 0 0; font-size: 15px; color: var(--muted); }
 
-/* The SVG scales to its card; its viewBox matches the pixel width, so
- * the text inside is not scaled. */
+/* Scales to the card; the viewBox matches the pixel width, so the text
+ * inside is not scaled. */
 .chart-svg { display: block; width: 100%; height: auto; }
 
 .chart-svg .grid { stroke: var(--border); }

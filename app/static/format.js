@@ -1,21 +1,21 @@
-/* format.js — pure formatting helpers (step W1).
+/* format.js — pure formatting helpers.
  *
  * No DOM, no navigator, no Date.now(): the locale (the browser's
  * navigator.language) and the location's time zone (from /api/config)
  * are parameters. The contract is rust/uitest/unit/format.test.mjs.
  * Intl puts non-breaking spaces into some outputs ("75 %", "12:50 PM");
- * that is fine — the UI harness compares with ordinary spaces.
+ * that is fine — the tests compare with ordinary spaces.
  */
 
 import { t } from "./i18n.js";
 
 export const DASH = "—"; // every missing value
 
-/* The page reload's timing (W9b): the page re-fetches at the latest every
+/* The page reload's timing: the page re-fetches at the latest every
  * PAGE_REFRESH_MS, sooner PAGE_RELOAD_AFTER_REFRESH_MS after a scheduled
  * backend refresh; a failed /api/config at startup is retried every
- * CONFIG_RETRY_MS. Exported so details.js and app.js share one source and
- * the unit tests can pin the values. */
+ * CONFIG_RETRY_MS. Exported so details.js and app.js share one source
+ * and the unit tests can pin the values. */
 export const PAGE_REFRESH_MS = 60_000;
 export const PAGE_RELOAD_AFTER_REFRESH_MS = 10_000;
 export const CONFIG_RETRY_MS = 10_000;
@@ -303,8 +303,7 @@ export function fmtAge(seconds, lang) {
   return rest === 0 ? `${h} h` : `${h} h ${rest} min`;
 }
 
-/* Countdown to the next event: "m:ss" or "h:mm:ss", never negative
- * (the old countdown.js behaviour). */
+/* Countdown to the next event: "m:ss" or "h:mm:ss", never negative. */
 export function fmtCountdown(ms) {
   const value = validNumber(ms) ? ms : 0;
   const total = Math.max(0, Math.ceil(value / 1000));

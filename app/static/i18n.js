@@ -1,10 +1,10 @@
-/* i18n.js — the page texts (step W1).
+/* i18n.js — the page texts.
  *
- * Pure module: no DOM, no navigator. The page (a later step) calls
+ * Pure module: no DOM, no navigator. The page calls
  * pickLang(navigator.languages) once, sets <html lang>, and passes the
  * result to t(). Both languages carry the same flat keys; the fixed
- * texts below are checked by rust/uitest/unit/i18n.test.mjs and, from
- * W2 on, by the UI harness on the page.
+ * texts below are checked by rust/uitest/unit/i18n.test.mjs and by the
+ * UI tests on the page.
  */
 
 export const STRINGS = {

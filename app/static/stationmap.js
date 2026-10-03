@@ -1,13 +1,7 @@
-/* stationmap.js — the Details "Stations/Stationen" section (step W1).
+/* stationmap.js — the Details "Stations/Stationen" section: the
+ * observation stations (one row each) and the schematic map of them.
  *
- * One Details section with the observation stations (one row each: the
- * name, the distance in km and the hours of observations in the window)
- * and the schematic map of them (inline SVG, north up): the location in
- * the centre, one mark per DWD station at its bearing and at a distance
- * proportional to the real distance (one linear scale for the marks and
- * the radar radius circle, the farthest mark kept inside the frame), the
- * radar radius as a circle around the location, a north arrow and a scale
- * bar. The station names are untrusted API text: textContent, never
+ * The station names are untrusted API text: textContent, never
  * innerHTML. The section wrapper is details.js's own section() builder,
  * passed in as `section`, so the markup stays identical to the other
  * details sections. The section (and the map) is absent without a Now
@@ -33,7 +27,7 @@ function scaleBarKm(scale) {
   return SCALE_KM[SCALE_KM.length - 1];
 }
 
-/* The new Details section: the observation stations (API order, nearest
+/* The Details section: the observation stations (API order, nearest
  * first) and the schematic map. */
 export function stationsSection({ now, accuracy, location, radiusKm, lang, locale, section }) {
   const st = now && now.available && now.conditions ? now.conditions.station : null;
@@ -54,8 +48,7 @@ export function stationsSection({ now, accuracy, location, radiusKm, lang, local
   return sec;
 }
 
-/* One row per observation station: the name, the distance in km and the
- * hours of observations in the window. The names are untrusted API text:
+/* One row per observation station. The names are untrusted API text:
  * textContent, never innerHTML. */
 function obsList(obs, lang, locale) {
   const list = document.createElement("div");

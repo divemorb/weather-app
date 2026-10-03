@@ -1,38 +1,33 @@
-/* chart.js — the 24 h multi-model precipitation chart (step W6).
+/* chart.js — the 24 h multi-model precipitation chart, drawn as inline
+ * SVG (no external libraries, no canvas).
  *
- * renderChart() draws /api/models/24h as inline SVG (no external
- * libraries, no canvas): without any model data it shows the
- * "unavailable" line, a completely dry forecast the "dry" line, and
- * otherwise one line per model plus the legend. The y axis comes from
- * niceScale() (format.js) with mm/h as its unit; the hour labels and all
- * amounts use the browser's language and the location's time zone. A
- * model's line breaks at null values.
+ * Without any model data it shows the "unavailable" line, a completely
+ * dry forecast the "dry" line, and otherwise one line per model plus the
+ * legend. The y axis comes from niceScale() (format.js) with mm/h as its
+ * unit; the hour labels and all amounts use the browser's language and
+ * the location's time zone. A model's line breaks at null values.
  *
  * The SVG's viewBox matches the container's pixel size, so the 12 px
- * axis labels stay 12 px on every screen (no scaled-down mush on a
- * phone). In the kiosk view the viewBox matches the plot container's
- * measured width and height, so the chart fills the card instead of a
- * short strip (and is never scaled down letterboxed). The module stays
- * free of DOM access at the top level, so the pure helpers can be
- * unit-tested with node.
+ * axis labels stay 12 px on every screen. The module stays free of DOM
+ * access at the top level, so the pure helpers can be unit-tested with
+ * node.
  */
 import { fmtNumber, fmtTime, modelLabel, niceScale } from "./format.js";
 import { t } from "./i18n.js";
 
 /* Six series colours, each at least 3:1 against the light and the dark
- * card background (the WCAG bar for graphics, checked in
+ * card background (WCAG for graphics; checked in
  * rust/uitest/unit/more/chart-w6.test.mjs). */
 export const MODEL_COLORS = ["#1f6feb", "#2da44e", "#bf8700", "#cf222e", "#8250df", "#1b9aaa"];
 
 const NS = "http://www.w3.org/2000/svg";
 
-/* The chart's geometry for a container in px: the viewBox matches the
- * width (clamped) so text is never scaled; a narrow container gets a
- * taller plot and a label every 6th hour instead of every 3rd. In the
- * kiosk view the chart fills the card's free height: containerHeight is
- * the measured height of the plot's container (the legend in place), and
- * the result stays within a readable band; without a measurement the
- * kiosk falls back to a short, wide plot. */
+/* The chart's geometry for a container in px. The viewBox matches the
+ * (clamped) width so text is never scaled; a narrow container gets a
+ * taller plot and a label every 6th hour. In the kiosk view the chart
+ * fills the card's free height (containerHeight, the measured plot
+ * container, legend in place), clamped to a readable band; without a
+ * measurement it falls back to a short, wide plot. */
 export function chartMetrics(containerWidth, kiosk = false, containerHeight = 0) {
   const w = Math.round(Math.max(300, Math.min(1800, containerWidth || 720)));
   let h;
@@ -58,9 +53,9 @@ function svgEl(tag, attrs) {
 }
 
 /* Draw the chart (or the dry/unavailable line) into the card's elements:
- * els = { body, legend, unavailable, dry, unit }. Called on every
- * refresh; it fully replaces what it drew before. The has-chart class on
- * the body tells the kiosk CSS to give the body the card's free height. */
+ * els = { body, legend, unavailable, dry, unit }. Fully replaces what it
+ * drew before. The has-chart class on the body tells the kiosk CSS to
+ * give the body the card's free height. */
 export function renderChart(els, data, lang, locale, tz) {
   const d = chartData(data);
   let maxV = 0;
@@ -99,9 +94,9 @@ export function renderChart(els, data, lang, locale, tz) {
 
 function buildSvg(body, { hours, models }, maxV, lang, locale, tz) {
   const kiosk = document.documentElement.classList.contains("kiosk");
-  /* In the kiosk view the height is the container's own measured height
-   * (the legend in place, see renderChart), so the viewBox matches the
-   * box 1:1 and the browser scales nothing. */
+  /* Kiosk: the height is the container's own measured height (the legend
+   * in place), so the viewBox matches the box 1:1 and the browser scales
+   * nothing. */
   const { w, h, labelEvery } = chartMetrics(body.clientWidth, kiosk, kiosk ? body.clientHeight : 0);
   const n = hours.length;
   const padL = 34, padR = 12, padT = 12, padB = 30;
@@ -119,7 +114,7 @@ function buildSvg(body, { hours, models }, maxV, lang, locale, tz) {
     class: "chart-svg",
   });
 
-  /* The grid lines and the y axis: exactly the niceScale ticks. */
+  /* The grid lines and y axis, exactly the niceScale ticks. */
   const digits = scale.step < 1 ? 1 : 0;
   for (const v of scale.ticks) {
     const yy = y(v);
@@ -132,7 +127,6 @@ function buildSvg(body, { hours, models }, maxV, lang, locale, tz) {
     svg.appendChild(label);
   }
 
-  /* The hour axis: every 3rd (6th on narrow screens) hour start. */
   for (let i = 0; i < n; i += labelEvery) {
     const label = svgEl("text", {
       class: "axis", "data-test": "chart-x-label",
@@ -169,8 +163,8 @@ function buildSvg(body, { hours, models }, maxV, lang, locale, tz) {
   return svg;
 }
 
-/* The legend: one item per model (API order), the series colour and the
- * readable model name. */
+/* The legend: the series colour and readable name, one item per model
+ * (API order). */
 function buildLegend(legend, models) {
   models.forEach((m, mi) => {
     const item = document.createElement("li");

@@ -1,4 +1,4 @@
-/* app.js — the page's entry module (step W2, the Details card in W7).
+/* app.js — the page's entry module.
  *
  * Sets the language (<html lang>, the aria-labels, the footer) and the
  * theme, then reads /api/config: unconfigured -> the wizard in "first"
@@ -28,8 +28,8 @@ document.documentElement.lang = lang;
 const $ = (id) => document.getElementById(id);
 
 /* Fixed texts the user reads: aria-labels, the loading answer, the
- * probability label, the chart title and the footer. Since W9 every page
- * text lives in i18n.js and the modules fill the (empty) elements, so
+ * probability label, the chart title and the footer. Every page text
+ * lives in i18n.js and the modules fill the (empty) elements, so
  * index.html stays language-neutral. */
 $("location-btn").setAttribute("aria-label", t(lang, "location.aria"));
 $("theme-toggle").setAttribute("aria-label", t(lang, "theme.aria"));

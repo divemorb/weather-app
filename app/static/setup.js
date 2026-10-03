@@ -1,14 +1,13 @@
-/* setup.js — the location wizard (module since step W2; step W9 moved
- * every text of the section into i18n.js, so index.html stays language-
- * neutral and the German page shows German labels, placeholders and
- * messages).
+/* setup.js — the location wizard.
  *
  * initSetup({lang, isConfigured, onSaved}) fills the (empty) <section
  * data-test="setup"> markup and remembers the callback for a saved
  * location; openSetup("first"|"change") shows the wizard (first hides
- * <main>). No <form> on purpose: the CSP is form-action 'none', so all
- * buttons are type="button" and Enter in the search field triggers the
- * search.
+ * <main>). Every text lives in i18n.js, so index.html stays
+ * language-neutral.
+ *
+ * No <form> on purpose: the CSP is form-action 'none', so all buttons
+ * are type="button" and Enter in the search field triggers the search.
  */
 import { t } from "./i18n.js";
 import { ApiError, getJSON, postJSON } from "./api.js";
@@ -131,7 +130,6 @@ async function doSearch() {
   }
 }
 
-/* Fill the coordinates from a result and mark its button as selected. */
 function pickResult(r, btn) {
   els.lat.value = r.latitude;
   els.lon.value = r.longitude;

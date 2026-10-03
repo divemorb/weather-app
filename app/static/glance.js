@@ -1,17 +1,11 @@
-/* glance.js — the glance: the rain answer for the next hour and the
- * 60-minute radar strip (steps W2/W4).
+/* glance.js — the rain answer for the next hour and the 60-minute
+ * radar strip, rendered from /api/rain-probability and
+ * /api/radar/next-hour.
  *
- * Rendered from /api/rain-probability and /api/radar/next-hour. The texts
- * come from rainAnswer()/fmtPercent() (format.js); without data
- * (weights_used empty, probability_pct then a meaningless 0) the
- * probability shows no number. The strip (W4): one visible column per
- * five-minute step (a track with a fill inside, the height the amount
- * relative to max(1.0 mm, the largest step)), the axis labels (the first
- * step, two in between, the end of the hour) and the caption with the
- * radar radius from /api/config. When every step is dry the tracks stay
- * (faint) and the "dry" line shows; when it rains, the max amount sits
- * above the first column with that amount. Without a radar the strip
- * gives way to the "not available" line.
+ * Without data (weights_used empty) the probability shows no number: a 0
+ * would be meaningless. A broken step (not an object with a parsable
+ * start_utc) or no radar shows the "unavailable" line instead of the
+ * strip.
  */
 import { DASH, fmtMm, fmtNumber, fmtPercent, fmtTime, rainAnswer } from "./format.js";
 import { t } from "./i18n.js";
@@ -29,8 +23,7 @@ const els = {
   caption: document.getElementById("radar-caption"),
 };
 
-/* The strip's scale: the tallest fill reaches 100% at at least this many
- * millimetres, so 0.2 mm is a short but visible fill. */
+/* Minimum strip scale in mm, so small amounts still get a visible fill. */
 const RADAR_MAX_MM = 1.0;
 
 export function renderGlance(rain, radar, lang, locale, tz, radiusKm) {
@@ -48,18 +41,17 @@ export function renderGlance(rain, radar, lang, locale, tz, radiusKm) {
     els.prob.textContent = fmtPercent(rain.probability_pct, locale);
     els.prob.classList.remove("muted");
   } else {
-    /* no data: the placeholder stays neutral, the accent means rain */
+    /* no data: the dash stays neutral, since the accent color means rain */
     els.prob.textContent = DASH;
     els.prob.classList.add("muted");
   }
   renderRadar(radar, lang, locale, tz, radiusKm, a.detail);
 }
 
-/* The 60-minute strip and its surroundings; called on every refresh. */
 function renderRadar(radar, lang, locale, tz, radiusKm, detail) {
   const steps = radar && Array.isArray(radar.steps) ? radar.steps : [];
-  /* A broken step (not an object, no parsable start_utc) means the strip
-   * can't be drawn: the unavailable line, like without a radar. */
+  /* A step that is not an object with a parsable start_utc makes the
+   * whole strip undrawable: the unavailable line, like without a radar. */
   const sound = steps.length > 0 && steps.every(
     (s) => s && typeof s === "object" && typeof s.start_utc === "string" && !isNaN(Date.parse(s.start_utc)));
   if (!radar || !radar.available || !sound) {
@@ -79,7 +71,7 @@ function renderRadar(radar, lang, locale, tz, radiusKm, detail) {
   const endMs = Date.parse(steps[steps.length - 1].start_utc) + 5 * 60 * 1000;
   const endIso = isNaN(endMs) ? null : new Date(endMs).toISOString();
 
-  /* The columns: one per step, the track stays visible when dry. */
+  /* One column per step; the track stays visible when dry. */
   els.strip.textContent = "";
   const frag = document.createDocumentFragment();
   for (let i = 0; i < steps.length; i++) {
@@ -97,7 +89,6 @@ function renderRadar(radar, lang, locale, tz, radiusKm, detail) {
   els.strip.appendChild(frag);
   els.strip.setAttribute("aria-label", detail || t(lang, "radar.dry"));
 
-  /* The axis: the first step, two in between, the end of the hour. */
   els.labels.textContent = "";
   const at = (i) => Math.min(i, steps.length - 1);
   const labelAts = [
@@ -114,8 +105,8 @@ function renderRadar(radar, lang, locale, tz, radiusKm, detail) {
     els.labels.appendChild(el);
   }
 
-  /* Dry: the line over the (empty) tracks. Rain: the max amount above
-   * the first column with that amount, so the height means something. */
+  /* The max amount sits above its first column, so the height stays
+   * meaningful. */
   if (peak > 0) {
     els.dry.hidden = true;
     els.dry.textContent = "";
@@ -131,7 +122,6 @@ function renderRadar(radar, lang, locale, tz, radiusKm, detail) {
     els.dry.textContent = t(lang, "radar.dry");
   }
 
-  /* The caption: one line under the strip, the radius from /api/config. */
   const km = fmtNumber(radiusKm, locale, Number.isInteger(radiusKm) ? 0 : 1);
   els.caption.hidden = false;
   els.caption.textContent = t(lang, "radar.caption", { km });

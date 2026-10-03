@@ -1,12 +1,11 @@
-/* now.js — the Now section (step W5): the current conditions.
+/* now.js — the Now section: the current conditions from /api/now.
  *
- * Rendered from /api/now. The hierarchy: temperature and condition big,
- * the rest as a quiet two-column grid, the observation time under it.
- * Wind and gusts are km/h (Bright Sky sends km/h despite the _ms field
- * names); the wind direction is one of the eight compass points
- * (German letters in German). When the observation is missing
- * (available false or conditions null) the section shows the fixed
- * "no observation" line and hides the values.
+ * Temperature and condition big, the rest a quiet two-column grid, the
+ * observation time under it. Wind and gusts are km/h (Bright Sky sends
+ * km/h despite the _ms field names); the wind direction is one of the
+ * eight compass points (German letters in German). When the observation
+ * is missing (available false or conditions null) the section shows the
+ * fixed "no observation" line and hides the values.
  */
 import {
   DASH, conditionKey, fmtMm, fmtNumber, fmtPercent, fmtPressure, fmtTemp, fmtTime, fmtWind, windDir,
@@ -32,9 +31,9 @@ const els = {
   station: $("now-station"),
 };
 
-/* Which value a /api/now fallback entry points at: the conditions field's
- * cell (the wind direction falls back with the wind speed, so both map to
- * the wind value). A field the page does not show gets no note. */
+/* Which element a /api/now fallback entry points at. The wind direction
+ * falls back with the wind speed, so both map to the wind value; a field
+ * the page does not show gets no note. */
 const FIELD_CELL = {
   temperature_c: "temp",
   feels_like_c: "feels",
@@ -48,8 +47,7 @@ const FIELD_CELL = {
   precipitation_60mm: "rain",
 };
 
-/* The section's own texts (title, the grid's labels); called once from
- * app.js with the picked language. */
+/* The section's texts (title, grid labels); called once from app.js. */
 export function initNow(lang) {
   $("now-title").textContent = t(lang, "now.title");
   $("now-feels-label").textContent = t(lang, "now.feels");
@@ -95,8 +93,8 @@ export function renderNow(now, lang, locale, tz) {
   renderFallback(c, lang);
 }
 
-/* The muted line under the values: who measured "Now" (the station's name
- * and its distance in km). Hidden when /api/now carries no station. */
+/* Who measured "Now": the station's name and its distance in km. Hidden
+ * when /api/now carries no station. */
 function renderStation(c, lang, locale) {
   const st = c.station && typeof c.station === "object" ? c.station : null;
   if (!st || typeof st.name !== "string" || st.name === "") {
@@ -109,9 +107,9 @@ function renderStation(c, lang, locale) {
   els.station.hidden = false;
 }
 
-/* A value Bright Sky took from another station: a small muted note at the
- * value, one per fallback field the page shows (none when fallback is {}).
- * The station names are untrusted API text: textContent, never innerHTML. */
+/* Values Bright Sky took from another station: a small muted note at the
+ * value. Station names are untrusted API text: textContent, never
+ * innerHTML. */
 function renderFallback(c, lang) {
   for (const note of els.body.querySelectorAll("[data-test=now-fallback]")) note.remove();
   const fb = c.fallback && typeof c.fallback === "object" ? c.fallback : null;

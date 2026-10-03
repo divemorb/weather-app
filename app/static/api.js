@@ -1,8 +1,7 @@
-/* api.js — the page's fetch helpers (step W2).
+/* api.js — the page's fetch helpers, shared by app.js and setup.js.
  *
- * Shared by app.js and setup.js (a small module on purpose, so the two do
- * not import from each other). Non-2xx responses throw ApiError; the page
- * decides what a failure means (keep the old content, show a status).
+ * Non-2xx responses throw ApiError; the page decides what a failure means
+ * (keep the old content, show a status).
  */
 
 /* A non-2xx response; `detail` carries the API's error body, if any. */
@@ -21,13 +20,13 @@ async function json(res, path) {
   return data;
 }
 
-/* GET expecting JSON; throws ApiError on non-2xx. */
+/* Throws ApiError on non-2xx. */
 export async function getJSON(path) {
   const res = await fetch(path, { headers: { Accept: "application/json" } });
   return json(res, path);
 }
 
-/* POST a JSON body; throws ApiError (status, detail) on non-2xx. */
+/* Throws ApiError on non-2xx. */
 export async function postJSON(path, body) {
   const res = await fetch(path, {
     method: "POST",

@@ -1,23 +1,14 @@
-/* Kiosk view (?kiosk): the wall display for a landscape tablet (step W8,
- * W9d: read from across the room). Loaded by index.html; app.js sets the
- * .kiosk class on <html> when the ?kiosk query is present.
+/* Kiosk view (?kiosk): the wall display for a landscape tablet, read
+ * from across the room. app.js sets the .kiosk class on <html> when the
+ * ?kiosk query is present.
  *
- * One screen, no scrolling, at 1280x800 and 1920x1080: the header and a
- * small attribution line frame a two-column grid — the glance (answer,
- * probability, radar strip) on the left, Now and the 24 h chart stacked
- * on the right. The Details card and the location button leave the kiosk
- * view; the page reload keeps running (details.js schedules it, and a
- * hidden <details> does not stop its timers).
- *
- * W9d: the wall is read from a few metres, so the type scales with the
- * screen height (vh) instead of floating in the middle of the cards: the
- * answer, the probability and the radar strip grow until the content
- * fills the card. On a dry (or data-less) day the chart card is just its
- * status line at the bottom of the right column — Now takes the freed
- * height, in two wider columns with larger values. The rules for that
- * state are keyed on the status line being visible (:has()). When rain is
- * coming the layout stays as before: Now on top, the chart filling the
- * lower half (chart.js draws the SVG at the card's measured size).
+ * One screen, no scrolling, at 1280x800 and 1920x1080: the glance on the
+ * left, Now and the 24 h chart stacked on the right. On a dry (or
+ * data-less) day the chart card is just its status line: Now takes the
+ * freed height, in two wider columns (the rules key on the status line
+ * being visible, :has()). The Details card and the location button leave
+ * the kiosk view; the page reload keeps running (details.js schedules
+ * it, and a hidden <details> does not stop its timers).
  */
 
 html.kiosk { overflow: hidden; } /* no scrollbars; the content must fit */
@@ -48,10 +39,10 @@ html.kiosk #dashboard {
   gap: 14px;
 }
 
-/* Dry day (or no model data at all): the chart row is just its status
- * line, so it takes only the height it needs; Now fills the column. The
- * chart-dry and chart-unavailable lines are shown one at a time by
- * chart.js (the other keeps the hidden attribute). */
+/* Dry day (or no model data): the chart row is just its status line, so
+ * it takes only the height it needs; Now fills the column. chart.js
+ * shows the dry and unavailable lines one at a time (the other keeps the
+ * hidden attribute). */
 html.kiosk #dashboard:has([data-test="chart-dry"]:not([hidden])),
 html.kiosk #dashboard:has([data-test="chart-unavailable"]:not([hidden])) {
   grid-template-rows: minmax(0, 1fr) auto;
@@ -60,7 +51,7 @@ html.kiosk #dashboard:has([data-test="chart-unavailable"]:not([hidden])) {
 html.kiosk .card + .card { margin-top: 0; }
 
 /* The cards fill their grid cell and centre their content, so the
- * whitespace lands around the data instead of below it. */
+ * whitespace lands around the data, not below it. */
 html.kiosk #dashboard .card {
   min-width: 0;
   min-height: 0;
@@ -130,11 +121,10 @@ html.kiosk .chart-head { margin-bottom: 10px; }
 html.kiosk .chart-status { font-size: 15px; }
 html.kiosk .chart-legend { margin-top: 10px; gap: 6px 16px; font-size: 13px; }
 
-/* The drawn chart takes the card's free height (head and legend aside)
- * and chart.js draws the SVG at this box's measured size, 1:1 — no
- * scaling, no letterboxing, the axis text stays 12 px. The class is only
- * set when a chart is drawn, so the dry and unavailable lines keep the
- * card's centred content. */
+/* The drawn chart takes the card's free height; chart.js draws the SVG
+ * at this box's measured size, 1:1 — no scaling, the axis text stays
+ * 12 px. The class is only set when a chart is drawn, so the dry and
+ * unavailable lines keep the card's centred content. */
 html.kiosk #chart-card .chart-body.has-chart { flex: 1; min-height: 0; }
 
 /* ---- footer --------------------------------------------------------------- */
