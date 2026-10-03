@@ -26,6 +26,7 @@ class FakeAgg:
         sources=None,
         cache_meta=None,
         cfg=None,
+        stations=None,
     ):
         self._conditions = conditions
         self._current_payload = current_payload
@@ -34,6 +35,7 @@ class FakeAgg:
         self._series = series
         self._accuracy = accuracy
         self._sources = sources
+        self._stations = stations
         self._cache_meta = cache_meta or {
             "available": True,
             "age_seconds": 12,
@@ -78,6 +80,10 @@ class FakeAgg:
 
     async def get_model_accuracy(self):
         return self._accuracy
+
+    async def get_observation_stations(self):
+        """The remembered observation stations (P2); [] by default."""
+        return self._stations if self._stations is not None else []
 
     async def get_source_status(self):
         return self._sources

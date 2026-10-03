@@ -125,15 +125,17 @@ class Store:
         await self._db.commit()
 
     async def clear_location_data(self) -> None:
-        """Drop all cached payloads and forecast history (step 8b).
+        """Drop all data that belongs to the old location (step 8b, P2).
 
-        Called when the location changes: both tables belong to the *old*
-        location, so they must not be served for the new one. (The accuracy
-        window shrinks accordingly; there is nothing to re-compute.)
+        Called when the location changes: the cache, the forecast history
+        and the observation stations all belong to the *old* location, so
+        none of it may be served for the new one. (The accuracy window
+        shrinks accordingly; there is nothing to re-compute.)
         """
         assert self._db is not None
         await self._db.execute("DELETE FROM source_cache")
         await self._db.execute("DELETE FROM forecast_history")
+        await self._db.execute("DELETE FROM app_meta WHERE key = 'observation_stations'")
         await self._db.commit()
 
     # -- cache ---------------------------------------------------------------

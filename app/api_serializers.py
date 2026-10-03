@@ -125,13 +125,17 @@ def serialize_model_accuracy(
     models: dict[str, dict[str, Any]],
     window_days: int,
     min_samples: int,
+    stations: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Shape the per-model accuracy (``GET /api/model-accuracy``).
 
     ``models`` is the pure :func:`app.accuracy.model_accuracy` result
     (``{}`` while nothing has been compared yet); each entry gains
     ``enough_data`` = ``n_samples >= min_samples`` so the UI can grey out
-    models that have not accumulated enough compared hours.
+    models that have not accumulated enough compared hours. ``stations``
+    (P2) lists the observation stations behind the table, nearest first;
+    ``None`` (or an empty list) serializes as ``[]`` while the backfill
+    has not remembered any.
     """
     serialized: dict[str, dict[str, Any]] = {}
     for name, stats in models.items():
@@ -153,4 +157,5 @@ def serialize_model_accuracy(
         "window_days": window_days,
         "min_samples": min_samples,
         "models": serialized,
+        "stations": stations or [],
     }

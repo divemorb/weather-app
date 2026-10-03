@@ -154,9 +154,16 @@ def test_model_accuracy_full():
             "event_accuracy": 0.5,
         },
     }
-    body = serialize_model_accuracy(models, window_days=30, min_samples=48)
+    stations = [
+        {"name": "Friedrichshain", "distance_m": 1860.0, "lat": 52.5,
+         "lon": 13.45, "dwd_station_id": "10050", "hours": 2}
+    ]
+    body = serialize_model_accuracy(
+        models, window_days=30, min_samples=48, stations=stations
+    )
     assert body["window_days"] == 30
     assert body["min_samples"] == 48
+    assert body["stations"] == stations
     d2 = body["models"]["icon_d2"]
     assert d2["enough_data"] is True
     assert d2["n_samples"] == 100
@@ -169,4 +176,9 @@ def test_model_accuracy_full():
 
 def test_model_accuracy_empty():
     body = serialize_model_accuracy({}, window_days=30, min_samples=48)
-    assert body == {"window_days": 30, "min_samples": 48, "models": {}}
+    assert body == {
+        "window_days": 30,
+        "min_samples": 48,
+        "models": {},
+        "stations": [],
+    }

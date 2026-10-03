@@ -2,8 +2,7 @@
 
 The *decisions* (radar vote, model votes, ensemble share, weighted
 combination) are pure functions in :mod:`app.probability`; this class only
-moves data: the scheduler refreshes the SQLite cache, and the read methods
-parse it. A failing source never blocks the app — the last good cache is
+moves data. A failing source never blocks the app — the last good cache is
 served (with its age) and the error is recorded for ``/api/sources``.
 """
 from __future__ import annotations
@@ -42,6 +41,12 @@ from .probability import (
     weighted_model_signal,
 )
 from .series import build_24h_series, build_forecast_history_rows, build_radar_next_hour_bar
+from .stations import (
+    OBSERVATION_STATIONS_KEY,
+    observation_stations,
+    stations_from_json,
+    stations_to_json,
+)
 from .store import Store
 from .times import to_iso, utcnow
 
@@ -116,9 +121,9 @@ class Aggregator:
 
         After a successful forecast refresh, hourly rows are appended to
         ``forecast_history`` (feeds the step-6 accuracy extension), and the
-        hourly observation backfill fills in ``observed_mm`` for the hours
-        that have already passed (step 6d). No-op (logged once) while no
-        location is configured (step 8b).
+        hourly observation backfill fills in ``observed_mm`` for hours that
+        have already passed (step 6d). No-op (logged once) while no location
+        is configured (step 8b).
         """
         if skip_without_location(self, "models"):
             return
@@ -132,9 +137,9 @@ class Aggregator:
 
         Fetches the last 48 h of Bright Sky ``/weather`` hourly records and
         writes each real observation (``observation_type != "forecast"``)
-        for its hour start (``timestamp - 1h``, see Data conventions).
-        Run from the hourly model refresh — never on a page load; failures
-        are logged and swallowed (a failing source never breaks a refresh).
+        for its hour start (``timestamp - 1h``); failures are logged and
+        swallowed (a failing source never breaks a refresh). After the
+        writes it also remembers the stations the observations came from.
         """
         now = utcnow()
         try:
@@ -156,6 +161,10 @@ class Aggregator:
         try:
             for hour_start, mm in observations:
                 await self._store.set_observation(to_iso(hour_start), mm)
+            await self._store.set_meta(
+                OBSERVATION_STATIONS_KEY,
+                stations_to_json(observation_stations(payload, now)),
+            )
             log.info("observation backfill: %d hourly observations written", len(observations))
         except Exception:
             log.exception("observation backfill: writing observations failed")
@@ -188,11 +197,9 @@ class Aggregator:
 
     # -- read model (page loads) --------------------------------------------
     async def get_current_conditions(self) -> CurrentConditions | None:
-        """Parsed cached Bright Sky ``current_weather``.
-
-        ``feels_like_c`` is filled from the forecast cache (apparent
-        temperature of the current hour, first model with data).
-        """
+        """Parsed cached Bright Sky ``current_weather``; ``feels_like_c`` is
+        filled from the forecast cache (apparent temperature of the current
+        hour, first model with data)."""
         payload, _age = await self._store.get_cache("current")
         if payload is None:
             return None
@@ -209,11 +216,9 @@ class Aggregator:
         return (await self._store.get_cache("current"))[0]
 
     async def get_radar_nowcast(self) -> RadarNowcast | None:
-        """Cached radar parsed into 5-min frames.
-
-        Radius filtering happens in the probability logic (cells carry
-        full-grid coordinates; the nowcast carries bbox + location).
-        """
+        """Cached radar parsed into 5-min frames; radius filtering happens in
+        the probability logic (cells carry full-grid coordinates; the
+        nowcast carries bbox + location)."""
         payload, _age = await self._store.get_cache("radar")
         if payload is None:
             return None
@@ -223,12 +228,9 @@ class Aggregator:
             return None
 
     async def get_radar_next_hour(self) -> dict[str, Any]:
-        """12 x 5-min local-rain bar for the next hour (radar nowcast).
-
-        Radius filtering + the rain threshold come from the config, so the bar
-        and the radar vote agree on "local rain". Returns the shaped series
-        (see :func:`build_radar_next_hour_bar`).
-        """
+        """12 x 5-min local-rain bar for the next hour (radar nowcast); the
+        radius + threshold come from the config, so the bar and the radar
+        vote agree on "local rain" (:func:`build_radar_next_hour_bar`)."""
         nowcast = await self.get_radar_nowcast()
         return build_radar_next_hour_bar(
             nowcast,
@@ -259,9 +261,8 @@ class Aggregator:
 
         See README "How the rain probability is calculated". With
         ``use_accuracy_weights`` the model signal is weighted per model by
-        event accuracy (step 6g, with equal-weight fallback). Always returns
-        a :class:`RainProbability` (0 % + "no data" when every signal is
-        missing) so the UI degrades gracefully.
+        event accuracy (step 6g, equal-weight fallback); always returns a
+        :class:`RainProbability` so the UI degrades gracefully.
         """
         now = utcnow()
         nowcast = await self.get_radar_nowcast()
@@ -325,11 +326,9 @@ class Aggregator:
         )
 
     async def get_24h_model_comparison(self) -> dict[str, Any]:
-        """Hourly precipitation per model for the next 24 h (chart data).
-
-        The window is relative to *now* (first hour = current hour), not the
-        UTC calendar day — see :func:`build_24h_series`.
-        """
+        """Hourly precipitation per model for the next 24 h (chart data);
+        the window is relative to *now* (first hour = current hour), not the
+        UTC calendar day (see :func:`build_24h_series`)."""
         return build_24h_series(await self._get_forecast_bundle(), utcnow())
 
     async def get_model_accuracy(self) -> dict[str, dict[str, Any]]:
@@ -337,14 +336,18 @@ class Aggregator:
 
         Compares stored forecasts against the observed rain of the same
         hour — the same ``> model_rain_threshold_mm`` event the next-hour
-        vote uses. Only moves data: raw rows come from the store, the math
-        is the pure :func:`model_accuracy`. Returns ``{}`` for ``models``
-        while nothing has been compared yet.
+        vote uses; raw rows come from the store, the math is the pure
+        :func:`model_accuracy`. Returns ``{}`` for ``models`` while
+        nothing has been compared yet.
         """
         now = utcnow()
         since = to_iso(now - timedelta(days=self._cfg.accuracy.window_days))
         rows = await self._store.compared_forecasts(since)
         return model_accuracy(rows, self._cfg.probability.model_rain_threshold_mm)
+
+    async def get_observation_stations(self) -> list[dict[str, Any]]:
+        """The observation stations of the last backfill (P2); [] when none stored."""
+        return stations_from_json(await self._store.get_meta(OBSERVATION_STATIONS_KEY))
 
     async def get_source_status(self) -> dict[str, dict[str, Any]]:
         """Per-source cache age + staleness + last error, for the UI."""
@@ -360,12 +363,9 @@ class Aggregator:
 
     # -- helpers --------------------------------------------------------------
     async def cache_meta(self, source: str) -> dict[str, Any]:
-        """Cache ``available`` / ``age_seconds`` / ``stale`` for one source.
-
-        ``age_seconds`` is None when the source has never been fetched. Used
-        both by :meth:`get_source_status` and by the API endpoints that
-        attach a data-age badge to a single source's payload.
-        """
+        """Cache ``available`` / ``age_seconds`` / ``stale`` for one source
+        (``age_seconds`` is None when never fetched); used by
+        :meth:`get_source_status` and the endpoints' data-age badges."""
         _payload, age = await self._store.get_cache(source)
         stale_minutes = getattr(self._cfg.scheduling, _SOURCES[source][1])
         return {

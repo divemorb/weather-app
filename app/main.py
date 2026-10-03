@@ -254,17 +254,20 @@ async def api_models_24h(request: Request) -> dict:
 
 @app.get("/api/model-accuracy")
 async def api_model_accuracy(request: Request) -> dict:
-    """Per-model accuracy over the configured window (step 6e).
+    """Per-model accuracy over the configured window (step 6e, stations P2).
 
     Compares stored forecasts against observed rain using the same
     ``> model_rain_threshold_mm`` event the next-hour vote uses. Returns an
-    empty ``models`` dict while nothing has been compared yet.
+    empty ``models`` dict while nothing has been compared yet, and
+    ``stations`` (the observation stations, P2) ``[]`` until the
+    backfill has remembered any.
     """
     agg: Aggregator = request.app.state.aggregator
     cfg: AppConfig = request.app.state.cfg
     models = await agg.get_model_accuracy()
+    stations = await agg.get_observation_stations()
     return serialize_model_accuracy(
-        models, cfg.accuracy.window_days, cfg.accuracy.min_samples
+        models, cfg.accuracy.window_days, cfg.accuracy.min_samples, stations
     )
 
 

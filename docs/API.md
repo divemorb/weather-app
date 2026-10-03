@@ -120,11 +120,21 @@ Each bucket is the *strongest* rain cell within `radar.radius_km` for that 5-min
       "mae_mm": 0.4,
       "enough_data": false
     }
-  }
+  },
+  "stations": [
+    {"name": "Berlin-Friedrichshain", "distance_m": 1860.0, "lat": 52.5277,
+     "lon": 13.4548, "dwd_station_id": "10050", "hours": 2},
+    {"name": "Berlin-TEMPELHOF", "distance_m": 5576.0, "lat": 52.475,
+     "lon": 13.407, "dwd_station_id": "00433", "hours": 3},
+    {"name": "Berlin-Müggelsee", "distance_m": 17000.0, "lat": 52.44,
+     "lon": 13.65, "dwd_station_id": "00410", "hours": 1}
+  ]
 }
 ```
 
 `models` is `{}` while no forecast has an observation yet (fresh install — it fills up hourly via the observation backfill). `event_accuracy` and `mae_mm` are `null`-safe (never `null` with `n_samples > 0`). `enough_data` is `n_samples >= min_samples`; the UI should grey out rows below that.
+
+`stations` remembers which DWD stations the observations of the last backfill came from, nearest first: `name`, `distance_m`, `lat`, `lon`, `dwd_station_id`, and `hours` — how many observation hours that backfill wrote from the station. It is `[]` until the first backfill has written observations, and it is cleared when the home location actually moves (a sub-ε nudge keeps it); a failed or observation-less backfill leaves it unchanged. Missing keys are `null`.
 
 **`GET /api/sources`** — one entry per source (`radar`, `current`, `forecast`, `ensemble`):
 
