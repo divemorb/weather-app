@@ -6,7 +6,7 @@ Checks the web page (`app/static/`) in headless Chromium against the Rust app, w
 - `expect.py`: the expected content per scenario and language.
 - `probe.js`: helpers injected into the page after it has loaded (visibility, shown text, overflow, control sizes, animations, the tiles and the sky); the only changes it makes are temporary element styles for screenshots (text made transparent for the contrast check, everything but the sky hidden for the motion check).
 - Contrast is measured on pixels: per text, a screenshot with the text made transparent shows what it is drawn on (translucent tiles over a moving sky included), at 3 moments; WCAG AA must hold for all but the worst 5 % of those pixels.
-- The `sky` scenario runs on the `live` app with faked `/api/now` icons and radar steps: `scene-*` (`<html data-scene>`), `sky-layer`, `motion-*` (the sky moves), `still-*` (not under reduced motion), `contrast-<scene>-<theme>` (desktop, phone and kiosk).
+- The `sky` scenario runs on the `live` app with faked `/api/now` icons and radar steps: `scene-*` (`<html data-scene>`), `layout-<width>` (the tile columns), `sky-layer`, `motion-*` (the sky moves), `still-*` (not under reduced motion), `contrast-<scene>-<theme>` (desktop, phone and kiosk).
 - `cdp.py`: a minimal DevTools client over `--remote-debugging-pipe` (no websocket, no chromedriver); `Page.fake()` answers chosen API requests with faked responses (the `refresh-*` checks).
 - `unit/*.test.mjs`: `node --test` unit tests for the page's pure ES modules (`format.js`, `i18n.js`, `scene()` in `format.js`); `run.py` runs them as checks `unit/<file>`. Further tests can go into `unit/more/`.
 

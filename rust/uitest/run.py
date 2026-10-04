@@ -97,7 +97,7 @@ def check_names(scenario: str, lang: str) -> list[str]:
         names = COMMON + GLANCE + RADAR + NOW_CHECKS + CHART + DETAILS + KIOSK + KIOSK_FILL_CHECKS + STATIONS
         if scenario == "live":
             names = [n for n in names if not n.startswith("chart-") or n == "chart-dry"]
-            names += ["theme-toggle"] + LAYOUT if lang == "en" else []
+            names += ["theme-toggle"] if lang == "en" else []
         else:
             names += KIOSK_CHART + (["reduced-motion"] + REFRESH if lang == "en" else [])
         return names
@@ -110,7 +110,7 @@ def check_names(scenario: str, lang: str) -> list[str]:
     if scenario == "fallback":
         return ["console", "now-station", "now-fallback"]
     if scenario == "sky":
-        return ["console", "requests"] + SKY
+        return ["console", "requests"] + LAYOUT + SKY
     if scenario == "unconfigured":
         return ["console", "requests", "lang", "setup-visible", "theme-light", "theme-dark", "theme-icon",
                 "contrast-light", "contrast-dark", "overflow-360", "buttons"]
