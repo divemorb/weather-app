@@ -153,7 +153,7 @@ async function refresh() {
   }
   if (data.now != null) skyNow = data.now;
   if (data.radar != null) skyRadar = data.radar;
-  setSkyScene();
+  renderPart("sky", setSkyScene); // its own part: a bad answer must not stop the others
   renderPart("glance", () => renderGlance(data.rain, data.radar, lang, locale, tz, cfg && cfg.radar_radius_km));
   renderPart("now", () => renderNow(data.now, lang, locale, tz));
   renderPart("chart", () => renderChart(chartEls, data.models, lang, locale, tz));

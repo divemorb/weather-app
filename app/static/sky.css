@@ -210,6 +210,8 @@ html[data-scene="thunderstorm"] .sky-lightning { display: block; }
 
 /* ---- fog: three puffy bands that creep sideways ----------------------------- */
 
+.sky-fog { inset: 0; }
+
 .fog-band {
   left: 0; right: 0;
   height: 26vh;
