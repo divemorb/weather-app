@@ -88,38 +88,6 @@
   }
   const hex = (rgb) => "#" + rgb.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("");
 
-  // WCAG AA for every visible text: 4.5:1, or 3:1 from 24 px (18.66 px bold).
-  function contrast() {
-    const bad = [];
-    let checked = 0, skipped = 0;
-    const seen = new Set();
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    for (let t = walker.nextNode(); t; t = walker.nextNode()) {
-      const el = t.parentElement;
-      if (!el || seen.has(el) || !t.nodeValue.trim()) continue;
-      seen.add(el);
-      if (el.closest("script, style, title, noscript, option, [disabled], [aria-disabled='true']")) continue;
-      if (!visible(el)) continue;
-      const cs = getComputedStyle(el);
-      const fg = rgba(el instanceof SVGElement ? cs.fill : cs.color);
-      const bg = background(el);
-      if (!fg || !bg.rgb) { skipped++; continue; }
-      let opacity = 1;
-      for (let n = el; n; n = n.parentElement) opacity *= parseFloat(getComputedStyle(n).opacity);
-      const text = mix([...mix(fg, bg.rgb), opacity], bg.rgb);
-      const size = parseFloat(cs.fontSize);
-      const need = size >= 24 || (size >= 18.66 && parseInt(cs.fontWeight, 10) >= 700) ? 3 : 4.5;
-      const r = ratio(text, bg.rgb);
-      checked++;
-      if (r + 1e-6 < need) {
-        const hook = el.closest("[data-test]");
-        bad.push(`"${norm(t.nodeValue).slice(0, 40)}" (${el.tagName.toLowerCase()}${hook ? ` in [data-test=${hook.dataset.test}]` : ""}): `
-          + `${r.toFixed(2)}:1 < ${need}:1, text ${hex(text)} on ${hex(bg.rgb)}`);
-      }
-    }
-    return { checked, skipped, bad };
-  }
-
   function page() {
     const bg = background(document.body);
     return {
@@ -234,6 +202,172 @@
     return { above: b.top - a.top, below: a.bottom - b.bottom };
   }
 
-  window.__ui = { info, contrast, page, overflowing, controls, animations, openDetails, icons, textColor, clipped,
-    sticksOut, summaryGaps };
+  // --- sky and tiles (sky steps A2/A3) ---
+
+  // The tiles: the visible children of main#dashboard, in DOM order. Columns: the
+  // tracks of its CSS grid (a block layout is one column).
+  function tiles() {
+    const main = document.getElementById("dashboard");
+    if (!main) return null;
+    const cs = getComputedStyle(main);
+    const grid = cs.display === "grid" || cs.display === "inline-grid";
+    const tracks = grid ? cs.gridTemplateColumns.split(/\s+/).filter((t) => /px$/.test(t)).map(parseFloat) : [];
+    const r = main.getBoundingClientRect();
+    const list = [...main.children].filter(visible).map((el) => {
+      const b = el.getBoundingClientRect();
+      return { id: el.id || el.tagName.toLowerCase(), x: b.x, y: b.y, w: b.width, h: b.height, right: b.right, bottom: b.bottom };
+    });
+    return { grid, columns: grid ? tracks.length : 1, tracks, x: r.x, w: r.width, right: r.right, list };
+  }
+
+  // The sky layer: [data-test=sky] and what sits on top of it at each tile's centre.
+  function sky() {
+    const els = all("sky");
+    const scene = document.documentElement.getAttribute("data-scene");
+    if (els.length !== 1) return { count: els.length, scene };
+    const el = els[0], cs = getComputedStyle(el), r = el.getBoundingClientRect();
+    const covered = [];
+    const t = tiles();
+    for (const tile of t ? t.list : []) {
+      const hit = document.elementFromPoint(tile.x + tile.w / 2, tile.y + Math.min(tile.h / 2, 40));
+      if (hit && (el === hit || el.contains(hit))) covered.push(tile.id);
+    }
+    return { count: 1, scene, position: cs.position, ariaHidden: el.getAttribute("aria-hidden"),
+      pointerEvents: cs.pointerEvents, rect: { x: r.x, y: r.y, w: r.width, h: r.height },
+      vw: document.documentElement.clientWidth, vh: document.documentElement.clientHeight, covered };
+  }
+
+  // Hide every element that is not the sky, inside it or around it (for the motion screenshots).
+  function onlySky(on) {
+    const el = all("sky")[0];
+    for (const n of document.body.querySelectorAll("*")) {
+      if (el && (el === n || el.contains(n) || n.contains(el))) continue;
+      if (on) n.style.setProperty("visibility", "hidden", "important");
+      else n.style.removeProperty("visibility");
+    }
+    return !!el;
+  }
+
+  // Make all text transparent (its line boxes and everything behind them stay), so a
+  // screenshot shows what each text is drawn on.
+  // Element styles through the CSSOM, which the page's CSP allows (a <style> element it
+  // doesn't); the old values are put back afterwards.
+  let hidden = [];
+  function hideText(on) {
+    if (!on) {
+      const restore = ([el, prop, value, prio]) => {
+        if (value) el.style.setProperty(prop, value, prio);
+        else el.style.removeProperty(prop);
+      };
+      // the colours first, applied while transitions are still off, so none fades back in
+      hidden.filter((h) => h[1] !== "transition").forEach(restore);
+      for (const [el] of hidden) getComputedStyle(el).color;
+      hidden.filter((h) => h[1] === "transition").forEach(restore);
+      hidden = [];
+      return;
+    }
+    const set = (el, prop, value) => {
+      hidden.push([el, prop, el.style.getPropertyValue(prop), el.style.getPropertyPriority(prop)]);
+      el.style.setProperty(prop, value, "important");
+    };
+    for (const el of document.body.querySelectorAll("*")) {
+      if (el.closest("[data-test=sky]")) continue;
+      set(el, "transition", "none");
+      set(el, "color", "transparent");
+      set(el, "-webkit-text-fill-color", "transparent");
+      set(el, "text-shadow", "none");
+      if (el instanceof SVGTextContentElement) {
+        set(el, "fill", "transparent");
+        set(el, "stroke", "transparent");
+      }
+    }
+  }
+
+  // The texts the pixel contrast check samples (WCAG AA: 4.5:1, or 3:1 from 24 px or
+  // 18.66 px bold): their colour, the opacity of their ancestors and their line boxes.
+  function textItems() {
+    const items = [];
+    const seen = new Set();
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let t = walker.nextNode(); t; t = walker.nextNode()) {
+      const el = t.parentElement;
+      if (!el || !t.nodeValue.trim()) continue;
+      if (el.closest("script, style, title, noscript, option, [disabled], [aria-disabled='true'], [data-test=sky]")) continue;
+      if (!visible(el)) continue;
+      const cs = getComputedStyle(el);
+      const fg = rgba(el instanceof SVGElement ? cs.fill : cs.color);
+      if (!fg) continue;
+      let opacity = 1;
+      for (let n = el; n; n = n.parentElement) opacity *= parseFloat(getComputedStyle(n).opacity);
+      const size = parseFloat(cs.fontSize);
+      const need = size >= 24 || (size >= 18.66 && parseInt(cs.fontWeight, 10) >= 700) ? 3 : 4.5;
+      const range = document.createRange();
+      range.selectNodeContents(t);
+      const rects = [...range.getClientRects()].filter((b) => b.width >= 1 && b.height >= 1)
+        .map((b) => ({ x: b.x, y: b.y, w: b.width, h: b.height }));
+      if (!rects.length) continue;
+      const key = el.closest("[data-test]");
+      const label = `"${norm(t.nodeValue).slice(0, 40)}" (${el.tagName.toLowerCase()}${key ? ` in [data-test=${key.dataset.test}]` : ""})`;
+      if (seen.has(label)) continue;
+      seen.add(label);
+      items.push({ label, fg, opacity, need, rects });
+    }
+    return items;
+  }
+
+  async function decode(b64) {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const bmp = await createImageBitmap(new Blob([bytes], { type: "image/png" }));
+    const c = new OffscreenCanvas(bmp.width, bmp.height);
+    const g = c.getContext("2d", { willReadFrequently: true });
+    g.drawImage(bmp, 0, 0);
+    return g.getImageData(0, 0, bmp.width, bmp.height);
+  }
+
+  // Per text item: the contrast of its colour against the screenshot's pixels behind
+  // it (text hidden), at the given percentile of the worst pixels; rects are in
+  // screenshot pixels (CSS px, scale 1), offset by dy.
+  async function pixelContrast(b64, items, dy, pct) {
+    const img = await decode(b64);
+    const out = [];
+    for (const it of items) {
+      const ratios = [];
+      let worstBg = null, worst = Infinity;
+      for (const r of it.rects) {
+        const x0 = Math.max(0, Math.floor(r.x)), x1 = Math.min(img.width, Math.ceil(r.x + r.w));
+        const y0 = Math.max(0, Math.floor(r.y - dy)), y1 = Math.min(img.height, Math.ceil(r.y - dy + r.h));
+        for (let y = y0; y < y1; y++) {
+          for (let x = x0; x < x1; x++) {
+            const i = (y * img.width + x) * 4;
+            const bg = [img.data[i], img.data[i + 1], img.data[i + 2]];
+            const text = mix([...mix(it.fg, bg), it.opacity], bg);
+            const q = ratio(text, bg);
+            ratios.push(q);
+            if (q < worst) { worst = q; worstBg = bg; }
+          }
+        }
+      }
+      if (!ratios.length) continue;
+      ratios.sort((a, b) => a - b);
+      const at = ratios[Math.min(ratios.length - 1, Math.floor(ratios.length * pct))];
+      out.push({ label: it.label, need: it.need, ratio: at, fg: hex(it.fg.slice(0, 3)), bg: hex(worstBg) });
+    }
+    return out;
+  }
+
+  // The share of pixels that differ between two screenshots of the same size.
+  async function diff(a, b) {
+    const [p, q] = await Promise.all([decode(a), decode(b)]);
+    if (p.width !== q.width || p.height !== q.height) return 1;
+    let n = 0;
+    for (let i = 0; i < p.data.length; i += 4) {
+      if (p.data[i] !== q.data[i] || p.data[i + 1] !== q.data[i + 1] || p.data[i + 2] !== q.data[i + 2]) n++;
+    }
+    return n / (p.width * p.height);
+  }
+
+  window.__ui = { info, page, overflowing, controls, animations, openDetails, icons, textColor, clipped,
+    sticksOut, summaryGaps, tiles, sky, onlySky, hideText, textItems, pixelContrast, diff };
 })();

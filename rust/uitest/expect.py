@@ -153,3 +153,46 @@ KIOSK_RADAR_SHARE = 0.08  # the radar strip's height (1280x800: 64 px)
 KIOSK_DRY_CHART_MAX = 0.2  # ... and on a dry day the chart card is just its line (1280x800: at most 160 px high)
 CONFIG_RETRY_S = 20  # a failed /api/config at startup: the page has retried and shows the forecast by then
 BUDGET_BYTES = 150 * 1024
+
+# --- sky steps A2/A3 (qwen/sky/00_plan.md) ---
+# The tiles per page width (live scenario): CSS grid columns of main#dashboard. From
+# LAYOUT_WIDE px on, the tiles use at least LAYOUT_SPACE of the width, each column at
+# least LAYOUT_MIN_TRACK px.
+LAYOUT_COLUMNS = {360: 1, 768: 1, 1280: 2, 1920: 3}
+LAYOUT_WIDE = 1280
+LAYOUT_SPACE = 0.7
+LAYOUT_MIN_TRACK = 280
+
+# The scenes: Bright Sky's twelve icons, heavy-rain, and none (no data).
+ICONS = ["clear-day", "clear-night", "partly-cloudy-day", "partly-cloudy-night", "cloudy", "fog",
+         "wind", "rain", "sleet", "snow", "hail", "thunderstorm"]
+SCENES = ICONS + ["heavy-rain", "none"]
+HEAVY_MM = 0.2  # radar mm in the first 5-minute step from which rain is heavy-rain (about 2.4 mm/h)
+# Faked /api/now icon and radar (None: dry; {step: mm}; "unavailable") -> the expected
+# data-scene. Rain on the radar right now (step 0) overrides a dry icon; a precipitation
+# icon stays (radar can't tell snow from rain); only step 0 counts.
+SCENE_CASES = {
+    **{icon: (icon, None, icon) for icon in ICONS},
+    "radar-rain": ("clear-day", {0: 0.1}, "rain"),
+    "radar-heavy": ("cloudy", {0: 0.3}, "heavy-rain"),
+    "radar-rain-on-rain": ("rain", {0: 0.5}, "heavy-rain"),
+    "radar-later": ("cloudy", {3: 0.5}, "cloudy"),
+    "radar-snow": ("snow", {0: 0.5}, "snow"),
+    "radar-thunderstorm": ("thunderstorm", {0: 0.1}, "thunderstorm"),
+    "radar-unavailable": ("fog", "unavailable", "fog"),
+    "no-icon": (None, None, "none"),
+    "no-icon-radar-rain": (None, {0: 0.1}, "rain"),
+    "no-observation": ("no-observation", None, "none"),
+}
+# How each scene is shown for the motion and contrast checks: a SCENE_CASES entry.
+SCENE_SOURCE = {**{icon: icon for icon in ICONS}, "heavy-rain": "radar-heavy", "none": "no-icon"}
+MOTION_MIN = 0.002  # share of the sky's pixels that change within MOTION_GAP_S (1280x900: 2300 px)
+MOTION_GAP_S = 0.6
+# Pixel contrast: each text against what is drawn behind it, at CONTRAST_MOMENTS moments
+# CONTRAST_GAP_S apart; the CONTRAST_PCT worst pixels behind a text may be below WCAG AA
+# (a raindrop crossing a word), the rest must not.
+CONTRAST_MOMENTS = 3
+CONTRAST_GAP_S = 0.7
+CONTRAST_PCT = 0.05
+# The views the per-scene contrast runs on: (width, height, query).
+CONTRAST_VIEWS = [(1280, 900, ""), (360, 740, ""), (1280, 800, "?kiosk")]

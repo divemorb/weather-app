@@ -8,11 +8,13 @@ at the scenario's "now" (it runs on from there) and the browser in UTC, so
 times must be shown in the location's time zone. The checks read what the
 page shows through stable ``data-test`` hooks: content, not layout (see
 ``qwen/web/00_brief.md``, "UI contract"). Generic checks: no console errors
-or CSP violations, same-origin requests only, contrast (WCAG AA) in both
-themes, no horizontal overflow at 360 px (and nothing sticking out of the
-Details card), the kiosk view without scrolling and its cards filled, control sizes, reduced
+or CSP violations, same-origin requests only, contrast (WCAG AA, measured
+on the rendered pixels) in both themes, no horizontal overflow at 360 px
+(and nothing sticking out of the Details card), the tile columns per width,
+the kiosk view without scrolling and its cards filled, control sizes, reduced
 motion, the size budget, and that bad data or a failed /api/config doesn't
-stop the page (faked responses, see ``cdp.Page.fake``). The JS unit
+stop the page (faked responses, see ``cdp.Page.fake``). The ``sky``
+scenario fakes the weather icon and the radar per scene (``SCENE_CASES``). The JS unit
 tests (``unit/*.test.mjs``, ``node --test``) are checks too.
 
     # in the sandbox, after `cargo build`:
@@ -32,6 +34,7 @@ Check names are ``scenario/lang/check`` (``rain/de/now-wind``), plus
 from __future__ import annotations
 
 import argparse
+import json
 import math
 import calendar
 import fnmatch
@@ -56,11 +59,13 @@ _spec.loader.exec_module(contract)
 
 from cdp import Browser  # noqa: E402
 from expect import (  # noqa: E402
-    ACCURACY_HEAD, ANSWER, ATTRIBUTION_LINKS, BUDGET_BYTES, CONFIG_RETRY_S, FIXED, KIOSK_CHART_LABEL_PX, KIOSK_CHART_MIN,
-    KIOSK_CHART_MIN_W, KIOSK_DRY_CHART_MAX, MAP_BEARING_TOLERANCE, MAP_MARKS, MAP_RADIUS_KM, NOW_STATION,
+    ACCURACY_HEAD, ANSWER, ATTRIBUTION_LINKS, BUDGET_BYTES, CONFIG_RETRY_S, CONTRAST_GAP_S, CONTRAST_MOMENTS,
+    CONTRAST_PCT, CONTRAST_VIEWS, FIXED, KIOSK_CHART_LABEL_PX, KIOSK_CHART_MIN,
+    KIOSK_CHART_MIN_W, KIOSK_DRY_CHART_MAX, LAYOUT_COLUMNS, LAYOUT_MIN_TRACK, LAYOUT_SPACE, LAYOUT_WIDE,
+    MAP_BEARING_TOLERANCE, MAP_MARKS, MAP_RADIUS_KM, MOTION_GAP_S, MOTION_MIN, NOW_STATION,
     OBS_STATIONS, KIOSK_FILL, KIOSK_FONT_SHARE, KIOSK_MIN_FONT, KIOSK_RADAR_SHARE,
-    KIOSK_SIZES, LOCALES, MODEL_LABELS, NOW, RADAR_CAPTION, SCENARIO, SOURCE_KIND, SOURCES, TZ, WEIGHTS, WHEN,
-    WIZARD_DETAIL, WIZARD_LABEL)
+    KIOSK_SIZES, LOCALES, MODEL_LABELS, NOW, RADAR_CAPTION, SCENARIO, SCENE_CASES, SCENE_SOURCE, SCENES,
+    SOURCE_KIND, SOURCES, TZ, WEIGHTS, WHEN, WIZARD_DETAIL, WIZARD_LABEL)
 from fakeup import FakeUpstream  # noqa: E402
 from scenarios import SCENARIOS  # noqa: E402
 
@@ -82,6 +87,9 @@ KIOSK_CHART = [f"kiosk-chart-{w}x{h}" for w, h in KIOSK_SIZES]
 KIOSK_FILL_CHECKS = [f"kiosk-fill-{w}x{h}" for w, h in KIOSK_SIZES]
 REFRESH = ["refresh-render-error", "refresh-config-retry"]
 STATIONS = ["now-station", "now-fallback", "observation-stations", "station-map"]
+LAYOUT = [f"layout-{w}" for w in LAYOUT_COLUMNS]
+SKY = (["sky-layer"] + [f"scene-{c}" for c in SCENE_CASES] + [f"motion-{s}" for s in SCENES if s != "none"]
+       + [f"still-{s}" for s in SCENES] + [f"contrast-{s}-{t}" for s in SCENES for t in ("light", "dark")])
 
 
 def check_names(scenario: str, lang: str) -> list[str]:
@@ -89,7 +97,7 @@ def check_names(scenario: str, lang: str) -> list[str]:
         names = COMMON + GLANCE + RADAR + NOW_CHECKS + CHART + DETAILS + KIOSK + KIOSK_FILL_CHECKS + STATIONS
         if scenario == "live":
             names = [n for n in names if not n.startswith("chart-") or n == "chart-dry"]
-            names += ["theme-toggle"] if lang == "en" else []
+            names += ["theme-toggle"] + LAYOUT if lang == "en" else []
         else:
             names += KIOSK_CHART + (["reduced-motion"] + REFRESH if lang == "en" else [])
         return names
@@ -101,6 +109,8 @@ def check_names(scenario: str, lang: str) -> list[str]:
                 "details-weighting", "accuracy-table", "accuracy-head", "accuracy-note", "details-fit", "details-compact", "overflow-360"]
     if scenario == "fallback":
         return ["console", "now-station", "now-fallback"]
+    if scenario == "sky":
+        return ["console", "requests"] + SKY
     if scenario == "unconfigured":
         return ["console", "requests", "lang", "setup-visible", "theme-light", "theme-dark", "theme-icon",
                 "contrast-light", "contrast-dark", "overflow-360", "buttons"]
@@ -110,8 +120,9 @@ def check_names(scenario: str, lang: str) -> list[str]:
     raise ValueError(scenario)
 
 
-UI_SCENARIOS = ["live", "rain", "errors", "accuracy", "unconfigured", "wizard", "fallback"]
-SCENARIO_LANGS = {"wizard": ["de", "en"]}  # the German validation runs before the English save
+UI_SCENARIOS = ["live", "rain", "errors", "accuracy", "unconfigured", "wizard", "fallback", "sky"]
+SCENARIO_LANGS = {"wizard": ["de", "en"], "sky": ["en"]}  # the German validation runs before the English save
+BACKEND = {"sky": "live"}  # UI scenarios that run on another scenario's app (with faked API answers)
 
 
 def all_names(scenarios, langs) -> list[str]:
@@ -284,6 +295,13 @@ class UIPage:
         self.p.send("Input.insertText", {"text": text})
         return []
 
+    def shot_b64(self) -> str:
+        """The viewport as a base64 PNG (what the user sees now)."""
+        return self.p.send("Page.captureScreenshot", {"format": "png"}, timeout=60)["data"]
+
+    def frame(self):
+        self.p.eval("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))")
+
     def close(self):
         self.p.close()
 
@@ -330,10 +348,41 @@ def theme_icon_problems(icons: dict) -> list[str]:
 
 
 def contrast_problems(pg) -> list[str]:
-    r = pg.js("__ui.contrast()")
-    if r["checked"] == 0:
+    """WCAG AA for every visible text against the pixels drawn behind it (the text
+    made transparent for the screenshot), so translucent tiles over a moving sky
+    count as they look: CONTRAST_MOMENTS moments, scrolled through the page; per
+    text the worst moment counts, and within it the CONTRAST_PCT worst pixels may
+    be below (a raindrop crossing a word)."""
+    worst: dict[str, dict] = {}
+    for m in range(CONTRAST_MOMENTS):
+        if m:
+            time.sleep(CONTRAST_GAP_S)
+        info = pg.js("__ui.page()")
+        vh, sh = info["ih"], info["sh"]
+        tops = list(range(0, max(sh - vh, 0) + 1, max(vh - 40, 100)))
+        if tops[-1] < sh - vh:
+            tops.append(sh - vh)
+        for top in tops:
+            pg.js(f"window.scrollTo(0, {top})")
+            pg.frame()
+            items = [dict(it, rects=[r for r in it["rects"] if r["y"] >= 0 and r["y"] + r["h"] <= vh])
+                     for it in pg.js("__ui.textItems()")]
+            items = [it for it in items if it["rects"]]
+            if not items:
+                continue
+            pg.js("__ui.hideText(true)")
+            pg.frame()
+            b64 = pg.shot_b64()
+            pg.js("__ui.hideText(false)")
+            for r in pg.js(f"__ui.pixelContrast({json.dumps(b64)}, {json.dumps(items)}, 0, {CONTRAST_PCT})"):
+                if r["label"] not in worst or r["ratio"] < worst[r["label"]]["ratio"]:
+                    worst[r["label"]] = dict(r, moment=m)
+    pg.js("window.scrollTo(0, 0)")
+    if not worst:
         return ["no visible text found"]
-    return r["bad"]
+    return [f"{label}: {r['ratio']:.2f}:1 < {r['need']}:1 (moment {r['moment'] + 1}), text {r['fg']} on {r['bg']}"
+            for label, r in sorted(worst.items(), key=lambda kv: kv[1]["ratio"] / kv[1]["need"])
+            if r["ratio"] + 1e-6 < r["need"]]
 
 
 def check_glance(pg: UIPage, exp: dict, add):
@@ -621,7 +670,7 @@ def start_app(sc: dict, args, tmp: pathlib.Path):
 
 
 def run_scenario(name: str, browsers: dict, args, res: Results):
-    sc = next(s for s in SCENARIOS if s["name"] == name)
+    sc = next(s for s in SCENARIOS if s["name"] == BACKEND.get(name, name))
     langs = [lang for lang in SCENARIO_LANGS.get(name, ["en", "de"]) if lang in browsers]
     with tempfile.TemporaryDirectory(prefix="uitest-") as tmp:
         fake, proc, port, error = start_app(sc, args, pathlib.Path(tmp))
@@ -676,6 +725,8 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
         add("now-fallback", now_fallback_problems(pg))
         shot(pg, "desktop-light")
         done(pg)
+    elif name == "sky":
+        run_sky(browser, base, sc, lang, add, done, shot)
     elif name == "unconfigured":
         pg = UIPage(browser, base, sc["now"], lang)
         info = pg.js("__ui.page()")
@@ -760,6 +811,12 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
             done(pg)
     if "theme-toggle" in names:
         add("theme-toggle", theme_toggle(browser, base, sc, lang, done))
+    for w in LAYOUT_COLUMNS:
+        if f"layout-{w}" in names:
+            pg = UIPage(browser, base, sc["now"], lang, width=w, height=740 if w < 600 else 900)
+            add(f"layout-{w}", layout_problems(pg, w))
+            shot(pg, f"layout-{w}")
+            done(pg)
     if "refresh-render-error" in names:
         add("refresh-render-error", refresh_render_error(browser, base, sc, lang))
     if "refresh-config-retry" in names:
@@ -775,6 +832,171 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
     foreign = sorted({u for u in requests if not (u.startswith(own) or u.startswith("data:"))})
     add("requests", [f"request outside the app: {u}" for u in foreign])
     add("console", list(dict.fromkeys(errors))[:8])
+
+
+def layout_problems(pg: UIPage, w: int) -> list[str]:
+    """The tiles flow with the width: LAYOUT_COLUMNS grid columns, the glance first
+    (top left) and at least as wide as any other tile, Details across the full
+    width, no tile overlapping another, no horizontal scrolling; wide screens use
+    their width instead of one narrow column."""
+    t = pg.js("__ui.tiles()")
+    if not t:
+        return ["no main#dashboard"]
+    want = LAYOUT_COLUMNS[w]
+    problems = []
+    if t["columns"] != want:
+        how = f"grid-template-columns {[round(x) for x in t['tracks']]}" if t["grid"] else "not a CSS grid"
+        problems.append(f"{t['columns']} tile column(s) at {w} px ({how}), expected {want}")
+    tiles = t["list"]
+    by_id = {x["id"]: x for x in tiles}
+    if not tiles or tiles[0]["id"] != "glance":
+        problems.append(f"the first tile is {tiles[0]['id'] if tiles else None!r}, expected #glance")
+    g = by_id.get("glance")
+    if g:
+        if any(o["y"] < g["y"] - 1 for o in tiles if o is not g):
+            problems.append("a tile starts above #glance: the glance comes first")
+        if g["x"] > t["x"] + 1:
+            problems.append(f"#glance starts at x={g['x']:.0f}, not at the left edge of the tiles ({t['x']:.0f})")
+        wider = [o["id"] for o in tiles if o["id"] not in ("glance", "details") and o["w"] > g["w"] + 1]
+        if wider:
+            problems.append(f"{wider} wider than #glance ({g['w']:.0f} px): the glance is the widest tile")
+    d = by_id.get("details")
+    if not d:
+        problems.append("no visible #details tile")
+    elif d["w"] < t["w"] - 2:
+        problems.append(f"#details is {d['w']:.0f} px wide, the tiles {t['w']:.0f} px: Details spans the full width")
+    for i, a in enumerate(tiles):
+        for b in tiles[i + 1:]:
+            ox = min(a["right"], b["right"]) - max(a["x"], b["x"])
+            oy = min(a["bottom"], b["bottom"]) - max(a["y"], b["y"])
+            if ox > 1 and oy > 1:
+                problems.append(f"#{a['id']} and #{b['id']} overlap ({ox:.0f}x{oy:.0f} px)")
+    info = pg.js("__ui.page()")
+    if info["sw"] > w + 1:
+        problems.append(f"page is {info['sw']} px wide at {w} px: {pg.js('__ui.overflowing()')}")
+    if w >= LAYOUT_WIDE:
+        if t["w"] < LAYOUT_SPACE * w:
+            problems.append(f"the tiles use {t['w']:.0f} px of {w} px, at least {LAYOUT_SPACE * w:.0f} px "
+                            f"({LAYOUT_SPACE:.0%}): wide screens get more columns, not wide margins")
+        narrow = [round(x) for x in t["tracks"] if x < LAYOUT_MIN_TRACK]
+        if narrow:
+            problems.append(f"columns {narrow} px narrower than {LAYOUT_MIN_TRACK} px")
+    return problems
+
+
+# --- the sky (A3): faked /api/now icon and radar per scene ---------------------------------
+
+def _get_json(url: str):
+    import urllib.request
+    with urllib.request.urlopen(url, timeout=10) as r:
+        return json.loads(r.read())
+
+
+def scene_fakes(case: str, now_body: dict, radar_body: dict) -> dict:
+    """/api/now and /api/radar/next-hour for a SCENE_CASES entry (the app's own
+    answers with the icon and the radar steps replaced)."""
+    icon, radar, _ = SCENE_CASES[case]
+    if icon == "no-observation":
+        now = {"available": False, "age_seconds": None, "stale": False, "conditions": None}
+    else:
+        now = json.loads(json.dumps(now_body))
+        now["conditions"]["icon"] = icon
+    rb = json.loads(json.dumps(radar_body))
+    if radar == "unavailable":
+        rb["available"], rb["steps"] = False, []
+    else:
+        for st in rb["steps"]:
+            st["precip_mm"] = 0.0
+        for i, mm in (radar or {}).items():
+            rb["steps"][i]["precip_mm"] = mm
+    # enough answers for every request of one page (later ones would reach the app)
+    return {"/api/now": [(200, json.dumps(now))] * 8, "/api/radar/next-hour": [(200, json.dumps(rb))] * 8}
+
+
+def scene_of(pg: UIPage) -> str | None:
+    return pg.js("document.documentElement.getAttribute('data-scene')")
+
+
+def sky_layer_problems(pg: UIPage) -> list[str]:
+    """One [data-test=sky] layer: fixed, covering the viewport, behind the tiles,
+    hidden from screen readers."""
+    s = pg.js("__ui.sky()")
+    if s["count"] != 1:
+        return [f"{s['count']} elements [data-test=sky], expected one (the animated sky behind the tiles)"]
+    problems = []
+    if s["position"] != "fixed":
+        problems.append(f"[data-test=sky] has position {s['position']}, expected fixed (it stays while the page scrolls)")
+    r = s["rect"]
+    if r["x"] > 0.5 or r["y"] > 0.5 or r["x"] + r["w"] < s["vw"] - 0.5 or r["y"] + r["h"] < s["vh"] - 0.5:
+        problems.append(f"[data-test=sky] covers ({r['x']:.0f},{r['y']:.0f}) {r['w']:.0f}x{r['h']:.0f}, "
+                        f"expected the whole {s['vw']}x{s['vh']} viewport")
+    if s["ariaHidden"] != "true":
+        problems.append('[data-test=sky] needs aria-hidden="true" (decoration)')
+    if s["covered"]:
+        problems.append(f"[data-test=sky] is on top of the tiles {s['covered']}: it belongs behind them")
+    return problems
+
+
+def motion_problems(pg: UIPage, scene: str, moving: bool) -> list[str]:
+    """Two screenshots of the sky alone (everything else hidden), MOTION_GAP_S apart:
+    they differ (it moves) or, under reduced motion, are equal (a still picture)."""
+    got = scene_of(pg)
+    if got != scene:
+        return [f"data-scene={got!r}, expected {scene!r} (needed to judge this scene's sky)"]
+    if not pg.js("__ui.onlySky(true)"):
+        return ["no [data-test=sky]"]
+    if not moving:
+        time.sleep(0.3)  # an entrance transition may finish first
+    pg.frame()
+    a = pg.shot_b64()
+    time.sleep(MOTION_GAP_S)
+    b = pg.shot_b64()
+    share = pg.js(f"__ui.diff({json.dumps(a)}, {json.dumps(b)})")
+    pg.js("__ui.onlySky(false)")
+    if moving and share < MOTION_MIN:
+        return [f"the sky changed {share:.4%} of its pixels in {MOTION_GAP_S} s, at least {MOTION_MIN:.1%}: "
+                "it should move"]
+    if not moving and share > 0:
+        return [f"with prefers-reduced-motion the sky changed {share:.4%} of its pixels in {MOTION_GAP_S} s: "
+                f"expected a still picture (running: {pg.js('__ui.animations()')})"]
+    return []
+
+
+def run_sky(browser, base, sc, lang, add, done, shot):
+    now_body = _get_json(base + "/api/now")
+    radar_body = _get_json(base + "/api/radar/next-hour")
+    for case, (icon, radar, want) in SCENE_CASES.items():
+        pg = UIPage(browser, base, sc["now"], lang, fakes=scene_fakes(case, now_body, radar_body))
+        got = scene_of(pg)
+        add(f"scene-{case}", [] if got == want else
+            [f"<html data-scene={got!r}> with icon {icon!r} and radar {radar!r}, expected {want!r}"])
+        if case == "cloudy":
+            add("sky-layer", sky_layer_problems(pg))
+        done(pg)
+    for scene in SCENES:
+        fakes = scene_fakes(SCENE_SOURCE[scene], now_body, radar_body)
+        if scene != "none":
+            pg = UIPage(browser, base, sc["now"], lang, fakes=fakes)
+            add(f"motion-{scene}", motion_problems(pg, scene, moving=True))
+            done(pg)
+        pg = UIPage(browser, base, sc["now"], lang, reduced=True, fakes=fakes)
+        add(f"still-{scene}", motion_problems(pg, scene, moving=False))
+        done(pg)
+        for theme in ("light", "dark"):
+            problems = []
+            for w, h, query in CONTRAST_VIEWS:
+                view = f"{w}x{h}{' kiosk' if query else ''}"
+                pg = UIPage(browser, base, sc["now"], lang, width=w, height=h, scheme=theme, query=query, fakes=fakes)
+                got = scene_of(pg)
+                if got != scene:
+                    problems.append(f"{view}: data-scene={got!r}, expected {scene!r}")
+                problems += [f"{view}: {p}" for p in contrast_problems(pg)]
+                if w >= 1280:  # frames for the review
+                    for i in range(3):
+                        shot(pg, f"scene-{scene}-{theme}-{view.replace(' ', '-')}-{i}", full=False)
+                        time.sleep(0.4)
+                done(pg)
+            add(f"contrast-{scene}-{theme}", problems)
 
 
 def now_fallback_problems(pg: UIPage) -> list[str]:
