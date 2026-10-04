@@ -27,6 +27,7 @@ fn make_conditions() -> CurrentConditions {
         precipitation_30mm: None,
         precipitation_60mm: None,
         condition: json!("Rain"),
+        icon: Some("cloudy".to_string()),
     }
 }
 
@@ -85,6 +86,7 @@ fn now_with_conditions() {
                 "precipitation_30mm": null,
                 "precipitation_60mm": null,
                 "condition": "Rain",
+                "icon": "cloudy",
                 "source_id": 1,
                 "station": {
                     "name": "Berlin-Tempelhof",
@@ -110,6 +112,21 @@ fn now_without_station_names_null_and_empty_fallback() {
     let conditions = got["conditions"].clone();
     assert_eq!(conditions["station"], Value::Null);
     assert_eq!(conditions["fallback"], json!({}));
+}
+
+#[test]
+fn now_without_icon_serializes_null() {
+    let conditions = CurrentConditions {
+        icon: None,
+        ..make_conditions()
+    };
+    let got = serialize_now(
+        Some(&conditions),
+        Some(&meta_fresh()),
+        None,
+        &BTreeMap::new(),
+    );
+    assert_eq!(got["conditions"]["icon"], json!(null));
 }
 
 #[test]

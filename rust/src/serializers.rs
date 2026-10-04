@@ -97,6 +97,7 @@ fn conditions_json(
         "precipitation_30mm": c.precipitation_30mm,
         "precipitation_60mm": c.precipitation_60mm,
         "condition": c.condition,
+        "icon": c.icon,
         "source_id": c.source_id,
         "station": station_json(station),
         "fallback": Value::Object(fallback),

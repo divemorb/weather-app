@@ -5,7 +5,7 @@
 //! (never a panic).
 
 use chrono::{DateTime, TimeDelta, Utc};
-use serde_json::Value;
+use serde_json::{Map, Value};
 use std::collections::HashMap;
 
 use crate::models::CurrentConditions;
@@ -16,6 +16,33 @@ use crate::upstream::{SourceError, opt_f64, py_str, py_truthy};
 /// with this wording.
 fn malformed(label: &str, exc: SourceError) -> SourceError {
     SourceError::new(format!("{label}: malformed payload ({exc})"))
+}
+
+/// The weather icons Bright Sky documents for `/current_weather` (day/night
+/// and wind are already folded in); the page picks its animated sky from it.
+/// (Python `WEATHER_ICONS`.)
+pub const WEATHER_ICONS: [&str; 12] = [
+    "clear-day",
+    "clear-night",
+    "partly-cloudy-day",
+    "partly-cloudy-night",
+    "cloudy",
+    "fog",
+    "wind",
+    "rain",
+    "sleet",
+    "snow",
+    "hail",
+    "thunderstorm",
+];
+
+/// Pass the weather icon through only when it is one of Bright Sky's
+/// documented values; missing, unknown, wrong case or not a string -> None.
+fn parse_icon(w: &Map<String, Value>) -> Option<String> {
+    w.get("icon")?
+        .as_str()
+        .filter(|icon| WEATHER_ICONS.contains(icon))
+        .map(str::to_string)
 }
 
 /// Parse a `/current_weather` payload.
@@ -45,6 +72,7 @@ pub fn parse_current_weather(payload: &Value) -> Result<CurrentConditions, Sourc
         precipitation_30mm: num("precipitation_30")?,
         precipitation_60mm: num("precipitation_60")?,
         condition: w.get("condition").cloned().unwrap_or(Value::Null),
+        icon: parse_icon(w),
     })
 }
 

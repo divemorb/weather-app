@@ -23,6 +23,9 @@ pub struct CurrentConditions {
     pub precipitation_30mm: Option<f64>,
     pub precipitation_60mm: Option<f64>,
     pub condition: Value,
+    /// Bright Sky's weather icon for the page's animated sky: one of the
+    /// twelve values Bright Sky documents, `None` when absent or unknown.
+    pub icon: Option<String>,
 }
 
 /// One raining grid cell (value already in millimetres).

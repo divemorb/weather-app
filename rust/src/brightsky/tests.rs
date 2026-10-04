@@ -42,6 +42,46 @@ fn parse_current_weather_handles_nulls() {
 }
 
 #[test]
+fn parse_current_weather_passes_every_documented_icon() {
+    for icon in WEATHER_ICONS {
+        let cond = parse_current_weather(&crate::testutil::make_current_payload(Some(json!({
+            "icon": icon,
+        }))))
+        .unwrap();
+        assert_eq!(cond.icon.as_deref(), Some(icon), "{icon}");
+        // the icon rides along without touching the other fields
+        assert_eq!(cond.condition, json!("dry"));
+    }
+}
+
+#[test]
+fn parse_current_weather_icon_none_when_missing_or_invalid() {
+    // missing, null, unknown, wrong case, not a string -> None
+    let cases = [
+        None,
+        Some(json!(null)),
+        Some(json!("")),
+        Some(json!("tornado")),
+        Some(json!("Rain")),
+        Some(json!("CLEAR-DAY")),
+        Some(json!(5)),
+        Some(json!(["rain"])),
+        Some(json!({"icon": "rain"})),
+    ];
+    for icon in &cases {
+        let mut extra = Map::new();
+        if let Some(value) = icon {
+            extra.insert("icon".to_string(), value.clone());
+        }
+        let cond = parse_current_weather(&crate::testutil::make_current_payload(Some(
+            Value::Object(extra.clone()),
+        )))
+        .unwrap();
+        assert_eq!(cond.icon, None, "{icon:?}");
+    }
+}
+
+#[test]
 fn parse_current_weather_missing_weather_raises() {
     let err = parse_current_weather(&json!({"sources": []})).unwrap_err();
     assert!(err.to_string().contains("missing 'weather'"));
