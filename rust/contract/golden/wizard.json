@@ -1,6 +1,6 @@
 {
  "now": "2026-09-30T10:27:10Z",
- "python_memory_kb": 60896,
+ "python_memory_kb": 60952,
  "upstream": [
   "/bs/current_weather?lat=1.0&lon=13.405",
   "/bs/current_weather?lat=48.137&lon=11.575",
@@ -198,6 +198,7 @@
      "precipitation_30mm": 0.0,
      "precipitation_60mm": 0.0,
      "condition": "dry",
+     "icon": "cloudy",
      "source_id": 303711,
      "station": {
       "name": "Berlin-Tempelhof",
