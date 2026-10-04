@@ -84,6 +84,9 @@ export const STRINGS = {
     "location.unreachable": "Can't reach the app, retrying…",
     "location.aria": "Change location",
     "theme.aria": "Toggle dark mode",
+    // The view button (step V1): what a click does, per current view.
+    "view.to-detailed": "Show the detailed view",
+    "view.to-big": "Show the big view",
     "answer.loading": "Loading…",
     "glance.prob-label": "chance of rain in the next 60 min",
     // The "why" line under the glance (step B1): what the sky shows and
@@ -215,6 +218,9 @@ export const STRINGS = {
     "location.unreachable": "App nicht erreichbar, neuer Versuch …",
     "location.aria": "Ort ändern",
     "theme.aria": "Farbschema umschalten",
+    // Der Ansichtsknopf (Schritt V1): was ein Klick tut, je nach aktueller Ansicht.
+    "view.to-detailed": "Ausführliche Ansicht zeigen",
+    "view.to-big": "Große Ansicht zeigen",
     "answer.loading": "Lade…",
     "glance.prob-label": "Regenwahrscheinlichkeit in der nächsten Stunde",
     // Die „Warum"-Zeile unter dem Glance (Schritt B1): was der Himmel

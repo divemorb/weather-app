@@ -1,14 +1,16 @@
-/* Kiosk view (?kiosk): the wall display for a landscape tablet, read
- * from across the room. app.js sets the .kiosk class on <html> when the
- * ?kiosk query is present.
+/* The big view: the one-screen wall display, read from across the room.
+ * view.js sets the .kiosk class on <html> for the big view (the default;
+ * ?kiosk adds .locked and hides the view and location buttons) and
+ * chart.js keys its layout on it.
  *
  * One screen, no scrolling, at 1280x800 and 1920x1080: the glance on the
  * left, Now and the 24 h chart stacked on the right. On a dry (or
  * data-less) day the chart card is just its status line: Now takes the
  * freed height, in two wider columns (the rules key on the status line
- * being visible, :has()). The Details card and the location button leave
- * the kiosk view; the page reload keeps running (details.js schedules
- * it, and a hidden <details> does not stop its timers).
+ * being visible, :has()). The Details card leaves the big view; on a
+ * phone (below 760 px) the cards stack in one column and the page may
+ * scroll. The page reload keeps running (details.js schedules it, and a
+ * hidden <details> does not stop its timers).
  */
 
 html.kiosk { overflow: hidden; } /* no scrollbars; the content must fit */
@@ -23,7 +25,10 @@ html.kiosk .wrap {
 }
 
 html.kiosk .topbar { margin-bottom: 0; }
-html.kiosk [data-test="location-button"] { display: none; }
+/* The locked kiosk (?kiosk) hides both buttons; the big view elsewhere
+ * keeps the location button (people set their place there). */
+html.kiosk.locked [data-test="location-button"],
+html.kiosk.locked [data-test="view-toggle"] { display: none; }
 html.kiosk .place { font-size: 20px; }
 html.kiosk .place-detail { font-size: 13px; }
 html.kiosk .actions .btn { width: 40px; height: 40px; }
@@ -130,3 +135,32 @@ html.kiosk #chart-card .chart-body.has-chart { flex: 1; min-height: 0; }
 /* ---- footer --------------------------------------------------------------- */
 
 html.kiosk .attr { margin-top: 0; font-size: 12px; }
+
+/* ---- phone (below 760 px): one scrollable column ---------------------------
+ * The cards stack in DOM order (glance, Now, chart) and the page scrolls.
+ * The desktop selectors are repeated, so the dry-day :has() rules (higher
+ * specificity) lose to the later declarations here. */
+
+@media (max-width: 760px) {
+  html.kiosk { overflow-y: auto; overflow-x: hidden; }
+
+  html.kiosk .wrap { height: auto; padding: 12px 14px 28px; gap: 12px; }
+
+  html.kiosk #dashboard { flex: none; grid-template-columns: 1fr; grid-template-rows: none; }
+  html.kiosk #dashboard:has([data-test="chart-dry"]:not([hidden])),
+  html.kiosk #dashboard:has([data-test="chart-unavailable"]:not([hidden])) {
+    grid-template-rows: none;
+  }
+  /* grid-column: 2 would park a card in a second, implicit column. */
+  html.kiosk .glance, html.kiosk .now, html.kiosk #chart-card { grid-column: auto; grid-row: auto; }
+
+  html.kiosk .now-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 18px; }
+  html.kiosk #dashboard:has([data-test="chart-dry"]:not([hidden])) .now-grid,
+  html.kiosk #dashboard:has([data-test="chart-unavailable"]:not([hidden])) .now-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 18px;
+  }
+  /* The chart is drawn at the body's measured height; without a floor the
+   * phone would get the short wide fallback. */
+  html.kiosk #chart-card .chart-body.has-chart { min-height: 300px; }
+}

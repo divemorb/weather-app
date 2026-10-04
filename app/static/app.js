@@ -12,6 +12,7 @@
  * (details.js: 10 s after a backend refresh, at the latest every 60 s,
  * via the onReload callback). Nothing throws uncaught.
  */
+import "./view.js"; // the view (big/detailed) and the <html> classes, before anything reads them
 import { pickLang, t } from "./i18n.js";
 import { getJSON } from "./api.js";
 import { CONFIG_RETRY_MS, locationText, locationDetail, scene } from "./format.js";
@@ -73,11 +74,8 @@ function setSkyScene() {
 }
 setSkyScene();
 
-/* Kiosk view (?kiosk): the wall tablet gets one screen of big type; the
- * class goes on <html>, where kiosk.css and chart.js look for it. */
-if (new URLSearchParams(location.search).has("kiosk")) {
-  document.documentElement.classList.add("kiosk");
-}
+/* (The kiosk class on <html> comes from view.js: it is set for the big
+ * view, whatever its source — the query, the stored choice or the default.) */
 $("theme-toggle").addEventListener("click", () => {
   stored = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
   try {
