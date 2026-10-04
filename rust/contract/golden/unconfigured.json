@@ -1,6 +1,6 @@
 {
  "now": "2026-09-30T10:27:10Z",
- "python_memory_kb": 64144,
+ "python_memory_kb": 61216,
  "upstream": [],
  "cases": {
   "healthz": {
@@ -86,6 +86,7 @@
     "models_total": 0,
     "ensemble_pct": null,
     "weights_used": {},
+    "accuracy_weighted": false,
     "radar_age_seconds": null,
     "models_age_seconds": null
    }
@@ -379,8 +380,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "71bcef441defb84d88f60724234565aa62630838abdb3f9f7c02efc6556ba4e4",
-   "length": 13456
+   "sha256": "63ecc8ad1cf46d7eff13666d49cddf2ed95d84905be3c51ff5644358bc600c86",
+   "length": 13671
   },
   "static/format.js": {
    "status": 200,
@@ -421,8 +422,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "98e94e231fb814fd02a2e55e792f80fa6bd9ef1e031486df25b7b636aa19f09b",
-   "length": 13349
+   "sha256": "b951d34c2b5214c85fd66348519be1a04a52590db96a1f29bb87b3385d948d1b",
+   "length": 13497
   },
   "static/kiosk.css": {
    "status": 200,

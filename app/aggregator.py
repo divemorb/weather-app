@@ -320,6 +320,7 @@ class Aggregator:
             ),
             weights_used=weights,
             explanation=explanation,
+            accuracy_weighted=accuracy_weighted,
         )
 
     async def get_24h_model_comparison(self) -> dict[str, Any]:

@@ -228,6 +228,11 @@ function signalsSection(rain) {
     ]);
   }
   sec.append(weightsLine, signalsLine);
+  if (hasData && rain.accuracy_weighted === true) {
+    const weightingLine = line("details-weighting");
+    weightingLine.textContent = t(lang, "signals.accuracy-weighted");
+    sec.appendChild(weightingLine);
+  }
   return sec;
 }
 

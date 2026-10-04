@@ -40,6 +40,7 @@ fn make_rain() -> RainProbability {
         ensemble_pct: Some(50.0),
         weights_used: vec![("radar".to_string(), 0.5)],
         explanation: "Radar: yes; 1 of 2 models; ensemble 50 %".to_string(),
+        accuracy_weighted: false,
     }
 }
 
@@ -163,10 +164,21 @@ fn rain_probability_full() {
             "models_total": 2,
             "ensemble_pct": 50.0,
             "weights_used": {"radar": 0.5},
+            "accuracy_weighted": false,
             "radar_age_seconds": 12,
             "models_age_seconds": 12,
         })
     );
+}
+
+#[test]
+fn rain_probability_accuracy_weighted_passes_through() {
+    let rain = RainProbability {
+        accuracy_weighted: true,
+        ..make_rain()
+    };
+    let body = serialize_rain_probability(&rain, None, None);
+    assert_eq!(body["accuracy_weighted"], json!(true));
 }
 
 #[test]

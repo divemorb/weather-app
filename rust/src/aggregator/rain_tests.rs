@@ -155,6 +155,7 @@ async fn get_rain_probability_accuracy_weights_applied() {
     let prob = agg.get_rain_probability().unwrap();
     assert!(approx(prob.probability_pct, 85.0));
     assert!(prob.explanation.contains("accuracy-weighted"));
+    assert!(prob.accuracy_weighted);
     // the equal-weight counts still feed the explanation
     assert!(prob.explanation.contains("1 of 2 models"));
 }
@@ -187,6 +188,7 @@ async fn get_rain_probability_accuracy_gate_falls_back() {
     // radar 100, models 50, ensemble 50 -> 0.5*100 + 0.3*50 + 0.2*50 = 75
     assert!(approx(prob.probability_pct, 75.0));
     assert!(!prob.explanation.contains("accuracy-weighted"));
+    assert!(!prob.accuracy_weighted);
 }
 
 #[tokio::test]
@@ -220,6 +222,7 @@ async fn get_rain_probability_no_weights_when_disabled() {
     let prob = agg.get_rain_probability().unwrap();
     assert!(approx(prob.probability_pct, 75.0));
     assert!(!prob.explanation.contains("accuracy-weighted"));
+    assert!(!prob.accuracy_weighted);
 }
 
 #[tokio::test]
@@ -257,4 +260,5 @@ async fn get_rain_probability_accuracy_read_failure_falls_back() {
         ]
     );
     assert!(!prob.explanation.contains("accuracy-weighted"));
+    assert!(!prob.accuracy_weighted);
 }

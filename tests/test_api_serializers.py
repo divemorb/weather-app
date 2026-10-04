@@ -77,8 +77,15 @@ def test_rain_probability_full():
     assert (body["models_rain_count"], body["models_total"]) == (1, 2)
     assert body["ensemble_pct"] == 50.0
     assert body["weights_used"] == {"radar": 0.5}
+    assert body["accuracy_weighted"] is False
     assert body["radar_age_seconds"] == 12
     assert body["models_age_seconds"] == 12
+
+
+def test_rain_probability_accuracy_weighted_passes_through():
+    rain = make_rain()
+    rain.accuracy_weighted = True
+    assert serialize_rain_probability(rain, None, None)["accuracy_weighted"] is True
 
 
 def test_rain_probability_none_meta_yields_none_ages():

@@ -120,4 +120,6 @@ pub struct RainProbability {
     pub ensemble_pct: Option<f64>,
     pub weights_used: Vec<(String, f64)>,
     pub explanation: String,
+    /// True only when the accuracy weights were applied (the gate passed).
+    pub accuracy_weighted: bool,
 }

@@ -270,6 +270,7 @@ async def test_get_rain_probability_accuracy_weights_applied(store, all_payloads
     prob = await agg.get_rain_probability()
     assert prob.probability_pct == pytest.approx(85.0)
     assert "accuracy-weighted" in prob.explanation
+    assert prob.accuracy_weighted is True
     # the equal-weight counts still feed the explanation
     assert "1 of 2 models" in prob.explanation
 
@@ -292,6 +293,7 @@ async def test_get_rain_probability_accuracy_gate_falls_back(
     # radar 100, models 50, ensemble 50 -> 0.5*100 + 0.3*50 + 0.2*50 = 75
     assert prob.probability_pct == pytest.approx(75.0)
     assert "accuracy-weighted" not in prob.explanation
+    assert prob.accuracy_weighted is False
 
 
 async def test_get_rain_probability_no_weights_when_disabled(store, all_payloads, frozen_now):
@@ -309,6 +311,7 @@ async def test_get_rain_probability_no_weights_when_disabled(store, all_payloads
     prob = await agg.get_rain_probability()
     assert prob.probability_pct == pytest.approx(75.0)
     assert "accuracy-weighted" not in prob.explanation
+    assert prob.accuracy_weighted is False
 
 
 async def test_get_rain_probability_accuracy_read_failure_falls_back(
@@ -332,6 +335,7 @@ async def test_get_rain_probability_accuracy_read_failure_falls_back(
     assert prob.probability_pct == pytest.approx(75.0)
     assert prob.weights_used == {"radar": 0.5, "models": 0.3, "ensemble": 0.2}
     assert "accuracy-weighted" not in prob.explanation
+    assert prob.accuracy_weighted is False
 
 
 async def test_get_radar_nowcast_parses_frames(store, all_payloads):

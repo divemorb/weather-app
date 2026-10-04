@@ -127,6 +127,7 @@ pub fn serialize_rain_probability(
         "models_total": rain.models_total,
         "ensemble_pct": rain.ensemble_pct,
         "weights_used": Value::Object(weights),
+        "accuracy_weighted": rain.accuracy_weighted,
         "radar_age_seconds": radar_meta.and_then(|m| m.age_seconds),
         "models_age_seconds": models_meta.and_then(|m| m.age_seconds),
     })

@@ -147,6 +147,8 @@ class RainProbability:
     ensemble_pct: float | None
     weights_used: dict[str, float]
     explanation: str
+    # True only when the accuracy weights were applied (the gate passed)
+    accuracy_weighted: bool = False
 
 
 # ---------------------------------------------------------------------------

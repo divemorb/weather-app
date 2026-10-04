@@ -75,7 +75,7 @@ GLANCE = ["rain-answer", "rain-when", "rain-probability"]
 RADAR = ["radar-steps", "radar-labels", "radar-caption", "radar-dry", "radar-max"]
 NOW_CHECKS = list(NOW)
 CHART = ["chart-svg", "chart-series", "chart-legend", "chart-y-labels", "chart-x-labels", "chart-unit", "chart-dry"]
-DETAILS = ["details-closed", "details-weights", "details-signals", "countdown-radar", "countdown-models",
+DETAILS = ["details-closed", "details-weights", "details-signals", "details-weighting", "countdown-radar", "countdown-models",
            "countdown-page", "source-rows", "source-errors", "accuracy-table", "details-fit", "details-compact"]
 KIOSK = [f"kiosk-{w}x{h}" for w, h in KIOSK_SIZES]
 KIOSK_CHART = [f"kiosk-chart-{w}x{h}" for w, h in KIOSK_SIZES]
@@ -98,7 +98,7 @@ def check_names(scenario: str, lang: str) -> list[str]:
                           "chart-unavailable", "now-station", "station-map"] + [n for n in DETAILS if n not in ("details-weights", "details-signals")])
     if scenario == "accuracy":
         return ["console", "requests", "location", "location-detail", "rain-probability", "details-closed",
-                "accuracy-table", "accuracy-head", "accuracy-note", "details-fit", "details-compact", "overflow-360"]
+                "details-weighting", "accuracy-table", "accuracy-head", "accuracy-note", "details-fit", "details-compact", "overflow-360"]
     if scenario == "fallback":
         return ["console", "now-station", "now-fallback"]
     if scenario == "unconfigured":
@@ -501,6 +501,9 @@ def check_details(pg: UIPage, sc: str, exp: dict, names: list[str], add):
         add("details-weights", expect_tokens(pg, "details-weights", WEIGHTS[lang]))
     if "details-signals" in names:
         add("details-signals", expect_tokens(pg, "details-signals", exp["signals"][lang]))
+    if "details-weighting" in names:  # only while the API says accuracy_weighted
+        add("details-weighting", expect_text(pg, "details-weighting", FIXED["signals.accuracy-weighted"][lang])
+            if exp.get("accuracy_weighted") else expect_hidden(pg, "details-weighting"))
     for job in ("radar", "models", "page"):
         hook = f"countdown-{job}"
         if hook in names:

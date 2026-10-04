@@ -63,11 +63,14 @@ The serializers live in `app/api_serializers.py` (pure functions, unit-tested in
   "radar_available": true, "radar_raining": true,
   "models_rain_count": 1, "models_total": 2, "ensemble_pct": 50.0,
   "weights_used": {"radar": 0.5, "models": 0.3, "ensemble": 0.2},
+  "accuracy_weighted": false,
   "radar_age_seconds": 12, "models_age_seconds": 12
 }
 ```
 
 `weights_used` is `{}` and `probability_pct` is `0.0` when no signal is available yet (see [ARCHITECTURE.md](ARCHITECTURE.md) — "How the rain probability is calculated").
+
+`accuracy_weighted` is `true` only when the model signal was weighted by each model's accuracy: `USE_ACCURACY_WEIGHTS` is on and every voting model has enough compared hours (see [ARCHITECTURE.md](ARCHITECTURE.md) — "Optional accuracy weighting"). The explanation then ends its model part with ", accuracy-weighted".
 
 **`GET /api/radar/next-hour`** — the 60-minute local-rain bar (12 x 5-min).
 

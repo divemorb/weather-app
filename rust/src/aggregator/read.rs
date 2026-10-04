@@ -192,6 +192,7 @@ impl Aggregator {
             ensemble_pct: evote.probability_pct.map(|p| py_round(p, 1)),
             weights_used,
             explanation,
+            accuracy_weighted,
         })
     }
 

@@ -44,6 +44,9 @@ FIXED = {
     "accuracy.no-rain": {"en": "No rain measured in this window yet, so only false alarms show so far.",
                          "de": "In diesem Zeitraum wurde noch kein Regen gemessen, daher sind bisher nur "
                                "Fehlalarme sichtbar."},
+    # shown in Details only while the accuracy weights are applied (accuracy_weighted)
+    "signals.accuracy-weighted": {"en": "Models weighted by their hit rate",
+                                  "de": "Modelle nach ihrer Trefferquote gewichtet"},
 }
 
 # The radar strip's caption with the radius from /api/config (the test config: radar_radius_km 1.0).
@@ -100,6 +103,7 @@ SCENARIO = {
     },
     "accuracy": {
         "location": ["Berlin"], "location_detail": ["52.520", "13.405", TZ], "probability": {"en": "78%", "de": "78 %"},
+        "accuracy_weighted": True,
         # sorted by event accuracy, best first; (model, percent en, percent de, MAE en, MAE de)
         "accuracy": [
             ("icon_d2", "83%", "83 %", "0.14 mm", "0,14 mm"),

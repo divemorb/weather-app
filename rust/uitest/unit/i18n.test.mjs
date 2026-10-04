@@ -59,6 +59,7 @@ const FIXED = {
   "accuracy.none": ["No data yet — observations are compared hourly.",
                     "Noch keine Daten – Messungen werden stündlich verglichen."],
   "signals.models": ["{n} of {total}", "{n} von {total}"],
+  "signals.accuracy-weighted": ["Models weighted by their hit rate", "Modelle nach ihrer Trefferquote gewichtet"],
   "age.na": ["n/a", "k. A."],
 };
 

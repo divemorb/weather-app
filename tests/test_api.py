@@ -108,6 +108,7 @@ def test_api_rain_probability_full(client):
     assert (body["models_rain_count"], body["models_total"]) == (1, 2)
     assert body["ensemble_pct"] == 50.0
     assert body["weights_used"]["radar"] == pytest.approx(0.5)
+    assert body["accuracy_weighted"] is False
     assert "Radar: yes" in body["explanation"]
     # per-signal data age is attached
     assert body["radar_age_seconds"] == 12

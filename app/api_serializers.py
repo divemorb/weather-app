@@ -85,6 +85,7 @@ def serialize_rain_probability(
         "models_total": rain.models_total,
         "ensemble_pct": rain.ensemble_pct,
         "weights_used": rain.weights_used,
+        "accuracy_weighted": rain.accuracy_weighted,
         "radar_age_seconds": radar_meta.get("age_seconds") if radar_meta else None,
         "models_age_seconds": models_meta.get("age_seconds") if models_meta else None,
     }
