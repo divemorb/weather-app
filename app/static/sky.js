@@ -72,7 +72,8 @@ export function initSky() {
     el.style.animationDuration = `${rand(1.3, 2.4)}s`;
     el.style.animationDelay = `${rand(-2.4, 0)}s`;
   });
-  /* Hail: small stones, fast. */
+  /* Hail: small stones, fast; the duration spans the whole fall-and-bounce
+   * loop (sky-hail), the negative delay puts every stone mid-flight. */
   const hail = document.getElementById("sky-hail");
   scatter(hail, 28, (el) => {
     const size = rand(9, 13);
@@ -80,7 +81,7 @@ export function initSky() {
     el.style.left = `${rand(0, 99.5)}%`;
     el.style.width = `${size}px`;
     el.style.height = `${size}px`;
-    el.style.animationDuration = `${rand(0.7, 1)}s`;
-    el.style.animationDelay = `${rand(-1, 0)}s`;
+    el.style.animationDuration = `${rand(1.5, 2.1)}s`;
+    el.style.animationDelay = `${rand(-2.1, 0)}s`;
   });
 }

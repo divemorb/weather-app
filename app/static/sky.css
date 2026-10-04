@@ -202,6 +202,11 @@ html[data-scene="thunderstorm"] .sky-lightning { display: block; }
 .cloud::before { width: 55%; height: 190%; top: -115%; left: 12%; }
 .cloud::after { width: 42%; height: 150%; top: -85%; right: 14%; }
 
+/* The thunderstorm's clouds are heavy and dark (the ::before/::after
+ * bulges inherit the background). */
+html[data-scene="thunderstorm"] .sky { --cloud: #8e9cb0; }
+:root[data-theme="dark"] html[data-scene="thunderstorm"] .sky { --cloud: #7e8ca1; }
+
 .cloud.c1 { --cs: 1; --dx: 46px; top: 12%; left: 6%; }
 .cloud.c2 { --cs: 1.25; --dx: 38px; top: 30%; left: 52%; }
 .cloud.c3 { --cs: 0.85; --dx: 54px; top: 5%; left: 40%; }
@@ -321,6 +326,20 @@ html.kiosk .attr { padding: 6px 12px; }
   @keyframes sky-fog { to { background-position-x: 640px; } }
   @keyframes sky-streak { from { transform: translateX(-40vw); } to { transform: translateX(110vw); } }
   @keyframes sky-fall { to { transform: translateY(175vh); } }
+  /* Hail: a fast fall, then the pellet bounces on the bottom edge of the
+   * layer (two smaller hops) and rests until the loop restarts it up top.
+   * The ground is where the stone's bottom meets the layer's bottom
+   * (top: -12vh plus the stone's height, about 110 vh of travel). */
+  @keyframes sky-hail {
+    0% { transform: translateY(0); }
+    55% { transform: translateY(110vh); }
+    62% { transform: translateY(101vh); }
+    69% { transform: translateY(110vh); }
+    76% { transform: translateY(104.5vh); }
+    82% { transform: translateY(110vh); }
+    88% { transform: translateY(107vh); }
+    93%, 100% { transform: translateY(110vh); }
+  }
   @keyframes sky-snow {
     0% { transform: translate(0, 0); }
     25% { transform: translate(18px, 31vh); }
@@ -328,18 +347,18 @@ html.kiosk .attr { padding: 6px 12px; }
     75% { transform: translate(16px, 92vh); }
     100% { transform: translate(0, 123vh); }
   }
+  /* One strike per 5 s cycle — a quick double flicker, then dark again, so
+   * the flashes are at least 3 s apart (WCAG 2.3.1). */
   @keyframes sky-flash {
-    0%, 37.9%, 40.4%, 67.9%, 71.4%, 100% { opacity: 0; }
-    38.4% { opacity: 0.5; }
-    39% { opacity: 0.1; }
-    39.6% { opacity: 0.42; }
-    68.4% { opacity: 0.38; }
-    69.4% { opacity: 0.08; }
+    0%, 36%, 42.5%, 100% { opacity: 0; }
+    37% { opacity: 0.5; }
+    38.2% { opacity: 0.12; }
+    39.4% { opacity: 0.42; }
   }
   @keyframes sky-bolt-flash {
-    0%, 37.9%, 41%, 100% { opacity: 0; }
-    38.4% { opacity: 0.95; }
-    40.4% { opacity: 0.55; }
+    0%, 36%, 43.5%, 100% { opacity: 0; }
+    37% { opacity: 0.95; }
+    40% { opacity: 0.5; }
   }
 
   .sky-rays { animation: sky-spin 15s linear infinite; }
@@ -361,7 +380,10 @@ html.kiosk .attr { padding: 6px 12px; }
   .streak { animation: sky-streak 3s linear infinite; }
   .drop { animation: sky-fall 0.8s linear infinite; }
   .flake { animation: sky-snow 1.8s linear infinite; }
-  .hailstone { animation: sky-fall 0.85s linear infinite; }
+  .hailstone { animation: sky-hail 1.8s linear infinite; }
+  /* Wind: the few clouds race across the sky instead of drifting. */
+  html[data-scene="wind"] .cloud.c1 { --dx: 170px; animation-duration: 7s; animation-delay: -2s; }
+  html[data-scene="wind"] .cloud.c3 { --dx: 140px; animation-duration: 9s; animation-delay: -5s; }
   .sky-lightning { animation: sky-flash 5s linear -2.5s infinite; }
   .sky-bolt { animation: sky-bolt-flash 5s linear -2.5s infinite; }
 }
