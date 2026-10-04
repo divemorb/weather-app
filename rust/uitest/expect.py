@@ -152,7 +152,7 @@ KIOSK_FONT_SHARE = {"rain-answer": 0.06, "rain-probability": 0.12, "now-temp": 0
 KIOSK_RADAR_SHARE = 0.08  # the radar strip's height (1280x800: 64 px)
 KIOSK_DRY_CHART_MAX = 0.2  # ... and on a dry day the chart card is just its line (1280x800: at most 160 px high)
 CONFIG_RETRY_S = 20  # a failed /api/config at startup: the page has retried and shows the forecast by then
-BUDGET_BYTES = 150 * 1024
+BUDGET_BYTES = 300 * 1024  # the user, 2026-10-04 (was 150 KB); up to 512 KB if the glass effect needs it
 
 # --- sky steps A2/A3 (qwen/sky/00_plan.md) ---
 # The tiles per page width (live scenario): CSS grid columns of main#dashboard. From
