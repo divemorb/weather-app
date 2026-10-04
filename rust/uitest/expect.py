@@ -169,23 +169,32 @@ ICONS = ["clear-day", "clear-night", "partly-cloudy-day", "partly-cloudy-night",
 SCENES = ICONS + ["heavy-rain", "none"]
 HEAVY_MM = 0.2  # radar mm in the first 5-minute step from which rain is heavy-rain (about 2.4 mm/h)
 # Faked /api/now icon and radar (None: dry; {step: mm}; "unavailable") -> the expected
-# data-scene. Rain on the radar right now (step 0) overrides a dry icon; a precipitation
-# icon stays (radar can't tell snow from rain); only step 0 counts.
+# data-scene. The radar at the location decides about precipitation right now (its first
+# 5-minute step): rain there overrides a dry icon; a dry radar turns the station's rain,
+# sleet, snow or hail into cloudy (rule B, the user's decision 2026-10-04); a thunderstorm
+# stays, and so does every icon while the radar is unavailable.
+WET_ICONS = ["rain", "sleet", "snow", "hail"]
 SCENE_CASES = {
-    **{icon: (icon, None, icon) for icon in ICONS},
+    **{icon: (icon, None, "cloudy" if icon in WET_ICONS else icon) for icon in ICONS},
     "radar-rain": ("clear-day", {0: 0.1}, "rain"),
     "radar-heavy": ("cloudy", {0: 0.3}, "heavy-rain"),
     "radar-rain-on-rain": ("rain", {0: 0.5}, "heavy-rain"),
     "radar-later": ("cloudy", {3: 0.5}, "cloudy"),
     "radar-snow": ("snow", {0: 0.5}, "snow"),
+    "radar-sleet": ("sleet", {0: 0.1}, "sleet"),
+    "radar-hail": ("hail", {0: 0.1}, "hail"),
     "radar-thunderstorm": ("thunderstorm", {0: 0.1}, "thunderstorm"),
     "radar-unavailable": ("fog", "unavailable", "fog"),
+    "rain-radar-unavailable": ("rain", "unavailable", "rain"),
     "no-icon": (None, None, "none"),
     "no-icon-radar-rain": (None, {0: 0.1}, "rain"),
     "no-observation": ("no-observation", None, "none"),
 }
 # How each scene is shown for the motion and contrast checks: a SCENE_CASES entry.
-SCENE_SOURCE = {**{icon: icon for icon in ICONS}, "heavy-rain": "radar-heavy", "none": "no-icon"}
+SCENE_SOURCE = {**{icon: icon for icon in ICONS if icon not in WET_ICONS}, "rain": "radar-rain-light",
+                "sleet": "radar-sleet", "snow": "radar-snow", "hail": "radar-hail", "heavy-rain": "radar-heavy",
+                "none": "no-icon"}
+SCENE_CASES["radar-rain-light"] = ("rain", {0: 0.1}, "rain")
 MOTION_MIN = 0.002  # share of the sky's pixels that change within MOTION_GAP_S (1280x900: 2300 px)
 MOTION_GAP_S = 0.6
 # Pixel contrast: each text against what is drawn behind it, at CONTRAST_MOMENTS moments
@@ -195,4 +204,56 @@ CONTRAST_MOMENTS = 3
 CONTRAST_GAP_S = 0.7
 CONTRAST_PCT = 0.05
 # The views the per-scene contrast runs on: (width, height, query).
-CONTRAST_VIEWS = [(1280, 900, ""), (360, 740, ""), (1280, 800, "?kiosk")]
+# "" is the default (big) view, "?detailed" the detailed one; the kiosk is the big view locked.
+CONTRAST_VIEWS = [(1280, 900, ""), (390, 844, ""), (1280, 900, "?detailed")]
+
+# --- why the sky looks the way it does (step B1): [data-test=sky-reason] ---
+SCENE_LABEL = {  # mid-sentence, (en, de)
+    "clear-day": ("clear", "klar"), "clear-night": ("clear", "klar"),
+    "partly-cloudy-day": ("partly cloudy", "teilweise bewölkt"),
+    "partly-cloudy-night": ("partly cloudy", "teilweise bewölkt"),
+    "cloudy": ("cloudy", "bewölkt"), "fog": ("fog", "Nebel"), "wind": ("windy", "windig"),
+    "rain": ("rain", "Regen"), "heavy-rain": ("heavy rain", "starker Regen"), "sleet": ("sleet", "Schneeregen"),
+    "snow": ("snow", "Schnee"), "hail": ("hail", "Hagel"), "thunderstorm": ("thunderstorm", "Gewitter"),
+}
+REASON_TEXT = {
+    "station": {"en": "Sky: {scene}, reported by station {name} ({km} away)",
+                "de": "Himmel: {scene}, gemeldet von Station {name} ({km} entfernt)"},
+    "nearest": {"en": "Sky: {scene}, reported by the nearest weather station",
+                "de": "Himmel: {scene}, gemeldet von der nächsten Wetterstation"},
+    "radar": {"en": "Sky: {scene} here, seen by the radar",
+              "de": "Himmel: {scene} hier, laut Radar"},
+    "radar-dry": {"en": "Sky: cloudy — dry here according to the radar; station {name} ({km} away) reports {station}",
+                  "de": "Himmel: bewölkt – hier laut Radar trocken; Station {name} ({km} entfernt) meldet {station}"},
+    "station-radar-dry": {"en": "Sky: {scene}, reported by station {name} ({km} away) — dry here according to the radar",
+                          "de": "Himmel: {scene}, gemeldet von Station {name} ({km} entfernt) – hier laut Radar trocken"},
+}
+REASON_STATION = ("Berlin-Tempelhof", {"en": "5.8 km", "de": "5,8 km"})  # the live recording's station
+# case -> (SCENE_CASES entry, text form or None (no line), station listed in /api/now)
+REASON_CASES = {
+    "station": ("cloudy", "station", True),
+    "station-unlisted": ("cloudy", "nearest", False),
+    "radar": ("radar-rain", "radar", True),
+    "radar-heavy": ("radar-heavy", "radar", True),
+    "radar-dry": ("rain", "radar-dry", True),
+    "radar-dry-snow": ("snow", "radar-dry", True),
+    "thunderstorm-radar-dry": ("thunderstorm", "station-radar-dry", True),
+    "snow-radar-wet": ("radar-snow", "station", True),
+    "radar-unavailable": ("rain-radar-unavailable", "station", True),
+    "radar-only": ("no-observation-radar-rain", "radar", False),
+    "none": ("no-icon", None, True),
+}
+SCENE_CASES["no-observation-radar-rain"] = ("no-observation", {0: 0.1}, "rain")
+
+# --- views (step V1): the big view (the former kiosk look) is the default ---
+VIEW_DESKTOP = (1280, 800)
+VIEW_PHONE = (390, 844)
+
+# --- glass (step V2): the moving sky shows through the tiles ---
+GLASS_VIEW = (1280, 800)
+GLASS_MIN_RATIO = 0.25  # changed share of pixels inside the tiles, relative to outside them
+GLASS_GAP_S = 2.0  # time between the two screenshots
+# fog is a soft, low-contrast haze: behind any glass that keeps text readable its drift
+# stays below a visible change, so it is left out (its motion and contrast are checked)
+GLASS_SCENES = [s for s in SCENES if s not in ("none", "fog")]
+GLASS_DELTA = 12  # a visible change: at least this much (of 255) in one colour channel

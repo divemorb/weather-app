@@ -62,7 +62,8 @@ from expect import (  # noqa: E402
     ACCURACY_HEAD, ANSWER, ATTRIBUTION_LINKS, BUDGET_BYTES, CONFIG_RETRY_S, CONTRAST_GAP_S, CONTRAST_MOMENTS,
     CONTRAST_PCT, CONTRAST_VIEWS, FIXED, KIOSK_CHART_LABEL_PX, KIOSK_CHART_MIN,
     KIOSK_CHART_MIN_W, KIOSK_DRY_CHART_MAX, LAYOUT_COLUMNS, LAYOUT_MIN_TRACK, LAYOUT_SPACE, LAYOUT_WIDE,
-    MAP_BEARING_TOLERANCE, MAP_MARKS, MAP_RADIUS_KM, MOTION_GAP_S, MOTION_MIN, NOW_STATION,
+    MAP_BEARING_TOLERANCE, MAP_MARKS, MAP_RADIUS_KM, MOTION_GAP_S, MOTION_MIN, NOW_STATION, GLASS_MIN_RATIO,
+    GLASS_DELTA, GLASS_GAP_S, GLASS_SCENES, GLASS_VIEW, REASON_CASES, REASON_STATION, REASON_TEXT, SCENE_LABEL, VIEW_DESKTOP, VIEW_PHONE,
     OBS_STATIONS, KIOSK_FILL, KIOSK_FONT_SHARE, KIOSK_MIN_FONT, KIOSK_RADAR_SHARE,
     KIOSK_SIZES, LOCALES, MODEL_LABELS, NOW, RADAR_CAPTION, SCENARIO, SCENE_CASES, SCENE_SOURCE, SCENES,
     SOURCE_KIND, SOURCES, TZ, WEIGHTS, WHEN, WIZARD_DETAIL, WIZARD_LABEL)
@@ -89,7 +90,10 @@ REFRESH = ["refresh-render-error", "refresh-config-retry"]
 STATIONS = ["now-station", "now-fallback", "observation-stations", "station-map"]
 LAYOUT = [f"layout-{w}" for w in LAYOUT_COLUMNS]
 SKY = (["sky-layer"] + [f"scene-{c}" for c in SCENE_CASES] + [f"motion-{s}" for s in SCENES if s != "none"]
-       + [f"still-{s}" for s in SCENES] + [f"contrast-{s}-{t}" for s in SCENES for t in ("light", "dark")])
+       + [f"still-{s}" for s in SCENES] + [f"contrast-{s}-{t}" for s in SCENES for t in ("light", "dark")]
+       + [f"glass-{s}" for s in GLASS_SCENES])
+REASON = [f"reason-{c}" for c in REASON_CASES]
+VIEW = ["view-default", "view-toggle", "view-query", "view-phone"]
 
 
 def check_names(scenario: str, lang: str) -> list[str]:
@@ -97,7 +101,7 @@ def check_names(scenario: str, lang: str) -> list[str]:
         names = COMMON + GLANCE + RADAR + NOW_CHECKS + CHART + DETAILS + KIOSK + KIOSK_FILL_CHECKS + STATIONS
         if scenario == "live":
             names = [n for n in names if not n.startswith("chart-") or n == "chart-dry"]
-            names += ["theme-toggle"] if lang == "en" else []
+            names += REASON + (["theme-toggle"] + VIEW if lang == "en" else [])
         else:
             names += KIOSK_CHART + (["reduced-motion"] + REFRESH if lang == "en" else [])
         return names
@@ -220,7 +224,8 @@ CLOCK = """(() => {
 
 class UIPage:
     def __init__(self, browser, base, sc_now, lang, width=1280, height=900, scheme="light",
-                 reduced=False, query="", fakes=None):
+                 reduced=False, query="?detailed", fakes=None):
+        """query: "?detailed" (the content checks), "" (the default view) or "?kiosk"."""
         self.lang, self.locale, self.base = lang, LOCALES[lang], base
         self.p = browser.new_page()
         mobile = width < 600
@@ -811,6 +816,10 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
             done(pg)
     if "theme-toggle" in names:
         add("theme-toggle", theme_toggle(browser, base, sc, lang, done))
+    if any(n.startswith("reason-") for n in names):
+        run_reasons(browser, base, sc, lang, add)
+    if "view-default" in names:
+        run_views(browser, base, sc, lang, add)
     for w in LAYOUT_COLUMNS:
         if f"layout-{w}" in names:
             pg = UIPage(browser, base, sc["now"], lang, width=w, height=740 if w < 600 else 900)
@@ -892,7 +901,7 @@ def _get_json(url: str):
         return json.loads(r.read())
 
 
-def scene_fakes(case: str, now_body: dict, radar_body: dict) -> dict:
+def scene_fakes(case: str, now_body: dict, radar_body: dict, station: bool = True) -> dict:
     """/api/now and /api/radar/next-hour for a SCENE_CASES entry (the app's own
     answers with the icon and the radar steps replaced)."""
     icon, radar, _ = SCENE_CASES[case]
@@ -901,6 +910,8 @@ def scene_fakes(case: str, now_body: dict, radar_body: dict) -> dict:
     else:
         now = json.loads(json.dumps(now_body))
         now["conditions"]["icon"] = icon
+        if not station:
+            now["conditions"]["station"] = None
     rb = json.loads(json.dumps(radar_body))
     if radar == "unavailable":
         rb["available"], rb["steps"] = False, []
@@ -982,6 +993,9 @@ def run_sky(browser, base, sc, lang, add, done, shot):
         pg = UIPage(browser, base, sc["now"], lang, reduced=True, fakes=fakes)
         add(f"still-{scene}", motion_problems(pg, scene, moving=False))
         done(pg)
+        if scene in GLASS_SCENES:
+            add(f"glass-{scene}", [p for theme in ("light", "dark")
+                                   for p in glass_problems(browser, base, sc, lang, scene, theme, fakes)])
         for theme in ("light", "dark"):
             problems = []
             for w, h, query in CONTRAST_VIEWS:
@@ -997,6 +1011,122 @@ def run_sky(browser, base, sc, lang, add, done, shot):
                         time.sleep(0.4)
                 done(pg)
             add(f"contrast-{scene}-{theme}", problems)
+
+
+def glass_problems(browser, base, sc, lang, scene, theme, fakes) -> list[str]:
+    """The default view at GLASS_VIEW, text made transparent: the moving sky changes
+    the pixels inside the tiles at least GLASS_MIN_RATIO as much as outside them."""
+    w, h = GLASS_VIEW
+    pg = UIPage(browser, base, sc["now"], lang, width=w, height=h, scheme=theme, query="", fakes=fakes)
+    try:
+        got = scene_of(pg)
+        if got != scene:
+            return [f"{theme}: data-scene={got!r}, expected {scene!r}"]
+        t = pg.js("__ui.tiles()")
+        rects = [{k: x[k] for k in ("x", "y", "w", "h")} for x in (t["list"] if t else []) if x["h"] > 0]
+        if not rects:
+            return [f"{theme}: no visible tiles in main#dashboard"]
+        pg.js("__ui.hideText(true)")
+        pg.frame()
+        a = pg.shot_b64()
+        time.sleep(GLASS_GAP_S)
+        b = pg.shot_b64()
+        r = pg.js(f"__ui.diffIn({json.dumps(a)}, {json.dumps(b)}, {json.dumps(rects)}, {GLASS_DELTA})")
+        pg.js("__ui.hideText(false)")
+        if not r or r["outside"] == 0:
+            return [f"{theme}: the sky doesn't change visibly outside the tiles within {GLASS_GAP_S} s"]
+        if r["inside"] < GLASS_MIN_RATIO * r["outside"]:
+            return [f"{theme} {w}x{h}: inside the tiles {r['inside']:.2%} of the pixels change visibly in {GLASS_GAP_S} s, "
+                    f"outside {r['outside']:.2%}: at least {GLASS_MIN_RATIO:.0%} of that must show through the "
+                    f"tiles ({', '.join('#' + x['id'] for x in t['list'])})"]
+        return []
+    finally:
+        pg.close()
+
+
+def reason_text(case: str, lang: str) -> str | None:
+    src, form, _ = REASON_CASES[case]
+    if form is None:
+        return None
+    icon, _, scene = SCENE_CASES[src]
+    i = 0 if lang == "en" else 1
+    name, km = REASON_STATION
+    return REASON_TEXT[form][lang].format(scene=SCENE_LABEL[scene][i], name=name, km=km[lang],
+                                          station=SCENE_LABEL[icon][i] if icon in SCENE_LABEL else "")
+
+
+def run_reasons(browser, base, sc, lang, add):
+    """[data-test=sky-reason]: what the sky shows and which source decided it (REASON_CASES)."""
+    now_body = _get_json(base + "/api/now")
+    radar_body = _get_json(base + "/api/radar/next-hour")
+    for case, (src, form, listed) in REASON_CASES.items():
+        pg = UIPage(browser, base, sc["now"], lang, fakes=scene_fakes(src, now_body, radar_body, station=listed))
+        want = reason_text(case, lang)
+        problems = expect_hidden(pg, "sky-reason") if want is None else expect_text(pg, "sky-reason", want)
+        got = scene_of(pg)
+        if got != SCENE_CASES[src][2]:
+            problems.append(f"data-scene={got!r}, expected {SCENE_CASES[src][2]!r}")
+        add(f"reason-{case}", problems)
+        pg.close()
+
+
+def view_of(pg: UIPage) -> str | None:
+    return pg.js("document.documentElement.getAttribute('data-view')")
+
+
+def run_views(browser, base, sc, lang, add):
+    """The big view (the former kiosk look) by default; [data-test=view-toggle] switches to
+    the detailed view and back, remembered per device; ?detailed and ?kiosk force a view
+    (?kiosk is the locked wall display: no view or location button)."""
+    w, h = VIEW_DESKTOP
+    pg = UIPage(browser, base, sc["now"], lang, width=w, height=h, query="")
+    problems = [] if view_of(pg) == "big" else [f'<html data-view={view_of(pg)!r}>, expected "big" by default']
+    problems += [f"default view: {p}" for hook in ("view-toggle", "location-button", "rain-answer", "now-temp")
+                 for p in visible_one(pg, hook)[1]]
+    if any(e["visible"] for e in pg.ui("details")):
+        problems.append("default view: [data-test=details] is visible; the big view leaves the details out")
+    info = pg.js("__ui.page()")
+    if info["sh"] > h + 1 or info["sw"] > w + 1:
+        problems.append(f"default view at {w}x{h}: the page is {info['sw']}x{info['sh']} px, it must fit one screen")
+    add("view-default", problems)
+    problems = []
+    for step, want in (("first click", "detailed"), ("after reload", "detailed"), ("second click", "big"),
+                       ("after reload", "big")):
+        if step.startswith("after"):
+            pg.reload()
+        else:
+            problems += pg.click("view-toggle")
+        got = view_of(pg)
+        if got != want:
+            problems.append(f"{step}: data-view={got!r}, expected {want!r}")
+        details = any(e["visible"] for e in pg.ui("details"))
+        if details != (want == "detailed"):
+            problems.append(f"{step}: [data-test=details] {'visible' if details else 'hidden'} in the {want} view")
+    add("view-toggle", problems)
+    pg.close()
+    pg = UIPage(browser, base, sc["now"], lang, width=w, height=h)
+    problems = [] if view_of(pg) == "detailed" else [f"?detailed: data-view={view_of(pg)!r}, expected 'detailed'"]
+    pg.close()
+    pg = UIPage(browser, base, sc["now"], lang, width=w, height=h, query="")
+    problems += pg.click("view-toggle")  # stores the detailed view; ?kiosk must still be big
+    pg.p.goto(base + "/?kiosk")
+    pg.settle()
+    if view_of(pg) != "big":
+        problems.append(f"?kiosk after choosing the detailed view: data-view={view_of(pg)!r}, expected 'big'")
+    for hook in ("view-toggle", "location-button"):
+        problems += [f"?kiosk: {p}" for p in expect_hidden(pg, hook)]
+    add("view-query", problems)
+    pg.close()
+    w, h = VIEW_PHONE
+    pg = UIPage(browser, base, sc["now"], lang, width=w, height=h, query="")
+    problems = [] if view_of(pg) == "big" else [f"phone: data-view={view_of(pg)!r}, expected 'big'"]
+    problems += [f"phone: {p}" for hook in ("view-toggle", "rain-answer", "rain-probability", "now-temp")
+                 for p in visible_one(pg, hook)[1]]
+    info = pg.js("__ui.page()")
+    if info["sw"] > w + 1:
+        problems.append(f"phone: the page is {info['sw']} px wide at {w} px: {pg.js('__ui.overflowing()')}")
+    add("view-phone", problems)
+    pg.close()
 
 
 def now_fallback_problems(pg: UIPage) -> list[str]:

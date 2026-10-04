@@ -368,6 +368,24 @@
     return n / (p.width * p.height);
   }
 
+  // The share of pixels that change visibly (by at least `delta` of 255 in a channel)
+  // between two screenshots, inside the given rects (CSS px, scale 1) and outside them.
+  async function diffIn(a, b, rects, delta) {
+    const [p, q] = await Promise.all([decode(a), decode(b)]);
+    if (p.width !== q.width || p.height !== q.height) return null;
+    const inRect = (x, y) => rects.some((r) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+    let inN = 0, inC = 0, outN = 0, outC = 0;
+    for (let y = 0; y < p.height; y++) {
+      for (let x = 0; x < p.width; x++) {
+        const i = (y * p.width + x) * 4;
+        const changed = Math.max(Math.abs(p.data[i] - q.data[i]), Math.abs(p.data[i + 1] - q.data[i + 1]),
+          Math.abs(p.data[i + 2] - q.data[i + 2])) >= delta;
+        if (inRect(x, y)) { inN++; if (changed) inC++; } else { outN++; if (changed) outC++; }
+      }
+    }
+    return { inside: inN ? inC / inN : 0, outside: outN ? outC / outN : 0 };
+  }
+
   window.__ui = { info, page, overflowing, controls, animations, openDetails, icons, textColor, clipped,
-    sticksOut, summaryGaps, tiles, sky, onlySky, hideText, textItems, pixelContrast, diff };
+    sticksOut, summaryGaps, tiles, sky, onlySky, hideText, textItems, pixelContrast, diff, diffIn };
 })();
