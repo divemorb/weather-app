@@ -14,8 +14,9 @@
  */
 import { pickLang, t } from "./i18n.js";
 import { getJSON } from "./api.js";
-import { CONFIG_RETRY_MS, locationText, locationDetail } from "./format.js";
+import { CONFIG_RETRY_MS, locationText, locationDetail, scene } from "./format.js";
 import { renderGlance } from "./glance.js";
+import { initSky } from "./sky.js";
 import { initNow, renderNow } from "./now.js";
 import { renderChart } from "./chart.js";
 import { initDetails, renderDetails, scheduleFrom } from "./details.js";
@@ -59,6 +60,18 @@ function applyTheme() {
 }
 applyTheme();
 mq.addEventListener("change", applyTheme);
+
+/* ---- the sky: one fixed layer behind the tiles. The scene name goes on
+ * <html data-scene>; scene() (format.js) maps the Now observation and the
+ * radar's first step to it. It starts "none" (plain background) and follows
+ * every refresh; the particles are built once by initSky(). ---- */
+initSky();
+let skyNow = null;
+let skyRadar = null;
+function setSkyScene() {
+  document.documentElement.dataset.scene = scene(skyNow, skyRadar);
+}
+setSkyScene();
 
 /* Kiosk view (?kiosk): the wall tablet gets one screen of big type; the
  * class goes on <html>, where kiosk.css and chart.js look for it. */
@@ -138,6 +151,9 @@ async function refresh() {
   } catch (e) {
     console.warn(e);
   }
+  if (data.now != null) skyNow = data.now;
+  if (data.radar != null) skyRadar = data.radar;
+  setSkyScene();
   renderPart("glance", () => renderGlance(data.rain, data.radar, lang, locale, tz, cfg && cfg.radar_radius_km));
   renderPart("now", () => renderNow(data.now, lang, locale, tz));
   renderPart("chart", () => renderChart(chartEls, data.models, lang, locale, tz));

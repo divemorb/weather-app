@@ -1,0 +1,365 @@
+/* sky.css — the animated sky (step A3b).
+ *
+ * One fixed layer ([data-test=sky], the first child of <body>) paints
+ * the current weather behind the tiles, like a weather app's backdrop.
+ * app.js names the scene on <html data-scene> (format.js scene(), from
+ * the /api/now icon and the radar); this sheet shows the scene's
+ * gradient and its moving parts — sun, moon, stars, clouds, fog, wind
+ * streaks, rain, snow, hail, lightning. sky.js fills the particle
+ * containers (stars, streaks, drops, flakes, hailstones).
+ *
+ * body is transparent, so the fixed layer (z-index -1) shows between
+ * html's background and the tiles; html keeps the opaque page colour
+ * (the theme checks read the background from body up to html). The
+ * header and the footer sit directly on the sky, so they keep a card
+ * background and their text always reads.
+ *
+ * All motion lives under prefers-reduced-motion: no-preference; with
+ * reduced motion every scene is a still picture (the base positions).
+ */
+
+body { background: transparent; }
+
+/* ---- the layer ------------------------------------------------------------ */
+
+.sky {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: var(--bg); /* scene none: the plain page background */
+}
+
+.sky > * { position: absolute; display: none; }
+
+/* ---- the skies: one gradient per scene, per theme -------------------------- */
+
+:root {
+  --sky-cd1: #6db3ec; --sky-cd2: #d8ecfd; /* clear day */
+  --sky-cn1: #1d2c4f; --sky-cn2: #4a5f85; /* clear night */
+  --sky-cl1: #8fa5ba; --sky-cl2: #cfdbe5; /* cloudy */
+  --sky-fg1: #aebcc9; --sky-fg2: #e2e9ef; /* fog */
+  --sky-wi1: #7fb2de; --sky-wi2: #cfe3f4; /* wind */
+  --sky-ra1: #4d5d70; --sky-ra2: #8ea1b3; /* rain */
+  --sky-hr1: #39465a; --sky-hr2: #748ba0; /* heavy rain */
+  --sky-sl1: #5c6d80; --sky-sl2: #a2b2c2; /* sleet */
+  --sky-sn1: #9fb2c6; --sky-sn2: #dfe8f1; /* snow */
+  --sky-ha1: #66788c; --sky-ha2: #a7b8c9; /* hail */
+  --sky-ts1: #232e40; --sky-ts2: #52657d; /* thunderstorm */
+  --cloud: #ffffff;
+  --star: #ffffff;
+  --sun: #ffd75e;
+  --sun-glow: rgb(255 205 90 / 0.4);
+  --moon: #e9eef8;
+  --moon-glow: rgb(214 228 250 / 0.3);
+  --drop: rgb(226 240 255 / 0.55);
+  --flake: #ffffff;
+  --hailstone: #e6eef8;
+  --streak: rgb(255 255 255 / 0.5);
+  --fog: rgb(255 255 255 / 0.5);
+  --bolt: #fff6c9;
+}
+
+:root[data-theme="dark"] {
+  --sky-cd1: #4f9fe8; --sky-cd2: #b7dcf9;
+  --sky-cn1: #0c1425; --sky-cn2: #2c3d5c;
+  --sky-cl1: #46586c; --sky-cl2: #7c92a8;
+  --sky-fg1: #4c5a68; --sky-fg2: #8a99a8;
+  --sky-wi1: #4a80b4; --sky-wi2: #94b9dc;
+  --sky-ra1: #2c3949; --sky-ra2: #5f7488;
+  --sky-hr1: #1f2937; --sky-hr2: #4d6076;
+  --sky-sl1: #3a4858; --sky-sl2: #748899;
+  --sky-sn1: #64788c; --sky-sn2: #a2b5c8;
+  --sky-ha1: #3f4f61; --sky-ha2: #7a90a6;
+  --sky-ts1: #101823; --sky-ts2: #364a61;
+  --cloud: #d9e2ee;
+  --drop: rgb(205 228 255 / 0.5);
+  --streak: rgb(255 255 255 / 0.35);
+  --fog: rgb(230 238 248 / 0.4);
+  --hailstone: #cfdcee;
+}
+
+html[data-scene="clear-day"] .sky,
+html[data-scene="partly-cloudy-day"] .sky {
+  background: linear-gradient(180deg, var(--sky-cd1), var(--sky-cd2));
+}
+html[data-scene="clear-night"] .sky,
+html[data-scene="partly-cloudy-night"] .sky {
+  background: linear-gradient(180deg, var(--sky-cn1), var(--sky-cn2));
+}
+html[data-scene="cloudy"] .sky { background: linear-gradient(180deg, var(--sky-cl1), var(--sky-cl2)); }
+html[data-scene="fog"] .sky { background: linear-gradient(180deg, var(--sky-fg1), var(--sky-fg2)); }
+html[data-scene="wind"] .sky { background: linear-gradient(180deg, var(--sky-wi1), var(--sky-wi2)); }
+html[data-scene="rain"] .sky { background: linear-gradient(180deg, var(--sky-ra1), var(--sky-ra2)); }
+html[data-scene="heavy-rain"] .sky { background: linear-gradient(180deg, var(--sky-hr1), var(--sky-hr2)); }
+html[data-scene="sleet"] .sky { background: linear-gradient(180deg, var(--sky-sl1), var(--sky-sl2)); }
+html[data-scene="snow"] .sky { background: linear-gradient(180deg, var(--sky-sn1), var(--sky-sn2)); }
+html[data-scene="hail"] .sky { background: linear-gradient(180deg, var(--sky-ha1), var(--sky-ha2)); }
+html[data-scene="thunderstorm"] .sky { background: linear-gradient(180deg, var(--sky-ts1), var(--sky-ts2)); }
+
+/* ---- which parts each scene shows ------------------------------------------ */
+
+html[data-scene="clear-day"] .sky-sun,
+html[data-scene="partly-cloudy-day"] .sky-sun { display: block; }
+html[data-scene="clear-night"] .sky-stars,
+html[data-scene="clear-night"] .sky-moon,
+html[data-scene="partly-cloudy-night"] .sky-stars,
+html[data-scene="partly-cloudy-night"] .sky-moon { display: block; }
+html[data-scene="partly-cloudy-day"] .sky-clouds,
+html[data-scene="partly-cloudy-night"] .sky-clouds { display: block; }
+html[data-scene="cloudy"] .sky-clouds,
+html[data-scene="rain"] .sky-clouds,
+html[data-scene="heavy-rain"] .sky-clouds,
+html[data-scene="sleet"] .sky-clouds,
+html[data-scene="snow"] .sky-clouds,
+html[data-scene="hail"] .sky-clouds,
+html[data-scene="thunderstorm"] .sky-clouds { display: block; }
+/* three clouds partly cover the sky, all five hide it */
+html[data-scene="partly-cloudy-day"] .sky-clouds .cloud,
+html[data-scene="partly-cloudy-night"] .sky-clouds .cloud,
+html[data-scene="cloudy"] .sky-clouds .cloud,
+html[data-scene="rain"] .sky-clouds .cloud,
+html[data-scene="heavy-rain"] .sky-clouds .cloud,
+html[data-scene="sleet"] .sky-clouds .cloud,
+html[data-scene="snow"] .sky-clouds .cloud,
+html[data-scene="hail"] .sky-clouds .cloud,
+html[data-scene="thunderstorm"] .sky-clouds .cloud { display: block; }
+html[data-scene="partly-cloudy-day"] .sky-clouds .cloud.c4,
+html[data-scene="partly-cloudy-day"] .sky-clouds .cloud.c5,
+html[data-scene="partly-cloudy-night"] .sky-clouds .cloud.c4,
+html[data-scene="partly-cloudy-night"] .sky-clouds .cloud.c5 { display: none; }
+html[data-scene="wind"] .sky-streaks,
+html[data-scene="wind"] .sky-clouds { display: block; }
+html[data-scene="wind"] .sky-clouds .cloud.c1,
+html[data-scene="wind"] .sky-clouds .cloud.c3 { display: block; }
+html[data-scene="fog"] .sky-fog { display: block; }
+html[data-scene="rain"] .sky-rain,
+html[data-scene="heavy-rain"] .sky-rain,
+html[data-scene="sleet"] .sky-rain,
+html[data-scene="hail"] .sky-rain,
+html[data-scene="thunderstorm"] .sky-rain { display: block; }
+.sky-rain .drop-extra { display: none; }
+html[data-scene="heavy-rain"] .sky-rain .drop-extra { display: block; }
+html[data-scene="sleet"] .sky-snow,
+html[data-scene="snow"] .sky-snow { display: block; }
+html[data-scene="hail"] .sky-hail { display: block; }
+html[data-scene="thunderstorm"] .sky-lightning { display: block; }
+
+/* ---- the sun and the moon --------------------------------------------------- */
+
+.sky-sun { top: 9%; right: 11%; width: 340px; height: 340px; }
+
+/* The rays: a ring of wedges (the opaque core covers the middle). */
+.sky-rays {
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(rgb(255 215 94 / 0.5) 0deg 10deg, transparent 10deg 45deg);
+}
+
+.sky-core {
+  top: 50%; left: 50%;
+  width: 170px; height: 170px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%, #fff3c4, var(--sun) 55%, #f0b23c 100%);
+  box-shadow: 0 0 60px 24px var(--sun-glow);
+}
+
+.sky-moon {
+  top: 11%; right: 13%;
+  width: 150px; height: 150px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 34%, #f6f9fe, var(--moon) 60%, #bcc9de 100%);
+  box-shadow: 0 0 48px 12px var(--moon-glow);
+}
+
+/* ---- stars ------------------------------------------------------------------ */
+
+.sky-stars { inset: 0; }
+.star {
+  position: absolute;
+  border-radius: 50%;
+  background: var(--star);
+}
+
+/* ---- clouds ----------------------------------------------------------------- */
+
+.cloud {
+  top: 12%; left: 6%;
+  width: 300px; height: 110px;
+  background: var(--cloud);
+  border-radius: 999px;
+  opacity: 0.94;
+}
+/* the two bulges on top of the loaf */
+.cloud::before, .cloud::after {
+  content: "";
+  position: absolute;
+  background: inherit;
+  border-radius: 50%;
+}
+.cloud::before { width: 55%; height: 190%; top: -115%; left: 12%; }
+.cloud::after { width: 42%; height: 150%; top: -85%; right: 14%; }
+
+.cloud.c1 { --cs: 1; --dx: 46px; top: 12%; left: 6%; }
+.cloud.c2 { --cs: 1.25; --dx: 38px; top: 30%; left: 52%; }
+.cloud.c3 { --cs: 0.85; --dx: 54px; top: 5%; left: 40%; }
+.cloud.c4 { --cs: 1.1; --dx: 34px; top: 44%; left: 12%; }
+.cloud.c5 { --cs: 0.95; --dx: 48px; top: 52%; left: 60%; }
+
+/* ---- fog: three puffy bands that creep sideways ----------------------------- */
+
+.fog-band {
+  left: 0; right: 0;
+  height: 26vh;
+  background-image:
+    radial-gradient(ellipse 300px 140px at 15% 50%, var(--fog) 0%, transparent 70%),
+    radial-gradient(ellipse 340px 160px at 50% 40%, var(--fog) 0%, transparent 70%),
+    radial-gradient(ellipse 280px 130px at 82% 55%, var(--fog) 0%, transparent 70%);
+  background-size: 640px 100%;
+  background-repeat: repeat-x;
+}
+.fog-band.f1 { top: 14%; }
+.fog-band.f2 { top: 40%; }
+.fog-band.f3 { top: 66%; }
+
+/* ---- wind streaks ------------------------------------------------------------ */
+
+.sky-streaks { inset: 0; }
+.streak {
+  position: absolute;
+  left: 0;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--streak);
+}
+
+/* ---- rain, snow, hail --------------------------------------------------------- */
+
+.sky-rain, .sky-snow, .sky-hail { inset: 0; }
+
+.drop {
+  position: absolute;
+  top: -25vh;
+  width: 3px; height: 22px;
+  border-radius: 2px;
+  background: var(--drop);
+}
+
+.flake {
+  position: absolute;
+  top: -8vh;
+  border-radius: 50%;
+  background: var(--flake);
+}
+
+.hailstone {
+  position: absolute;
+  top: -12vh;
+  border-radius: 3px;
+  background: var(--hailstone);
+}
+
+/* ---- lightning ----------------------------------------------------------------- */
+
+.sky-lightning {
+  inset: 0;
+  background: #ffffff;
+  opacity: 0;
+}
+
+/* a jagged bolt under the flash, in the middle of the sky */
+.sky-bolt {
+  position: absolute;
+  top: 0; left: 46%;
+  width: 90px; height: 62%;
+  background: var(--bolt);
+  clip-path: polygon(58% 0, 78% 0, 52% 34%, 66% 34%, 30% 78%, 40% 52%, 22% 52%, 48% 18%);
+  opacity: 0;
+}
+
+/* ---- the header and the footer: on the sky, on a card -------------------------- */
+
+.topbar {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px 16px;
+}
+
+.attr {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 12px 16px;
+}
+
+html.kiosk .topbar { padding: 8px 14px; }
+html.kiosk .attr { padding: 6px 12px; }
+
+/* ---- motion: only while the user allows it --------------------------------------
+ * Every scene moves at least a little within 0.6 s; with reduced motion
+ * none of this applies and the scene is a still picture. */
+
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes sky-spin { to { transform: rotate(1turn); } }
+  @keyframes sky-pulse {
+    from { transform: translate(-50%, -50%) scale(1); }
+    to { transform: translate(-50%, -50%) scale(1.06); }
+  }
+  @keyframes sky-bob { from { transform: translateY(-8px); } to { transform: translateY(10px); } }
+  @keyframes sky-twinkle { from { opacity: 0.25; } to { opacity: 1; } }
+  @keyframes sky-drift {
+    from { transform: translateX(calc(var(--dx) * -1)) scale(var(--cs)); }
+    to { transform: translateX(var(--dx)) scale(var(--cs)); }
+  }
+  @keyframes sky-fog { to { background-position-x: 640px; } }
+  @keyframes sky-streak { from { transform: translateX(-40vw); } to { transform: translateX(110vw); } }
+  @keyframes sky-fall { to { transform: translateY(175vh); } }
+  @keyframes sky-snow {
+    0% { transform: translate(0, 0); }
+    25% { transform: translate(18px, 31vh); }
+    50% { transform: translate(-14px, 62vh); }
+    75% { transform: translate(16px, 92vh); }
+    100% { transform: translate(0, 123vh); }
+  }
+  @keyframes sky-flash {
+    0%, 37.9%, 40.4%, 67.9%, 71.4%, 100% { opacity: 0; }
+    38.4% { opacity: 0.5; }
+    39% { opacity: 0.1; }
+    39.6% { opacity: 0.42; }
+    68.4% { opacity: 0.38; }
+    69.4% { opacity: 0.08; }
+  }
+  @keyframes sky-bolt-flash {
+    0%, 37.9%, 41%, 100% { opacity: 0; }
+    38.4% { opacity: 0.95; }
+    40.4% { opacity: 0.55; }
+  }
+
+  .sky-rays { animation: sky-spin 15s linear infinite; }
+  .sky-core { animation: sky-pulse 3.5s ease-in-out -1s infinite alternate; }
+  .sky-moon { animation: sky-bob 7s linear -2s infinite alternate; }
+  .star { animation: sky-twinkle 3s linear infinite alternate; }
+  .cloud {
+    animation: sky-drift 18s linear infinite alternate;
+    transform: scale(var(--cs)); /* the still picture keeps the size */
+  }
+  .cloud.c1 { animation-duration: 17s; animation-delay: -3s; }
+  .cloud.c2 { animation-duration: 23s; animation-delay: -9s; }
+  .cloud.c3 { animation-duration: 15s; animation-delay: -6s; }
+  .cloud.c4 { animation-duration: 26s; animation-delay: -13s; }
+  .cloud.c5 { animation-duration: 19s; animation-delay: -5s; }
+  .fog-band { animation: sky-fog 44s linear infinite; }
+  .fog-band.f2 { animation-duration: 58s; animation-direction: reverse; }
+  .fog-band.f3 { animation-duration: 37s; }
+  .streak { animation: sky-streak 3s linear infinite; }
+  .drop { animation: sky-fall 0.8s linear infinite; }
+  .flake { animation: sky-snow 1.8s linear infinite; }
+  .hailstone { animation: sky-fall 0.85s linear infinite; }
+  .sky-lightning { animation: sky-flash 5s linear -2.5s infinite; }
+  .sky-bolt { animation: sky-bolt-flash 5s linear -2.5s infinite; }
+}

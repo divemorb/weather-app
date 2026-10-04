@@ -334,3 +334,46 @@ export function sortAccuracy(models) {
     return acc(mb) - acc(ma);
   });
 }
+
+/* The page's sky (step A3): which scene to show, as the name the page
+ * sets on <html data-scene> — one of Bright Sky's twelve weather icons
+ * (the /api/now icon), "heavy-rain" (the radar rains hard right now),
+ * "rain" (the radar rains right now), or "none" (nothing to show).
+ *
+ * Sleet, snow, hail and thunderstorm stay whatever the radar says (the
+ * radar can't tell snow from rain); a rain icon is heavy-rain when the
+ * radar is heavy (and plain rain otherwise); rain on the radar in the
+ * first five-minute step overrides a dry icon; only the first step
+ * counts (rain later is not rain now). Malformed answers never throw —
+ * they just count as no data. */
+export const SKY_ICONS = ["clear-day", "clear-night", "partly-cloudy-day", "partly-cloudy-night",
+  "cloudy", "fog", "wind", "rain", "sleet", "snow", "hail", "thunderstorm"];
+/* The precipitation icons the radar can't re-decide (it can't tell snow
+ * from rain): they stay whatever the radar says. */
+const STAYS_ICONS = new Set(["sleet", "snow", "hail", "thunderstorm"]);
+export const HEAVY_RAIN_MM = 0.2; // per five-minute step: about 2.4 mm/h
+
+function nowIcon(now) {
+  if (!now || typeof now !== "object" || Array.isArray(now)) return null;
+  const c = now.conditions;
+  const icon = c && typeof c === "object" ? c.icon : null;
+  return typeof icon === "string" && SKY_ICONS.includes(icon) ? icon : null;
+}
+
+function firstStepMm(radar) {
+  if (!radar || typeof radar !== "object" || Array.isArray(radar)) return null;
+  if (radar.available !== true || !Array.isArray(radar.steps)) return null;
+  const step = radar.steps[0];
+  if (!step || typeof step !== "object" || Array.isArray(step)) return null;
+  const mm = step.precip_mm;
+  return typeof mm === "number" && Number.isFinite(mm) ? mm : null;
+}
+
+export function scene(now, radar) {
+  const mm = firstStepMm(radar);
+  const icon = nowIcon(now);
+  if (icon && STAYS_ICONS.has(icon)) return icon;
+  if (icon === "rain") return mm >= HEAVY_RAIN_MM ? "heavy-rain" : "rain";
+  const wet = mm >= HEAVY_RAIN_MM ? "heavy-rain" : mm > 0 ? "rain" : null;
+  return wet || icon || "none";
+}

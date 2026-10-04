@@ -8,9 +8,37 @@
   <link rel="stylesheet" href="/chart.css" />
   <link rel="stylesheet" href="/details.css" />
   <link rel="stylesheet" href="/kiosk.css" />
+  <link rel="stylesheet" href="/layout.css" />
+  <link rel="stylesheet" href="/sky.css" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 6C32 6 12 30 12 42a20 20 0 0 0 40 0C52 30 32 6 32 6Z' fill='%2358a6ff'/%3E%3C/svg%3E" />
 </head>
 <body>
+  <!-- The animated sky (step A3): one fixed layer behind the tiles,
+       showing the current scene. app.js names it on <html data-scene>
+       from the /api/now icon and the radar; sky.js fills the particle
+       containers. Decoration: hidden from screen readers. -->
+  <div class="sky" id="sky" data-test="sky" aria-hidden="true">
+    <div class="sky-stars" id="sky-stars"></div>
+    <div class="sky-moon"></div>
+    <div class="sky-sun"><div class="sky-rays"></div><div class="sky-core"></div></div>
+    <div class="sky-clouds">
+      <div class="cloud c1"></div>
+      <div class="cloud c2"></div>
+      <div class="cloud c3"></div>
+      <div class="cloud c4"></div>
+      <div class="cloud c5"></div>
+    </div>
+    <div class="sky-fog">
+      <div class="fog-band f1"></div>
+      <div class="fog-band f2"></div>
+      <div class="fog-band f3"></div>
+    </div>
+    <div class="sky-streaks" id="sky-streaks"></div>
+    <div class="sky-rain" id="sky-rain"></div>
+    <div class="sky-snow" id="sky-snow"></div>
+    <div class="sky-hail" id="sky-hail"></div>
+    <div class="sky-lightning"><div class="sky-bolt"></div></div>
+  </div>
   <div class="wrap">
     <header class="topbar">
       <div class="brand">
