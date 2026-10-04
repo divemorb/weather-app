@@ -80,6 +80,16 @@ body { background: transparent; }
   --hailstone: #cfdcee;
 }
 
+/* Dark theme: the whole sky is dimmed a little, so the light text on
+ * the glass tiles stays readable over the bright night and storm skies.
+ * The pseudo-element sits above every part (sun, moon, clouds, drops). */
+:root[data-theme="dark"] .sky::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgb(5 8 14 / 0.36);
+}
+
 html[data-scene="clear-day"] .sky,
 html[data-scene="partly-cloudy-day"] .sky {
   background: linear-gradient(180deg, var(--sky-cd1), var(--sky-cd2));
@@ -185,12 +195,15 @@ html[data-scene="thunderstorm"] .sky-lightning { display: block; }
 
 /* ---- clouds ----------------------------------------------------------------- */
 
+/* Five clouds, each crossing the whole sky (sky-drift); the still
+ * picture (reduced motion) spreads them across it with --x0. */
 .cloud {
-  top: 12%; left: 6%;
-  width: 300px; height: 110px;
+  top: var(--ty); left: 0;
+  width: clamp(160px, 32vw, 340px); height: 110px;
   background: var(--cloud);
   border-radius: 999px;
   opacity: 0.94;
+  transform: translateX(var(--x0)) scale(var(--cs));
 }
 /* the two bulges on top of the loaf */
 .cloud::before, .cloud::after {
@@ -207,11 +220,11 @@ html[data-scene="thunderstorm"] .sky-lightning { display: block; }
 html[data-scene="thunderstorm"] .sky { --cloud: #8e9cb0; }
 :root[data-theme="dark"] html[data-scene="thunderstorm"] .sky { --cloud: #7e8ca1; }
 
-.cloud.c1 { --cs: 1; --dx: 46px; top: 12%; left: 6%; }
-.cloud.c2 { --cs: 1.25; --dx: 38px; top: 30%; left: 52%; }
-.cloud.c3 { --cs: 0.85; --dx: 54px; top: 5%; left: 40%; }
-.cloud.c4 { --cs: 1.1; --dx: 34px; top: 44%; left: 12%; }
-.cloud.c5 { --cs: 0.95; --dx: 48px; top: 52%; left: 60%; }
+.cloud.c1 { --cs: 1; --ty: 10%; --x0: 10vw; }
+.cloud.c2 { --cs: 1.25; --ty: 28%; --x0: 34vw; }
+.cloud.c3 { --cs: 0.85; --ty: 6%; --x0: 56vw; }
+.cloud.c4 { --cs: 1.1; --ty: 44%; --x0: 52vw; }
+.cloud.c5 { --cs: 0.95; --ty: 58%; --x0: 18vw; }
 
 /* ---- fog: three puffy bands that creep sideways ----------------------------- */
 
@@ -320,8 +333,8 @@ html.kiosk .attr { padding: 6px 12px; }
   @keyframes sky-bob { from { transform: translateY(-8px); } to { transform: translateY(10px); } }
   @keyframes sky-twinkle { from { opacity: 0.25; } to { opacity: 1; } }
   @keyframes sky-drift {
-    from { transform: translateX(calc(var(--dx) * -1)) scale(var(--cs)); }
-    to { transform: translateX(var(--dx)) scale(var(--cs)); }
+    from { transform: translateX(-110%) scale(var(--cs)); }
+    to { transform: translateX(calc(100vw + 10%)) scale(var(--cs)); }
   }
   @keyframes sky-fog { to { background-position-x: 640px; } }
   @keyframes sky-streak { from { transform: translateX(-40vw); } to { transform: translateX(110vw); } }
@@ -365,15 +378,12 @@ html.kiosk .attr { padding: 6px 12px; }
   .sky-core { animation: sky-pulse 3.5s ease-in-out -1s infinite alternate; }
   .sky-moon { animation: sky-bob 7s linear -2s infinite alternate; }
   .star { animation: sky-twinkle 3s linear infinite alternate; }
-  .cloud {
-    animation: sky-drift 18s linear infinite alternate;
-    transform: scale(var(--cs)); /* the still picture keeps the size */
-  }
-  .cloud.c1 { animation-duration: 17s; animation-delay: -3s; }
-  .cloud.c2 { animation-duration: 23s; animation-delay: -9s; }
-  .cloud.c3 { animation-duration: 15s; animation-delay: -6s; }
-  .cloud.c4 { animation-duration: 26s; animation-delay: -13s; }
-  .cloud.c5 { animation-duration: 19s; animation-delay: -5s; }
+  .cloud { animation: sky-drift linear infinite; }
+  .cloud.c1 { animation-duration: 70s; animation-delay: -17s; }
+  .cloud.c2 { animation-duration: 85s; animation-delay: -33s; }
+  .cloud.c3 { animation-duration: 52s; animation-delay: -28s; }
+  .cloud.c4 { animation-duration: 64s; animation-delay: -44s; }
+  .cloud.c5 { animation-duration: 78s; animation-delay: -60s; }
   .fog-band { animation: sky-fog 44s linear infinite; }
   .fog-band.f2 { animation-duration: 58s; animation-direction: reverse; }
   .fog-band.f3 { animation-duration: 37s; }
@@ -382,8 +392,8 @@ html.kiosk .attr { padding: 6px 12px; }
   .flake { animation: sky-snow 1.8s linear infinite; }
   .hailstone { animation: sky-hail 1.8s linear infinite; }
   /* Wind: the few clouds race across the sky instead of drifting. */
-  html[data-scene="wind"] .cloud.c1 { --dx: 170px; animation-duration: 7s; animation-delay: -2s; }
-  html[data-scene="wind"] .cloud.c3 { --dx: 140px; animation-duration: 9s; animation-delay: -5s; }
+  html[data-scene="wind"] .cloud.c1 { animation-duration: 9s; animation-delay: -4s; }
+  html[data-scene="wind"] .cloud.c3 { animation-duration: 12s; animation-delay: -5s; }
   .sky-lightning { animation: sky-flash 5s linear -2.5s infinite; }
   .sky-bolt { animation: sky-bolt-flash 5s linear -2.5s infinite; }
 }

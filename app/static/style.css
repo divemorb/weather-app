@@ -15,13 +15,13 @@
   --card: #ffffff;
   --field: #eef0f3;       /* inputs */
   --text: #1f2328;
-  --muted: #57606a;
+  --muted: #383f48;
   --border: #e0e3e8;
-  --accent: #2563eb;      /* the one accent: rain */
+  --accent: #1e3a8a;      /* the one accent: rain */
   --accent-soft: #e8effc; /* accent tint (selected search result) */
   --track: #e9ecf1;       /* the empty radar track */
   --track-rain: #dbe6fa;  /* the track under a rainy column */
-  --bad: #cf222e;
+  --bad: #7f1d1d;
   --hover: rgb(31 35 40 / 0.06);
   --focus-ring: rgb(37 99 235 / 0.25);
   --primary-hover: #333a41;
@@ -35,13 +35,13 @@
   --card: #1b1e23;
   --field: #23272e;
   --text: #e8eaed;
-  --muted: #9aa0a6;
+  --muted: #c3cad2;
   --border: #2e333b;
-  --accent: #74b3ff;
+  --accent: #9ccaff;
   --accent-soft: #1d2c42;
   --track: #23272e;
   --track-rain: #24344d;
-  --bad: #ff8f88;
+  --bad: #ffcfca;
   --hover: rgb(232 234 237 / 0.08);
   --focus-ring: rgb(116 179 255 / 0.3);
   --primary-hover: #d4d8dd;
