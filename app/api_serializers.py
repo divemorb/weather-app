@@ -59,6 +59,7 @@ def serialize_now(
             "precipitation_30mm": conditions.precipitation_30mm,
             "precipitation_60mm": conditions.precipitation_60mm,
             "condition": conditions.condition,
+            "icon": conditions.icon,
             "source_id": conditions.source_id,
             "station": station,
             "fallback": fallback,

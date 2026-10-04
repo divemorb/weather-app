@@ -34,6 +34,9 @@ class CurrentConditions:
     precipitation_30mm: float | None = None
     precipitation_60mm: float | None = None
     condition: str | None = None
+    # Bright Sky's weather icon for the page's animated sky: one of
+    # brightsky_client.WEATHER_ICONS, or None when the payload has none.
+    icon: str | None = None
     raw: dict[str, Any] = field(default_factory=dict, repr=False)
 
 

@@ -41,6 +41,7 @@ The serializers live in `app/api_serializers.py` (pure functions, unit-tested in
     "dew_point_c": 3.0,
     "precipitation_10mm": 0.0, "precipitation_30mm": 0.1, "precipitation_60mm": 0.2,
     "condition": "Rain",
+    "icon": "cloudy",
     "station": {"name": "Berlin-Tempelhof", "distance_m": 5837.0, "lat": 52.4676,
                 "lon": 13.402, "height_m": 47.7, "dwd_station_id": "00433"},
     "fallback": {"cloud_cover_pct": {"name": "Potsdam", "distance_m": 27915.0}}
@@ -49,6 +50,8 @@ The serializers live in `app/api_serializers.py` (pure functions, unit-tested in
 ```
 
 `conditions` is `null` (and `available: false`) until the first observation is cached.
+
+`icon` is Bright Sky's `weather.icon` for this observation, passed through for the page's animated sky: one of `clear-day`, `clear-night`, `partly-cloudy-day`, `partly-cloudy-night`, `cloudy`, `fog`, `wind`, `rain`, `sleet`, `snow`, `hail`, `thunderstorm` (day/night and wind are already folded into the value), or `null` when the payload has no icon or an unknown value (missing, empty, wrong case, or not a string).
 
 `station` names the observation station the values come from (the listed Bright Sky source whose `id` equals `source_id`): `name` (`station_name`), `distance_m`, `lat`, `lon`, `height_m` and `dwd_station_id`; a missing key is `null`. It is `null` when the payload lists no such source (older payloads may have no `sources` key at all).
 

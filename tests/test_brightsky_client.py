@@ -63,6 +63,31 @@ def test_parse_current_weather_wrong_type_raises_source_error():
         parse_current_weather(make_current_payload({"temperature": "not-a-number"}))
 
 
+def test_parse_current_weather_icon_missing_is_none():
+    cond = parse_current_weather(make_current_payload())
+    assert cond.icon is None
+
+
+@pytest.mark.parametrize(
+    "icon",
+    ["clear-day", "clear-night", "partly-cloudy-day", "partly-cloudy-night",
+     "cloudy", "fog", "wind", "rain", "sleet", "snow", "hail", "thunderstorm"],
+)
+def test_parse_current_weather_passes_documented_icon_through(icon):
+    cond = parse_current_weather(make_current_payload({"icon": icon}))
+    assert cond.icon == icon
+
+
+@pytest.mark.parametrize(
+    "icon", [None, "", "tornado", "Rain", "CLEAR-DAY", 5, ["rain"]]
+)
+def test_parse_current_weather_icon_unknown_is_none(icon):
+    # untrusted payload: unknown or non-string values must not raise
+    # (a list in the membership test would be a TypeError) but come out None
+    cond = parse_current_weather(make_current_payload({"icon": icon}))
+    assert cond.icon is None
+
+
 def test_parse_radar_decodes_grid_and_unit():
     g = grid(5, 5)
     g[1][1] = 38  # 0.38 mm

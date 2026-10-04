@@ -62,6 +62,13 @@ RADAR_MM_PER_UNIT = 0.01
 #: Max radar sub-grid size in cells; the real grid is only a few hundred.
 MAX_RADAR_CELLS = 250_000
 
+#: The weather icons Bright Sky documents for ``/current_weather`` (day/night
+#: and wind are already folded in); the page picks its animated sky from it.
+WEATHER_ICONS = frozenset({
+    "clear-day", "clear-night", "partly-cloudy-day", "partly-cloudy-night",
+    "cloudy", "fog", "wind", "rain", "sleet", "snow", "hail", "thunderstorm",
+})
+
 
 # ---------------------------------------------------------------------------
 # Pure parsers (no network)
@@ -77,6 +84,11 @@ def parse_current_weather(payload: dict[str, Any]) -> CurrentConditions:
     def _num(key: str) -> float | None:
         v = w.get(key)
         return float(v) if v is not None else None
+
+    # Pass the weather icon through only when it is one of Bright Sky's
+    # documented values; missing, unknown, wrong case or not a string -> None.
+    raw_icon = w.get("icon")
+    icon = raw_icon if isinstance(raw_icon, str) and raw_icon in WEATHER_ICONS else None
 
     return CurrentConditions(
         timestamp_utc=w.get("timestamp"),
@@ -94,6 +106,7 @@ def parse_current_weather(payload: dict[str, Any]) -> CurrentConditions:
         precipitation_30mm=_num("precipitation_30"),
         precipitation_60mm=_num("precipitation_60"),
         condition=w.get("condition"),
+        icon=icon,
         raw=w,
     )
 
