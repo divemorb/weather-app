@@ -335,21 +335,21 @@ export function sortAccuracy(models) {
   });
 }
 
-/* The page's sky (step A3): which scene to show, as the name the page
+/* The page's sky (steps A3, B1): which scene to show, as the name the page
  * sets on <html data-scene> — one of Bright Sky's twelve weather icons
  * (the /api/now icon), "heavy-rain" (the radar rains hard right now),
  * "rain" (the radar rains right now), or "none" (nothing to show).
  *
- * Sleet, snow, hail and thunderstorm stay whatever the radar says (the
- * radar can't tell snow from rain); a rain icon is heavy-rain when the
- * radar is heavy (and plain rain otherwise); rain on the radar in the
- * first five-minute step overrides a dry icon; only the first step
- * counts (rain later is not rain now). Malformed answers never throw —
- * they just count as no data. */
+ * The radar at the location decides about precipitation right now: rain in
+ * its first five-minute step overrides a dry icon (heavy at >= 0.2 mm); a
+ * dry radar (first step 0 mm) turns the station's rain, sleet, snow or hail
+ * into cloudy (rule B, the user's decision 2026-10-04). A thunderstorm
+ * stays, and so does every icon while the radar is unavailable; only the
+ * first step counts (rain later is not rain now). Malformed answers never
+ * throw — they just count as no data. */
 export const SKY_ICONS = ["clear-day", "clear-night", "partly-cloudy-day", "partly-cloudy-night",
   "cloudy", "fog", "wind", "rain", "sleet", "snow", "hail", "thunderstorm"];
-/* The precipitation icons the radar can't re-decide (it can't tell snow
- * from rain): they stay whatever the radar says. */
+/* Kept while the radar rains (it can't tell snow from rain); see rule B above. */
 const STAYS_ICONS = new Set(["sleet", "snow", "hail", "thunderstorm"]);
 export const HEAVY_RAIN_MM = 0.2; // per five-minute step: about 2.4 mm/h
 
@@ -369,11 +369,32 @@ function firstStepMm(radar) {
   return typeof mm === "number" && Number.isFinite(mm) ? mm : null;
 }
 
-export function scene(now, radar) {
+/* The scene plus what decided it (the "why" line under the glance, step
+ * B1): source "station" (the /api/now icon decided), "radar" (the radar at
+ * the location overrode the icon, either way), or "none" (nothing to show);
+ * stationIcon: the valid /api/now icon or null; radarDry: the radar is
+ * available and its first step is 0 mm. */
+export function sceneReason(now, radar) {
   const mm = firstStepMm(radar);
   const icon = nowIcon(now);
-  if (icon && STAYS_ICONS.has(icon)) return icon;
-  if (icon === "rain") return mm >= HEAVY_RAIN_MM ? "heavy-rain" : "rain";
+  const radarDry = mm === 0;
+  if (icon && STAYS_ICONS.has(icon)) {
+    if (radarDry && icon !== "thunderstorm") {
+      return { scene: "cloudy", source: "radar", stationIcon: icon, radarDry };
+    }
+    return { scene: icon, source: "station", stationIcon: icon, radarDry };
+  }
+  if (icon === "rain") {
+    if (mm == null) return { scene: "rain", source: "station", stationIcon: icon, radarDry };
+    const scene = radarDry ? "cloudy" : mm >= HEAVY_RAIN_MM ? "heavy-rain" : "rain";
+    return { scene, source: "radar", stationIcon: icon, radarDry };
+  }
   const wet = mm >= HEAVY_RAIN_MM ? "heavy-rain" : mm > 0 ? "rain" : null;
-  return wet || icon || "none";
+  if (wet) return { scene: wet, source: "radar", stationIcon: icon, radarDry };
+  if (icon) return { scene: icon, source: "station", stationIcon: icon, radarDry };
+  return { scene: "none", source: "none", stationIcon: null, radarDry };
+}
+
+export function scene(now, radar) {
+  return sceneReason(now, radar).scene;
 }

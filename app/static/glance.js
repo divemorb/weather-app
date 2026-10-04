@@ -7,12 +7,13 @@
  * start_utc) or no radar shows the "unavailable" line instead of the
  * strip.
  */
-import { DASH, fmtMm, fmtNumber, fmtPercent, fmtTime, rainAnswer } from "./format.js";
+import { DASH, fmtMm, fmtNumber, fmtPercent, fmtTime, rainAnswer, sceneReason } from "./format.js";
 import { t } from "./i18n.js";
 
 const els = {
   answer: document.getElementById("rain-answer"),
   when: document.getElementById("rain-when"),
+  reason: document.getElementById("sky-reason"),
   prob: document.getElementById("rain-probability"),
   unavailable: document.getElementById("radar-unavailable"),
   visual: document.getElementById("radar-visual"),
@@ -46,6 +47,41 @@ export function renderGlance(rain, radar, lang, locale, tz, radiusKm) {
     els.prob.classList.add("muted");
   }
   renderRadar(radar, lang, locale, tz, radiusKm, a.detail);
+}
+
+/* The "why" line under the rain answer (step B1): what the sky shows and
+ * which source decided it (sceneReason). Hidden when the source is "none"
+ * (nothing to show). {km} like the Now card's station line; station names
+ * are untrusted API text: textContent only. */
+export function renderSkyReason(now, radar, lang, locale) {
+  const r = sceneReason(now, radar);
+  if (r.source === "none") {
+    els.reason.hidden = true;
+    els.reason.textContent = "";
+    return;
+  }
+  const c = now && now.available && now.conditions ? now.conditions : null;
+  const st = c && c.station && typeof c.station === "object" ? c.station : null;
+  const listed = !!(st && typeof st.name === "string" && st.name !== "");
+  const name = listed ? st.name : "";
+  const km = listed && typeof st.distance_m === "number" ? `${fmtNumber(st.distance_m / 1000, locale, 1)} km` : DASH;
+  const label = (s) => t(lang, "sky.scene." + s);
+  let text;
+  if (r.source === "radar") {
+    if (r.radarDry && listed) {
+      text = t(lang, "sky.radar-dry", { name, km, station: label(r.stationIcon) });
+    } else {
+      text = t(lang, "sky.radar", { scene: label(r.scene) });
+    }
+  } else if (r.radarDry && r.stationIcon === "thunderstorm" && listed) {
+    text = t(lang, "sky.station-radar-dry", { scene: label(r.scene), name, km });
+  } else if (listed) {
+    text = t(lang, "sky.station", { scene: label(r.scene), name, km });
+  } else {
+    text = t(lang, "sky.nearest", { scene: label(r.scene) });
+  }
+  els.reason.textContent = text;
+  els.reason.hidden = false;
 }
 
 function renderRadar(radar, lang, locale, tz, radiusKm, detail) {

@@ -15,7 +15,7 @@
 import { pickLang, t } from "./i18n.js";
 import { getJSON } from "./api.js";
 import { CONFIG_RETRY_MS, locationText, locationDetail, scene } from "./format.js";
-import { renderGlance } from "./glance.js";
+import { renderGlance, renderSkyReason } from "./glance.js";
 import { initSky } from "./sky.js";
 import { initNow, renderNow } from "./now.js";
 import { renderChart } from "./chart.js";
@@ -155,6 +155,9 @@ async function refresh() {
   if (data.radar != null) skyRadar = data.radar;
   renderPart("sky", setSkyScene); // its own part: a bad answer must not stop the others
   renderPart("glance", () => renderGlance(data.rain, data.radar, lang, locale, tz, cfg && cfg.radar_radius_km));
+  /* The sky's "why" line: the same part as the glance, so one failed
+   * endpoint (now or radar) never stops the other. */
+  renderPart("sky-reason", () => renderSkyReason(data.now, data.radar, lang, locale));
   renderPart("now", () => renderNow(data.now, lang, locale, tz));
   renderPart("chart", () => renderChart(chartEls, data.models, lang, locale, tz));
   /* The stations section (details.js) needs the Now's station and the

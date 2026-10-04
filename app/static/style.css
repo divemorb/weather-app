@@ -177,6 +177,9 @@ button:focus-visible, a:focus-visible {
 
 .glance-when { margin: 10px 0 0; font-size: 15px; color: var(--muted); }
 
+/* The sky's "why" line (step B1): what the sky shows and who decided it. */
+.glance-reason { margin: 6px 0 0; font-size: 13px; line-height: 1.45; overflow-wrap: break-word; }
+
 .glance-prob {
   display: flex; align-items: baseline; flex-wrap: wrap;
   gap: 8px 16px; margin-top: 26px;

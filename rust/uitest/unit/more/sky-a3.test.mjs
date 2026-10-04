@@ -1,10 +1,12 @@
-// Step A3a: the sky scene's pure helper (format.js scene()). The contract
-// (scene.test.mjs) covers the main cases; these pin the edges the page
-// relies on: malformed answers never throw, only the first radar step
-// counts, and the heavy-rain threshold is inclusive.
+// Steps A3a, B1: the sky scene's pure helper (format.js scene() and
+// sceneReason()). The contract (scene.test.mjs) covers the main cases;
+// these pin the edges the page relies on: malformed answers never throw,
+// only the first radar step counts, the heavy-rain threshold is
+// inclusive, and rule B (a dry radar turns the station's precipitation
+// into cloudy, a thunderstorm stays) plus who decided the sky.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { scene, SKY_ICONS, HEAVY_RAIN_MM } from "../../../../app/static/format.js";
+import { scene, sceneReason, SKY_ICONS, HEAVY_RAIN_MM } from "../../../../app/static/format.js";
 
 const now = (icon) =>
   icon == null
@@ -45,13 +47,32 @@ test("A3a: a dry icon shows itself, radar rain overrides it at step 0 only", () 
 });
 
 test("A3a: a rain icon is heavy only when the first step is heavy", () => {
-  assert.equal(scene(now("rain"), radar(0)), "rain");
   assert.equal(scene(now("rain"), radar(0.199)), "rain");
   assert.equal(scene(now("rain"), radar(0.2)), "heavy-rain");
   assert.equal(scene(now("rain"), radar(0.5)), "heavy-rain");
 });
 
-test("A3a: the precipitation icons stay whatever the radar says", () => {
+test("B1: rule B — a dry radar turns the station's precipitation into cloudy", () => {
+  for (const icon of ["rain", "sleet", "snow", "hail"]) assert.equal(scene(now(icon), radar(0)), "cloudy", icon);
+  assert.equal(scene(now("thunderstorm"), radar(0)), "thunderstorm"); // a thunderstorm stays
+  // a wet radar keeps the icon (it can't tell snow from rain)
+  for (const icon of ["sleet", "snow", "hail", "thunderstorm"]) assert.equal(scene(now(icon), radar(0.5)), icon, icon);
+});
+
+test("B1: sceneReason says who decided the sky", () => {
+  assert.deepEqual(sceneReason(now("cloudy"), radar(0)), { scene: "cloudy", source: "station", stationIcon: "cloudy", radarDry: true });
+  assert.deepEqual(sceneReason(now("rain"), radar(0)), { scene: "cloudy", source: "radar", stationIcon: "rain", radarDry: true });
+  assert.deepEqual(sceneReason(now("snow"), radar(0)), { scene: "cloudy", source: "radar", stationIcon: "snow", radarDry: true });
+  assert.deepEqual(sceneReason(now("thunderstorm"), radar(0)), { scene: "thunderstorm", source: "station", stationIcon: "thunderstorm", radarDry: true });
+  assert.deepEqual(sceneReason(now("rain"), radar(0.5)), { scene: "heavy-rain", source: "radar", stationIcon: "rain", radarDry: false });
+  // without a usable radar the icon decides
+  assert.deepEqual(sceneReason(now("rain"), null), { scene: "rain", source: "station", stationIcon: "rain", radarDry: false });
+  assert.deepEqual(sceneReason(now("clear-day"), radar(0.2)), { scene: "heavy-rain", source: "radar", stationIcon: "clear-day", radarDry: false });
+  assert.deepEqual(sceneReason(null, null), { scene: "none", source: "none", stationIcon: null, radarDry: false });
+  assert.deepEqual(sceneReason(now(null), radar(0)), { scene: "none", source: "none", stationIcon: null, radarDry: true });
+});
+
+test("A3a: the precipitation icons stay whatever a wet radar says", () => {
   for (const icon of ["sleet", "snow", "hail", "thunderstorm"]) {
     assert.equal(scene(now(icon), radar(5)), icon, icon);
     assert.equal(scene(now(icon), null), icon, icon + " without radar");
