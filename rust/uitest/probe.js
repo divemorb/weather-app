@@ -386,6 +386,25 @@
     return { inside: inN ? inC / inN : 0, outside: outN ? outC / outN : 0 };
   }
 
+  // The median colour [r, g, b] of each rect (CSS px, scale 1) in a screenshot.
+  async function medianIn(b64, rects) {
+    const img = await decode(b64);
+    return rects.map((r) => {
+      const ch = [[], [], []];
+      const x0 = Math.max(0, Math.floor(r.x)), x1 = Math.min(img.width, Math.ceil(r.x + r.w));
+      const y0 = Math.max(0, Math.floor(r.y)), y1 = Math.min(img.height, Math.ceil(r.y + r.h));
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+          const i = (y * img.width + x) * 4;
+          for (let k = 0; k < 3; k++) ch[k].push(img.data[i + k]);
+        }
+      }
+      if (!ch[0].length) return null;
+      return ch.map((v) => v.sort((a, b) => a - b)[v.length >> 1]);
+    });
+  }
+
   window.__ui = { info, page, overflowing, controls, animations, openDetails, icons, textColor, clipped,
-    sticksOut, summaryGaps, tiles, sky, onlySky, hideText, textItems, pixelContrast, diff, diffIn };
+    sticksOut, summaryGaps, tiles, sky, onlySky, hideText, textItems, pixelContrast, diff, diffIn,
+    medianIn };
 })();

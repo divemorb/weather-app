@@ -19,8 +19,8 @@ tests (``unit/*.test.mjs``, ``node --test``) are checks too.
 
     # in the sandbox, after `cargo build`:
     python3 rust/uitest/run.py --binary /target/debug/wetter
-    # only some checks must pass (the others are reported only):
-    python3 rust/uitest/run.py --binary /target/debug/wetter --require 'unit/*' '*/console'
+    # only some checks must pass (the others are reported only; ! excludes):
+    python3 rust/uitest/run.py --binary /target/debug/wetter --require 'unit/*' '*/console' '!*/view-*'
     # faster while working on one part:
     python3 rust/uitest/run.py --binary /target/debug/wetter --scenario rain --lang de
     # list the checks / save screenshots for a review:
@@ -66,7 +66,9 @@ from expect import (  # noqa: E402
     GLASS_DELTA, GLASS_GAP_S, GLASS_SCENES, GLASS_VIEW, REASON_CASES, REASON_STATION, REASON_TEXT, SCENE_LABEL, VIEW_DESKTOP, VIEW_PHONE,
     OBS_STATIONS, KIOSK_FILL, KIOSK_FONT_SHARE, KIOSK_MIN_FONT, KIOSK_RADAR_SHARE,
     KIOSK_SIZES, LOCALES, MODEL_LABELS, NOW, RADAR_CAPTION, SCENARIO, SCENE_CASES, SCENE_SOURCE, SCENES,
-    SOURCE_KIND, SOURCES, TZ, WEIGHTS, WHEN, WIZARD_DETAIL, WIZARD_LABEL)
+    SOURCE_KIND, SOURCES, TZ, WEIGHTS, WHEN, WIZARD_DETAIL, WIZARD_LABEL,
+    BIG_HEADLINE_LINES, BIG_LABEL_GAP, BIG_PHONE, BIG_PHONE_MIN_FONT, KIOSK_REASON_SHARE, KIOSK_ROOM_FILL, KIOSK_ROOM_TOP,
+    TRACK_CONTRAST, VIEW_LABEL)
 from fakeup import FakeUpstream  # noqa: E402
 from scenarios import SCENARIOS  # noqa: E402
 
@@ -94,14 +96,17 @@ SKY = (["sky-layer"] + [f"scene-{c}" for c in SCENE_CASES] + [f"motion-{s}" for 
        + [f"glass-{s}" for s in GLASS_SCENES])
 REASON = [f"reason-{c}" for c in REASON_CASES]
 VIEW = ["view-default", "view-toggle", "view-query", "view-phone"]
+BIG = ["big-labels", "big-headline"]  # the review of V2: the big view (also on a phone)
+KIOSK_ROOM = [f"kiosk-room-{w}x{h}" for w, h in KIOSK_SIZES]
 
 
 def check_names(scenario: str, lang: str) -> list[str]:
     if scenario in ("live", "rain"):
-        names = COMMON + GLANCE + RADAR + NOW_CHECKS + CHART + DETAILS + KIOSK + KIOSK_FILL_CHECKS + STATIONS
+        names = (COMMON + GLANCE + RADAR + NOW_CHECKS + CHART + DETAILS + KIOSK + KIOSK_FILL_CHECKS + STATIONS
+                 + BIG + KIOSK_ROOM)
         if scenario == "live":
             names = [n for n in names if not n.startswith("chart-") or n == "chart-dry"]
-            names += REASON + (["theme-toggle"] + VIEW if lang == "en" else [])
+            names += REASON + ["view-label"] + (["theme-toggle"] + VIEW + ["big-tracks"] if lang == "en" else [])
         else:
             names += KIOSK_CHART + (["reduced-motion"] + REFRESH if lang == "en" else [])
         return names
@@ -812,6 +817,7 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
             if f"kiosk-chart-{size[0]}x{size[1]}" in names:
                 add(f"kiosk-chart-{size[0]}x{size[1]}", kiosk_chart_problems(pg, size))
             add(f"kiosk-fill-{size[0]}x{size[1]}", kiosk_fill_problems(pg, exp, size))
+            add(f"kiosk-room-{size[0]}x{size[1]}", kiosk_room_problems(pg, size))
             shot(pg, f"kiosk-{size[0]}x{size[1]}", full=False)
             done(pg)
     if "theme-toggle" in names:
@@ -820,6 +826,8 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
         run_reasons(browser, base, sc, lang, add)
     if "view-default" in names:
         run_views(browser, base, sc, lang, add)
+    if "big-labels" in names:
+        run_big(browser, base, sc, lang, names, add)
     for w in LAYOUT_COLUMNS:
         if f"layout-{w}" in names:
             pg = UIPage(browser, base, sc["now"], lang, width=w, height=740 if w < 600 else 900)
@@ -1247,8 +1255,10 @@ KIOSK_CARDS_JS = """(() => {
     const r = c.getBoundingClientRect(), cs = getComputedStyle(c);
     const top = r.top + parseFloat(cs.borderTopWidth) + parseFloat(cs.paddingTop);
     const bottom = r.bottom - parseFloat(cs.borderBottomWidth) - parseFloat(cs.paddingBottom);
-    let lo = Infinity, hi = -Infinity;
-    const take = (b) => { if (b.height > 0 && b.width > 0) { lo = Math.min(lo, b.top); hi = Math.max(hi, b.bottom); } };
+    let lo = Infinity, hi = -Infinity, left = Infinity;
+    const take = (b) => {
+      if (b.height > 0 && b.width > 0) { lo = Math.min(lo, b.top); hi = Math.max(hi, b.bottom); left = Math.min(left, b.left); }
+    };
     const walk = (el) => {
       if (!el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return;
       if (el instanceof SVGSVGElement || el.children.length === 0 && !el.textContent.trim()) {
@@ -1264,10 +1274,168 @@ KIOSK_CARDS_JS = """(() => {
       }
     };
     walk(c);
-    out[id] = { h: r.height, inner: bottom - top, span: hi > lo ? hi - lo : 0, top: lo - top, below: bottom - hi };
+    out[id] = { h: r.height, inner: bottom - top, span: hi > lo ? hi - lo : 0, top: lo - top, below: bottom - hi,
+                left: left - r.left };
   }
   return out;
 })()"""
+
+
+def kiosk_room_problems(pg: UIPage, size) -> list[str]:
+    """The review of V2 (the user): in the big view the glance's and Now's content start at
+    the top of their cards and take the room (no empty band above them, V2 centred them);
+    Now's text keeps at least the glance's distance from the card's left border; the "why"
+    line is read from across the room too."""
+    w, h = size
+    cards, problems = pg.js(KIOSK_CARDS_JS), []
+    for card, share in KIOSK_ROOM_FILL.items():
+        c = cards.get(card)
+        if not c:
+            problems.append(f"#{card} not visible in the big view")
+            continue
+        if c["top"] > KIOSK_ROOM_TOP * c["inner"] + 0.5:
+            problems.append(f"#{card}: {c['top']:.0f} px empty above its content at {w}x{h}, at most "
+                            f"{KIOSK_ROOM_TOP * c['inner']:.0f} px ({KIOSK_ROOM_TOP:.0%} of the card's "
+                            f"{c['inner']:.0f} px inner height): the content starts at the top")
+        if c["span"] < share * c["inner"] - 0.5:
+            problems.append(f"#{card}: its content spans {c['span']:.0f} px of the card's {c['inner']:.0f} px inner "
+                            f"height at {w}x{h} ({c['below']:.0f} px empty below it), at least {share:.0%}: "
+                            "give the room to the content (larger type and spacing)")
+    g, n = cards.get("glance"), cards.get("now")
+    if g and n and n["left"] < g["left"] - 1:
+        problems.append(f"#now's text starts {n['left']:.0f} px from the card's left border, #glance's "
+                        f"{g['left']:.0f} px: at least as far as the glance's")
+    els = [e for e in pg.ui("sky-reason") if e["visible"]]
+    if not els:
+        problems.append("[data-test=sky-reason] not visible in the big view")
+    elif els[0]["fontSize"] < KIOSK_REASON_SHARE * h - 0.5:
+        problems.append(f"[data-test=sky-reason] font size {els[0]['fontSize']:.0f} px at {w}x{h}, at least "
+                        f"{KIOSK_REASON_SHARE * h:.0f} px ({KIOSK_REASON_SHARE:.1%} of the screen height): "
+                        "the line that says why the sky looks as it does is read from across the room too")
+    return problems
+
+
+def big_label_problems(pg: UIPage, where: str) -> list[str]:
+    """At least 3 radar time labels, all inside the card, none touching another."""
+    labels = sorted((e for e in pg.ui("radar-label") if e["visible"]), key=lambda e: e["rect"]["x"])
+    if len(labels) < 3:
+        return [f"{where}: {len(labels)} visible [data-test=radar-label], expected at least 3"]
+    problems = []
+    for a, b in zip(labels, labels[1:]):
+        gap = b["rect"]["x"] - a["rect"]["right"]
+        if gap < BIG_LABEL_GAP:
+            problems.append(f"{where}: radar labels {a['text']!r} and {b['text']!r} are {gap:.0f} px apart "
+                            f"(overlapping when < 0), at least {BIG_LABEL_GAP} px")
+    card = pg.js('(() => { const r = document.getElementById("glance").getBoundingClientRect(); '
+                 'return {x: r.x, right: r.right}; })()')
+    for e in labels:
+        if e["rect"]["x"] < card["x"] - 0.5 or e["rect"]["right"] > card["right"] + 0.5:
+            problems.append(f"{where}: radar label {e['text']!r} sticks out of #glance")
+    return problems
+
+
+def headline_lines(pg: UIPage) -> int:
+    return pg.js("""(() => {
+        const el = document.querySelector('[data-test="rain-answer"]');
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        return new Set([...range.getClientRects()].filter((r) => r.width > 0).map((r) => Math.round(r.bottom))).size;
+    })()""")
+
+
+def track_problems(pg: UIPage, theme: str) -> list[str]:
+    """The dry radar tracks against the glass right above the strip (text made transparent,
+    the sky standing still): the strip must be seen on a dry day too."""
+    strip = pg.js('(() => { const s = document.getElementById("radar-strip"); if (!s || !s.checkVisibility()) '
+                  'return null; const r = s.getBoundingClientRect(); return {x: r.x, y: r.y, w: r.width, h: r.height}; })()')
+    if not strip:
+        return [f"{theme}: the radar strip is not visible in the big view"]
+    cols = [e["rect"] for e in pg.ui("radar-step") if e["visible"] and e["attrs"].get("data-rain") == "0"]
+    if not cols:
+        return [f"{theme}: no dry [data-test=radar-step] to measure"]
+    inset = 0.25  # the middle of each track, away from its rounded corners
+    rects = [{"x": c["x"] + c["w"] * inset, "y": c["y"] + c["h"] * inset, "w": c["w"] * (1 - 2 * inset),
+              "h": c["h"] * (1 - 2 * inset)} for c in cols]
+    above = {"x": strip["x"], "y": strip["y"] - 8, "w": strip["w"], "h": 6}
+    pg.js("__ui.hideText(true)")
+    pg.frame()
+    b64 = pg.shot_b64()
+    pg.js("__ui.hideText(false)")
+    meds = pg.js(f"__ui.medianIn({json.dumps(b64)}, {json.dumps(rects + [above])})")
+    glass = meds[-1]
+    if glass is None:
+        return [f"{theme}: nothing measured above the radar strip"]
+
+    def lum(rgb):
+        c = [v / 255 for v in rgb]
+        c = [v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4 for v in c]
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+
+    def ratio(a, b):
+        la, lb = sorted((lum(a), lum(b)), reverse=True)
+        return (la + 0.05) / (lb + 0.05)
+
+    worst = min((ratio(m, glass), m) for m in meds[:-1] if m)
+    if worst[0] + 1e-6 < TRACK_CONTRAST:
+        hexc = lambda rgb: "#" + "".join(f"{v:02x}" for v in rgb)  # noqa: E731
+        return [f"{theme}: an empty radar track ({hexc(worst[1])}) against the glass above the strip "
+                f"({hexc(glass)}) is {worst[0]:.2f}:1, at least {TRACK_CONTRAST}:1: the dry strip must be seen"]
+    return []
+
+
+def run_big(browser, base, sc, lang, names, add):
+    """The review of V2: the big view (the default) on a desktop and on a phone."""
+    problems = []
+    for size, where in ((VIEW_DESKTOP, "desktop"), (BIG_PHONE, "phone")):
+        pg = UIPage(browser, base, sc["now"], lang, width=size[0], height=size[1], query="")
+        problems += big_label_problems(pg, f"{where} {size[0]}x{size[1]}")
+        if where == "phone":
+            els = [e for e in pg.ui("rain-answer") if e["visible"]]
+            lines = headline_lines(pg) if els else 0
+            hp = [] if els else ["[data-test=rain-answer] not visible"]
+            if els and lines > BIG_HEADLINE_LINES:
+                hp.append(f"the headline takes {lines} lines at {size[0]}x{size[1]} (font size "
+                          f"{els[0]['fontSize']:.0f} px), at most {BIG_HEADLINE_LINES}: smaller type on narrow screens")
+            if els and els[0]["fontSize"] < BIG_PHONE_MIN_FONT - 0.5:
+                hp.append(f"the headline's font size is {els[0]['fontSize']:.0f} px at {size[0]}x{size[1]}, "
+                          f"at least {BIG_PHONE_MIN_FONT} px")
+            add("big-headline", hp)
+        pg.close()
+    add("big-labels", problems)
+    if "view-label" in names:
+        problems = []
+        for size in (VIEW_DESKTOP, BIG_PHONE):
+            pg = UIPage(browser, base, sc["now"], lang, width=size[0], height=size[1], query="")
+            for step, view in (("first load", "big"), ("after a click", "detailed")):
+                if step != "first load":
+                    problems += pg.click("view-toggle")
+                el, p = visible_one(pg, "view-toggle")
+                problems += [f"{size[0]} px, {step}: {x}" for x in p]
+                if not el:
+                    continue
+                want = VIEW_LABEL[view][lang]
+                if norm(el["text"]) != want:
+                    problems.append(f"{size[0]} px, {view} view: the view button shows {el['text']!r}, expected "
+                                    f"the text {want!r} (where a click goes; an icon alone read as 'pause')")
+                if want.lower() not in el["name"].lower():
+                    problems.append(f"{size[0]} px, {view} view: the view button's accessible name {el['name']!r} "
+                                    f"must contain its visible text {want!r} (WCAG 2.5.3)")
+                if el["rect"]["h"] > 2.2 * el["fontSize"] + 16:
+                    problems.append(f"{size[0]} px, {view} view: the view button is {el['rect']['h']:.0f} px high: "
+                                    "its text wraps, keep it on one line")
+            info = pg.js("__ui.page()")
+            if info["sw"] > size[0] + 1:
+                problems.append(f"{size[0]} px: the page is {info['sw']} px wide: {pg.js('__ui.overflowing()')}")
+            pg.close()
+        add("view-label", problems)
+    if "big-tracks" in names:
+        problems = []
+        for theme in ("light", "dark"):
+            pg = UIPage(browser, base, sc["now"], lang, width=VIEW_DESKTOP[0], height=VIEW_DESKTOP[1],
+                        scheme=theme, reduced=True, query="")
+            problems += track_problems(pg, theme)
+            pg.close()
+        add("big-tracks", problems)
 
 
 def kiosk_fill_problems(pg: UIPage, exp: dict, size) -> list[str]:
@@ -1455,7 +1623,8 @@ def main():
     ap.add_argument("--scenario", nargs="*", choices=UI_SCENARIOS, help="only these scenarios")
     ap.add_argument("--lang", nargs="*", choices=list(LOCALES), help="only these languages")
     ap.add_argument("--require", nargs="*", default=["*"],
-                    help="check patterns that must pass (fnmatch, * crosses /); others are reported only")
+                    help="check patterns that must pass (fnmatch, * crosses /); a pattern with a leading ! "
+                         "excludes (a later step's checks); others are reported only")
     ap.add_argument("--shots", metavar="DIR", help="save screenshots there (for a design review)")
     ap.add_argument("--no-unit", action="store_true", help="skip the JS unit tests")
     ap.add_argument("--list", action="store_true", help="list the checks and exit")
@@ -1495,7 +1664,8 @@ def main():
             print(f"PASS {name}")
             continue
         failed += 1
-        required = any(fnmatch.fnmatch(name, p) for p in args.require)
+        required = (any(fnmatch.fnmatch(name, p) for p in args.require if not p.startswith("!"))
+                    and not any(fnmatch.fnmatch(name, p[1:]) for p in args.require if p.startswith("!")))
         required_failed += required
         print(f"FAIL {name}{'' if required else ' (not required yet)'}")
         for p in problems[:8]:

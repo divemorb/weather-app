@@ -257,3 +257,19 @@ GLASS_GAP_S = 2.0  # time between the two screenshots
 # stays below a visible change, so it is left out (its motion and contrast are checked)
 GLASS_SCENES = [s for s in SCENES if s not in ("none", "fog")]
 GLASS_DELTA = 12  # a visible change: at least this much (of 255) in one colour channel
+
+# --- the review of V2 (2026-10-04/05): the big view, step by step (F1-F3) ---
+BIG_PHONE = (390, 844)
+BIG_LABEL_GAP = 4  # px between two radar time labels: they must not touch (V2: "12:25 PM2:45 PM" on a phone)
+BIG_HEADLINE_LINES = 3  # the headline in the big view on a phone (V2: 4 lines, German 5-6) ...
+# ... at least this size there (measured at 308 px text width: German "rain likely" takes 3 lines at
+# 24 px and 4 at 28 px; English takes 2 lines up to 36 px)
+BIG_PHONE_MIN_FONT = 24
+# The user: the content starts at the top of the glance and Now cards (V2: about 12 % empty above),
+# and the room goes to the content; Now's text keeps the glance's distance from the left border.
+KIOSK_ROOM_TOP = 0.05  # the empty band above a card's content, as a share of its inner height
+KIOSK_ROOM_FILL = {"glance": 0.8, "now": 0.7}  # the content's span, as in KIOSK_FILL but more
+KIOSK_REASON_SHARE = 0.025  # the "why" line, read from across the room (1280x800: 20 px; V2: 13 px)
+TRACK_CONTRAST = 1.5  # an empty radar track against the glass right above it (V2 light: 1.17, #e9ecf1 on #fdfefe)
+VIEW_LABEL = {"big": {"en": "Details", "de": "Details"},  # the view button's visible text: where a click goes
+              "detailed": {"en": "Big view", "de": "Große Ansicht"}}
