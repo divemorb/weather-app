@@ -20,7 +20,7 @@
   --accent: #1e3a8a;      /* the one accent: rain */
   --accent-soft: #e8effc; /* accent tint (selected search result) */
   --track: #bbc5cf;       /* the empty radar track (F3: 1.5:1 on the glass) */
-  --track-rain: #dbe6fa;  /* the track under a rainy column */
+  --track-rain: #a9bce6;  /* the track under a rainy column (F5: 1.9:1 on the glass) */
   --bad: #7f1d1d;
   --hover: rgb(31 35 40 / 0.06);
   --focus-ring: rgb(37 99 235 / 0.25);
@@ -40,7 +40,7 @@
   --accent: #9ccaff;
   --accent-soft: #1d2c42;
   --track: #23272e;
-  --track-rain: #24344d;
+  --track-rain: #566b90; /* F5: 1.8:1 on the glass; the fill stays the lighter blue */
   --bad: #ffcfca;
   --hover: rgb(232 234 237 / 0.08);
   --focus-ring: rgb(116 179 255 / 0.3);

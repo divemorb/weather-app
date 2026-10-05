@@ -80,7 +80,9 @@ html.kiosk #dashboard [data-test="details"] { display: none; }
  * 1920x1080 (the TV) fill the same card with the same proportions. */
 
 html.kiosk .glance-answer { font-size: 6.2vh; line-height: 1.15; }
-html.kiosk .glance-when { margin-top: 1.4vh; font-size: 2.2vh; }
+/* F5: the radar line comes first, so it stays at least as large as the
+ * "why" line under it (both read from across the room at the same size). */
+html.kiosk .glance-when { margin-top: 1.4vh; font-size: 2.5vh; }
 /* The "why" line says which source decided the sky; it is read from across
  * the room too (the V2 review: at least 2.5 % of the screen height). */
 html.kiosk .glance-reason { font-size: 2.5vh; }
@@ -177,6 +179,11 @@ html.kiosk .attr { margin-top: 0; font-size: 12px; }
    * ~308 px text width (German "rain likely" measured: 3 lines at 24 px,
    * 4 at 28 px), and the checks require at least 24 px. */
   html.kiosk .glance-answer { font-size: 24px; }
+
+  /* F5: the fitted headline drops to 20 px for the longest German text at
+   * 360 px, so the radar line and the "why" line get a fixed size that
+   * leaves it the lead (1.25x at 16 px). */
+  html.kiosk .glance-when, html.kiosk .glance-reason { font-size: 16px; }
 
   /* ...and the four 17 px (2 vh) radar time labels collided there
    * ("12:25 PM12:45 PM"). 12 px is the detailed view's label size; it
