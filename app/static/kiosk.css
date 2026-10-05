@@ -163,4 +163,15 @@ html.kiosk .attr { margin-top: 0; font-size: 12px; }
   /* The chart is drawn at the body's measured height; without a floor the
    * phone would get the short wide fallback. */
   html.kiosk #chart-card .chart-body.has-chart { min-height: 300px; }
+
+  /* The V2 review: at 390x844 the 6.2 vh headline (52 px) wrapped to 4-6
+   * lines; 24 px is the largest size that keeps it to 3 lines at the card's
+   * ~308 px text width (German "rain likely" measured: 3 lines at 24 px,
+   * 4 at 28 px), and the checks require at least 24 px. */
+  html.kiosk .glance-answer { font-size: 24px; }
+
+  /* ...and the four 17 px (2 vh) radar time labels collided there
+   * ("12:25 PM12:45 PM"). 12 px is the detailed view's label size; it
+   * leaves at least 4 px between two neighbours at the card's width. */
+  html.kiosk .radar-labels { font-size: 12px; }
 }
