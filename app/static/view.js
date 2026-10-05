@@ -27,7 +27,9 @@ const button = document.getElementById("view-toggle");
 function setView(view) {
   root.dataset.view = view;
   root.classList.toggle("kiosk", view === "big");
-  button.setAttribute("aria-label", t(lang, view === "big" ? "view.to-detailed" : "view.to-big"));
+  // The visible text is the accessible name (F3, WCAG 2.5.3): it says where
+  // a click goes, "Details" / "Big view" (de "Details" / "Große Ansicht").
+  button.textContent = t(lang, view === "big" ? "view.to-detailed" : "view.to-big");
 }
 
 setView(locked ? "big" : params.has("detailed") ? "detailed" : stored || "big");

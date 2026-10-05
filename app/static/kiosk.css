@@ -32,6 +32,8 @@ html.kiosk.locked [data-test="view-toggle"] { display: none; }
 html.kiosk .place { font-size: 20px; }
 html.kiosk .place-detail { font-size: 13px; }
 html.kiosk .actions .btn { width: 40px; height: 40px; }
+/* The view button's text says where a click goes (F3): it keeps one line. */
+html.kiosk #view-toggle { width: auto; min-width: 40px; }
 
 /* ---- the two columns --------------------------------------------------- */
 

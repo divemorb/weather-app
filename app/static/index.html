@@ -57,11 +57,9 @@
             <path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 4.9 5.2 10.9 6.4 12.3a1 1 0 0 0 1.2 0C13.8 19.9 19 13.9 19 9a7 7 0 0 0-7-7Zm0 9.5A2.5 2.5 0 1 1 14.5 9 2.5 2.5 0 0 1 12 11.5Z" />
           </svg>
         </button>
-        <button id="view-toggle" data-test="view-toggle" class="btn" type="button">
-          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path fill="currentColor" d="M5 4h6v16H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Zm8 0h6a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-6Z" />
-          </svg>
-        </button>
+        <!-- Its visible text (set by view.js) says where a click goes:
+             "Details" in the big view, "Big view" in the detailed one. -->
+        <button id="view-toggle" data-test="view-toggle" class="btn" type="button"></button>
         <button id="theme-toggle" data-test="theme-toggle" class="btn" type="button">
           <svg class="icon icon-sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <circle cx="12" cy="12" r="4.5" fill="currentColor" />
