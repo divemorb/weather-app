@@ -9,6 +9,7 @@
  */
 import { DASH, fmtMm, fmtNumber, fmtPercent, fmtTime, rainAnswer, sceneReason } from "./format.js";
 import { t } from "./i18n.js";
+import { fitHeadline } from "./fit.js";
 
 const els = {
   answer: document.getElementById("rain-answer"),
@@ -30,6 +31,10 @@ const RADAR_MAX_MM = 1.0;
 export function renderGlance(rain, radar, lang, locale, tz, radiusKm) {
   const a = rainAnswer(rain, radar, lang, locale, tz);
   els.answer.textContent = a.headline;
+  /* F4: the big view on a narrow screen fits the size to the text
+   * (at most two lines, as large as fits); elsewhere it removes the
+   * inline size so the CSS decides. */
+  fitHeadline(els.answer);
   if (a.detail) {
     els.when.textContent = a.detail;
     els.when.hidden = false;

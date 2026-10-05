@@ -9,6 +9,7 @@
  * toggles between the two views and stores the choice.
  */
 import { pickLang, t } from "./i18n.js";
+import { fitHeadline } from "./fit.js";
 
 const KEY = "view";
 const root = document.documentElement;
@@ -30,6 +31,9 @@ function setView(view) {
   // The visible text is the accessible name (F3, WCAG 2.5.3): it says where
   // a click goes, "Details" / "Big view" (de "Details" / "Große Ansicht").
   button.textContent = t(lang, view === "big" ? "view.to-detailed" : "view.to-big");
+  /* F4: switching views changes the headline's width (and the kiosk
+   * class), so refit the big view's text-fitted size (or remove it). */
+  fitHeadline(document.getElementById("rain-answer"));
 }
 
 setView(locked ? "big" : params.has("detailed") ? "detailed" : stored || "big");
