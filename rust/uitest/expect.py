@@ -280,3 +280,9 @@ KIOSK_REASON_SHARE = 0.025  # the "why" line, read from across the room (1280x80
 TRACK_CONTRAST = 1.5  # an empty radar track against the glass right above it (V2 light: 1.17, #e9ecf1 on #fdfefe)
 VIEW_LABEL = {"big": {"en": "Details", "de": "Details"},  # the view button's visible text: where a click goes
               "detailed": {"en": "Big view", "de": "Große Ansicht"}}
+# Claude's look at F4 (2026-10-05): the headline stays the largest line of the glance (on a phone the
+# fitted German headline was 22 px next to a 21 px "why" line), the radar line ("Radar: ...") is at
+# least as large as the "why" line under it, and the track under a rainy column is seen at least as
+# well as a dry one (F3 darkened the dry track to #bbc5cf, the rainy one stayed #dbe6fa: 1.1:1).
+BIG_HEADLINE_LEAD = 1.25  # the headline's font size, at least this times the glance's other lines
+BIG_HIERARCHY_SIZES = [(390, 844), (360, 740), (1280, 800)]

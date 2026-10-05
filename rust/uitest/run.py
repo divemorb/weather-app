@@ -68,7 +68,7 @@ from expect import (  # noqa: E402
     KIOSK_SIZES, LOCALES, MODEL_LABELS, NOW, RADAR_CAPTION, SCENARIO, SCENE_CASES, SCENE_SOURCE, SCENES,
     SOURCE_KIND, SOURCES, TZ, WEIGHTS, WHEN, WIZARD_DETAIL, WIZARD_LABEL,
     BIG_HEADLINE_FILL, BIG_HEADLINE_LINES, BIG_HEADLINE_MAX, BIG_HEADLINE_SIZES, BIG_LABEL_GAP, BIG_PHONE,
-    BIG_PHONE_MIN_FONT, KIOSK_REASON_SHARE, KIOSK_ROOM_FILL, KIOSK_ROOM_TOP,
+    BIG_PHONE_MIN_FONT, BIG_HEADLINE_LEAD, BIG_HIERARCHY_SIZES, KIOSK_REASON_SHARE, KIOSK_ROOM_FILL, KIOSK_ROOM_TOP,
     TRACK_CONTRAST, VIEW_LABEL)
 from fakeup import FakeUpstream  # noqa: E402
 from scenarios import SCENARIOS  # noqa: E402
@@ -97,7 +97,7 @@ SKY = (["sky-layer"] + [f"scene-{c}" for c in SCENE_CASES] + [f"motion-{s}" for 
        + [f"glass-{s}" for s in GLASS_SCENES])
 REASON = [f"reason-{c}" for c in REASON_CASES]
 VIEW = ["view-default", "view-toggle", "view-query", "view-phone"]
-BIG = ["big-labels", "big-headline"]  # the review of V2: the big view (also on a phone)
+BIG = ["big-labels", "big-headline", "big-hierarchy"]  # the review of V2: the big view (also on a phone)
 KIOSK_ROOM = [f"kiosk-room-{w}x{h}" for w, h in KIOSK_SIZES]
 
 
@@ -109,7 +109,7 @@ def check_names(scenario: str, lang: str) -> list[str]:
             names = [n for n in names if not n.startswith("chart-") or n == "chart-dry"]
             names += REASON + ["view-label"] + (["theme-toggle"] + VIEW + ["big-tracks"] if lang == "en" else [])
         else:
-            names += KIOSK_CHART + (["reduced-motion"] + REFRESH if lang == "en" else [])
+            names += KIOSK_CHART + (["reduced-motion"] + REFRESH + ["rain-tracks"] if lang == "en" else [])
         return names
     if scenario == "errors":
         return (COMMON + ["rain-answer", "rain-when", "rain-probability", "radar-unavailable", "now-unavailable",
@@ -1379,19 +1379,43 @@ def headline_problems(pg: UIPage, size) -> list[str]:
     return problems
 
 
-def track_problems(pg: UIPage, theme: str) -> list[str]:
-    """The dry radar tracks against the glass right above the strip (text made transparent,
-    the sky standing still): the strip must be seen on a dry day too."""
+def hierarchy_problems(pg: UIPage, size) -> list[str]:
+    """The big view's glance: the headline at least BIG_HEADLINE_LEAD times the radar line and
+    the "why" line; the radar line at least as large as the "why" line."""
+    where = f"{size[0]}x{size[1]}"
+    fs = {}
+    for hook in ("rain-answer", "rain-when", "sky-reason"):
+        els = [e for e in pg.ui(hook) if e["visible"]]
+        if els:
+            fs[hook] = els[0]["fontSize"]
+    if "rain-answer" not in fs:
+        return [f"{where}: [data-test=rain-answer] not visible"]
+    problems = []
+    for hook in ("rain-when", "sky-reason"):
+        if hook in fs and fs["rain-answer"] < BIG_HEADLINE_LEAD * fs[hook] - 0.5:
+            problems.append(f"{where}: the headline is {fs['rain-answer']:.0f} px, [data-test={hook}] {fs[hook]:.0f} px: "
+                            f"the headline must stay the largest line, at least {BIG_HEADLINE_LEAD}x the others")
+    if "rain-when" in fs and "sky-reason" in fs and fs["rain-when"] < fs["sky-reason"] - 0.5:
+        problems.append(f"{where}: [data-test=rain-when] ({fs['rain-when']:.1f} px) is smaller than the \"why\" line "
+                        f"under it ({fs['sky-reason']:.1f} px): the radar line comes first, at least as large")
+    return problems
+
+
+def track_problems(pg: UIPage, theme: str, rain: bool = False) -> list[str]:
+    """The empty radar tracks against the glass right above the strip (text made transparent,
+    the sky standing still): the strip must be seen on a dry day too. rain=True: the empty
+    part (top third) of the tracks under rainy columns instead."""
     strip = pg.js('(() => { const s = document.getElementById("radar-strip"); if (!s || !s.checkVisibility()) '
                   'return null; const r = s.getBoundingClientRect(); return {x: r.x, y: r.y, w: r.width, h: r.height}; })()')
     if not strip:
         return [f"{theme}: the radar strip is not visible in the big view"]
-    cols = [e["rect"] for e in pg.ui("radar-step") if e["visible"] and e["attrs"].get("data-rain") == "0"]
+    kind = "1" if rain else "0"
+    cols = [e["rect"] for e in pg.ui("radar-step") if e["visible"] and e["attrs"].get("data-rain") == kind]
     if not cols:
-        return [f"{theme}: no dry [data-test=radar-step] to measure"]
-    inset = 0.25  # the middle of each track, away from its rounded corners
-    rects = [{"x": c["x"] + c["w"] * inset, "y": c["y"] + c["h"] * inset, "w": c["w"] * (1 - 2 * inset),
-              "h": c["h"] * (1 - 2 * inset)} for c in cols]
+        return [f"{theme}: no {'rainy' if rain else 'dry'} [data-test=radar-step] to measure"]
+    inset = 0.25  # the middle of each track, away from its rounded corners (rainy: its empty top third)
+    rects = [{"x": c["x"] + c["w"] * inset, "y": c["y"] + c["h"] * (0.1 if rain else inset),
+              "w": c["w"] * (1 - 2 * inset), "h": c["h"] * (0.25 if rain else 1 - 2 * inset)} for c in cols]
     above = {"x": strip["x"], "y": strip["y"] - 8, "w": strip["w"], "h": 6}
     pg.js("__ui.hideText(true)")
     pg.frame()
@@ -1414,8 +1438,8 @@ def track_problems(pg: UIPage, theme: str) -> list[str]:
     worst = min((ratio(m, glass), m) for m in meds[:-1] if m)
     if worst[0] + 1e-6 < TRACK_CONTRAST:
         hexc = lambda rgb: "#" + "".join(f"{v:02x}" for v in rgb)  # noqa: E731
-        return [f"{theme}: an empty radar track ({hexc(worst[1])}) against the glass above the strip "
-                f"({hexc(glass)}) is {worst[0]:.2f}:1, at least {TRACK_CONTRAST}:1: the dry strip must be seen"]
+        return [f"{theme}: an empty radar track{' under a rainy column' if rain else ''} ({hexc(worst[1])}) against the glass above the strip "
+                f"({hexc(glass)}) is {worst[0]:.2f}:1, at least {TRACK_CONTRAST}:1: the strip must be seen"]
     return []
 
 
@@ -1432,6 +1456,20 @@ def run_big(browser, base, sc, lang, names, add):
         hp += headline_problems(pg, size)
         pg.close()
     add("big-headline", hp)
+    order = []
+    for size in BIG_HIERARCHY_SIZES:
+        pg = UIPage(browser, base, sc["now"], lang, width=size[0], height=size[1], query="")
+        order += hierarchy_problems(pg, size)
+        pg.close()
+    add("big-hierarchy", order)
+    if "rain-tracks" in names:
+        tracks = []
+        for theme in ("light", "dark"):
+            pg = UIPage(browser, base, sc["now"], lang, width=VIEW_DESKTOP[0], height=VIEW_DESKTOP[1],
+                        scheme=theme, reduced=True, query="")
+            tracks += track_problems(pg, theme, rain=True)
+            pg.close()
+        add("rain-tracks", tracks)
     add("big-labels", problems)
     if "view-label" in names:
         problems = []
