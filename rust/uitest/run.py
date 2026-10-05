@@ -67,7 +67,8 @@ from expect import (  # noqa: E402
     OBS_STATIONS, KIOSK_FILL, KIOSK_FONT_SHARE, KIOSK_MIN_FONT, KIOSK_RADAR_SHARE,
     KIOSK_SIZES, LOCALES, MODEL_LABELS, NOW, RADAR_CAPTION, SCENARIO, SCENE_CASES, SCENE_SOURCE, SCENES,
     SOURCE_KIND, SOURCES, TZ, WEIGHTS, WHEN, WIZARD_DETAIL, WIZARD_LABEL,
-    BIG_HEADLINE_LINES, BIG_LABEL_GAP, BIG_PHONE, BIG_PHONE_MIN_FONT, KIOSK_REASON_SHARE, KIOSK_ROOM_FILL, KIOSK_ROOM_TOP,
+    BIG_HEADLINE_FILL, BIG_HEADLINE_LINES, BIG_HEADLINE_MAX, BIG_HEADLINE_SIZES, BIG_LABEL_GAP, BIG_PHONE,
+    BIG_PHONE_MIN_FONT, KIOSK_REASON_SHARE, KIOSK_ROOM_FILL, KIOSK_ROOM_TOP,
     TRACK_CONTRAST, VIEW_LABEL)
 from fakeup import FakeUpstream  # noqa: E402
 from scenarios import SCENARIOS  # noqa: E402
@@ -1343,6 +1344,41 @@ def headline_lines(pg: UIPage) -> int:
     })()""")
 
 
+def headline_problems(pg: UIPage, size) -> list[str]:
+    """At most BIG_HEADLINE_LINES lines, at least BIG_PHONE_MIN_FONT, and as large as fits: at
+    least BIG_HEADLINE_FILL of the largest whole-px size up to BIG_HEADLINE_MAX that keeps it to
+    that many lines (tried on the page itself, the inline style restored afterwards)."""
+    where = f"{size[0]}x{size[1]}"
+    els = [e for e in pg.ui("rain-answer") if e["visible"]]
+    if not els:
+        return [f"{where}: [data-test=rain-answer] not visible"]
+    font, lines = els[0]["fontSize"], headline_lines(pg)
+    best = pg.js(f"""(() => {{
+        const el = document.querySelector('[data-test="rain-answer"]');
+        const saved = el.style.fontSize, range = document.createRange();
+        const count = () => {{ range.selectNodeContents(el);
+            return new Set([...range.getClientRects()].filter((r) => r.width > 0).map((r) => Math.round(r.bottom))).size; }};
+        let best = 0;
+        for (let px = {BIG_HEADLINE_MAX}; px >= 8; px--) {{
+            el.style.fontSize = px + "px";
+            if (count() <= {BIG_HEADLINE_LINES}) {{ best = px; break; }}
+        }}
+        el.style.fontSize = saved;
+        return best;
+    }})()""")
+    problems = []
+    text = repr(els[0]["text"])
+    if lines > BIG_HEADLINE_LINES:
+        problems.append(f"{where}: the headline {text} takes {lines} lines at {font:.0f} px, at most {BIG_HEADLINE_LINES}")
+    if font < BIG_PHONE_MIN_FONT - 0.5:
+        problems.append(f"{where}: the headline {text} is {font:.0f} px, at least {BIG_PHONE_MIN_FONT} px")
+    if best and font < BIG_HEADLINE_FILL * best - 0.5:
+        problems.append(f"{where}: the headline {text} is {font:.0f} px, but {best} px would still fit in "
+                        f"{BIG_HEADLINE_LINES} lines (at most {BIG_HEADLINE_MAX} px tried): at least "
+                        f"{BIG_HEADLINE_FILL * best:.0f} px, as large as the text allows")
+    return problems
+
+
 def track_problems(pg: UIPage, theme: str) -> list[str]:
     """The dry radar tracks against the glass right above the strip (text made transparent,
     the sky standing still): the strip must be seen on a dry day too."""
@@ -1389,18 +1425,13 @@ def run_big(browser, base, sc, lang, names, add):
     for size, where in ((VIEW_DESKTOP, "desktop"), (BIG_PHONE, "phone")):
         pg = UIPage(browser, base, sc["now"], lang, width=size[0], height=size[1], query="")
         problems += big_label_problems(pg, f"{where} {size[0]}x{size[1]}")
-        if where == "phone":
-            els = [e for e in pg.ui("rain-answer") if e["visible"]]
-            lines = headline_lines(pg) if els else 0
-            hp = [] if els else ["[data-test=rain-answer] not visible"]
-            if els and lines > BIG_HEADLINE_LINES:
-                hp.append(f"the headline takes {lines} lines at {size[0]}x{size[1]} (font size "
-                          f"{els[0]['fontSize']:.0f} px), at most {BIG_HEADLINE_LINES}: smaller type on narrow screens")
-            if els and els[0]["fontSize"] < BIG_PHONE_MIN_FONT - 0.5:
-                hp.append(f"the headline's font size is {els[0]['fontSize']:.0f} px at {size[0]}x{size[1]}, "
-                          f"at least {BIG_PHONE_MIN_FONT} px")
-            add("big-headline", hp)
         pg.close()
+    hp = []
+    for size in BIG_HEADLINE_SIZES:
+        pg = UIPage(browser, base, sc["now"], lang, width=size[0], height=size[1], query="")
+        hp += headline_problems(pg, size)
+        pg.close()
+    add("big-headline", hp)
     add("big-labels", problems)
     if "view-label" in names:
         problems = []

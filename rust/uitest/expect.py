@@ -261,10 +261,17 @@ GLASS_DELTA = 12  # a visible change: at least this much (of 255) in one colour 
 # --- the review of V2 (2026-10-04/05): the big view, step by step (F1-F3) ---
 BIG_PHONE = (390, 844)
 BIG_LABEL_GAP = 4  # px between two radar time labels: they must not touch (V2: "12:25 PM2:45 PM" on a phone)
-BIG_HEADLINE_LINES = 3  # the headline in the big view on a phone (V2: 4 lines, German 5-6) ...
-# ... at least this size there (measured at 308 px text width: German "rain likely" takes 3 lines at
-# 24 px and 4 at 28 px; English takes 2 lines up to 36 px)
-BIG_PHONE_MIN_FONT = 24
+# The headline in the big view on a phone (the user, 2026-10-05: "max two lines"; V2 had 4-6 lines
+# at 52 px, F1's fixed 24 px left short texts small): at most 2 lines and as large as fits, i.e. at
+# least BIG_HEADLINE_FILL of the largest size up to BIG_HEADLINE_MAX that keeps it to 2 lines, and
+# never below BIG_PHONE_MIN_FONT. Measured at 308 px text width: 2 lines up to 36 px (English
+# "No rain expected ..."), 44 px (English "Rain likely ..."), 24 px (German "In der nächsten Stunde
+# kein Regen erwartet"), 22 px (German "... wird es wahrscheinlich regnen"): one fixed size can't do it.
+BIG_HEADLINE_LINES = 2
+BIG_HEADLINE_MAX = 40
+BIG_HEADLINE_FILL = 0.9
+BIG_PHONE_MIN_FONT = 20
+BIG_HEADLINE_SIZES = [(390, 844), (360, 740)]
 # The user: the content starts at the top of the glance and Now cards (V2: about 12 % empty above),
 # and the room goes to the content; Now's text keeps the glance's distance from the left border.
 KIOSK_ROOM_TOP = 0.05  # the empty band above a card's content, as a share of its inner height
