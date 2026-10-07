@@ -42,6 +42,14 @@ CREATE TABLE IF NOT EXISTS app_meta (
     key   TEXT PRIMARY KEY,
     value TEXT
 );
+
+CREATE TABLE IF NOT EXISTS user_reports (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind        TEXT NOT NULL,
+    intensity   TEXT,
+    confirms    INTEGER NOT NULL DEFAULT 0,
+    observed_at TEXT NOT NULL
+);
 """
 
 
@@ -126,14 +134,15 @@ class Store:
     async def clear_location_data(self) -> None:
         """Drop all data that belongs to the old location.
 
-        Called when the location changes: the cache, the forecast history
-        and the observation stations all belong to the *old* location, so
-        none of it may be served for the new one.
+        Called when the location changes: the cache, the forecast history,
+        the observation stations and the user reports all belong to the
+        *old* location, so none of it may be served for the new one.
         """
         assert self._db is not None
         await self._db.execute("DELETE FROM source_cache")
         await self._db.execute("DELETE FROM forecast_history")
         await self._db.execute("DELETE FROM app_meta WHERE key = 'observation_stations'")
+        await self._db.execute("DELETE FROM user_reports")
         await self._db.commit()
 
     # -- cache ---------------------------------------------------------------
@@ -232,6 +241,56 @@ class Store:
         ) as cur:
             rows = await cur.fetchall()
         return [(row["model"], row["precip_mm"], row["observed_mm"]) for row in rows]
+
+    # -- user reports ---------------------------------------------------------
+    async def add_report(
+        self, kind: str, intensity: str | None, confirms: bool, observed_at: str
+    ) -> int:
+        """Save a user report and return its new id.
+
+        ``intensity`` is NULL when not given (only rain has one); ``confirms``
+        is stored as 0/1 (the Rust backend writes the same rows).
+        """
+        assert self._db is not None
+        cur = await self._db.execute(
+            "INSERT INTO user_reports (kind, intensity, confirms, observed_at) "
+            "VALUES (?, ?, ?, ?)",
+            (kind, intensity, 1 if confirms else 0, observed_at),
+        )
+        await self._db.commit()
+        return cur.lastrowid
+
+    async def delete_report(self, report_id: int) -> bool:
+        """Delete one report; True when the row existed."""
+        assert self._db is not None
+        cur = await self._db.execute("DELETE FROM user_reports WHERE id = ?", (report_id,))
+        await self._db.commit()
+        return cur.rowcount > 0
+
+    async def newest_report(self) -> tuple[int, str, str | None, int, str] | None:
+        """The newest report as ``(id, kind, intensity, confirms, observed_at)``;
+        None when there are none. Newest = highest ``observed_at``, then id."""
+        assert self._db is not None
+        async with self._db.execute(
+            "SELECT id, kind, intensity, confirms, observed_at FROM user_reports "
+            "ORDER BY observed_at DESC, id DESC LIMIT 1"
+        ) as cur:
+            row = await cur.fetchone()
+        if row is None:
+            return None
+        return (row["id"], row["kind"], row["intensity"], row["confirms"], row["observed_at"])
+
+    async def prune_reports(self, older_than: str, keep: int) -> None:
+        """Drop reports observed before ``older_than``, then all but the
+        newest ``keep`` (``observed_at``, then id). Runs on every save."""
+        assert self._db is not None
+        await self._db.execute("DELETE FROM user_reports WHERE observed_at < ?", (older_than,))
+        await self._db.execute(
+            "DELETE FROM user_reports WHERE id NOT IN "
+            "(SELECT id FROM user_reports ORDER BY observed_at DESC, id DESC LIMIT ?)",
+            (keep,),
+        )
+        await self._db.commit()
 
 
 def _parse_utc(stamp: str) -> float:

@@ -14,6 +14,9 @@ display timezone):
   GET /api/schedule             -> next backend refresh per job (UI countdown)
   GET /api/geocode              -> address search results (setup wizard)
   POST /api/location            -> set the home location (setup wizard)
+  POST /api/reports             -> report what the sky really looks like
+  GET /api/reports/current      -> the fresh report (last 30 min) or null
+  DELETE /api/reports/{id}      -> undo a report
 
 Static frontend:  GET / (static/index.html)
 """
@@ -27,7 +30,7 @@ from contextlib import asynccontextmanager
 from dataclasses import replace
 from pathlib import Path
 
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, Path as PathParam, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
@@ -51,6 +54,7 @@ from .location import (
     valid_timezone,
 )
 from .openmeteo_client import OpenMeteoClient
+from .reports import REPORT_ID_PATTERN, ReportIn, current_report, delete_report, save_report
 from .scheduler import build_scheduler, initial_refresh, schedule_models_retry, schedule_status
 from .store import Store
 from .upstream import SourceError
@@ -84,6 +88,7 @@ async def lifespan(app: FastAPI):
 
     app.state.cfg = cfg
     app.state.aggregator = aggregator
+    app.state.store = store
     app.state.scheduler = scheduler
     app.state.geocoder = geocoder
     log.info("weather app started (db=%s)", cfg.database_path)
@@ -350,6 +355,38 @@ async def api_set_location(request: Request, body: LocationIn) -> dict:
     _background_tasks.add(task)
     task.add_done_callback(_background_tasks.discard)
     return {"ok": True, "location": location_payload(loc)}
+
+
+@app.post("/api/reports", status_code=201)
+async def api_post_report(request: Request, body: ReportIn) -> dict:
+    """Store what the sky really looks like (same-origin JSON only; the
+    server's clock sets the observation time)."""
+    if not same_origin(request):
+        return JSONResponse({"detail": "cross-site request refused"}, status_code=403)
+    cfg: AppConfig = request.app.state.cfg
+    if cfg.location is None or request.app.state.store is None:
+        return JSONResponse({"detail": "no location configured"}, status_code=409)
+    store: Store = request.app.state.store
+    return {"report": await save_report(store, body, cfg.accuracy.window_days)}
+
+
+@app.get("/api/reports/current")
+async def api_current_report(request: Request) -> dict:
+    """The fresh report (observed within the last 30 minutes); ``null`` if none."""
+    store: Store | None = request.app.state.store
+    return {"report": await current_report(store)}
+
+
+@app.delete("/api/reports/{report_id}")
+async def api_delete_report(
+    request: Request, report_id: str = PathParam(pattern=REPORT_ID_PATTERN)
+) -> dict:
+    """Undo a report (same-origin only; the id is validated before the origin)."""
+    if not same_origin(request):
+        return JSONResponse({"detail": "cross-site request refused"}, status_code=403)
+    if not await delete_report(request.app.state.store, int(report_id)):
+        return JSONResponse({"detail": "report not found"}, status_code=404)
+    return {"deleted": int(report_id)}
 
 
 if _STATIC_DIR.exists():

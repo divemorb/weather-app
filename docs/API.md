@@ -15,6 +15,9 @@ The REST contract of the app: the endpoint table, the interactive-docs note, and
 | `GET /api/schedule` | next backend refresh per job (UI countdown) |
 | `GET /api/geocode` | address search for the setup wizard (Nominatim; `q` min 3 chars) |
 | `POST /api/location` | set the home location (same-origin JSON only; 403 for foreign origins) |
+| `POST /api/reports` | report what the sky really looks like ("Stimmt nicht?"; same-origin JSON only) |
+| `GET /api/reports/current` | the fresh report (observed within the last 30 min), or `null` |
+| `DELETE /api/reports/{report_id}` | undo a report |
 
 All timestamps are **UTC** in the API; the frontend converts to `Europe/Berlin`.
 
@@ -141,6 +144,36 @@ Each bucket is the *strongest* rain cell within `radar.radius_km` for that 5-min
 `models` is `{}` while no forecast has an observation yet (fresh install — it fills up hourly via the observation backfill). `event_accuracy` and `mae_mm` are `null`-safe (never `null` with `n_samples > 0`). `enough_data` is `n_samples >= min_samples`; the UI should grey out rows below that.
 
 `stations` remembers which DWD stations the observations of the last backfill came from, nearest first: `name`, `distance_m`, `lat`, `lon`, `dwd_station_id`, and `hours` — how many observation hours that backfill wrote from the station. It is `[]` until the first backfill has written observations, and it is cleared when the home location actually moves (a sub-ε nudge keeps it); a failed or observation-less backfill leaves it unchanged. Missing keys are `null`.
+
+**User reports** — what the sky really looks like ("Stimmt nicht?"): the user reports the real weather when the page is wrong, or confirms it when it is right. All three routes answer same-origin JSON only (403 `{"detail": "cross-site request refused"}` for foreign origins), and the body/path is validated before the origin check (422), as for `POST /api/location`. A GET on `/api/reports` or `/api/reports/{id}` falls through to the static files (404), as everywhere; other wrong methods are 405.
+
+**`POST /api/reports`** — store a report; 201 with the stored report. 409 `{"detail": "no location configured"}` while no location is set (checked after the body and the origin).
+
+The body has a closed set of values; unknown fields (and client times) are a 422:
+
+| field | values | default |
+| --- | --- | --- |
+| `kind` | `clear`, `partly-cloudy`, `cloudy`, `fog`, `rain`, `thunderstorm`, `snow`, `hail` | required |
+| `intensity` | `light`, `moderate`, `heavy` — only with `kind: "rain"` | `null` |
+| `minutes_ago` | `0`, `15` or `30` whole minutes back (integers only) | `0` |
+| `confirms` | `true` / `false` — the page is right | `false` |
+
+The *server's* clock sets the observation time: `observed_at` is now minus `minutes_ago`, whole seconds (truncated, not rounded).
+
+```json
+{"report": {"id": 1, "kind": "rain", "intensity": "heavy", "confirms": false,
+            "observed_at": "2025-01-01T12:00:00Z"}}
+```
+
+Reports are kept for the accuracy window (`window_days`, the same as `/api/model-accuracy`) and at most 500 (the newest survive, by `observed_at` then id); a move of the home location deletes them with the location's data.
+
+**`GET /api/reports/current`** — the fresh report: the newest one observed within the last 30 minutes (both ends inclusive); `null` while there is none:
+
+```json
+{"report": null}
+```
+
+**`DELETE /api/reports/{report_id}`** — undo a report; 200 `{"deleted": <id>}`, or 404 `{"detail": "report not found"}` when the id is unknown. `{report_id}` must be plain digits — 1–18 digits, no sign, no leading zero, no spaces (anything else is a 422 before the origin check).
 
 **`GET /api/sources`** — one entry per source (`radar`, `current`, `forecast`, `ensemble`):
 
