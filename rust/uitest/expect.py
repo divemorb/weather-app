@@ -286,3 +286,74 @@ VIEW_LABEL = {"big": {"en": "Details", "de": "Details"},  # the view button's vi
 # well as a dry one (F3 darkened the dry track to #bbc5cf, the rainy one stayed #dbe6fa: 1.1:1).
 BIG_HEADLINE_LEAD = 1.25  # the headline's font size, at least this times the glance's other lines
 BIG_HIERARCHY_SIZES = [(390, 844), (360, 740), (1280, 800)]
+
+# --- the user reports the real weather (report steps W1-W3, 2026-10-07) ---
+# The tile with data-report-host (today Now) turns over; its back holds the
+# picker. The kinds' words are the sky's scene words (SCENE_LABEL), so the
+# picker, the "why" line and the station's texts say the same.
+REPORT_KINDS = ["clear", "partly-cloudy", "cloudy", "fog", "rain", "thunderstorm", "snow", "hail"]
+REPORT_TEXT = {
+    "open": {"en": "Not right?", "de": "Stimmt nicht?"},  # the ↻ button's accessible name
+    "title": {"en": "What is it really like?", "de": "Wie ist es wirklich?"},
+    "shows": {"en": "The page shows: {scene}", "de": "Die Seite zeigt: {scene}"},
+    "confirm": {"en": "That's right", "de": "Stimmt"},
+    "close": {"en": "Close", "de": "Schließen"},
+    "skip": {"en": "Skip", "de": "Überspringen"},
+    "undo": {"en": "Undo", "de": "Rückgängig"},
+    "failed": {"en": "The report could not be saved.", "de": "Die Meldung konnte nicht gespeichert werden."},
+    "line": {"en": "Reported by you: {scene} · {time}", "de": "Von dir gemeldet: {scene} · {time}"},
+    "line-confirmed": {"en": "Confirmed by you: {scene} · {time}", "de": "Von dir bestätigt: {scene} · {time}"},
+    "sky": {"en": "Sky: {scene}, reported by you at {time}", "de": "Himmel: {scene}, von dir gemeldet um {time}"},
+    "sky-confirmed": {"en": "Sky: {scene}, confirmed by you at {time}",
+                      "de": "Himmel: {scene}, von dir bestätigt um {time}"},
+    "acc-title": {"en": "Against your reports", "de": "Gegen deine Meldungen"},
+    "acc-summary": {"en": "Hours with your reports: {hours}, confirmed: {confirmed}",
+                    "de": "Stunden mit deinen Meldungen: {hours}, davon bestätigt: {confirmed}"},
+    "acc-none": {"en": "No reports yet. Use “Not right?” to tell the page what the weather really is.",
+                 "de": "Noch keine Meldungen. Mit „Stimmt nicht?“ sagst du der Seite, wie das Wetter wirklich ist."},
+    "acc-note": {
+        "en": "Your reports judge the same forecast hours as the station. Rain, thunderstorm, snow and hail "
+              "count as rain; clear, partly cloudy, cloudy and fog as dry. If you report more than once in "
+              "an hour, the last report counts. The station's table and the forecast don't use your reports.",
+        "de": "Deine Meldungen bewerten dieselben Vorhersagestunden wie die Station. Regen, Gewitter, Schnee "
+              "und Hagel zählen als Regen; klar, teilweise bewölkt, bewölkt und Nebel als trocken. Meldest du "
+              "mehrmals in einer Stunde, zählt die letzte Meldung. Die Tabelle der Station und die Vorhersage "
+              "nutzen deine Meldungen nicht."},
+}
+REPORT_KIND_LABEL = {  # the picker's buttons
+    "clear": ("Clear", "Klar"), "partly-cloudy": ("Partly cloudy", "Teilweise bewölkt"),
+    "cloudy": ("Cloudy", "Bewölkt"), "fog": ("Fog", "Nebel"), "rain": ("Rain", "Regen"),
+    "thunderstorm": ("Thunderstorm", "Gewitter"), "snow": ("Snow", "Schnee"), "hail": ("Hail", "Hagel"),
+}
+REPORT_WHEN = {"0": ("now", "jetzt"), "15": ("15 min ago", "vor 15 Min."), "30": ("30 min ago", "vor 30 Min.")}
+REPORT_INTENSITY = {"light": ("Light", "Leicht"), "moderate": ("Moderate", "Mittel"), "heavy": ("Heavy", "Stark")}
+# (kind, intensity, day) -> scene, as reportkind.kindScene; and scene -> (kind, intensity) for "That's right"
+REPORT_SCENE_KIND = {
+    "clear-day": ("clear", None), "clear-night": ("clear", None),
+    "partly-cloudy-day": ("partly-cloudy", None), "partly-cloudy-night": ("partly-cloudy", None),
+    "cloudy": ("cloudy", None), "fog": ("fog", None), "rain": ("rain", None), "heavy-rain": ("rain", "heavy"),
+    "thunderstorm": ("thunderstorm", None), "snow": ("snow", None), "hail": ("hail", None),
+}
+# Faked fresh reports (GET /api/reports/current) and the sky they show: case -> (report fields,
+# browser clock, expected scene). 10:50Z is day in Berlin, 20:50Z night.
+REPORT_SKY_CASES = {
+    "clear": ({"kind": "clear"}, None, "clear-day"),
+    "clear-night": ({"kind": "clear"}, "2026-09-30T20:50:00Z", "clear-night"),
+    "partly-cloudy": ({"kind": "partly-cloudy"}, None, "partly-cloudy-day"),
+    "partly-cloudy-night": ({"kind": "partly-cloudy"}, "2026-09-30T20:50:00Z", "partly-cloudy-night"),
+    "cloudy": ({"kind": "cloudy"}, None, "cloudy"),
+    "fog": ({"kind": "fog"}, None, "fog"),
+    "rain": ({"kind": "rain"}, None, "rain"),
+    "rain-light": ({"kind": "rain", "intensity": "light"}, None, "rain"),
+    "rain-heavy": ({"kind": "rain", "intensity": "heavy"}, None, "heavy-rain"),
+    "thunderstorm": ({"kind": "thunderstorm"}, None, "thunderstorm"),
+    "snow": ({"kind": "snow"}, None, "snow"),
+    "hail": ({"kind": "hail"}, None, "hail"),
+    "confirmed": ({"kind": "cloudy", "confirms": True}, None, "cloudy"),
+}
+REPORT_MIN_BUTTON = 44  # px: the kind and intensity buttons are touch targets (WCAG 2.5.5)
+# Where the back must fit inside the host without changing its size (the measured worst case, 2026-10-07:
+# the big view at 1280x800 on a rainy day, Now 660x320 px with 20/26 px padding; a 360 px phone 332x403).
+REPORT_FIT = {"big-1280x800": (1280, 800, ""), "big-1920x1080": (1920, 1080, ""), "phone-360": (360, 740, ""),
+              "detailed-1280": (1280, 900, "?detailed"), "detailed-360": (360, 740, "?detailed")}
+REPORT_SAVE_S = 3.0  # after a tap: saved and the tile turned back within this time

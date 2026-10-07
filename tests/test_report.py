@@ -114,7 +114,7 @@ async def test_time_is_the_servers_in_whole_seconds(c, clock):
     assert report["observed_at"] == "2025-01-01T11:45:07Z"  # truncated, not rounded
 
 
-async def test_a_confirmation(c):
+async def test_confirmation(c):
     report = post(c, {"kind": "cloudy", "confirms": True}).json()["report"]
     assert report["confirms"] is True
 
@@ -232,7 +232,7 @@ async def test_current_is_fresh_for_30_minutes(c, clock):
     assert current(c) is None
 
 
-async def test_a_late_report_is_fresh_for_less(c, clock):
+async def test_late_report_is_fresh_for_less(c, clock):
     post(c, {"kind": "rain", "minutes_ago": 30})
     clock.now = T0 + timedelta(seconds=1)
     assert current(c) is None
@@ -304,7 +304,7 @@ async def test_reports_older_than_the_window_are_dropped(c, clock):
     assert c.delete(f"/api/reports/{old}", headers=SAME_ORIGIN).status_code == 404
 
 
-async def test_at_most_500_reports(c, clock):
+async def test_cap_500_reports(c, clock):
     """The oldest observation goes first (then the lowest id)."""
     oldest = post(c, {"kind": "rain", "minutes_ago": 30}).json()["report"]["id"]
     second = post(c, {"kind": "rain", "minutes_ago": 15}).json()["report"]["id"]
@@ -398,7 +398,7 @@ async def test_accuracy_against_the_reports(c, store, clock):
     assert body["models"] == station_before  # the station's table is unchanged
 
 
-async def test_newest_report_in_the_hour_decides(c, store, clock):
+async def test_accuracy_newest_report_in_the_hour_decides(c, store, clock):
     await seed_history(store)
     at(clock, 9, 50)
     post(c, {"kind": "fog"})                                  # dry, observed 09:50
@@ -409,7 +409,7 @@ async def test_newest_report_in_the_hour_decides(c, store, clock):
     assert models["icon_d2"]["false_alarms"] == 1             # 09: 0.5 mm vs dry
 
 
-async def test_undone_reports_dont_count(c, store, clock):
+async def test_accuracy_undone_reports_dont_count(c, store, clock):
     await seed_history(store)
     at(clock, 9, 10)
     rid = post(c, {"kind": "rain"}).json()["report"]["id"]
@@ -418,7 +418,7 @@ async def test_undone_reports_dont_count(c, store, clock):
     assert c.get("/api/model-accuracy").json()["user_reports"]["hours"] == 0
 
 
-async def test_only_hours_inside_the_window_count(c, store, clock):
+async def test_accuracy_only_hours_inside_the_window(c, store, clock):
     await seed_history(store)
     at(clock, 9, 10)
     post(c, {"kind": "rain"})

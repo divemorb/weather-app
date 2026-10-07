@@ -166,6 +166,7 @@ REPORT_CASES = [
     report_case("delete-422-space", "DELETE", "/api/reports/%209"),
     report_case("delete-422-too-long", "DELETE", "/api/reports/1234567890123456789"),
     report_case("delete-422-before-403", "DELETE", "/api/reports/abc", headers=FOREIGN),
+    report_case("delete-current-422", "DELETE", "/api/reports/current"),  # the id route, not the GET one
     report_case("delete-403", "DELETE", "/api/reports/9", headers=FOREIGN),
     report_case("put-405", "PUT", "/api/reports", {"kind": "rain"}),
     report_case("post-current-405", "POST", "/api/reports/current", {}),

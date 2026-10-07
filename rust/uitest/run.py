@@ -71,6 +71,7 @@ from expect import (  # noqa: E402
     BIG_PHONE_MIN_FONT, BIG_HEADLINE_LEAD, BIG_HIERARCHY_SIZES, KIOSK_REASON_SHARE, KIOSK_ROOM_FILL, KIOSK_ROOM_TOP,
     TRACK_CONTRAST, VIEW_LABEL)
 from fakeup import FakeUpstream  # noqa: E402
+import report_ui  # noqa: E402
 from scenarios import SCENARIOS  # noqa: E402
 
 PROBE = (HERE / "probe.js").read_text()
@@ -116,7 +117,10 @@ def check_names(scenario: str, lang: str) -> list[str]:
                           "chart-unavailable", "now-station", "station-map"] + [n for n in DETAILS if n not in ("details-weights", "details-signals")])
     if scenario == "accuracy":
         return ["console", "requests", "location", "location-detail", "rain-probability", "details-closed",
-                "details-weighting", "accuracy-table", "accuracy-head", "accuracy-note", "details-fit", "details-compact", "overflow-360"]
+                "details-weighting", "accuracy-table", "accuracy-head", "accuracy-note", "details-fit", "details-compact", "overflow-360",
+                "details-reports-none"]
+    if scenario in ("report", "report-glance"):
+        return report_ui.check_names(scenario, lang)
     if scenario == "fallback":
         return ["console", "now-station", "now-fallback"]
     if scenario == "sky":
@@ -130,9 +134,11 @@ def check_names(scenario: str, lang: str) -> list[str]:
     raise ValueError(scenario)
 
 
-UI_SCENARIOS = ["live", "rain", "errors", "accuracy", "unconfigured", "wizard", "fallback", "sky"]
-SCENARIO_LANGS = {"wizard": ["de", "en"], "sky": ["en"]}  # the German validation runs before the English save
-BACKEND = {"sky": "live"}  # UI scenarios that run on another scenario's app (with faked API answers)
+UI_SCENARIOS = ["live", "rain", "errors", "accuracy", "unconfigured", "wizard", "fallback", "sky", "report",
+                "report-glance"]
+SCENARIO_LANGS = {"wizard": ["de", "en"], "sky": ["en"], "report-glance": ["en"]}  # the German validation runs before the English save
+# UI scenarios that run on another scenario's app (with faked API answers, or another static folder)
+BACKEND = {"sky": "live", "report-glance": "report"}
 
 
 def all_names(scenarios, langs) -> list[str]:
@@ -666,13 +672,15 @@ class Results:
         self.problems.setdefault(name, []).extend(problems)
 
 
-def start_app(sc: dict, args, tmp: pathlib.Path):
+def start_app(sc: dict, args, tmp: pathlib.Path, static: pathlib.Path | None = None):
     fake = FakeUpstream(sc["routes"])
     db = tmp / "weather.db"
     if sc.get("seed"):
         contract.seed_db(db, sc["seed"], sc["now"])
     env = {"WEATHER_CONFIG": str(contract.make_config(tmp, fake.base)), "DATABASE_PATH": str(db),
            "WETTER_FAKE_NOW": sc["now"], **sc["env"]}
+    if static is not None:
+        env["STATIC_DIR"] = str(static)
     port = contract.free_port()
     ns = types.SimpleNamespace(backend="rust", binary=args.binary, log=args.log)
     proc = contract.start_backend(ns, port, env)
@@ -684,7 +692,11 @@ def run_scenario(name: str, browsers: dict, args, res: Results):
     sc = next(s for s in SCENARIOS if s["name"] == BACKEND.get(name, name))
     langs = [lang for lang in SCENARIO_LANGS.get(name, ["en", "de"]) if lang in browsers]
     with tempfile.TemporaryDirectory(prefix="uitest-") as tmp:
-        fake, proc, port, error = start_app(sc, args, pathlib.Path(tmp))
+        static = None
+        if name == "report-glance":  # the same page with the report picker on the glance
+            static = pathlib.Path(tmp) / "static"
+            report_ui.static_copy(STATIC, static)
+        fake, proc, port, error = start_app(sc, args, pathlib.Path(tmp), static)
         try:
             if error:
                 for lang in langs:
@@ -738,6 +750,8 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
         done(pg)
     elif name == "sky":
         run_sky(browser, base, sc, lang, add, done, shot)
+    elif name in ("report", "report-glance"):
+        report_ui.run(sys.modules[__name__], name, sc, browser, base, lang, names, add, done, shot)
     elif name == "unconfigured":
         pg = UIPage(browser, base, sc["now"], lang)
         info = pg.js("__ui.page()")
@@ -780,6 +794,8 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
             check_chart(pg, exp, add)
         shot(pg, "desktop-light")
         check_details(pg, name, exp, names, add)
+        if "details-reports-none" in names:
+            add("details-reports-none", report_ui.none_problems(pg, sys.modules[__name__], lang))
         shot(pg, "desktop-details")
         done(pg)
         if name == "accuracy":

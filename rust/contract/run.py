@@ -168,7 +168,7 @@ def start_backend(args, port: int, env: dict) -> subprocess.Popen:
         cmd = [sys.executable, str(HERE / "pyapp.py"), str(port)]
     else:
         cmd = [args.binary]
-        full_env.update(BIND_ADDR=f"127.0.0.1:{port}", STATIC_DIR=str(REPO / "app" / "static"))
+        full_env.update(BIND_ADDR=f"127.0.0.1:{port}", STATIC_DIR=env.get("STATIC_DIR", str(REPO / "app" / "static")))
     return subprocess.Popen(cmd, cwd=REPO, env=full_env, stdin=subprocess.DEVNULL,
                             stdout=args.log, stderr=subprocess.STDOUT)
 
@@ -340,7 +340,7 @@ def main():
                     help="print the environment an external app needs for SCENARIO and exit")
     ap.add_argument("--binary", default="/target/debug/wetter", help="the Rust binary (--backend rust)")
     ap.add_argument("--scenario", nargs="*", help="only these scenarios")
-    ap.add_argument("--require", nargs="*", default=["*"],
+    ap.add_argument("--require", nargs="*", default=["*"],  # "!pattern" excludes
                     help="case patterns (scenario:case) that must pass; others are reported only")
     ap.add_argument("--budget-mb", type=float, help="fail a scenario whose peak memory is above this")
     ap.add_argument("--update", action="store_true", help="write the goldens (Python backend only)")
@@ -377,7 +377,8 @@ def main():
             print(f"PASS {name}")
             return
         failed += 1
-        required = any(fnmatch.fnmatch(name, p) for p in args.require)
+        required = (any(fnmatch.fnmatch(name, p) for p in args.require if not p.startswith("!"))
+                    and not any(fnmatch.fnmatch(name, p[1:]) for p in args.require if p.startswith("!")))
         required_failed += required
         print(f"FAIL {name}{'' if required else ' (not required yet)'}")
         for p in problems[:8]:
