@@ -9,7 +9,7 @@ display timezone):
   GET /api/rain-probability     -> combined % + per-source breakdown
   GET /api/radar/next-hour      -> 12 x 5-min radar bar (mm per step)
   GET /api/models/24h           -> hourly precipitation per model (24 points)
-  GET /api/model-accuracy       -> per-model forecast accuracy (window)
+  GET /api/model-accuracy       -> per-model accuracy (station + user reports)
   GET /api/sources              -> per-source age / staleness / errors
   GET /api/schedule             -> next backend refresh per job (UI countdown)
   GET /api/geocode              -> address search results (setup wizard)
@@ -54,7 +54,14 @@ from .location import (
     valid_timezone,
 )
 from .openmeteo_client import OpenMeteoClient
-from .reports import REPORT_ID_PATTERN, ReportIn, current_report, delete_report, save_report
+from .reports import (
+    REPORT_ID_PATTERN,
+    ReportIn,
+    current_report,
+    delete_report,
+    save_report,
+    user_report_accuracy,
+)
 from .scheduler import build_scheduler, initial_refresh, schedule_models_retry, schedule_status
 from .store import Store
 from .upstream import SourceError
@@ -262,18 +269,17 @@ async def api_models_24h(request: Request) -> dict:
 async def api_model_accuracy(request: Request) -> dict:
     """Per-model accuracy over the configured window.
 
-    Compares stored forecasts against observed rain using the same
-    ``> model_rain_threshold_mm`` event the next-hour vote uses. Returns an
-    empty ``models`` dict while nothing has been compared yet, and
-    ``stations`` (the observation stations) ``[]`` until the backfill has
-    remembered any.
+    Compares stored forecasts against observed rain (the same ``>
+    model_rain_threshold_mm`` event as the next-hour vote); ``user_reports``
+    scores the same rows against the user's reports instead of the station.
     """
     agg: Aggregator = request.app.state.aggregator
     cfg: AppConfig = request.app.state.cfg
     models = await agg.get_model_accuracy()
     stations = await agg.get_observation_stations()
+    user_reports = await user_report_accuracy(request.app.state.store, cfg)
     return serialize_model_accuracy(
-        models, cfg.accuracy.window_days, cfg.accuracy.min_samples, stations
+        models, cfg.accuracy.window_days, cfg.accuracy.min_samples, stations, user_reports
     )
 
 

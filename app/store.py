@@ -242,6 +242,27 @@ class Store:
             rows = await cur.fetchall()
         return [(row["model"], row["precip_mm"], row["observed_mm"]) for row in rows]
 
+    async def scored_forecasts(self, since_iso: str) -> list[tuple[str, str, float]]:
+        """The station's scored rows as ``(model, valid_from, precip_mm)``.
+
+        The same rows as :meth:`compared_forecasts` (``observed_mm IS NOT
+        NULL``, hour started at or after ``since_iso``), labelled by hour so
+        the user-report comparison can pair each row with the user's report
+        of that hour.
+        """
+        assert self._db is not None
+        async with self._db.execute(
+            """
+            SELECT model, valid_from, precip_mm
+            FROM forecast_history
+            WHERE observed_mm IS NOT NULL AND valid_from >= ?
+            ORDER BY model, valid_from
+            """,
+            (since_iso,),
+        ) as cur:
+            rows = await cur.fetchall()
+        return [(row["model"], row["valid_from"], row["precip_mm"]) for row in rows]
+
     # -- user reports ---------------------------------------------------------
     async def add_report(
         self, kind: str, intensity: str | None, confirms: bool, observed_at: str
@@ -279,6 +300,16 @@ class Store:
         if row is None:
             return None
         return (row["id"], row["kind"], row["intensity"], row["confirms"], row["observed_at"])
+
+    async def report_rows(self) -> list[tuple[int, str, bool, str]]:
+        """All reports as ``(id, kind, confirms, observed_at)`` (id order);
+        the accuracy comparison picks the newest per hour itself."""
+        assert self._db is not None
+        async with self._db.execute(
+            "SELECT id, kind, confirms, observed_at FROM user_reports ORDER BY id"
+        ) as cur:
+            rows = await cur.fetchall()
+        return [(row["id"], row["kind"], bool(row["confirms"]), row["observed_at"]) for row in rows]
 
     async def prune_reports(self, older_than: str, keep: int) -> None:
         """Drop reports observed before ``older_than``, then all but the

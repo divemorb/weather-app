@@ -137,13 +137,26 @@ Each bucket is the *strongest* rain cell within `radar.radius_km` for that 5-min
      "lon": 13.407, "dwd_station_id": "00433", "hours": 3},
     {"name": "Berlin-Müggelsee", "distance_m": 17000.0, "lat": 52.44,
      "lon": 13.65, "dwd_station_id": "00410", "hours": 1}
-  ]
+  ],
+  "user_reports": {
+    "hours": 12,
+    "confirmed_hours": 3,
+    "models": {
+      "icon_d2": {
+        "n_samples": 12,
+        "hits": 4, "misses": 2, "false_alarms": 1, "correct_negatives": 5,
+        "event_accuracy": 0.583
+      }
+    }
+  }
 }
 ```
 
 `models` is `{}` while no forecast has an observation yet (fresh install — it fills up hourly via the observation backfill). `event_accuracy` and `mae_mm` are `null`-safe (never `null` with `n_samples > 0`). `enough_data` is `n_samples >= min_samples`; the UI should grey out rows below that.
 
 `stations` remembers which DWD stations the observations of the last backfill came from, nearest first: `name`, `distance_m`, `lat`, `lon`, `dwd_station_id`, and `hours` — how many observation hours that backfill wrote from the station. It is `[]` until the first backfill has written observations, and it is cleared when the home location actually moves (a sub-ε nudge keeps it); a failed or observation-less backfill leaves it unchanged. Missing keys are `null`.
+
+`user_reports` scores the models against the user's reports (see **User reports** below) instead of the station, on the same rows: the forecast hours with an observation inside `window_days`. Per UTC hour (a report is cut to the hour) the newest report decides — `rain`, `thunderstorm`, `snow`, `hail` count as wet, the other four as dry — and each model's forecast for that hour is wet when it exceeds `model_rain_threshold_mm` (strict, as for the station and the rain vote). `hours` counts the report hours that have at least one such row, `confirmed_hours` those whose deciding report confirms; a model's `event_accuracy` is (hits + correct negatives) / `n_samples`, rounded to 3 decimals, and the models come out in alphabetical order, like the station's table. It is `{"hours": 0, "confirmed_hours": 0, "models": {}}` while there is nothing to score (no reports, no rows, or no database — e.g. endpoint tests with a fake aggregator). The station's `models` table, the accuracy weights and the rain vote never read the reports.
 
 **User reports** — what the sky really looks like ("Stimmt nicht?"): the user reports the real weather when the page is wrong, or confirms it when it is right. All three routes answer same-origin JSON only (403 `{"detail": "cross-site request refused"}` for foreign origins), and the body/path is validated before the origin check (422), as for `POST /api/location`. A GET on `/api/reports` or `/api/reports/{id}` falls through to the static files (404), as everywhere; other wrong methods are 405.
 

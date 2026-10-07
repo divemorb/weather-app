@@ -11,10 +11,11 @@ newest survive) and go with the location's data on a move
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, StrictBool, StrictInt, ValidationInfo, field_validator
 
+from .config import AppConfig
 from .store import Store
 from .times import to_iso, utcnow
 
@@ -107,3 +108,105 @@ async def delete_report(store: Store | None, report_id: int) -> bool:
     if store is None:
         return False
     return await store.delete_report(report_id)
+
+
+# ---------------------------------------------------------------------------
+# P2: the models against the reports (``user_reports`` in
+# ``/api/model-accuracy``)
+# ---------------------------------------------------------------------------
+
+#: The kinds that count as wet for the accuracy comparison; the other four
+#: (``clear``, ``partly-cloudy``, ``cloudy``, ``fog``) are dry.
+WET_KINDS = frozenset({"rain", "thunderstorm", "snow", "hail"})
+
+
+def hour_of(observed_at: str) -> str:
+    """The hour a report belongs to: ``observed_at`` cut to the hour
+    (the ``valid_from`` format)."""
+    return observed_at[:13] + ":00:00Z"
+
+
+def deciding_reports(rows: list[tuple[int, str, bool, str]]) -> dict[str, tuple[bool, bool]]:
+    """Per hour, the newest report's ``(wet, confirms)``.
+
+    ``rows`` are the store's ``(id, kind, confirms, observed_at)``; the
+    newest report of an hour (``observed_at``, then id) decides it.
+    """
+    newest: dict[str, tuple[str, int, str, bool]] = {}  # hour -> (observed_at, id, kind, confirms)
+    for report_id, kind, confirms, observed_at in rows:
+        hour = hour_of(observed_at)
+        current = newest.get(hour)
+        if current is None or (observed_at, report_id) > (current[0], current[1]):
+            newest[hour] = (observed_at, report_id, kind, confirms)
+    return {
+        hour: (kind in WET_KINDS, confirms)
+        for hour, (_observed_at, _report_id, kind, confirms) in newest.items()
+    }
+
+
+def score_user_reports(
+    deciding: dict[str, tuple[bool, bool]],
+    rows: list[tuple[str, str, float]],
+    threshold_mm: float,
+) -> dict[str, Any]:
+    """Score the models against the user reports (the ``user_reports`` block).
+
+    ``deciding`` is :func:`deciding_reports`; ``rows`` are the station's
+    scored rows ``(model, valid_from, precip_mm)`` (``observed_mm IS NOT
+    NULL``, the window). Only report hours with at least one such row are
+    scored (``hours``), ``confirmed_hours`` counting those whose deciding
+    report confirms. A model's forecast is wet when ``precip_mm >
+    threshold_mm`` (strict, as in :mod:`app.accuracy`); the models come out
+    in alphabetical order, like the station's table.
+    """
+    pairs: dict[str, list[tuple[bool, bool]]] = {}
+    scored: set[str] = set()
+    for model, valid_from, precip_mm in rows:
+        report = deciding.get(valid_from)
+        if report is None:
+            continue
+        wet, _confirms = report
+        scored.add(valid_from)
+        pairs.setdefault(model, []).append((precip_mm > threshold_mm, wet))
+    confirmed_hours = sum(1 for hour in scored if deciding[hour][1])
+    models: dict[str, dict[str, Any]] = {}
+    for model in sorted(pairs):
+        hits = misses = false_alarms = correct_negatives = 0
+        for forecast_wet, observed_wet in pairs[model]:
+            if forecast_wet and observed_wet:
+                hits += 1
+            elif observed_wet:
+                misses += 1
+            elif forecast_wet:
+                false_alarms += 1
+            else:
+                correct_negatives += 1
+        n = hits + misses + false_alarms + correct_negatives
+        models[model] = {
+            "n_samples": n,
+            "hits": hits,
+            "misses": misses,
+            "false_alarms": false_alarms,
+            "correct_negatives": correct_negatives,
+            "event_accuracy": round((hits + correct_negatives) / n, 3) if n else None,
+        }
+    return {"hours": len(scored), "confirmed_hours": confirmed_hours, "models": models}
+
+
+async def user_report_accuracy(store: Store | None, cfg: AppConfig) -> dict[str, Any]:
+    """The ``user_reports`` block of ``/api/model-accuracy``.
+
+    Scores the same rows the station uses (``observed_mm IS NOT NULL``, the
+    window from this module's clock) against the newest user report of each
+    hour; the empty block without a Store (endpoint tests with a fake
+    aggregator have none).
+    """
+    if store is None:
+        return {"hours": 0, "confirmed_hours": 0, "models": {}}
+    now = utcnow()
+    since = to_iso(now - timedelta(days=cfg.accuracy.window_days))
+    return score_user_reports(
+        deciding_reports(await store.report_rows()),
+        await store.scored_forecasts(since),
+        cfg.probability.model_rain_threshold_mm,
+    )

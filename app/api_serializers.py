@@ -122,6 +122,7 @@ def serialize_model_accuracy(
     window_days: int,
     min_samples: int,
     stations: list[dict[str, Any]] | None = None,
+    user_reports: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Shape the per-model accuracy (``GET /api/model-accuracy``).
 
@@ -129,7 +130,9 @@ def serialize_model_accuracy(
     (``{}`` while nothing has been compared yet); each entry gains
     ``enough_data`` = ``n_samples >= min_samples``. ``stations`` lists the
     observation stations behind the table, nearest first; ``None``
-    serializes as ``[]``.
+    serializes as ``[]``. ``user_reports`` is the
+    :func:`app.reports.user_report_accuracy` block (the models scored
+    against the user's reports instead of the station); ``None`` omits it.
     """
     serialized: dict[str, dict[str, Any]] = {}
     for name, stats in models.items():
@@ -147,9 +150,12 @@ def serialize_model_accuracy(
         ea = stats.get("event_accuracy")
         entry["event_accuracy"] = round(ea, 3) if ea is not None else None
         serialized[name] = entry
-    return {
+    out = {
         "window_days": window_days,
         "min_samples": min_samples,
         "models": serialized,
         "stations": stations or [],
     }
+    if user_reports is not None:
+        out["user_reports"] = user_reports
+    return out
