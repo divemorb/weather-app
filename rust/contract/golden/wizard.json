@@ -1,6 +1,6 @@
 {
  "now": "2026-09-30T10:27:10Z",
- "python_memory_kb": 63792,
+ "python_memory_kb": 64620,
  "upstream": [
   "/bs/current_weather?lat=1.0&lon=13.405",
   "/bs/current_weather?lat=48.137&lon=11.575",
@@ -300,7 +300,12 @@
       "dwd_station_id": "00433",
       "hours": 10
      }
-    ]
+    ],
+    "user_reports": {
+     "hours": 0,
+     "confirmed_hours": 0,
+     "models": {}
+    }
    }
   },
   "location/same-place": {

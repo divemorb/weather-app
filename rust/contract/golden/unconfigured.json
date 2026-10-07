@@ -1,6 +1,6 @@
 {
  "now": "2026-09-30T10:27:10Z",
- "python_memory_kb": 63760,
+ "python_memory_kb": 64808,
  "upstream": [],
  "cases": {
   "healthz": {
@@ -193,7 +193,12 @@
     "window_days": 30,
     "min_samples": 48,
     "models": {},
-    "stations": []
+    "stations": [],
+    "user_reports": {
+     "hours": 0,
+     "confirmed_hours": 0,
+     "models": {}
+    }
    }
   },
   "api/sources": {
@@ -1068,6 +1073,74 @@
    },
    "json": {
     "detail": "cross-site request refused"
+   }
+  },
+  "reports/409-unconfigured": {
+   "status": 409,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": "no location configured"
+   }
+  },
+  "reports/422-before-409": {
+   "status": 422,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": [
+     {
+      "loc": [
+       "body",
+       "kind"
+      ],
+      "msg": "<msg>"
+     }
+    ]
+   }
+  },
+  "reports/403-before-409": {
+   "status": 403,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "detail": "cross-site request refused"
+   }
+  },
+  "reports/current-unconfigured": {
+   "status": 200,
+   "headers": {
+    "content-type": "application/json",
+    "content-security-policy": "default-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
+    "cross-origin-resource-policy": "same-origin",
+    "cache-control": "no-cache",
+    "etag": "absent"
+   },
+   "json": {
+    "report": null
    }
   }
  }
