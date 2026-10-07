@@ -129,8 +129,36 @@ def seed_db(db: pathlib.Path, seed: dict, now: str):
         con.execute("INSERT INTO forecast_history (model, issued_at, valid_from, valid_to, precip_mm,"
                     " observed_mm) VALUES (?, ?, ?, ?, 5.0, 0.0)",
                     (model, old.strftime(fmt), old.strftime(fmt), (old + timedelta(hours=1)).strftime(fmt)))
+    if seed.get("reports"):
+        seed_reports(con, hour)
     con.commit()
     con.close()
+
+
+#: (hours back, minute, kind, intensity, confirms) for the "reports" seed:
+#: two reports in one hour (the newer decides), a confirmation, an hour
+#: the startup backfill observes, one outside the 30-day window (dropped by
+#: the first new report). Ids 1-7 in this order.
+SEEDED_REPORTS = [
+    (31 * 24, 10, "rain", None, 0),
+    (54, 5, "rain", "light", 0),
+    (57, 15, "thunderstorm", None, 0),
+    (57, 45, "partly-cloudy", None, 0),
+    (62, 40, "rain", "heavy", 0),
+    (65, 30, "cloudy", None, 1),
+    (3, 20, "snow", None, 0),
+]
+
+
+def seed_reports(con, hour: datetime) -> None:
+    """User reports (report steps). Skipped while the schema has no
+    ``user_reports`` table (before the Python step that adds it)."""
+    if not con.execute("SELECT 1 FROM sqlite_master WHERE name = 'user_reports'").fetchone():
+        return
+    for back, minute, kind, intensity, confirms in SEEDED_REPORTS:
+        at = (hour - timedelta(hours=back)).replace(minute=minute)
+        con.execute("INSERT INTO user_reports (kind, intensity, confirms, observed_at) VALUES (?, ?, ?, ?)",
+                    (kind, intensity, confirms, at.strftime("%Y-%m-%dT%H:%M:%SZ")))
 
 
 def start_backend(args, port: int, env: dict) -> subprocess.Popen:
@@ -368,7 +396,11 @@ def main():
             print(f"wrote golden/{sc['name']}.json ({len(result['cases'])} cases, "
                   f"Python peak {result['memory_kb']} kB)")
             continue
-        golden = json.loads((GOLDEN / f"{sc['name']}.json").read_text())
+        golden_file = GOLDEN / f"{sc['name']}.json"
+        if not golden_file.exists():  # a new scenario before its goldens were recorded
+            report(f"{sc['name']}:golden", [f"no golden/{golden_file.name} yet (recorded from the Python backend)"])
+            continue
+        golden = json.loads(golden_file.read_text())
         for name, want in golden["cases"].items():
             got = result["cases"].get(name, {"error": "case not run"})
             report(f"{sc['name']}:{name}", [got["error"]] if "error" in got else diff(want, got))

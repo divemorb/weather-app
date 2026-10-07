@@ -36,6 +36,12 @@ if fake:
 
     for module in (app.times, app.aggregator, app.brightsky_client, app.scheduler):
         module.utcnow = utcnow
+    try:  # the user reports (report steps); absent before them
+        import app.reports  # noqa: E402
+
+        app.reports.utcnow = utcnow
+    except ImportError:
+        pass
 
     class FrozenTime:
         """Stands in for the ``time`` module inside app.store."""

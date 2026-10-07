@@ -107,9 +107,87 @@ VALIDATION_CASES = [
     post_location("403-fetch-site", VALID, {"Origin": None, "Sec-Fetch-Site": "cross-site"}),
 ]
 
+def report_case(name, method, path, body=None, headers=None, **kw):
+    case = {"name": f"reports/{name}", "method": method, "path": path,
+            "headers": {**SAME_ORIGIN, **(headers or {})}, **kw}
+    if body is not None:
+        case["body"] = body
+    return case
+
+
+def post_report(name, body, headers=None, **kw):
+    return report_case(name, "POST", "/api/reports", body, headers, **kw)
+
+
+FOREIGN = {"Origin": "http://evil.example"}
+
+# The user reports (report steps). The seed adds reports 1-7 (run.py
+# SEEDED_REPORTS); the first new one gets id 8 and drops id 1 (older than
+# the 30-day window).
+REPORT_CASES = [
+    get("/api/reports/current", "reports/current-none"),
+    get("/api/model-accuracy", "reports/accuracy-seeded"),
+    get("/api/rain-probability", "reports/rain-probability"),  # the weights ignore reports
+    post_report("post-rain-heavy", {"kind": "rain", "intensity": "heavy"}),
+    get("/api/reports/current", "reports/current-rain"),
+    post_report("post-fog-15", {"kind": "fog", "minutes_ago": 15}),
+    get("/api/reports/current", "reports/current-still-rain"),
+    post_report("post-confirm-30", {"kind": "cloudy", "confirms": True, "minutes_ago": 30}),
+    post_report("post-every-field", {"kind": "rain", "intensity": None, "minutes_ago": 0, "confirms": False}),
+    report_case("delete-11", "DELETE", "/api/reports/11"),
+    report_case("delete-rain", "DELETE", "/api/reports/8"),
+    report_case("delete-again", "DELETE", "/api/reports/8"),
+    report_case("delete-pruned", "DELETE", "/api/reports/1"),
+    report_case("delete-unknown-large", "DELETE", "/api/reports/123456789012345678"),
+    get("/api/reports/current", "reports/current-after-undo"),
+    get("/api/model-accuracy", "reports/accuracy-after-posts"),
+    post_report("422-kind", {"kind": "sunny"}),
+    post_report("422-kind-case", {"kind": "Rain"}),
+    post_report("422-kind-missing", {}),
+    post_report("422-intensity", {"kind": "rain", "intensity": "huge"}),
+    post_report("422-intensity-not-rain", {"kind": "fog", "intensity": "light"}),
+    post_report("422-minutes", {"kind": "rain", "minutes_ago": 10}),
+    post_report("422-minutes-float", {"kind": "rain", "minutes_ago": 15.0}),
+    post_report("422-minutes-string", {"kind": "rain", "minutes_ago": "15"}),
+    post_report("422-minutes-bool", {"kind": "rain", "minutes_ago": False}),
+    post_report("422-confirms-int", {"kind": "rain", "confirms": 1}),
+    post_report("422-observed-at", {"kind": "rain", "observed_at": "2026-09-30T08:00:00Z"}),
+    post_report("422-json-list", [1]),
+    post_report("422-not-json", "abc"),
+    post_report("422-nan", '{"kind": "rain", "minutes_ago": NaN}', compare="status"),
+    post_report("422-before-403", {"kind": "sunny"}, FOREIGN),
+    post_report("403-foreign-origin", {"kind": "rain"}, FOREIGN),
+    post_report("403-fetch-site", {"kind": "rain"}, {"Origin": None, "Sec-Fetch-Site": "cross-site"}),
+    report_case("delete-422-letters", "DELETE", "/api/reports/abc"),
+    report_case("delete-422-zero", "DELETE", "/api/reports/0"),
+    report_case("delete-422-plus", "DELETE", "/api/reports/+9"),
+    report_case("delete-422-decimal", "DELETE", "/api/reports/9.0"),
+    report_case("delete-422-leading-zero", "DELETE", "/api/reports/09"),
+    report_case("delete-422-space", "DELETE", "/api/reports/%209"),
+    report_case("delete-422-too-long", "DELETE", "/api/reports/1234567890123456789"),
+    report_case("delete-422-before-403", "DELETE", "/api/reports/abc", headers=FOREIGN),
+    report_case("delete-403", "DELETE", "/api/reports/9", headers=FOREIGN),
+    report_case("put-405", "PUT", "/api/reports", {"kind": "rain"}),
+    report_case("post-current-405", "POST", "/api/reports/current", {}),
+    report_case("put-id-405", "PUT", "/api/reports/9", {}),
+    get("/api/reports", "reports/get-collection"),
+    get("/api/reports/9", "reports/get-one"),
+    get("/api/reports/current", "reports/current-final"),
+    post_location("move-munich", {**VALID, "latitude": 48.13743, "longitude": 11.57549, "label": "München"},
+                  settle=True),
+    get("/api/reports/current", "reports/current-after-move"),
+    get("/api/model-accuracy", "reports/accuracy-after-move"),
+    report_case("delete-after-move", "DELETE", "/api/reports/9"),
+]
+
 SCENARIOS = [
     {"name": "unconfigured", "now": NOW_LIVE, "env": {"ALLOWED_HOSTS": "pi.fritz.box"}, "routes": {},
-     "cases": api_cases() + SECURITY_CASES + VALIDATION_CASES},
+     "cases": api_cases() + SECURITY_CASES + VALIDATION_CASES + [
+         post_report("409-unconfigured", {"kind": "rain"}),
+         post_report("422-before-409", {"kind": "sunny"}),
+         post_report("403-before-409", {"kind": "rain"}, FOREIGN),
+         get("/api/reports/current", "reports/current-unconfigured"),
+     ]},
     {"name": "live", "now": NOW_LIVE, "env": BERLIN, "routes": LIVE, "cases": api_cases()},
     {"name": "rain", "now": NOW_RAIN, "env": BERLIN, "routes": RAIN, "cases": api_cases()},
     {"name": "fallback", "now": NOW_LIVE, "env": BERLIN, "routes": FALLBACK, "cases": [get("/api/now")]},
@@ -121,6 +199,8 @@ SCENARIOS = [
     {"name": "accuracy-gate", "now": NOW_RAIN, "env": {"USE_ACCURACY_WEIGHTS": "true"}, "routes": RAIN,
      "seed": {"location": True, "history": "gate"},
      "cases": [get("/api/model-accuracy"), get("/api/rain-probability")]},
+    {"name": "report", "now": NOW_RAIN, "env": {"USE_ACCURACY_WEIGHTS": "true"}, "routes": RAIN,
+     "seed": {"location": True, "history": "full", "reports": True}, "cases": REPORT_CASES},
     {"name": "wizard", "now": NOW_LIVE, "env": {}, "routes": LIVE, "cases": [
         get("/api/config", "wizard/config-before"),
         post_location("set-berlin", VALID, settle=True),

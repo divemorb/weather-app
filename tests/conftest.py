@@ -79,6 +79,9 @@ def client(cfg):
     def _install(agg) -> TestClient:
         app.state.cfg = cfg
         app.state.aggregator = agg
+        # No Store behind a fake aggregator (and none left over from a test
+        # that installed one): the report routes answer without one.
+        app.state.store = None
         # base_url on an IP literal: the Host header check (step 7g) rejects
         # the TestClient default "testserver", but accepts any IP literal.
         return TestClient(app, base_url="http://127.0.0.1:8000")
