@@ -152,6 +152,7 @@ impl Store {
         }
         let mut conn = Connection::open(path)?;
         conn.execute_batch(SCHEMA)?;
+        conn.execute_batch(reports::SCHEMA)?;
         migrate(&mut conn)?;
         Ok(Store {
             conn: Mutex::new(conn),
@@ -201,6 +202,7 @@ impl Store {
         let conn = self.lock_conn();
         conn.execute("DELETE FROM source_cache", [])?;
         conn.execute("DELETE FROM forecast_history", [])?;
+        conn.execute("DELETE FROM user_reports", [])?;
         conn.execute(
             "DELETE FROM app_meta WHERE key = 'observation_stations'",
             [],
@@ -390,5 +392,6 @@ fn schema_version(value: Option<Option<String>>) -> i64 {
     text.parse::<i64>().unwrap_or(i64::MAX)
 }
 
+mod reports;
 #[cfg(test)]
 mod tests;
