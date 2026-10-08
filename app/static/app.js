@@ -22,6 +22,7 @@ import { initNow, renderNow } from "./now.js";
 import { renderChart } from "./chart.js";
 import { initDetails, renderDetails, scheduleFrom } from "./details.js";
 import { initSetup, openSetup } from "./setup.js";
+import { initReport, reportScene } from "./report.js";
 
 const lang = pickLang(navigator.languages);
 const locale = navigator.language;
@@ -39,6 +40,7 @@ $("glance-prob-label").textContent = t(lang, "glance.prob-label");
 $("rain-answer").textContent = t(lang, "answer.loading");
 $("chart-title").textContent = t(lang, "chart.title");
 initNow(lang);
+initReport(lang);
 $("attribution").innerHTML = t(lang, "attribution", {
   dwd: '<a href="https://www.dwd.de" target="_blank" rel="noopener">DWD</a>',
   brightsky: '<a href="https://brightsky.dev" target="_blank" rel="noopener">Bright Sky</a>',
@@ -152,6 +154,7 @@ async function refresh() {
   if (data.now != null) skyNow = data.now;
   if (data.radar != null) skyRadar = data.radar;
   renderPart("sky", setSkyScene); // its own part: a bad answer must not stop the others
+  renderPart("report", reportScene); // the open back names the scene the page shows
   renderPart("glance", () => renderGlance(data.rain, data.radar, lang, locale, tz, cfg && cfg.radar_radius_km));
   /* The sky's "why" line: the same part as the glance, so one failed
    * endpoint (now or radar) never stops the other. */

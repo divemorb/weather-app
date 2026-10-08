@@ -1,0 +1,226 @@
+/* report.css — the "Not right?" flip tile (W1a: the picker).
+ *
+ * The host (data-report-host) gets position: relative; the back covers its
+ * whole box (inset: 0), so the tile never changes its size while it turns.
+ * The rotating element is the back's inner column: while it turns it only
+ * gets narrow visually, the box itself keeps its size. With
+ * prefers-reduced-motion the turn is dropped and the back just appears.
+ */
+
+[data-report-host] {
+  position: relative;
+}
+
+/* ---- the button on the front corner ----------------------------------- */
+
+.report-open-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgb(20 24 28 / 0.2);
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.75);
+  color: #14181c;
+  cursor: pointer;
+}
+.report-open-btn svg { width: 22px; height: 22px; }
+.report-open-btn:hover { background: rgb(255 255 255 / 0.95); }
+:root[data-theme="dark"] .report-open-btn {
+  background: rgb(27 30 35 / 0.75);
+  border-color: rgb(255 255 255 / 0.22);
+  color: #edf0f2;
+}
+:root[data-theme="dark"] .report-open-btn:hover { background: rgb(27 30 35 / 0.95); }
+/* The locked wall display has no report button. */
+html.locked .report-open-btn { display: none; }
+
+/* ---- the back: the picker --------------------------------------------- */
+
+.report-back {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  padding: 12px;
+  border-radius: inherit;
+  overflow: hidden;
+  visibility: hidden;
+  background: #ffffff;
+  color: #14181c;
+  perspective: 700px;
+}
+:root[data-theme="dark"] .report-back {
+  background: #1b1e23;
+  color: #edf0f2;
+}
+.report-open .report-back { visibility: visible; }
+
+.report-back-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transform: rotateY(180deg);
+  visibility: hidden;
+}
+.report-open .report-back-inner {
+  visibility: visible;
+  opacity: 1;
+  transform: rotateY(0deg);
+  animation: report-turn 0.35s ease-out;
+}
+@keyframes report-turn {
+  from { opacity: 0; transform: rotateY(180deg); }
+  to { opacity: 1; transform: rotateY(0deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .report-open .report-back-inner { animation: none; }
+}
+
+.report-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+}
+
+.report-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.report-icon-btn {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid rgb(20 24 28 / 0.18);
+  border-radius: 10px;
+  background: rgb(20 24 28 / 0.07);
+  color: inherit;
+  cursor: pointer;
+}
+.report-icon-btn svg { width: 16px; height: 16px; }
+:root[data-theme="dark"] .report-icon-btn {
+  border-color: rgb(255 255 255 / 0.22);
+  background: rgb(255 255 255 / 0.1);
+}
+
+.report-shows {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.report-confirm {
+  flex: none;
+  min-height: 32px;
+  padding: 4px 12px;
+  border: none;
+  border-radius: 999px;
+  background: #14181c;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+:root[data-theme="dark"] .report-confirm {
+  background: #edf0f2;
+  color: #14181c;
+}
+
+/* The eight kinds: 4 columns x 2 rows taking the rest of the tile. */
+.report-kinds {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.report-kind {
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px 2px;
+  border: 1px solid rgb(20 24 28 / 0.18);
+  border-radius: 10px;
+  background: rgb(20 24 28 / 0.07);
+  color: inherit;
+  cursor: pointer;
+}
+.report-kind svg { width: 22px; height: 22px; flex: none; }
+.report-kind-label {
+  font-size: 12px;
+  line-height: 1.15;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.report-kind[aria-current="true"] {
+  border: 2px solid currentColor;
+  background: rgb(20 24 28 / 0.14);
+}
+:root[data-theme="dark"] .report-kind {
+  border-color: rgb(255 255 255 / 0.22);
+  background: rgb(255 255 255 / 0.1);
+}
+:root[data-theme="dark"] .report-kind[aria-current="true"] {
+  background: rgb(255 255 255 / 0.18);
+}
+
+/* The three time chips. */
+.report-whens {
+  display: flex;
+  gap: 6px;
+  min-height: 30px;
+}
+.report-when {
+  flex: 1;
+  min-height: 30px;
+  padding: 3px 4px;
+  border: 1px solid rgb(20 24 28 / 0.18);
+  border-radius: 999px;
+  background: rgb(20 24 28 / 0.07);
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.report-when[aria-pressed="true"] {
+  background: #14181c;
+  border-color: #14181c;
+  color: #ffffff;
+}
+:root[data-theme="dark"] .report-when {
+  border-color: rgb(255 255 255 / 0.22);
+  background: rgb(255 255 255 / 0.1);
+}
+:root[data-theme="dark"] .report-when[aria-pressed="true"] {
+  background: #edf0f2;
+  border-color: #edf0f2;
+  color: #14181c;
+}
