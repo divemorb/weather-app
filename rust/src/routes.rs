@@ -32,6 +32,24 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/schedule", get_only(api::api_schedule))
         .route("/api/geocode", get_only(location::get_geocode))
         .route("/api/location", post_only(location::post_location))
+        .route(
+            "/api/reports",
+            any(method_not_allowed)
+                .post(reports::post_report)
+                .get(fallback),
+        )
+        .route(
+            "/api/reports/current",
+            any(method_not_allowed)
+                .get(reports::current_report)
+                .delete(reports::delete_current),
+        )
+        .route(
+            "/api/reports/{report_id}",
+            any(method_not_allowed)
+                .delete(reports::delete_report)
+                .get(fallback),
+        )
         .fallback(fallback)
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
@@ -79,12 +97,16 @@ async fn fallback(
 
 mod api;
 mod location;
+mod reports;
 
 #[cfg(test)]
 mod api_tests;
 
 #[cfg(test)]
 mod location_tests;
+
+#[cfg(test)]
+mod reports_tests;
 
 #[cfg(test)]
 mod tests;
