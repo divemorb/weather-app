@@ -12,6 +12,7 @@ pub mod openmeteo;
 pub mod probability;
 pub mod pyfmt;
 pub mod radar;
+pub mod reports;
 pub mod routes;
 pub mod scheduler;
 pub mod security;

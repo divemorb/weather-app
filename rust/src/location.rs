@@ -362,7 +362,7 @@ impl std::error::Error for BodyError {}
 /// The character offset where a serde_json error occurred (serde counts
 /// lines and byte columns; at the end of the input the offset is one past
 /// the last character).
-fn json_error_pos(text: &str, err: &serde_json::Error) -> usize {
+pub(crate) fn json_error_pos(text: &str, err: &serde_json::Error) -> usize {
     if err.is_eof() {
         return text.chars().count();
     }
@@ -377,7 +377,7 @@ fn json_error_pos(text: &str, err: &serde_json::Error) -> usize {
 
 /// JSON content type: `application/json` or `application/<something>+json`
 /// (any case, parameters ignored).
-fn is_json_content_type(value: Option<&str>) -> bool {
+pub(crate) fn is_json_content_type(value: Option<&str>) -> bool {
     let Some(value) = value else {
         return false;
     };
