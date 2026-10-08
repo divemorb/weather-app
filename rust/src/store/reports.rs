@@ -32,6 +32,25 @@ pub struct StoredReport {
     pub observed_at: String,
 }
 
+/// One report for the accuracy comparison (Python `Store.report_rows`'s
+/// `(id, kind, confirms, observed_at)`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ReportRow {
+    pub id: i64,
+    pub kind: String,
+    pub confirms: bool,
+    pub observed_at: String,
+}
+
+/// One scored forecast row for the accuracy comparison (Python
+/// `Store.scored_forecasts`'s `(model, valid_from, precip_mm)`).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ScoredRow {
+    pub model: String,
+    pub valid_from: String,
+    pub precip_mm: f64,
+}
+
 impl Store {
     /// Save a user report and return its new id (Python `add_report`).
     ///
@@ -106,6 +125,51 @@ impl Store {
             params![keep],
         )?;
         Ok(())
+    }
+
+    /// All reports as `(id, kind, confirms, observed_at)` in id order
+    /// (Python `report_rows`); the accuracy comparison picks the newest per
+    /// hour itself.
+    pub fn report_rows(&self) -> Result<Vec<ReportRow>, StoreError> {
+        let conn = self.lock_conn();
+        let mut stmt =
+            conn.prepare("SELECT id, kind, confirms, observed_at FROM user_reports ORDER BY id")?;
+        let rows = stmt
+            .query_map(params![], |r| {
+                Ok(ReportRow {
+                    id: r.get(0)?,
+                    kind: r.get(1)?,
+                    confirms: r.get::<_, i64>(2)? != 0,
+                    observed_at: r.get(3)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
+    }
+
+    /// The station's scored rows as `(model, valid_from, precip_mm)`
+    /// (Python `scored_forecasts`): the same rows as `compared_forecasts`
+    /// (`observed_mm IS NOT NULL`, hour started at or after `since`),
+    /// labelled by hour so the user-report comparison can pair each with the
+    /// user's report of that hour.
+    pub fn scored_forecasts(&self, since: &str) -> Result<Vec<ScoredRow>, StoreError> {
+        let conn = self.lock_conn();
+        let mut stmt = conn.prepare(
+            "SELECT model, valid_from, precip_mm
+             FROM forecast_history
+             WHERE observed_mm IS NOT NULL AND valid_from >= ?
+             ORDER BY model, valid_from",
+        )?;
+        let rows = stmt
+            .query_map(params![since], |r| {
+                Ok(ScoredRow {
+                    model: r.get(0)?,
+                    valid_from: r.get(1)?,
+                    precip_mm: r.get(2)?,
+                })
+            })?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
     }
 }
 

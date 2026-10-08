@@ -317,7 +317,13 @@ fn model_accuracy_full() {
         hours: 37,
     }];
     assert_eq!(
-        serialize_model_accuracy(&models, 30, 48, &stations),
+        serialize_model_accuracy(
+            &models,
+            30,
+            48,
+            &stations,
+            &json!({"hours": 0, "confirmed_hours": 0, "models": {}})
+        ),
         json!({
             "window_days": 30,
             "min_samples": 48,
@@ -329,6 +335,7 @@ fn model_accuracy_full() {
                 "dwd_station_id": "17473",
                 "hours": 37,
             }],
+            "user_reports": {"hours": 0, "confirmed_hours": 0, "models": {}},
             "models": {
                 "icon_d2": {
                     "n_samples": 100,
@@ -358,7 +365,19 @@ fn model_accuracy_full() {
 #[test]
 fn model_accuracy_empty() {
     assert_eq!(
-        serialize_model_accuracy(&BTreeMap::new(), 30, 48, &[]),
-        json!({"window_days": 30, "min_samples": 48, "models": {}, "stations": []})
+        serialize_model_accuracy(
+            &BTreeMap::new(),
+            30,
+            48,
+            &[],
+            &json!({"hours": 0, "confirmed_hours": 0, "models": {}})
+        ),
+        json!({
+            "window_days": 30,
+            "min_samples": 48,
+            "models": {},
+            "stations": [],
+            "user_reports": {"hours": 0, "confirmed_hours": 0, "models": {}}
+        })
     );
 }

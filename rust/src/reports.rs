@@ -10,6 +10,8 @@ use std::str::FromStr;
 
 use crate::location;
 
+pub mod score;
+
 /// The closed set of report kinds (what the sky looks like).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ReportKind {

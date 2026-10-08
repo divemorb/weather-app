@@ -4,6 +4,7 @@
 //! tests do, so the schema applied in ``Store::open`` is what runs.
 
 use super::*;
+use crate::series::HistoryRow;
 
 /// The test fixture: a fresh on-disk database in a temp dir.
 fn fresh_store() -> (tempfile::TempDir, Store) {
@@ -196,4 +197,111 @@ fn clear_location_data_removes_every_report() {
     store.clear_location_data().unwrap();
     assert!(ids(&store).is_empty());
     assert_eq!(store.newest_report("2025-01-02T00:00:00Z").unwrap(), None);
+}
+
+#[test]
+fn report_rows_lists_every_report_in_id_order() {
+    let (_dir, store) = fresh_store();
+    store
+        .add_report(
+            ReportKind::Rain,
+            Some(Intensity::Heavy),
+            false,
+            "2025-01-01T12:00:00Z",
+        )
+        .unwrap();
+    store
+        .add_report(ReportKind::Clear, None, true, "2025-01-01T11:00:00Z")
+        .unwrap();
+    // A deleted report does not come back.
+    store.delete_report(1).unwrap();
+    store
+        .add_report(ReportKind::Snow, None, false, "2025-01-01T13:00:00Z")
+        .unwrap();
+    assert_eq!(
+        store.report_rows().unwrap(),
+        vec![
+            ReportRow {
+                id: 2,
+                kind: "clear".to_string(),
+                confirms: true,
+                observed_at: "2025-01-01T11:00:00Z".to_string(),
+            },
+            ReportRow {
+                id: 3,
+                kind: "snow".to_string(),
+                confirms: false,
+                observed_at: "2025-01-01T13:00:00Z".to_string(),
+            },
+        ]
+    );
+    assert!(
+        Store::open(":memory:")
+            .unwrap()
+            .report_rows()
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
+fn scored_forecasts_returns_the_scored_rows_labelled_by_hour() {
+    let (_dir, store) = fresh_store();
+    let hour = |model: &str, valid_from: &str, precip_mm: f64| HistoryRow {
+        model: model.to_string(),
+        issued_at: "2025-01-01T08:55:00Z".to_string(),
+        valid_from: valid_from.to_string(),
+        valid_to: "2025-01-01T10:00:00Z".to_string(),
+        precip_mm,
+    };
+    store
+        .add_forecasts(&[
+            hour("a_model", "2025-01-01T08:00:00Z", 0.5),
+            hour("a_model", "2025-01-01T09:00:00Z", 0.4),
+            hour("b_model", "2025-01-01T09:00:00Z", 1.5),
+            // Still without an observation: not scored yet.
+            hour("a_model", "2025-01-01T10:00:00Z", 0.2),
+        ])
+        .unwrap();
+    store.set_observation("2025-01-01T08:00:00Z", 0.2).unwrap();
+    store.set_observation("2025-01-01T09:00:00Z", 1.0).unwrap();
+    // The window is `valid_from >= since`: the row exactly at `since`
+    // counts, the one before does not, the unscored row never does.
+    let rows = store.scored_forecasts("2025-01-01T09:00:00Z").unwrap();
+    assert_eq!(
+        rows,
+        vec![
+            ScoredRow {
+                model: "a_model".to_string(),
+                valid_from: "2025-01-01T09:00:00Z".to_string(),
+                precip_mm: 0.4,
+            },
+            ScoredRow {
+                model: "b_model".to_string(),
+                valid_from: "2025-01-01T09:00:00Z".to_string(),
+                precip_mm: 1.5,
+            },
+        ]
+    );
+    // An earlier cut lets the 08:00 row join (model order first, then the
+    // hour, like `compared_forecasts`).
+    let rows = store.scored_forecasts("2025-01-01T08:00:00Z").unwrap();
+    assert_eq!(
+        rows,
+        vec![
+            ScoredRow {
+                model: "a_model".to_string(),
+                valid_from: "2025-01-01T08:00:00Z".to_string(),
+                precip_mm: 0.5,
+            },
+            rows[1].clone(),
+            rows[2].clone(),
+        ]
+    );
+    assert!(
+        store
+            .scored_forecasts("2025-01-02T00:00:00Z")
+            .unwrap()
+            .is_empty()
+    );
 }

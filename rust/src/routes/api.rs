@@ -14,6 +14,7 @@ use serde_json::Value;
 
 use crate::aggregator::Aggregator;
 use crate::location::location_payload;
+use crate::reports::score::user_report_accuracy;
 use crate::scheduler::schedule_status;
 use crate::serializers::{
     serialize_model_accuracy, serialize_models_24h, serialize_now, serialize_radar_next_hour,
@@ -122,11 +123,18 @@ pub(crate) async fn api_model_accuracy(
     let cfg = agg.cfg();
     let models = agg.get_model_accuracy()?;
     let stations = agg.get_observation_stations()?;
+    let user_reports = user_report_accuracy(
+        agg.store(),
+        cfg.accuracy.window_days,
+        agg.now(),
+        cfg.probability.model_rain_threshold_mm,
+    )?;
     Ok(Json(serialize_model_accuracy(
         &models,
         cfg.accuracy.window_days,
         cfg.accuracy.min_samples,
         &stations,
+        &user_reports,
     )))
 }
 

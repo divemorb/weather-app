@@ -195,12 +195,15 @@ pub fn serialize_models_24h(series: &Series24h, meta: Option<&CacheMeta>) -> Val
 /// Each entry gains `enough_data` = `n_samples >= min_samples` so the UI can
 /// grey out models that have not accumulated enough compared hours.
 /// `stations` lists the observation stations behind the table, nearest
-/// first; `[]` while the backfill has not remembered any.
+/// first; `[]` while the backfill has not remembered any. `user_reports`
+/// is the models' accuracy against the user reports (the `user_reports`
+/// block, an empty one while nothing was reported in the window).
 pub fn serialize_model_accuracy(
     models: &BTreeMap<String, ModelAccuracy>,
     window_days: i64,
     min_samples: i64,
     stations: &[ObsStation],
+    user_reports: &Value,
 ) -> Value {
     let mut serialized: Map<String, Value> = Map::new();
     for (name, stats) in models {
@@ -237,6 +240,7 @@ pub fn serialize_model_accuracy(
         "min_samples": min_samples,
         "models": Value::Object(serialized),
         "stations": Value::Array(stations),
+        "user_reports": user_reports.clone(),
     })
 }
 

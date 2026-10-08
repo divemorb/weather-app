@@ -392,6 +392,8 @@ fn schema_version(value: Option<Option<String>>) -> i64 {
     text.parse::<i64>().unwrap_or(i64::MAX)
 }
 
+pub use reports::{ReportRow, ScoredRow};
+
 mod reports;
 #[cfg(test)]
 mod tests;
