@@ -1,6 +1,6 @@
 {
  "now": "2026-09-30T10:27:10Z",
- "python_memory_kb": 64808,
+ "python_memory_kb": 64528,
  "upstream": [],
  "cases": {
   "healthz": {

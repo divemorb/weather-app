@@ -121,9 +121,9 @@ def post_report(name, body, headers=None, **kw):
 
 FOREIGN = {"Origin": "http://evil.example"}
 
-# The user reports (report steps). The seed adds reports 1-7 (run.py
-# SEEDED_REPORTS); the first new one gets id 8 and drops id 1 (older than
-# the 30-day window).
+# The user reports (report steps). The seed adds reports 1-8 (run.py
+# SEEDED_REPORTS, 8 an hour ahead); the first new one gets id 9 and drops
+# id 1 (older than the 30-day window).
 REPORT_CASES = [
     get("/api/reports/current", "reports/current-none"),
     get("/api/model-accuracy", "reports/accuracy-seeded"),
@@ -134,9 +134,9 @@ REPORT_CASES = [
     get("/api/reports/current", "reports/current-still-rain"),
     post_report("post-confirm-30", {"kind": "cloudy", "confirms": True, "minutes_ago": 30}),
     post_report("post-every-field", {"kind": "rain", "intensity": None, "minutes_ago": 0, "confirms": False}),
-    report_case("delete-11", "DELETE", "/api/reports/11"),
-    report_case("delete-rain", "DELETE", "/api/reports/8"),
-    report_case("delete-again", "DELETE", "/api/reports/8"),
+    report_case("delete-12", "DELETE", "/api/reports/12"),
+    report_case("delete-rain", "DELETE", "/api/reports/9"),
+    report_case("delete-again", "DELETE", "/api/reports/9"),
     report_case("delete-pruned", "DELETE", "/api/reports/1"),
     report_case("delete-unknown-large", "DELETE", "/api/reports/123456789012345678"),
     get("/api/reports/current", "reports/current-after-undo"),
@@ -167,7 +167,7 @@ REPORT_CASES = [
     report_case("delete-422-too-long", "DELETE", "/api/reports/1234567890123456789"),
     report_case("delete-422-before-403", "DELETE", "/api/reports/abc", headers=FOREIGN),
     report_case("delete-current-422", "DELETE", "/api/reports/current"),  # the id route, not the GET one
-    report_case("delete-403", "DELETE", "/api/reports/9", headers=FOREIGN),
+    report_case("delete-403", "DELETE", "/api/reports/10", headers=FOREIGN),
     report_case("put-405", "PUT", "/api/reports", {"kind": "rain"}),
     report_case("post-current-405", "POST", "/api/reports/current", {}),
     report_case("put-id-405", "PUT", "/api/reports/9", {}),
@@ -178,7 +178,7 @@ REPORT_CASES = [
                   settle=True),
     get("/api/reports/current", "reports/current-after-move"),
     get("/api/model-accuracy", "reports/accuracy-after-move"),
-    report_case("delete-after-move", "DELETE", "/api/reports/9"),
+    report_case("delete-after-move", "DELETE", "/api/reports/10"),
 ]
 
 SCENARIOS = [

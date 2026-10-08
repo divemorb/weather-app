@@ -87,12 +87,12 @@ async def current_report(store: Store | None) -> dict | None:
     aggregator have none)."""
     if store is None:
         return None
-    row = await store.newest_report()
+    now = utcnow()
+    row = await store.newest_report(to_iso(now))
     if row is None:
         return None
     report_id, kind, intensity, confirms, observed_at = row
-    now = utcnow()
-    if not (to_iso(now - timedelta(minutes=FRESH_MINUTES)) <= observed_at <= to_iso(now)):
+    if observed_at < to_iso(now - timedelta(minutes=FRESH_MINUTES)):
         return None
     return {
         "id": report_id,

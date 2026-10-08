@@ -147,6 +147,7 @@ SEEDED_REPORTS = [
     (62, 40, "rain", "heavy", 0),
     (65, 30, "cloudy", None, 1),
     (3, 20, "snow", None, 0),
+    (-1, 10, "hail", None, 0),  # "in the future" (a clock that jumped back): never the current one
 ]
 
 

@@ -288,13 +288,16 @@ class Store:
         await self._db.commit()
         return cur.rowcount > 0
 
-    async def newest_report(self) -> tuple[int, str, str | None, int, str] | None:
-        """The newest report as ``(id, kind, intensity, confirms, observed_at)``;
-        None when there are none. Newest = highest ``observed_at``, then id."""
+    async def newest_report(self, until: str) -> tuple[int, str, str | None, int, str] | None:
+        """The newest report observed at or before ``until`` as ``(id, kind,
+        intensity, confirms, observed_at)``; None when there is none. Newest =
+        highest ``observed_at``, then id. (A report after ``until`` exists only
+        if the clock jumped back; it must not hide the current one.)"""
         assert self._db is not None
         async with self._db.execute(
             "SELECT id, kind, intensity, confirms, observed_at FROM user_reports "
-            "ORDER BY observed_at DESC, id DESC LIMIT 1"
+            "WHERE observed_at <= ? ORDER BY observed_at DESC, id DESC LIMIT 1",
+            (until,),
         ) as cur:
             row = await cur.fetchone()
         if row is None:

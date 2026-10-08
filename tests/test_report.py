@@ -232,6 +232,16 @@ async def test_current_is_fresh_for_30_minutes(c, clock):
     assert current(c) is None
 
 
+async def test_current_ignores_reports_from_the_future(c, clock):
+    """A clock that jumped back (the Pi has no RTC; NTP may correct it after a
+    boot) leaves a report "in the future": it must not hide the fresh one."""
+    clock.now = T0 + timedelta(minutes=10)
+    post(c, {"kind": "hail"})                      # observed 12:10
+    clock.now = T0
+    fresh = post(c, {"kind": "fog"}).json()["report"]  # observed 12:00
+    assert current(c) == fresh
+
+
 async def test_late_report_is_fresh_for_less(c, clock):
     post(c, {"kind": "rain", "minutes_ago": 30})
     clock.now = T0 + timedelta(seconds=1)
