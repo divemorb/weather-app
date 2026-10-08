@@ -7,6 +7,8 @@
  * UI tests on the page.
  */
 
+import { REPORT_STRINGS } from "./i18n-report.js";
+
 export const STRINGS = {
   en: {
     "answer.nodata": "No forecast data yet",
@@ -278,6 +280,8 @@ export const STRINGS = {
     "setup.confirm-change": "Beim Wechsel des Orts werden die zwischengespeicherten Daten und der Modellgenauigkeitsverlauf gelöscht. Fortfahren?",
   },
 };
+Object.assign(STRINGS.en, REPORT_STRINGS.en);
+Object.assign(STRINGS.de, REPORT_STRINGS.de);
 
 /* The first entry whose primary subtag (before "-", case-insensitive) is
  * de or en; "en" for an empty, missing or unsupported list. */
