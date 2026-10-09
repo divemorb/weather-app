@@ -55,10 +55,17 @@ export function renderGlance(rain, radar, lang, locale, tz, radiusKm) {
 }
 
 /* The "why" line under the rain answer (step B1): what the sky shows and
- * which source decided it (sceneReason). Hidden when the source is "none"
- * (nothing to show). {km} like the Now card's station line; station names
- * are untrusted API text: textContent only. */
-export function renderSkyReason(now, radar, lang, locale) {
+ * which source decided it. A fresh user report decides it (reportText,
+ * W2: report.js' "sky" / "sky-confirmed"); without one, sceneReason.
+ * Hidden when the source is "none" (nothing to show). {km} like the Now
+ * card's station line; station names are untrusted API text: textContent
+ * only. */
+export function renderSkyReason(now, radar, lang, locale, reportText) {
+  if (reportText) {
+    els.reason.textContent = reportText;
+    els.reason.hidden = false;
+    return;
+  }
   const r = sceneReason(now, radar);
   if (r.source === "none") {
     els.reason.hidden = true;

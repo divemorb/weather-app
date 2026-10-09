@@ -22,7 +22,7 @@ import { initNow, renderNow } from "./now.js";
 import { renderChart } from "./chart.js";
 import { initDetails, renderDetails, scheduleFrom } from "./details.js";
 import { initSetup, openSetup } from "./setup.js";
-import { initReport, reportScene, reportCurrent, setReportEnv } from "./report.js";
+import { initReport, reportScene, reportCurrent, setReportEnv, reportSky } from "./report.js";
 
 const lang = pickLang(navigator.languages);
 const locale = navigator.language;
@@ -65,16 +65,26 @@ applyTheme();
 mq.addEventListener("change", applyTheme);
 
 /* ---- the sky: one fixed layer behind the tiles. The scene name goes on
- * <html data-scene>; scene() (format.js) maps the Now observation and the
- * radar's first step to it. It starts "none" (plain background) and follows
+ * <html data-scene>. A fresh user report decides it (reportSky, W2);
+ * without one, scene() (format.js) maps the Now observation and the
+ * radar's first step. It starts "none" (plain background) and follows
  * every refresh; the particles are built once by initSky(). ---- */
 initSky();
 let skyNow = null;
 let skyRadar = null;
 function setSkyScene() {
-  document.documentElement.dataset.scene = scene(skyNow, skyRadar);
+  const rep = reportSky(); // a fresh report decides the sky (W2)
+  document.documentElement.dataset.scene = rep ? rep.scene : scene(skyNow, skyRadar);
 }
 setSkyScene();
+/* W2 — a save or an undo (report.js dispatches "report-changed") turns the
+ * sky and the "why" line to the fresh report at once, no reload. */
+document.addEventListener("report-changed", () => {
+  renderPart("sky", setSkyScene);
+  renderPart("report", reportScene);
+  const rep = reportSky();
+  renderPart("sky-reason", () => renderSkyReason(skyNow, skyRadar, lang, locale, rep ? rep.text : null));
+});
 
 /* (The kiosk class on <html> comes from view.js: it is set for the big
  * view, whatever its source — the query, the stored choice or the default.) */
@@ -155,15 +165,16 @@ async function refresh() {
   }
   if (data.now != null) skyNow = data.now;
   if (data.radar != null) skyRadar = data.radar;
+  /* The current report first (W2): the sky and the "why" line follow it.
+   * reportCurrent is synchronous without a refetch, so the sky below sees it. */
+  renderPart("report-current", () => reportCurrent(data.report && data.report.report));
   renderPart("sky", setSkyScene); // its own part: a bad answer must not stop the others
   renderPart("report", reportScene); // the open back names the scene the page shows
-  /* The host's front line for the current fresh report (from earlier, or
-   * from another device) shows on load and follows every refresh. */
-  renderPart("report-current", () => reportCurrent(data.report && data.report.report));
   renderPart("glance", () => renderGlance(data.rain, data.radar, lang, locale, tz, cfg && cfg.radar_radius_km));
-  /* The sky's "why" line: the same part as the glance, so one failed
-   * endpoint (now or radar) never stops the other. */
-  renderPart("sky-reason", () => renderSkyReason(data.now, data.radar, lang, locale));
+  /* The sky's "why" line: the report's text when fresh (W2), else the same
+   * part as the glance, so one failed endpoint never stops the other. */
+  const repSky = reportSky();
+  renderPart("sky-reason", () => renderSkyReason(data.now, data.radar, lang, locale, repSky ? repSky.text : null));
   renderPart("now", () => renderNow(data.now, lang, locale, tz));
   renderPart("chart", () => renderChart(chartEls, data.models, lang, locale, tz));
   /* The stations section (details.js) needs the Now's station and the

@@ -1,28 +1,18 @@
-/* report.js — the "Not right?" flip tile: the picker (W1a) and saving
- * (W1b): a kind tap saves at once (POST /api/reports with the pressed
- * chip's minutes_ago), rain first asks for its intensity, a failure keeps
- * the back open with its message; the front's line carries the undo. The
- * host is found by its data-report-host attribute (never by an id). */
+/* report.js — the "Not right?" flip tile: the picker (W1a), saving (W1b)
+ * (a kind tap POSTs /api/reports; rain first asks for its intensity; a
+ * failure keeps the back open with its message; the front's line carries
+ * the undo) and W2: the sky and its "why" line follow the fresh report.
+ * The host is found by its data-report-host attribute (never by an id). */
 import { KINDS, kindScene, sceneKind } from "./reportkind.js";
 import { t } from "./i18n.js";
 import { fmtTime } from "./format.js";
 import { getJSON, postJSON, deleteJSON } from "./api.js";
 
-let host = null;
-let back = null;
-let backInner = null;
-let openBtn = null;
-let closeBtn = null;
-let showsEl = null;
-let confirmBtn = null;
-let kindBtns = [];
-let whenBtns = [];
-let kindsEl = null;
-let intensityEl = null;
-let errorEl = null;
-let lineWrap = null;
-let lineEl = null;
-let lineUndoBtn = null;
+/* The back and its parts (build() fills them, once per host). */
+let host = null, back = null, backInner = null, openBtn = null, closeBtn = null;
+let showsEl = null, confirmBtn = null, kindBtns = [], whenBtns = [];
+let kindsEl = null, intensityEl = null, errorEl = null;
+let lineWrap = null, lineEl = null, lineUndoBtn = null;
 let lang = null;
 let locale = "en";
 let tz = "UTC";
@@ -31,8 +21,12 @@ let isOpen = false;
 let saving = false;
 let currentReport = null;
 
-/* The eight kind pictures: inline SVG (no image files), drawn with
- * currentColor so they follow the text colour of the theme. */
+/* app.js listens: after a save or undo the sky and "why" line follow. */
+function notifyReportChanged() {
+  document.dispatchEvent(new Event("report-changed"));
+}
+
+/* The eight kind pictures: inline SVG, currentColor (follows the theme). */
 function svg(inner) {
   return '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false"'
     + ' fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"'
@@ -70,13 +64,7 @@ function makeBtn(cls, hook, label, icon, extra) {
   b.dataset.test = hook;
   if (extra) Object.assign(b.dataset, extra);
   if (icon) b.innerHTML = svg(icon);
-  if (label != null) {
-    if (icon) {
-      b.setAttribute("aria-label", label);
-    } else {
-      b.textContent = label;
-    }
-  }
+  if (label != null) (icon ? b.setAttribute("aria-label", label) : (b.textContent = label));
   return b;
 }
 
@@ -155,8 +143,7 @@ function build() {
   errorEl.hidden = true;
 
   /* The front's line for the current fresh report. The pill holds the
-   * line (its text must read exactly the sentence) and, beside it, the
-   * undo — a sibling, so the button's word stays out of the line. */
+   * line (it must read exactly the sentence) and, beside it, the undo. */
   lineWrap = document.createElement("div");
   lineWrap.className = "report-line";
   lineWrap.hidden = true;
@@ -186,10 +173,8 @@ function build() {
   host.append(openBtn, lineWrap, back);
 }
 
-/* The back's texts follow the current scene: what the page shows, the
- * kind it names (aria-current, and the "That's right" button) and a fresh
- * "now" chip. Opening always starts on the kinds, with the intensity
- * question and the failure message hidden. */
+/* The back's texts follow the current scene (what the page shows, the
+ * matching kind, a fresh "now" chip); opening starts on the kinds. */
 function syncBack() {
   const scene = document.documentElement.dataset.scene;
   showsEl.textContent = t(lang, "report.shows", { scene: t(lang, "sky.scene." + scene) });
@@ -210,8 +195,7 @@ function selectedMinutes() {
   return Number(m ? m.dataset.minutes : 0);
 }
 
-/* Rain first asks for its intensity (the kinds' place); the other kinds
- * save at once. */
+/* Rain asks for its intensity first; the other kinds save at once. */
 function onKind(kind) {
   if (saving) return;
   if (kind === "rain") showIntensity();
@@ -247,6 +231,7 @@ async function save({ kind, intensity, minutes, confirms }) {
     if (res && res.report) currentReport = res.report;
     renderLine();
     close(); // the tile turns back
+    notifyReportChanged();
   } catch (e) {
     console.warn(e); // a failed save keeps the back open, with its message
     showError();
@@ -264,8 +249,7 @@ function hideError() {
 }
 
 /* The front's line for the current fresh report: the scene's word
- * (kindScene, so heavy rain reads "heavy rain") and the server's
- * observed_at in the user's zone. */
+ * (kindScene) and the server's observed_at in the user's zone. */
 function renderLine() {
   if (!lineEl) return;
   const rep = currentReport;
@@ -283,8 +267,7 @@ function renderLine() {
 }
 
 /* The sun up when the report was observed, in the configured zone (only
- * clear and partly cloudy depend on it): the zone's wall clock played as
- * UTC, through isDay. */
+ * clear and partly cloudy depend on it): the zone's wall clock as UTC. */
 function isDayAt(observedIso) {
   const d = new Date(observedIso);
   if (isNaN(d.getTime())) return false;
@@ -317,6 +300,7 @@ async function undo() {
   currentReport = null;
   renderLine();
   reportCurrent(null, true);
+  notifyReportChanged();
 }
 
 /* The current fresh report (app.js passes the refresh's answer; the
@@ -359,8 +343,25 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && isOpen) close();
 });
 
-/* app.js calls once the config is known: the zone and the place's
- * coordinates (day/night for the line's scene word). */
+/* W2 — the sky follows a fresh report: its scene (kindScene, day/night for
+ * clear and partly cloudy) and the "why" line's text (the "sky" /
+ * "sky-confirmed" string), or both null without a report. */
+export function reportSky() {
+  const rep = currentReport;
+  if (!rep || !rep.kind || !rep.observed_at) return null;
+  const scene = kindScene(rep.kind, rep.intensity, isDayAt(rep.observed_at));
+  if (!scene) return null;
+  const key = rep.confirms ? "sky-confirmed" : "sky";
+  return {
+    scene,
+    text: t(lang, "report." + key, {
+      scene: t(lang, "sky.scene." + scene),
+      time: fmtTime(rep.observed_at, locale, tz),
+    }),
+  };
+}
+
+/* app.js calls once the config is known: the zone and coordinates. */
 export function setReportEnv(locale_, tz_, location_) {
   locale = locale_;
   tz = tz_;
@@ -372,8 +373,7 @@ export function initReport(l) {
   lang = l;
   host = document.querySelector("[data-report-host]");
   if (host) build();
-  /* The attribute may move to another card (the glance) while the page
-   * runs: rebind the button and the back to the new host. */
+  /* The attribute may move to another card while the page runs: rebind. */
   new MutationObserver(() => {
     const h = document.querySelector("[data-report-host]");
     if (h === host) return;
@@ -392,8 +392,8 @@ export function initReport(l) {
   });
 }
 
-/* app.js calls this after every setSkyScene (and the sky follows a fresh
- * report, W2): the open back keeps naming the scene the page shows. */
+/* app.js calls after every setSkyScene: the open back keeps naming the
+ * scene the page shows (W2: the sky follows a fresh report). */
 export function reportScene() {
   if (host && isOpen) syncBack();
 }
