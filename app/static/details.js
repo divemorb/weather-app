@@ -10,7 +10,9 @@
  *   - the data sources with their age and errors, from /api/sources,
  *   - the model accuracy table, from /api/model-accuracy (rows with
  *     enough data first, best hit rate first; below the sample minimum
- *     greyed; the table explains itself in the note under it).
+ *     greyed; the table explains itself in the note under it),
+ *   - the models against the user's own reports (the user_reports block
+ *     of the same endpoint; step W3, reportdetails.js).
  *
  * Each section renders on its own: one bad endpoint never clears the
  * card or stops the other sections (the new body is only swapped in once
@@ -26,6 +28,7 @@ import {
 } from "./format.js";
 import { t } from "./i18n.js";
 import { stationsSection } from "./stationmap.js";
+import { reportsSection } from "./reportdetails.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -162,6 +165,7 @@ export function renderDetails(data) {
   }
   add(() => sourcesSection(sources));
   add(() => accuracySection(accuracy));
+  add(() => reportsSection(accuracy, lang, locale));
   const stations = stationsSection({ now, accuracy, location, radiusKm, lang, locale, section });
   if (stations) add(() => stations);
 

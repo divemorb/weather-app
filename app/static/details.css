@@ -160,6 +160,12 @@
   color: var(--muted);
 }
 
+.reports-summary {
+  margin: 0 0 10px;
+  font-size: 13px; line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
 /* The stations: one row per observation station, then the schematic map.
  * The map is an inline SVG at its box's own scale (no stretching), so the
  * bearings and distances stay true. */
