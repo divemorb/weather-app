@@ -266,8 +266,9 @@ function renderLine() {
   lineWrap.hidden = false;
 }
 
-/* The sun up when the report was observed, in the configured zone (only
- * clear and partly cloudy depend on it): the zone's wall clock as UTC. */
+/* The sun up at the location when the report was observed (only clear and
+ * partly cloudy depend on it). isDay takes the real instant: the longitude
+ * places the sun, so no zone shift (a shifted clock was 1-2 h off). */
 function isDayAt(observedIso) {
   const d = new Date(observedIso);
   if (isNaN(d.getTime())) return false;
@@ -275,16 +276,7 @@ function isDayAt(observedIso) {
     const h = d.getUTCHours(); // without a location: the day window in UTC
     return h >= 5 && h < 17;
   }
-  try {
-    const p = {};
-    for (const part of new Intl.DateTimeFormat("en-US", {
-      timeZone: tz, year: "numeric", month: "numeric", day: "numeric",
-      hour: "numeric", minute: "numeric", second: "numeric", hour12: false,
-    }).formatToParts(d)) p[part.type] = Number(part.value);
-    return isDay(location.lat, location.lon, new Date(Date.UTC(p.year, p.month - 1, p.day, p.hour % 24, p.minute, p.second)));
-  } catch {
-    return isDay(location.lat, location.lon, d);
-  }
+  return isDay(location.lat, location.lon, d);
 }
 
 /* Undo: delete, then re-read the current report (an older one may show). */
@@ -297,10 +289,14 @@ async function undo() {
   } catch (e) {
     console.warn(e); // a failed undo: the re-read below shows the truth
   }
-  currentReport = null;
-  renderLine();
-  reportCurrent(null, true);
-  notifyReportChanged();
+  try {
+    currentReport = null;
+    renderLine();
+    await reportCurrent(null, true); // an older fresh report may show again: the sky follows it
+    notifyReportChanged();
+  } finally {
+    saving = false; // else no further save or undo until a reload
+  }
 }
 
 /* The current fresh report (app.js passes the refresh's answer; the
