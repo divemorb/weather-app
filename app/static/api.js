@@ -35,3 +35,12 @@ export async function postJSON(path, body) {
   });
   return json(res, path);
 }
+
+/* Throws ApiError on non-2xx. */
+export async function deleteJSON(path) {
+  const res = await fetch(path, {
+    method: "DELETE",
+    headers: { Accept: "application/json" },
+  });
+  return json(res, path);
+}

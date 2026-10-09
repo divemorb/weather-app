@@ -1,17 +1,12 @@
-/* report.js — the "Not right?" flip tile: W1a, the picker.
- *
- * The host is found by the data-report-host attribute (never by an id), so
- * the tile keeps working when the attribute moves to another card. The
- * button on the front corner, the back and its picker all live inside the
- * host; nothing here names #now or the Now tile.
- *
- * W1a only: the flip, the picker and the open/close state. Saving
- * (W1b), the sky following a fresh report (W2) and the Details table
- * (W3) build on this module. No network here yet: nothing is saved while
- * the back is open, and closing keeps the page exactly as it was.
- */
-import { KINDS, sceneKind } from "./reportkind.js";
+/* report.js — the "Not right?" flip tile: the picker (W1a) and saving
+ * (W1b): a kind tap saves at once (POST /api/reports with the pressed
+ * chip's minutes_ago), rain first asks for its intensity, a failure keeps
+ * the back open with its message; the front's line carries the undo. The
+ * host is found by its data-report-host attribute (never by an id). */
+import { KINDS, kindScene, sceneKind } from "./reportkind.js";
 import { t } from "./i18n.js";
+import { fmtTime } from "./format.js";
+import { getJSON, postJSON, deleteJSON } from "./api.js";
 
 let host = null;
 let back = null;
@@ -22,8 +17,19 @@ let showsEl = null;
 let confirmBtn = null;
 let kindBtns = [];
 let whenBtns = [];
+let kindsEl = null;
+let intensityEl = null;
+let errorEl = null;
+let lineWrap = null;
+let lineEl = null;
+let lineUndoBtn = null;
 let lang = null;
+let locale = "en";
+let tz = "UTC";
+let location = null; // {lat, lon} from the config (app.js), for day/night
 let isOpen = false;
+let saving = false;
+let currentReport = null;
 
 /* The eight kind pictures: inline SVG (no image files), drawn with
  * currentColor so they follow the text colour of the theme. */
@@ -106,9 +112,13 @@ function build() {
   showsEl.className = "report-shows";
   showsEl.dataset.test = "report-shows";
   confirmBtn = makeBtn("report-confirm", "report-confirm", t(lang, "report.confirm"), null);
+  confirmBtn.addEventListener("click", () => {
+    const sk = sceneKind(document.documentElement.dataset.scene);
+    if (sk) save({ kind: sk.kind, intensity: sk.intensity, minutes: selectedMinutes(), confirms: true });
+  });
   showsRow.append(showsEl, confirmBtn);
 
-  const kindsEl = document.createElement("div");
+  kindsEl = document.createElement("div");
   kindsEl.className = "report-kinds";
   kindBtns = KINDS.map((kind) => {
     const b = makeBtn("report-kind", "report-kind", t(lang, "report.kind." + kind), KIND_ICON[kind], {
@@ -117,10 +127,45 @@ function build() {
     const labelEl = document.createElement("span");
     labelEl.className = "report-kind-label";
     labelEl.textContent = t(lang, "report.kind." + kind);
+    b.addEventListener("click", () => onKind(kind));
     b.append(labelEl);
     kindsEl.append(b);
     return b;
   });
+
+  /* Rain's intensity in the kinds' place; "Skip" saves rain without one. */
+  intensityEl = document.createElement("div");
+  intensityEl.className = "report-intensities";
+  intensityEl.hidden = true;
+  ["light", "moderate", "heavy"].forEach((intensity) => {
+    const b = makeBtn("report-intensity", "report-intensity", t(lang, "report.intensity." + intensity), null, {
+      intensity: intensity,
+    });
+    b.addEventListener("click", () => save({ kind: "rain", intensity: intensity, minutes: selectedMinutes(), confirms: false }));
+    intensityEl.append(b);
+  });
+  const skipBtn = makeBtn("report-intensity-skip", "report-intensity-skip", t(lang, "report.skip"), null);
+  skipBtn.addEventListener("click", () => save({ kind: "rain", intensity: null, minutes: selectedMinutes(), confirms: false }));
+  intensityEl.append(skipBtn);
+
+  errorEl = document.createElement("div");
+  errorEl.className = "report-error";
+  errorEl.dataset.test = "report-error";
+  errorEl.setAttribute("role", "alert");
+  errorEl.hidden = true;
+
+  /* The front's line for the current fresh report. The pill holds the
+   * line (its text must read exactly the sentence) and, beside it, the
+   * undo — a sibling, so the button's word stays out of the line. */
+  lineWrap = document.createElement("div");
+  lineWrap.className = "report-line";
+  lineWrap.hidden = true;
+  lineEl = document.createElement("span");
+  lineEl.className = "report-line-text";
+  lineEl.dataset.test = "report-line";
+  lineUndoBtn = makeBtn("report-undo-btn", "report-undo", t(lang, "report.undo"), null);
+  lineUndoBtn.addEventListener("click", undo);
+  lineWrap.append(lineEl, lineUndoBtn);
 
   const whenEl = document.createElement("div");
   whenEl.className = "report-whens";
@@ -136,28 +181,158 @@ function build() {
     return b;
   });
 
-  backInner.append(titleRow, showsRow, kindsEl, whenEl);
+  backInner.append(titleRow, showsRow, kindsEl, intensityEl, errorEl, whenEl);
   back.append(backInner);
-  host.append(openBtn, back);
+  host.append(openBtn, lineWrap, back);
 }
 
 /* The back's texts follow the current scene: what the page shows, the
  * kind it names (aria-current, and the "That's right" button) and a fresh
- * "now" chip. */
+ * "now" chip. Opening always starts on the kinds, with the intensity
+ * question and the failure message hidden. */
 function syncBack() {
   const scene = document.documentElement.dataset.scene;
   showsEl.textContent = t(lang, "report.shows", { scene: t(lang, "sky.scene." + scene) });
   const sk = sceneKind(scene);
   confirmBtn.hidden = !sk;
-  for (const b of kindBtns) {
-    if (sk && b.dataset.kind === sk.kind) b.setAttribute("aria-current", "true");
-    else b.removeAttribute("aria-current");
-  }
+  hideError();
+  showKinds();
   for (const w of whenBtns) w.setAttribute("aria-pressed", w.dataset.minutes === "0" ? "true" : "false");
 }
 
 function frontParts() {
   return [...host.querySelectorAll("[data-test]")].filter((el) => el !== back && !back.contains(el));
+}
+
+/* W1b — saving. The time chip the user pressed: the report's minutes_ago. */
+function selectedMinutes() {
+  const m = whenBtns.find((w) => w.getAttribute("aria-pressed") === "true");
+  return Number(m ? m.dataset.minutes : 0);
+}
+
+/* Rain first asks for its intensity (the kinds' place); the other kinds
+ * save at once. */
+function onKind(kind) {
+  if (saving) return;
+  if (kind === "rain") showIntensity();
+  else save({ kind: kind, intensity: null, minutes: selectedMinutes(), confirms: false });
+}
+
+function showIntensity() {
+  kindsEl.hidden = true;
+  intensityEl.hidden = false;
+  for (const b of kindBtns) b.removeAttribute("aria-current");
+}
+
+function showKinds() {
+  intensityEl.hidden = true;
+  kindsEl.hidden = false;
+  const sk = sceneKind(document.documentElement.dataset.scene);
+  for (const b of kindBtns) {
+    if (sk && b.dataset.kind === sk.kind) b.setAttribute("aria-current", "true");
+    else b.removeAttribute("aria-current");
+  }
+}
+
+/* Save at once: POST with the pressed chip's minutes_ago; the server's
+ * clock sets the observed_at (the client sends no times). */
+async function save({ kind, intensity, minutes, confirms }) {
+  if (saving) return;
+  saving = true;
+  hideError();
+  try {
+    const body = { kind, minutes_ago: minutes, confirms };
+    if (intensity) body.intensity = intensity;
+    const res = await postJSON("/api/reports", body);
+    if (res && res.report) currentReport = res.report;
+    renderLine();
+    close(); // the tile turns back
+  } catch (e) {
+    console.warn(e); // a failed save keeps the back open, with its message
+    showError();
+  } finally {
+    saving = false;
+  }
+}
+
+function showError() {
+  errorEl.hidden = false;
+  errorEl.textContent = t(lang, "report.failed");
+}
+function hideError() {
+  errorEl.hidden = true;
+}
+
+/* The front's line for the current fresh report: the scene's word
+ * (kindScene, so heavy rain reads "heavy rain") and the server's
+ * observed_at in the user's zone. */
+function renderLine() {
+  if (!lineEl) return;
+  const rep = currentReport;
+  const scene = rep ? kindScene(rep.kind, rep.intensity, isDayAt(rep.observed_at)) : null;
+  if (!scene) {
+    lineWrap.hidden = true;
+    return;
+  }
+  const key = rep.confirms ? "line-confirmed" : "line";
+  lineEl.textContent = t(lang, "report." + key, {
+    scene: t(lang, "sky.scene." + scene),
+    time: fmtTime(rep.observed_at, locale, tz),
+  });
+  lineWrap.hidden = false;
+}
+
+/* The sun up when the report was observed, in the configured zone (only
+ * clear and partly cloudy depend on it): the zone's wall clock played as
+ * UTC, through isDay. */
+function isDayAt(observedIso) {
+  const d = new Date(observedIso);
+  if (isNaN(d.getTime())) return false;
+  if (!location || location.lat == null || location.lon == null) {
+    const h = d.getUTCHours(); // without a location: the day window in UTC
+    return h >= 5 && h < 17;
+  }
+  try {
+    const p = {};
+    for (const part of new Intl.DateTimeFormat("en-US", {
+      timeZone: tz, year: "numeric", month: "numeric", day: "numeric",
+      hour: "numeric", minute: "numeric", second: "numeric", hour12: false,
+    }).formatToParts(d)) p[part.type] = Number(part.value);
+    return isDay(location.lat, location.lon, new Date(Date.UTC(p.year, p.month - 1, p.day, p.hour % 24, p.minute, p.second)));
+  } catch {
+    return isDay(location.lat, location.lon, d);
+  }
+}
+
+/* Undo: delete, then re-read the current report (an older one may show). */
+async function undo() {
+  const rep = currentReport;
+  if (!rep || saving) return;
+  saving = true;
+  try {
+    await deleteJSON("/api/reports/" + rep.id);
+  } catch (e) {
+    console.warn(e); // a failed undo: the re-read below shows the truth
+  }
+  currentReport = null;
+  renderLine();
+  reportCurrent(null, true);
+}
+
+/* The current fresh report (app.js passes the refresh's answer; the
+ * re-read after an undo fetches it itself). A failure counts as none. */
+export async function reportCurrent(report, refetch) {
+  if (refetch) {
+    try {
+      const res = await getJSON("/api/reports/current");
+      report = res && res.report;
+    } catch (e) {
+      console.warn(e);
+      report = null;
+    }
+  }
+  currentReport = report;
+  renderLine();
 }
 
 function open() {
@@ -184,6 +359,15 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && isOpen) close();
 });
 
+/* app.js calls once the config is known: the zone and the place's
+ * coordinates (day/night for the line's scene word). */
+export function setReportEnv(locale_, tz_, location_) {
+  locale = locale_;
+  tz = tz_;
+  location = location_;
+  renderLine();
+}
+
 export function initReport(l) {
   lang = l;
   host = document.querySelector("[data-report-host]");
@@ -196,6 +380,7 @@ export function initReport(l) {
     if (host && openBtn) {
       openBtn.remove();
       back.remove();
+      if (lineWrap) lineWrap.remove();
       isOpen = false;
     }
     host = h;

@@ -193,6 +193,112 @@ html.locked .report-open-btn { display: none; }
   background: rgb(255 255 255 / 0.18);
 }
 
+/* Rain's intensity question: the kinds' place, three big buttons plus
+ * the skip. */
+.report-intensities {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  align-content: center;
+}
+.report-intensity {
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid rgb(20 24 28 / 0.18);
+  border-radius: 10px;
+  background: rgb(20 24 28 / 0.07);
+  color: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+:root[data-theme="dark"] .report-intensity {
+  border-color: rgb(255 255 255 / 0.22);
+  background: rgb(255 255 255 / 0.1);
+}
+.report-intensity-skip {
+  grid-column: 1 / -1;
+  min-height: 32px;
+  border: 1px solid rgb(20 24 28 / 0.18);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+:root[data-theme="dark"] .report-intensity-skip {
+  border-color: rgb(255 255 255 / 0.22);
+}
+
+/* A failed save: the message on the back, which stays open. */
+.report-error {
+  min-height: 30px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: rgb(178 34 34 / 0.12);
+  color: #9f1d1d;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+:root[data-theme="dark"] .report-error {
+  background: rgb(248 113 113 / 0.16);
+  color: #fca5a5;
+}
+
+/* The front's line for the current fresh report: a chip at the tile's
+ * bottom, over the front (opaque, so the contrast check can judge its
+ * text), with its undo. */
+.report-line {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 20px);
+  padding: 5px 8px;
+  border: 1px solid rgb(20 24 28 / 0.18);
+  border-radius: 999px;
+  background: #ffffff;
+  color: #14181c;
+  box-shadow: 0 1px 4px rgb(10 12 14 / 0.25);
+}
+:root[data-theme="dark"] .report-line {
+  background: #1b1e23;
+  border-color: rgb(255 255 255 / 0.22);
+  color: #edf0f2;
+}
+.report-line-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.report-undo-btn {
+  flex: none;
+  min-width: 44px;
+  min-height: 30px;
+  padding: 3px 10px;
+  border: none;
+  border-radius: 999px;
+  background: #14181c;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+:root[data-theme="dark"] .report-undo-btn {
+  background: #edf0f2;
+  color: #14181c;
+}
+
 /* The three time chips. */
 .report-whens {
   display: flex;

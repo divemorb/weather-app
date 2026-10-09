@@ -22,7 +22,7 @@ import { initNow, renderNow } from "./now.js";
 import { renderChart } from "./chart.js";
 import { initDetails, renderDetails, scheduleFrom } from "./details.js";
 import { initSetup, openSetup } from "./setup.js";
-import { initReport, reportScene } from "./report.js";
+import { initReport, reportScene, reportCurrent, setReportEnv } from "./report.js";
 
 const lang = pickLang(navigator.languages);
 const locale = navigator.language;
@@ -135,11 +135,12 @@ async function refresh() {
       console.warn(e); // keep the old content; a failure is not a page error
       return null;
     });
-  const data = { rain: null, radar: null, now: null, models: null, sources: null, schedule: null, accuracy: null };
+  const data = { rain: null, radar: null, now: null, models: null, sources: null, schedule: null, accuracy: null, report: null };
   try {
     /* The radius comes from the config loaded once at startup, not from a
-     * fetch per refresh (the caption under the radar strip). */
-    [data.rain, data.radar, data.now, data.models, data.sources, data.schedule, data.accuracy] = await Promise.all([
+     * fetch per refresh (the caption under the radar strip). A failed
+     * report read counts as no report (the line just hides). */
+    [data.rain, data.radar, data.now, data.models, data.sources, data.schedule, data.accuracy, data.report] = await Promise.all([
       fetchOrNull("/api/rain-probability"),
       fetchOrNull("/api/radar/next-hour"),
       fetchOrNull("/api/now"),
@@ -147,6 +148,7 @@ async function refresh() {
       fetchOrNull("/api/sources"),
       fetchOrNull("/api/schedule"),
       fetchOrNull("/api/model-accuracy"),
+      fetchOrNull("/api/reports/current"),
     ]);
   } catch (e) {
     console.warn(e);
@@ -155,6 +157,9 @@ async function refresh() {
   if (data.radar != null) skyRadar = data.radar;
   renderPart("sky", setSkyScene); // its own part: a bad answer must not stop the others
   renderPart("report", reportScene); // the open back names the scene the page shows
+  /* The host's front line for the current fresh report (from earlier, or
+   * from another device) shows on load and follows every refresh. */
+  renderPart("report-current", () => reportCurrent(data.report && data.report.report));
   renderPart("glance", () => renderGlance(data.rain, data.radar, lang, locale, tz, cfg && cfg.radar_radius_km));
   /* The sky's "why" line: the same part as the glance, so one failed
    * endpoint (now or radar) never stops the other. */
@@ -198,6 +203,7 @@ async function start() {
   }
   if (cfg.location) tz = cfg.location.timezone || "UTC";
   setPlace(cfg.location);
+  setReportEnv(locale, tz, cfg.location); // the report line's zone and day/night
   if (cfg.configured === false || !cfg.location) {
     openSetup("first"); // ask for the location; the reload starts after a save
     return;
@@ -228,6 +234,7 @@ initSetup({
       cfg = newCfg;
       if (newCfg.location) tz = newCfg.location.timezone || "UTC";
       setPlace(newCfg.location);
+      setReportEnv(locale, tz, newCfg.location);
     }
     await refresh(); // the reload is scheduled inside (details.js)
   },
