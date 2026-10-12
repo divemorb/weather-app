@@ -1,12 +1,12 @@
 {
  "now": "2026-09-30T10:27:10Z",
- "python_memory_kb": 67920,
+ "python_memory_kb": 67888,
  "upstream": [
   "/bs/current_weather?lat=52.52&lon=13.405",
   "/bs/radar?date=2026-09-30T10:25:00+00:00&last_date=2026-09-30T11:25:00+00:00&lat=52.52&lon=13.405",
   "/bs/weather?date=2026-09-28T10:27:10Z&last_date=2026-09-30T10:27:10Z&lat=52.52&lon=13.405&tz=UTC",
   "/ens/v1/ensemble?forecast_days=2&hourly=precipitation&latitude=52.52&longitude=13.405&models=ecmwf_ifs025&timezone=UTC",
-  "/nom/search?addressdetails=0&format=jsonv2&limit=5&q=Alexanderplatz Berlin UA=WetterLocal/1.0 (self-hosted home weather app)",
+  "/nom/search?addressdetails=1&format=jsonv2&limit=5&q=Alexanderplatz Berlin UA=WetterLocal/1.0 (self-hosted home weather app)",
   "/om/v1/forecast?forecast_days=3&hourly=precipitation,temperature_2m,apparent_temperature,wind_speed_10m,cloud_cover&latitude=52.52&longitude=13.405&minutely_15=precipitation&models=icon_d2,icon_eu,ecmwf_ifs025,gfs_seamless,arome_france,ukmo_seamless&timezone=UTC"
  ],
  "cases": {

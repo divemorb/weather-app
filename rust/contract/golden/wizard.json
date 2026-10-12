@@ -1,6 +1,6 @@
 {
  "now": "2026-09-30T10:27:10Z",
- "python_memory_kb": 64576,
+ "python_memory_kb": 64168,
  "upstream": [
   "/bs/current_weather?lat=1.0&lon=13.405",
   "/bs/current_weather?lat=48.137&lon=11.575",
@@ -30,7 +30,7 @@
   "/ens/v1/ensemble?forecast_days=2&hourly=precipitation&latitude=52.5&longitude=13.405&models=ecmwf_ifs025&timezone=UTC",
   "/ens/v1/ensemble?forecast_days=2&hourly=precipitation&latitude=52.52&longitude=13.405&models=ecmwf_ifs025&timezone=UTC",
   "/ens/v1/ensemble?forecast_days=2&hourly=precipitation&latitude=52.52&longitude=13.405&models=ecmwf_ifs025&timezone=UTC",
-  "/nom/search?addressdetails=0&format=jsonv2&limit=5&q=Alexanderplatz Berlin UA=WetterLocal/1.0 (self-hosted home weather app)",
+  "/nom/search?addressdetails=1&format=jsonv2&limit=5&q=Alexanderplatz Berlin UA=WetterLocal/1.0 (self-hosted home weather app)",
   "/om/v1/forecast?forecast_days=3&hourly=precipitation,temperature_2m,apparent_temperature,wind_speed_10m,cloud_cover&latitude=1.0&longitude=13.405&minutely_15=precipitation&models=icon_d2,icon_eu,ecmwf_ifs025,gfs_seamless,arome_france,ukmo_seamless&timezone=UTC",
   "/om/v1/forecast?forecast_days=3&hourly=precipitation,temperature_2m,apparent_temperature,wind_speed_10m,cloud_cover&latitude=48.137&longitude=11.575&minutely_15=precipitation&models=icon_d2,icon_eu,ecmwf_ifs025,gfs_seamless,arome_france,ukmo_seamless&timezone=UTC",
   "/om/v1/forecast?forecast_days=3&hourly=precipitation,temperature_2m,apparent_temperature,wind_speed_10m,cloud_cover&latitude=48.14&longitude=11.58&minutely_15=precipitation&models=icon_d2,icon_eu,ecmwf_ifs025,gfs_seamless,arome_france,ukmo_seamless&timezone=UTC",
@@ -462,17 +462,17 @@
    "json": {
     "results": [
      {
-      "label": "Alexanderplatz, Spandauer Vorstadt, Mitte, Berlin, Deutschland",
+      "label": "Alexanderplatz\nBerlin",
       "latitude": 52.5219814,
       "longitude": 13.4136358
      },
      {
-      "label": "Alexanderplatz, 2, Dircksenstraße, Klosterviertel, Spandauer Vorstadt, Mitte, Berlin, 10179, Deutschland",
+      "label": "Dircksenstraße 2\n10179 Berlin",
       "latitude": 52.5215661,
       "longitude": 13.4112804
      },
      {
-      "label": "Alexanderplatz, Klosterviertel, Spandauer Vorstadt, Mitte, Berlin, 10178, Deutschland",
+      "label": "Alexanderplatz\n10178 Berlin",
       "latitude": 52.5216438,
       "longitude": 13.4131914
      }
