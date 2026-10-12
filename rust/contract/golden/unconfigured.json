@@ -1,6 +1,6 @@
 {
  "now": "2026-09-30T10:27:10Z",
- "python_memory_kb": 64528,
+ "python_memory_kb": 63900,
  "upstream": [],
  "cases": {
   "healthz": {
@@ -287,8 +287,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "ea06de8e949746e21e09bc19e90d808902081a22f0cd72cea142c0b30be016f3",
-   "length": 11194
+   "sha256": "7761207f462e7fedf525aad4045066c9ef27e0dd2cf734b9877aba0d4d4c82fe",
+   "length": 11258
   },
   "static/index.html": {
    "status": 200,
@@ -301,8 +301,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "ea06de8e949746e21e09bc19e90d808902081a22f0cd72cea142c0b30be016f3",
-   "length": 11194
+   "sha256": "7761207f462e7fedf525aad4045066c9ef27e0dd2cf734b9877aba0d4d4c82fe",
+   "length": 11258
   },
   "static/api.js": {
    "status": 200,
@@ -315,8 +315,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "e94543e3be5caa7200ca809c5e7fd723bc0d3a8adf562cc7992a0fcb37cbfecb",
-   "length": 1102
+   "sha256": "80b7f7c8e2fe9913357b3ba4ffa9ce4543b6c01207a21f1366e7e307148b29da",
+   "length": 1313
   },
   "static/app.js": {
    "status": 200,
@@ -329,8 +329,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "5a20af7ca57ddf5c865bb681e27ca379c230cc1ea265f3ba4bfe876ded42304b",
-   "length": 9421
+   "sha256": "98acbded049e60679327d4d83991d6ac7e8b5fc6e24e349cbafd655239bb3e90",
+   "length": 10768
   },
   "static/chart.css": {
    "status": 200,
@@ -371,8 +371,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "82d2d385c65f274d037279616a07860dbd13372be655b2dead2c4a8169cb7166",
-   "length": 5383
+   "sha256": "ea694f4fe448b09f976306505970ff282ba93d9c974a96e86c67fe40b7feea1a",
+   "length": 5500
   },
   "static/details.js": {
    "status": 200,
@@ -385,8 +385,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "63ecc8ad1cf46d7eff13666d49cddf2ed95d84905be3c51ff5644358bc600c86",
-   "length": 13671
+   "sha256": "02beb436ca585b1ecbf3c7135d757e0c7790fecddc174ac974eb69e92027e7b5",
+   "length": 13907
   },
   "static/format.js": {
    "status": 200,
@@ -413,8 +413,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "99183e8d831738861f4bc7358190fe3f0ac76ec2d3239eaa33b2cd20c11d3b17",
-   "length": 6847
+   "sha256": "c937877b6faaf98e0ecb81e7539a7dcbb105bdd661670859d6c20ec67439df5a",
+   "length": 7070
   },
   "static/i18n.js": {
    "status": 200,
@@ -427,8 +427,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "c9b1a30db5c9db1d601647d7d538ce668697a39f888d45cb6326b4d1909b9789",
-   "length": 16101
+   "sha256": "1b5a05d1d42d32df93d3e5c3d470795626a6f841b11a45f9d42c400ffbc058be",
+   "length": 16245
   },
   "static/kiosk.css": {
    "status": 200,
