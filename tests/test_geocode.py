@@ -120,7 +120,6 @@ async def test_search_request_carries_user_agent_and_jsonv2_params():
     assert req.url.params["format"] == "jsonv2"
     assert req.url.params["q"] == "Marienplatz 1, München"
     assert req.url.params["limit"] == "5"
-    assert req.url.params["addressdetails"] == "0"
 
 
 async def test_search_caches_identical_query_including_case():

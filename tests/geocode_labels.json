@@ -1,0 +1,103 @@
+{
+ "about": "The short place label (phone test P1, 2026-10-12): line 1 'road house_number' (no road: the name unless it is the city), line 2 'postcode city' (city: the first of city, town, village, municipality, hamlet); joined by a newline; both empty: the name, else display_name. Read by tests/test_geocode_label.py and the Rust geocode tests.",
+ "cases": [
+  {
+   "case": "street and number (the user's example)",
+   "entry": {"name": "", "display_name": "2, Dircksenstraße, Mitte, Berlin, 10178, Deutschland",
+             "address": {"house_number": "2", "road": "Dircksenstraße", "suburb": "Mitte", "city": "Berlin",
+                         "state": "Berlin", "postcode": "10178", "country": "Deutschland", "country_code": "de"}},
+   "label": "Dircksenstraße 2\n10178 Berlin"
+  },
+  {
+   "case": "a POI with a road: the road wins over the POI's name",
+   "entry": {"name": "Alexanderplatz", "display_name": "Alexanderplatz, 2, Dircksenstraße, Klosterviertel, Mitte, Berlin, 10179, Deutschland",
+             "address": {"railway": "Alexanderplatz", "house_number": "2", "road": "Dircksenstraße",
+                         "neighbourhood": "Klosterviertel", "city": "Berlin", "postcode": "10179", "country": "Deutschland"}},
+   "label": "Dircksenstraße 2\n10179 Berlin"
+  },
+  {
+   "case": "a road without a number",
+   "entry": {"name": "Alexanderplatz", "display_name": "Alexanderplatz, Klosterviertel, Mitte, Berlin, 10178, Deutschland",
+             "address": {"road": "Alexanderplatz", "city": "Berlin", "postcode": "10178", "country": "Deutschland"}},
+   "label": "Alexanderplatz\n10178 Berlin"
+  },
+  {
+   "case": "a square without road and postcode: the name, then the city alone",
+   "entry": {"name": "Alexanderplatz", "display_name": "Alexanderplatz, Spandauer Vorstadt, Mitte, Berlin, Deutschland",
+             "address": {"square": "Alexanderplatz", "quarter": "Spandauer Vorstadt", "suburb": "Mitte",
+                         "city": "Berlin", "country": "Deutschland"}},
+   "label": "Alexanderplatz\nBerlin"
+  },
+  {
+   "case": "a city search: the name equals the city, one line",
+   "entry": {"name": "Berlin", "display_name": "Berlin, Deutschland",
+             "address": {"city": "Berlin", "state": "Berlin", "country": "Deutschland"}},
+   "label": "Berlin"
+  },
+  {
+   "case": "a village with a postcode",
+   "entry": {"name": "Kleinmachnow", "display_name": "Kleinmachnow, Potsdam-Mittelmark, Brandenburg, 14532, Deutschland",
+             "address": {"village": "Kleinmachnow", "county": "Potsdam-Mittelmark", "state": "Brandenburg",
+                         "postcode": "14532", "country": "Deutschland"}},
+   "label": "14532 Kleinmachnow"
+  },
+  {
+   "case": "city before town before village",
+   "entry": {"name": "Hauptstraße", "display_name": "Hauptstraße, Ort, Deutschland",
+             "address": {"road": "Hauptstraße", "house_number": "5a", "village": "Dorf", "town": "Stadt",
+                         "postcode": "12345"}},
+   "label": "Hauptstraße 5a\n12345 Stadt"
+  },
+  {
+   "case": "municipality, then hamlet",
+   "entry": {"name": "Weg", "display_name": "Weg, Deutschland",
+             "address": {"road": "Weg", "hamlet": "Weiler", "municipality": "Gemeinde"}},
+   "label": "Weg\nGemeinde"
+  },
+  {
+   "case": "a hamlet alone",
+   "entry": {"name": "Weiler", "display_name": "Weiler, Deutschland",
+             "address": {"hamlet": "Weiler", "postcode": "54321"}},
+   "label": "54321 Weiler"
+  },
+  {
+   "case": "a house number without a road is dropped",
+   "entry": {"name": "", "display_name": "7, Berlin, Deutschland",
+             "address": {"house_number": "7", "city": "Berlin"}},
+   "label": "Berlin"
+  },
+  {
+   "case": "a postcode without a city stays on line 2",
+   "entry": {"name": "Feldweg", "display_name": "Feldweg, 99999, Deutschland",
+             "address": {"road": "Feldweg", "postcode": "99999"}},
+   "label": "Feldweg\n99999"
+  },
+  {
+   "case": "no usable address parts: the name alone",
+   "entry": {"name": "Brocken", "display_name": "Brocken, Harz, Sachsen-Anhalt, Deutschland",
+             "address": {"peak": "Brocken", "state": "Sachsen-Anhalt", "country": "Deutschland"}},
+   "label": "Brocken"
+  },
+  {
+   "case": "no usable address parts and no name: display_name",
+   "entry": {"display_name": "Nordsee, Deutschland", "address": {"country": "Deutschland"}},
+   "label": "Nordsee, Deutschland"
+  },
+  {
+   "case": "no address at all (addressdetails ignored upstream): display_name",
+   "entry": {"display_name": "Marienplatz, München, Bayern, Deutschland"},
+   "label": "Marienplatz, München, Bayern, Deutschland"
+  },
+  {
+   "case": "untrusted: address not an object, name not a string",
+   "entry": {"name": 42, "display_name": "Somewhere, Deutschland", "address": ["Hauptstraße", "1"]},
+   "label": "Somewhere, Deutschland"
+  },
+  {
+   "case": "untrusted: non-string or empty parts count as absent",
+   "entry": {"name": "Platz", "display_name": "Platz, Köln, Deutschland",
+             "address": {"road": 17, "house_number": "3", "city": "", "town": "Köln", "postcode": null}},
+   "label": "Platz\nKöln"
+  }
+ ]
+}

@@ -31,13 +31,13 @@ LANG_I = {"en": 0, "de": 1}
 # W1a: the flip and the picker; W1b: saving; W2: the sky; W3: Details.
 FLIP = (["report-open", "report-closed", "report-flip", "report-picker", "report-shows", "report-close",
          "report-escape", "report-locked", "report-motion", "report-still", "report-buttons",
-         "report-contrast-light", "report-contrast-dark"] + [f"report-fit-{v}" for v in REPORT_FIT])
+         "report-contrast-light", "report-contrast-dark", "report-open-clear"] + [f"report-fit-{v}" for v in REPORT_FIT])
 SAVE = ["report-save", "report-undo", "report-intensity", "report-skip", "report-confirm", "report-error",
         "report-line-fresh"]
 SKY = [f"sky-report-{c}" for c in REPORT_SKY_CASES] + ["sky-report-none", "sky-after-save"]
 DETAILS = ["details-reports", "details-reports-fit"]
 GLANCE_HOST = ["report-open", "report-closed", "report-flip", "report-fit-big-1280x800", "report-fit-phone-360",
-               "report-save", "report-undo"]
+               "report-open-clear", "report-save", "report-undo"]
 
 
 def check_names(scenario: str, lang: str) -> list[str]:
@@ -265,21 +265,66 @@ def kind_scene(report: dict, at_iso: str) -> str:
 
 # --- the run --------------------------------------------------------------------
 
+# P3: the closed host's report button (icon + word) lies over none of the host's texts
+OPEN_CLEAR = """(() => {
+  const out = [];
+  for (const h of document.querySelectorAll('[data-report-host]')) {
+    const b = h.querySelector('[data-test="report-open"]');
+    if (!b || !b.checkVisibility()) continue;
+    const br = b.getBoundingClientRect();
+    const walk = document.createTreeWalker(h, NodeFilter.SHOW_TEXT);
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+      const el = n.parentElement;
+      if (!n.nodeValue.trim() || b.contains(n) || el.closest('[data-test="report-back"]')) continue;
+      if (!el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) continue;
+      const r = document.createRange(); r.selectNodeContents(n);
+      for (const x of r.getClientRects()) {
+        const ix = Math.min(br.right, x.right) - Math.max(br.left, x.left);
+        const iy = Math.min(br.bottom, x.bottom) - Math.max(br.top, x.top);
+        if (ix > 1 && iy > 1) {
+          out.push(`at ${innerWidth}x${innerHeight}: report-open (${Math.round(br.left)},${Math.round(br.top)} ` +
+            `${Math.round(br.width)}x${Math.round(br.height)}) lies over the text "${n.nodeValue.trim().slice(0, 40)}"`);
+          break;
+        }
+      }
+    }
+  }
+  return out;
+})()"""
+
+
+def open_label_problems(ui, pg, opens, lang) -> list[str]:
+    """P3: a pencil (inline SVG) and a visible word, the word is the accessible name
+    (WCAG 2.5.3), the touch target at least 44x44 px."""
+    want = REPORT_TEXT["open"][lang]
+    out = []
+    for e in opens:
+        if ui.norm(e["text"]) != want:
+            out.append(f"report-open shows the text {e['text']!r}, expected {want!r} next to the icon")
+        if ui.norm(e["name"]) != want:
+            out.append(f"report-open is called {e['name']!r}, expected {want!r} (the visible text)")
+        if e["rect"]["w"] < 44 or e["rect"]["h"] < 44:
+            out.append(f"report-open is {e['rect']['w']:.0f}x{e['rect']['h']:.0f} px, expected at least 44x44")
+    svgs = pg.js("""[...document.querySelectorAll('[data-report-host] [data-test="report-open"]')]
+      .filter((e) => e.checkVisibility()).map((e) => e.querySelectorAll('svg').length)""")
+    out += [f"report-open has {n} <svg>, expected 1 (the pencil)" for n in svgs if n != 1]
+    return out
+
+
 def run(ui, name, sc, browser, base, lang, names, add, done, shot):
     i = LANG_I[lang]
     now = sc["now"]
     page = lambda **kw: ui.UIPage(browser, base, now, lang, **kw)  # noqa: E731
     clear_fresh(base)
 
-    # A: desktop (detailed view): closed, open, the picker
+    # A: desktop (the big view): closed, open, the picker
     pg = page()
     s = state(pg)
     add("report-closed", closed_problems(s))
     opens = [e for e in pg.ui("report-open") if e["visible"]]
     add("report-open", ([] if s.get("openLive") == 1 and len(opens) == 1 else
                         [f"{len(opens)} visible [data-test=report-open] ({s.get('openCount')} in the host), expected 1"])
-        + [f"report-open is called {e['name']!r}, expected {REPORT_TEXT['open'][lang]!r}"
-           for e in opens if ui.norm(e["name"]) != REPORT_TEXT["open"][lang]])
+        + open_label_problems(ui, pg, opens, lang))
     before = s.get("rect")
     problems = open_back(pg)
     s = state(pg)
@@ -325,12 +370,15 @@ def run(ui, name, sc, browser, base, lang, names, add, done, shot):
             done(pg)
 
     # the back fits the host everywhere, the host keeps its size, the big view doesn't scroll
+    clear = []
     for variant, (w, h, query) in REPORT_FIT.items():
         if f"report-fit-{variant}" not in names:
             continue
         pg = page(width=w, height=h, query=query)
         pg.js("document.querySelector('[data-report-host]').scrollIntoView({block: 'center'})")
         before = state(pg)
+        if not query:
+            clear += pg.js(OPEN_CLEAR)
         problems = open_back(pg)
         if not problems:
             after = state(pg)
@@ -342,6 +390,8 @@ def run(ui, name, sc, browser, base, lang, names, add, done, shot):
         add(f"report-fit-{variant}", problems)
         shot(pg, f"report-fit-{variant}", full=False)
         done(pg)
+    if "report-open-clear" in names:
+        add("report-open-clear", clear)
 
     if "report-locked" in names:
         pg = page(width=1280, height=800, query="?kiosk")
@@ -373,13 +423,13 @@ def run(ui, name, sc, browser, base, lang, names, add, done, shot):
 
     # D: Details (W3)
     if "details-reports" in names:
-        pg = page()
+        pg = page(query="?detailed")
         pg.js("__ui.openDetails()")
         pg.settle()
         add("details-reports", details_problems(pg, ui, lang, base))
         shot(pg, "report-details")
         done(pg)
-        pg = page(width=360, height=740)
+        pg = page(width=360, height=740, query="?detailed")
         pg.js("__ui.openDetails()")
         pg.settle()
         info = pg.js("__ui.page()")

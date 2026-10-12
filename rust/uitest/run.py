@@ -66,7 +66,7 @@ from expect import (  # noqa: E402
     GLASS_DELTA, GLASS_GAP_S, GLASS_SCENES, GLASS_VIEW, REASON_CASES, REASON_STATION, REASON_TEXT, SCENE_LABEL, VIEW_DESKTOP, VIEW_PHONE,
     OBS_STATIONS, KIOSK_FILL, KIOSK_FONT_SHARE, KIOSK_MIN_FONT, KIOSK_RADAR_SHARE,
     KIOSK_SIZES, LOCALES, MODEL_LABELS, NOW, RADAR_CAPTION, SCENARIO, SCENE_CASES, SCENE_SOURCE, SCENES,
-    SOURCE_KIND, SOURCES, TZ, WEIGHTS, WHEN, WIZARD_DETAIL, WIZARD_LABEL,
+    SOURCE_KIND, SOURCES, TZ, WEIGHTS, WHEN, WIZARD_DETAIL, WIZARD_LABEL, WIZARD_RESULTS, WIZARD_SELECTED,
     BIG_HEADLINE_FILL, BIG_HEADLINE_LINES, BIG_HEADLINE_MAX, BIG_HEADLINE_SIZES, BIG_LABEL_GAP, BIG_PHONE,
     BIG_PHONE_MIN_FONT, BIG_HEADLINE_LEAD, BIG_HIERARCHY_SIZES, KIOSK_REASON_SHARE, KIOSK_ROOM_FILL, KIOSK_ROOM_TOP,
     TRACK_CONTRAST, VIEW_LABEL)
@@ -85,8 +85,8 @@ GLANCE = ["rain-answer", "rain-when", "rain-probability"]
 RADAR = ["radar-steps", "radar-labels", "radar-caption", "radar-dry", "radar-max"]
 NOW_CHECKS = list(NOW)
 CHART = ["chart-svg", "chart-series", "chart-legend", "chart-y-labels", "chart-x-labels", "chart-unit", "chart-dry"]
-DETAILS = ["details-closed", "details-weights", "details-signals", "details-weighting", "countdown-radar", "countdown-models",
-           "countdown-page", "source-rows", "source-errors", "accuracy-table", "details-fit", "details-compact"]
+DETAILS = ["details-open", "details-weights", "details-signals", "details-weighting", "countdown-radar", "countdown-models",
+           "countdown-page", "source-rows", "source-errors", "accuracy-table", "details-fit", "details-contrast"]
 KIOSK = [f"kiosk-{w}x{h}" for w, h in KIOSK_SIZES]
 KIOSK_CHART = [f"kiosk-chart-{w}x{h}" for w, h in KIOSK_SIZES]
 KIOSK_FILL_CHECKS = [f"kiosk-fill-{w}x{h}" for w, h in KIOSK_SIZES]
@@ -97,7 +97,7 @@ SKY = (["sky-layer"] + [f"scene-{c}" for c in SCENE_CASES] + [f"motion-{s}" for 
        + [f"still-{s}" for s in SCENES] + [f"contrast-{s}-{t}" for s in SCENES for t in ("light", "dark")]
        + [f"glass-{s}" for s in GLASS_SCENES])
 REASON = [f"reason-{c}" for c in REASON_CASES]
-VIEW = ["view-default", "view-toggle", "view-query", "view-phone"]
+VIEW = ["view-default", "view-toggle", "view-query", "view-phone", "view-details-only"]
 BIG = ["big-labels", "big-headline", "big-hierarchy"]  # the review of V2: the big view (also on a phone)
 KIOSK_ROOM = [f"kiosk-room-{w}x{h}" for w, h in KIOSK_SIZES]
 
@@ -116,9 +116,9 @@ def check_names(scenario: str, lang: str) -> list[str]:
         return (COMMON + ["rain-answer", "rain-when", "rain-probability", "radar-unavailable", "now-unavailable",
                           "chart-unavailable", "now-station", "station-map"] + [n for n in DETAILS if n not in ("details-weights", "details-signals")])
     if scenario == "accuracy":
-        return ["console", "requests", "location", "location-detail", "rain-probability", "details-closed",
-                "details-weighting", "accuracy-table", "accuracy-head", "accuracy-note", "details-fit", "details-compact", "overflow-360",
-                "details-reports-none"]
+        return ["console", "requests", "location", "location-detail", "rain-probability", "details-open",
+                "details-weighting", "accuracy-table", "accuracy-head", "accuracy-note", "details-fit", "details-contrast",
+                "overflow-360", "details-reports-none"]
     if scenario in ("report", "report-glance"):
         return report_ui.check_names(scenario, lang)
     if scenario == "fallback":
@@ -130,7 +130,8 @@ def check_names(scenario: str, lang: str) -> list[str]:
                 "contrast-light", "contrast-dark", "overflow-360", "buttons"]
     if scenario == "wizard":
         return ["console", "validation"] if lang == "de" else ["console", "requests", "validation", "search",
-                                                               "save", "location-long", "change"]
+                                                               "search-lines", "save", "location-long",
+                                                               "location-lines", "change"]
     raise ValueError(scenario)
 
 
@@ -236,8 +237,9 @@ CLOCK = """(() => {
 
 class UIPage:
     def __init__(self, browser, base, sc_now, lang, width=1280, height=900, scheme="light",
-                 reduced=False, query="?detailed", fakes=None):
-        """query: "?detailed" (the content checks), "" (the default view) or "?kiosk"."""
+                 reduced=False, query="", fakes=None):
+        """query: "" (the default big view: the content checks), "?detailed" (P2, phone test
+        2026-10-12: the details page, only the Details card, open) or "?kiosk"."""
         self.lang, self.locale, self.base = lang, LOCALES[lang], base
         self.p = browser.new_page()
         mobile = width < 600
@@ -535,34 +537,44 @@ def _num(s: str) -> float:
         return float("inf")
 
 
+DETAILS_OPEN = """(() => {
+  const d = document.querySelector('[data-test="details"]');
+  if (!d) return null;
+  const shown = (e) => !!e && e.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true });
+  const toggles = [...d.querySelectorAll('summary')].filter(shown).length;
+  const heads = [...d.querySelectorAll('h1, h2, h3')].filter((h) => shown(h) && h.closest('[data-test="details"]') === d
+    && h.textContent.trim() === 'Details' && !h.closest('summary'));
+  const top = document.querySelector('.topbar');
+  return { tag: d.tagName.toLowerCase(), open: d.tagName === 'DETAILS' ? d.open : true, toggles, heads: heads.length,
+           gap: top ? d.getBoundingClientRect().top - top.getBoundingClientRect().bottom : null };
+})()"""
+
+
+def details_open_problems(pg: UIPage) -> list[str]:
+    """P2: the details page shows the Details card open, not collapsible (no visible
+    <summary>), under a plain "Details" heading, right under the top bar."""
+    det, problems = visible_one(pg, "details")
+    d = pg.js(DETAILS_OPEN)
+    if det and d:
+        if not d["open"]:
+            problems.append(f"[data-test=details] is a closed <{d['tag']}>, expected open")
+        if d["toggles"]:
+            problems.append(f"{d['toggles']} visible <summary> in [data-test=details]: the card is not collapsible")
+        if d["heads"] != 1:
+            problems.append(f"{d['heads']} visible <h1>-<h3> 'Details' heading(s) in the card, expected 1")
+        if d["gap"] is not None and not -1 <= d["gap"] <= 48:
+            problems.append(f"the card starts {d['gap']:.0f} px below the top bar, expected right under it (0-48 px)")
+    if not any(e["visible"] for e in pg.ui("source-row")):
+        problems.append("no visible [data-test=source-row]: the card's content shows without a click")
+    return problems
+
+
 def check_details(pg: UIPage, sc: str, exp: dict, names: list[str], add):
+    """On the details page (?detailed)."""
     lang = pg.lang
-    det, problems = one(pg.ui("details"), "details")
-    if det:
-        if det["tag"] != "details":
-            problems.append(f"[data-test=details] is a <{det['tag']}>, expected <details>")
-        elif det["open"]:
-            problems.append("[data-test=details] is open on load, expected closed")
-        inside = [h for h in ("details-weights", "source-row", "accuracy-row", "accuracy-status")
-                  if any(e["visible"] for e in pg.ui(h))]
-        if inside:
-            problems.append(f"visible before opening the details: {inside}")
-    add("details-closed", problems)
-    if det and det["tag"] == "details" and not det["open"]:
-        g = pg.js('__ui.summaryGaps("details")')
-        if g and g["below"] > g["above"] + 6:
-            add("details-compact", [f"closed [data-test=details]: {g['below']:.0f} px below the summary, "
-                                    f"{g['above']:.0f} px above it (at most 6 px more below than above)"])
-        else:
-            add("details-compact", [])
-    if not det or det["tag"] != "details":
-        for check in DETAILS[1:]:
-            add(check, ['not checked: needs a <details data-test="details"> to open'])
-        return
-    problems = pg.click(selector='[data-test="details"] > summary')
-    if problems:
-        add("details-closed", problems)
-        return
+    add("details-open", details_open_problems(pg))
+    pg.js("__ui.openDetails()")  # today's page: open the card to check its content
+    pg.settle()
     if "details-weights" in names:
         add("details-weights", expect_tokens(pg, "details-weights", WEIGHTS[lang]))
     if "details-signals" in names:
@@ -793,10 +805,19 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
                 add("now-station", expect_hidden(pg, "now-station"))
             check_chart(pg, exp, add)
         shot(pg, "desktop-light")
+        done(pg)
+        # A2: the details page (?detailed), light
+        pg = UIPage(browser, base, sc["now"], lang, query="?detailed")
         check_details(pg, name, exp, names, add)
         if "details-reports-none" in names:
             add("details-reports-none", report_ui.none_problems(pg, sys.modules[__name__], lang))
+        add("details-contrast", [f"light: {p}" for p in contrast_problems(pg)])
         shot(pg, "desktop-details")
+        done(pg)
+        pg = UIPage(browser, base, sc["now"], lang, scheme="dark", query="?detailed")
+        pg.js("__ui.openDetails()")
+        pg.settle()
+        add("details-contrast", [f"dark: {p}" for p in contrast_problems(pg)])
         done(pg)
         if name == "accuracy":
             pass
@@ -809,16 +830,19 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
             shot(pg, "desktop-dark")
             done(pg)
     if name in ("live", "rain", "errors", "unconfigured", "accuracy"):
-        # C: phone, 360 px, everything opened
-        pg = UIPage(browser, base, sc["now"], lang, width=360, height=740)
-        pg.js("__ui.openDetails()")
-        pg.settle()
-        info = pg.js("__ui.page()")
-        add("overflow-360", [] if info["sw"] <= 361 and info["iw"] <= 361 else
-            [f"page is {info['sw']} px wide at 360 px (horizontal scrolling): {pg.js('__ui.overflowing()')}"])
-        add("details-fit", [f"at 360 px: {p}" for p in pg.js('__ui.sticksOut("details")')])
-        shot(pg, "phone-360")
-        done(pg)
+        # C: phone, 360 px: the big view, then the details page (opened)
+        for query in ("", "?detailed"):
+            pg = UIPage(browser, base, sc["now"], lang, width=360, height=740, query=query)
+            pg.js("__ui.openDetails()")
+            pg.settle()
+            info = pg.js("__ui.page()")
+            where = "the details page" if query else "the big view"
+            add("overflow-360", [] if info["sw"] <= 361 and info["iw"] <= 361 else
+                [f"{where}: page is {info['sw']} px wide at 360 px (horizontal scrolling): {pg.js('__ui.overflowing()')}"])
+            if query:
+                add("details-fit", [f"at 360 px: {p}" for p in pg.js('__ui.sticksOut("details")')])
+            shot(pg, f"phone-360{'-details' if query else ''}")
+            done(pg)
     if name == "unconfigured":
         pg = UIPage(browser, base, sc["now"], lang, scheme="dark")
         add("theme-dark", theme_problems(pg.js("__ui.page()"), "dark"))
@@ -869,19 +893,17 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
 
 
 def layout_problems(pg: UIPage, w: int) -> list[str]:
-    """The tiles flow with the width: LAYOUT_COLUMNS grid columns, the glance first
-    (top left) and at least as wide as any other tile, Details across the full
-    width, no tile overlapping another, no horizontal scrolling; wide screens use
-    their width instead of one narrow column."""
+    """The big view's tiles at a page width (P2: the detailed view is the details page, so
+    the tile grid is the big view's): glance, Now and the chart visible, the glance first
+    (top left), no tile overlapping another, no horizontal scrolling."""
     t = pg.js("__ui.tiles()")
     if not t:
         return ["no main#dashboard"]
-    want = LAYOUT_COLUMNS[w]
     problems = []
-    if t["columns"] != want:
-        how = f"grid-template-columns {[round(x) for x in t['tracks']]}" if t["grid"] else "not a CSS grid"
-        problems.append(f"{t['columns']} tile column(s) at {w} px ({how}), expected {want}")
     tiles = t["list"]
+    missing = {"glance", "now", "chart-card"} - {x["id"] for x in tiles}
+    if missing:
+        problems.append(f"{sorted(missing)} not visible in the big view at {w} px")
     by_id = {x["id"]: x for x in tiles}
     if not tiles or tiles[0]["id"] != "glance":
         problems.append(f"the first tile is {tiles[0]['id'] if tiles else None!r}, expected #glance")
@@ -891,14 +913,8 @@ def layout_problems(pg: UIPage, w: int) -> list[str]:
             problems.append("a tile starts above #glance: the glance comes first")
         if g["x"] > t["x"] + 1:
             problems.append(f"#glance starts at x={g['x']:.0f}, not at the left edge of the tiles ({t['x']:.0f})")
-        wider = [o["id"] for o in tiles if o["id"] not in ("glance", "details") and o["w"] > g["w"] + 1]
-        if wider:
-            problems.append(f"{wider} wider than #glance ({g['w']:.0f} px): the glance is the widest tile")
-    d = by_id.get("details")
-    if not d:
-        problems.append("no visible #details tile")
-    elif d["w"] < t["w"] - 2:
-        problems.append(f"#details is {d['w']:.0f} px wide, the tiles {t['w']:.0f} px: Details spans the full width")
+    if "details" in by_id:
+        problems.append("#details is visible in the big view")
     for i, a in enumerate(tiles):
         for b in tiles[i + 1:]:
             ox = min(a["right"], b["right"]) - max(a["x"], b["x"])
@@ -908,13 +924,6 @@ def layout_problems(pg: UIPage, w: int) -> list[str]:
     info = pg.js("__ui.page()")
     if info["sw"] > w + 1:
         problems.append(f"page is {info['sw']} px wide at {w} px: {pg.js('__ui.overflowing()')}")
-    if w >= LAYOUT_WIDE:
-        if t["w"] < LAYOUT_SPACE * w:
-            problems.append(f"the tiles use {t['w']:.0f} px of {w} px, at least {LAYOUT_SPACE * w:.0f} px "
-                            f"({LAYOUT_SPACE:.0%}): wide screens get more columns, not wide margins")
-        narrow = [round(x) for x in t["tracks"] if x < LAYOUT_MIN_TRACK]
-        if narrow:
-            problems.append(f"columns {narrow} px narrower than {LAYOUT_MIN_TRACK} px")
     return problems
 
 
@@ -1024,7 +1033,7 @@ def run_sky(browser, base, sc, lang, add, done, shot):
         for theme in ("light", "dark"):
             problems = []
             for w, h, query in CONTRAST_VIEWS:
-                view = f"{w}x{h}{' kiosk' if query else ''}"
+                view = f"{w}x{h}{' ' + query if query else ''}"
                 pg = UIPage(browser, base, sc["now"], lang, width=w, height=h, scheme=theme, query=query, fakes=fakes)
                 got = scene_of(pg)
                 if got != scene:
@@ -1129,7 +1138,7 @@ def run_views(browser, base, sc, lang, add):
             problems.append(f"{step}: [data-test=details] {'visible' if details else 'hidden'} in the {want} view")
     add("view-toggle", problems)
     pg.close()
-    pg = UIPage(browser, base, sc["now"], lang, width=w, height=h)
+    pg = UIPage(browser, base, sc["now"], lang, width=w, height=h, query="?detailed")
     problems = [] if view_of(pg) == "detailed" else [f"?detailed: data-view={view_of(pg)!r}, expected 'detailed'"]
     pg.close()
     pg = UIPage(browser, base, sc["now"], lang, width=w, height=h, query="")
@@ -1152,6 +1161,31 @@ def run_views(browser, base, sc, lang, add):
         problems.append(f"phone: the page is {info['sw']} px wide at {w} px: {pg.js('__ui.overflowing()')}")
     add("view-phone", problems)
     pg.close()
+    problems = []
+    for w, h in (VIEW_DESKTOP, (360, 740)):
+        pg = UIPage(browser, base, sc["now"], lang, width=w, height=h, query="?detailed")
+        problems += [f"{w}x{h}: {p}" for p in details_only_problems(pg, lang, w)]
+        pg.close()
+    add("view-details-only", problems)
+
+
+def details_only_problems(pg: UIPage, lang: str, w: int) -> list[str]:
+    """P2 (phone test, 2026-10-12): the detailed view is the details page: the Details
+    card open; no place, glance, Now (so no report turn) or 24 hours; the top bar keeps
+    its buttons, the view button leads back to the big view."""
+    shown = pg.js("""Object.fromEntries(['glance', 'now', 'chart-card', 'location', 'location-detail']
+      .map((id) => [id, !!document.getElementById(id)?.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })]))""")
+    problems = [f"#{k} is visible on the details page" for k, v in shown.items() if v]
+    problems += [p for hook in ("details", "view-toggle", "location-button", "theme-toggle")
+                 for p in visible_one(pg, hook)[1]]
+    problems += [p for p in details_open_problems(pg) if "source-row" not in p]
+    el = (pg.ui("view-toggle") or [{}])[0]
+    if norm(el.get("text")) != VIEW_LABEL["detailed"][lang]:
+        problems.append(f"view-toggle shows {el.get('text')!r}, expected {VIEW_LABEL['detailed'][lang]!r}")
+    info = pg.js("__ui.page()")
+    if info["sw"] > w + 1:
+        problems.append(f"page is {info['sw']} px wide: {pg.js('__ui.overflowing()')}")
+    return problems
 
 
 def now_fallback_problems(pg: UIPage) -> list[str]:
@@ -1618,6 +1652,23 @@ def theme_toggle(browser, base, sc, lang, done) -> list[str]:
     return problems
 
 
+def lines_problems(pg: UIPage, hook: str, want: list[str]) -> list[str]:
+    """The visible [data-test=hook] elements show want's texts, one rendered line per
+    "\\n" (P1: the place label is two lines, white-space: pre-line)."""
+    got = pg.js(f"""[...document.querySelectorAll('[data-test="{hook}"]')].filter((e) => e.checkVisibility())
+      .map((e) => {{ const r = document.createRange(); r.selectNodeContents(e);
+        const tops = new Set([...r.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top)));
+        return {{ text: e.innerText, lines: tops.size }}; }})""")
+    problems = [] if len(got) == len(want) else [f"{len(got)} visible [data-test={hook}], expected {len(want)}"]
+    for i, (g, w) in enumerate(zip(got, want)):
+        text = "\n".join(l.strip() for l in g["text"].strip().split("\n"))
+        if text != w:
+            problems.append(f"[data-test={hook}] #{i + 1} shows {g['text']!r}, expected {w!r}")
+        elif g["lines"] != w.count("\n") + 1:
+            problems.append(f"[data-test={hook}] #{i + 1} {w!r} takes {g['lines']} rendered lines, expected {w.count(chr(10)) + 1}")
+    return problems
+
+
 def run_wizard(browser, base, sc, lang, add, done, shot):
     pg = UIPage(browser, base, sc["now"], lang)
     problems = []
@@ -1649,6 +1700,13 @@ def run_wizard(browser, base, sc, lang, add, done, shot):
         if not (lat.startswith("52.52") and lon.startswith("13.41")):
             problems.append(f"after picking the first result: latitude {lat!r}, longitude {lon!r}, expected 52.52…, 13.41…")
     add("search", problems)
+    # P1: each result is the two-line label; the status sentence joins the lines with ", "
+    problems = lines_problems(pg, "setup-result", WIZARD_RESULTS)
+    status = (pg.ui("setup-status") or [{}])[0].get("text") or ""
+    raw = pg.js("document.querySelector('[data-test=\\'setup-status\\']')?.textContent || ''")
+    if WIZARD_SELECTED not in status or "\n" in raw:
+        problems.append(f"after picking: [data-test=setup-status] {raw!r}, expected {WIZARD_SELECTED!r} in one line")
+    add("search-lines", problems)
     problems = pg.type_into("setup-tz", "Europe/Berlin") + pg.click("setup-save")
     end = time.monotonic() + 20
     while time.monotonic() < end and not any(e["visible"] for e in pg.ui("rain-answer")):
@@ -1666,6 +1724,9 @@ def run_wizard(browser, base, sc, lang, add, done, shot):
     if info["sw"] > 361:
         problems.append(f"page is {info['sw']} px wide at 360 px: {phone.js('__ui.overflowing()')}")
     add("location-long", problems)
+    problems = [f"at 360 px: {p}" for p in lines_problems(phone, "location", ["\n".join(WIZARD_LABEL)])]
+    problems += [f"at 1280 px: {p}" for p in lines_problems(pg, "location", ["\n".join(WIZARD_LABEL)])]
+    add("location-lines", problems)
     shot(phone, "after-save-phone-360")
     done(phone)
     problems = pg.click("location-button")

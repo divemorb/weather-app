@@ -13,6 +13,16 @@
   "addresstype": "square",
   "name": "Alexanderplatz",
   "display_name": "Alexanderplatz, Spandauer Vorstadt, Mitte, Berlin, Deutschland",
+  "address": {
+   "square": "Alexanderplatz",
+   "quarter": "Spandauer Vorstadt",
+   "suburb": "Mitte",
+   "borough": "Mitte",
+   "city": "Berlin",
+   "ISO3166-2-lvl4": "DE-BE",
+   "country": "Deutschland",
+   "country_code": "de"
+  },
   "boundingbox": [
    "52.5201457",
    "52.5238113",
@@ -34,6 +44,20 @@
   "addresstype": "railway",
   "name": "Alexanderplatz",
   "display_name": "Alexanderplatz, 2, Dircksenstra\u00dfe, Klosterviertel, Spandauer Vorstadt, Mitte, Berlin, 10179, Deutschland",
+  "address": {
+   "railway": "Alexanderplatz",
+   "house_number": "2",
+   "road": "Dircksenstra\u00dfe",
+   "neighbourhood": "Klosterviertel",
+   "quarter": "Spandauer Vorstadt",
+   "suburb": "Mitte",
+   "borough": "Mitte",
+   "city": "Berlin",
+   "ISO3166-2-lvl4": "DE-BE",
+   "postcode": "10179",
+   "country": "Deutschland",
+   "country_code": "de"
+  },
   "boundingbox": [
    "52.5165661",
    "52.5265661",
@@ -55,6 +79,18 @@
   "addresstype": "road",
   "name": "Alexanderplatz",
   "display_name": "Alexanderplatz, Klosterviertel, Spandauer Vorstadt, Mitte, Berlin, 10178, Deutschland",
+  "address": {
+   "road": "Alexanderplatz",
+   "neighbourhood": "Klosterviertel",
+   "quarter": "Spandauer Vorstadt",
+   "suburb": "Mitte",
+   "borough": "Mitte",
+   "city": "Berlin",
+   "ISO3166-2-lvl4": "DE-BE",
+   "postcode": "10178",
+   "country": "Deutschland",
+   "country_code": "de"
+  },
   "boundingbox": [
    "52.5216214",
    "52.5216661",

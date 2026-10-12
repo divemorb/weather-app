@@ -123,8 +123,11 @@ SOURCE_KIND = {"radar": {"en": "Radar", "de": "Radar"}, "current": {"en": "Now",
                "forecast": {"en": "Models", "de": "Modelle"}, "ensemble": {"en": "Ensemble", "de": "Ensemble"}}
 ATTRIBUTION_LINKS = ["dwd.de", "brightsky.dev", "open-meteo.com", "openstreetmap.org/copyright"]
 
-# The wizard saves the first search result: a long Nominatim label, shown in full at 360 px.
-WIZARD_LABEL = ["Alexanderplatz", "Spandauer Vorstadt", "Mitte", "Berlin", "Deutschland"]
+# The wizard saves the first search result. P1 (phone test, 2026-10-12): the label is two
+# lines, "road number" / "postcode city", built from Nominatim's address (not display_name).
+WIZARD_RESULTS = ["Alexanderplatz\nBerlin", "Dircksenstraße 2\n10179 Berlin", "Alexanderplatz\n10178 Berlin"]
+WIZARD_LABEL = ["Alexanderplatz", "Berlin"]
+WIZARD_SELECTED = "Alexanderplatz, Berlin"  # in a sentence the lines are joined by ", "
 WIZARD_DETAIL = ["52.522", "13.414", TZ]
 
 # The stations behind the data (live and rain: the same Bright Sky recordings). Now: the
@@ -158,7 +161,7 @@ BUDGET_BYTES = 300 * 1024  # the user, 2026-10-04 (was 150 KB); up to 512 KB if 
 # The tiles per page width (live scenario): CSS grid columns of main#dashboard. From
 # LAYOUT_WIDE px on, the tiles use at least LAYOUT_SPACE of the width, each column at
 # least LAYOUT_MIN_TRACK px.
-LAYOUT_COLUMNS = {360: 1, 768: 1, 1280: 2, 1920: 3}
+LAYOUT_COLUMNS = {360: 1, 768: 1, 1280: 2, 1920: 3}  # P2: only the widths are used now (the big view)
 LAYOUT_WIDE = 1280
 LAYOUT_SPACE = 0.7
 LAYOUT_MIN_TRACK = 280
@@ -204,7 +207,7 @@ CONTRAST_MOMENTS = 3
 CONTRAST_GAP_S = 0.7
 CONTRAST_PCT = 0.05
 # The views the per-scene contrast runs on: (width, height, query).
-# "" is the default (big) view, "?detailed" the detailed one; the kiosk is the big view locked.
+# "" is the default (big) view, "?detailed" the details page (P2); the kiosk is the big view locked.
 CONTRAST_VIEWS = [(1280, 900, ""), (390, 844, ""), (1280, 900, "?detailed")]
 
 # --- why the sky looks the way it does (step B1): [data-test=sky-reason] ---
@@ -293,7 +296,8 @@ BIG_HIERARCHY_SIZES = [(390, 844), (360, 740), (1280, 800)]
 # picker, the "why" line and the station's texts say the same.
 REPORT_KINDS = ["clear", "partly-cloudy", "cloudy", "fog", "rain", "thunderstorm", "snow", "hail"]
 REPORT_TEXT = {
-    "open": {"en": "Not right?", "de": "Stimmt nicht?"},  # the ↻ button's accessible name
+    # P3 (phone test, 2026-10-12): a pencil + a visible word; the word is the accessible name
+    "open": {"en": "Report", "de": "Melden"},
     "title": {"en": "What is it really like?", "de": "Wie ist es wirklich?"},
     "shows": {"en": "The page shows: {scene}", "de": "Die Seite zeigt: {scene}"},
     "confirm": {"en": "That's right", "de": "Stimmt"},
@@ -354,6 +358,6 @@ REPORT_SKY_CASES = {
 REPORT_MIN_BUTTON = 44  # px: the kind and intensity buttons are touch targets (WCAG 2.5.5)
 # Where the back must fit inside the host without changing its size (the measured worst case, 2026-10-07:
 # the big view at 1280x800 on a rainy day, Now 660x320 px with 20/26 px padding; a 360 px phone 332x403).
-REPORT_FIT = {"big-1280x800": (1280, 800, ""), "big-1920x1080": (1920, 1080, ""), "phone-360": (360, 740, ""),
-              "detailed-1280": (1280, 900, "?detailed"), "detailed-360": (360, 740, "?detailed")}
+# P2: the detailed view has no Now tile any more (the details page), so the big view only.
+REPORT_FIT = {"big-1280x800": (1280, 800, ""), "big-1920x1080": (1920, 1080, ""), "phone-360": (360, 740, "")}
 REPORT_SAVE_S = 3.0  # after a tap: saved and the tile turned back within this time
