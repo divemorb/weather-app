@@ -248,19 +248,14 @@ html.locked .report-open-btn { display: none; }
   color: #fca5a5;
 }
 
-/* The front's line for the current fresh report: a chip at the tile's
- * bottom, over the front (opaque, so the contrast check can judge its
- * text), with its undo. */
+/* The front's line for the current fresh report: a chip under the
+ * front's content (in the flow, so it never covers the tile's own source
+ * line; opaque, so the contrast check can judge its text), with its undo. */
 .report-line {
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  bottom: 10px;
-  z-index: 2;
+  margin-top: 12px;
   display: flex;
   align-items: center;
   gap: 8px;
-  max-width: calc(100% - 20px);
   padding: 5px 8px;
   border: 1px solid rgb(20 24 28 / 0.18);
   border-radius: 999px;
