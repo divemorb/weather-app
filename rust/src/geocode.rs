@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::sync::{Mutex, OnceLock, PoisonError};
 use std::time::{Duration, Instant};
 
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 
 use crate::pyfmt;
 use crate::upstream::{self, SourceError};
@@ -36,7 +36,8 @@ const MAX_CACHE_ENTRIES: usize = 100;
 /// non-numeric `lat`/`lon`, are skipped (upstream data is untrusted); a
 /// non-list payload is a [`SourceError`]. Entries whose coordinates are not
 /// finite (`"nan"`, `"inf"`) are skipped too — they would end up as
-/// invalid JSON downstream.
+/// invalid JSON downstream. The `label` is the short two-line place label
+/// (see [`short_label`]), falling back to the entry's `display_name`.
 pub fn parse_nominatim(payload: &Value) -> Result<Vec<GeocodeResult>, SourceError> {
     let entries = payload
         .as_array()
@@ -46,10 +47,10 @@ pub fn parse_nominatim(payload: &Value) -> Result<Vec<GeocodeResult>, SourceErro
         let Some(fields) = entry.as_object() else {
             continue;
         };
-        let Some(label) = fields.get("display_name").and_then(Value::as_str) else {
+        let Some(display_name) = fields.get("display_name").and_then(Value::as_str) else {
             continue;
         };
-        if label.is_empty() {
+        if display_name.is_empty() {
             continue;
         }
         let Some(latitude) = fields.get("lat").and_then(pyfmt::py_float) else {
@@ -62,7 +63,7 @@ pub fn parse_nominatim(payload: &Value) -> Result<Vec<GeocodeResult>, SourceErro
             continue;
         }
         out.push(GeocodeResult {
-            label: label.to_string(),
+            label: short_label(fields).unwrap_or_else(|| display_name.to_string()),
             latitude,
             longitude,
         });
@@ -73,8 +74,70 @@ pub fn parse_nominatim(payload: &Value) -> Result<Vec<GeocodeResult>, SourceErro
     Ok(out)
 }
 
-/// One Nominatim match: the display name and the coordinates. Named fields
-/// so the two coordinates can never be swapped.
+/// The address parts that may form the second label line, in priority order
+/// (phone test P1: the city is the first present of these).
+const CITY_PARTS: [&str; 5] = ["city", "town", "village", "municipality", "hamlet"];
+
+/// The two-line place label (phone test P1, 2026-10-12), German order.
+///
+/// Line 1: `road` + `" " + house_number` when there is a number; without a
+/// road, the entry's `name` (a number without a road is dropped). If the
+/// name equals the city, line 1 is empty. Line 2: `postcode` + city, the
+/// city alone, or the postcode alone. The non-empty lines are joined by a
+/// newline; if both are empty the `name` is used, and if that is missing
+/// too, the `display_name` (as before). Untrusted upstream data: a part
+/// counts only if it is a non-empty string, and an `address` that is not
+/// an object counts as empty.
+fn short_label(fields: &Map<String, Value>) -> Option<String> {
+    let address = fields.get("address").and_then(Value::as_object);
+    let part = |key: &str| -> &str {
+        address
+            .and_then(|parts| parts.get(key))
+            .and_then(Value::as_str)
+            .filter(|value| !value.is_empty())
+            .unwrap_or("")
+    };
+    let name = fields
+        .get("name")
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+        .unwrap_or("");
+    let city = CITY_PARTS
+        .into_iter()
+        .map(part)
+        .find(|value| !value.is_empty())
+        .unwrap_or("");
+    let road = part("road");
+    let number = part("house_number");
+    let line1 = if !road.is_empty() && !number.is_empty() {
+        format!("{road} {number}")
+    } else if !road.is_empty() {
+        road.to_string()
+    } else if name == city {
+        String::new()
+    } else {
+        name.to_string()
+    };
+    let line2 = format!("{} {city}", part("postcode")).trim().to_string();
+    let label = [line1.as_str(), line2.as_str()]
+        .into_iter()
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
+    if !label.is_empty() {
+        return Some(label);
+    }
+    if !name.is_empty() {
+        return Some(name.to_string());
+    }
+    fields
+        .get("display_name")
+        .and_then(Value::as_str)
+        .map(str::to_string)
+}
+
+/// One Nominatim match: the short place label and the coordinates. Named
+/// fields so the two coordinates can never be swapped.
 #[derive(Clone, Debug, PartialEq)]
 pub struct GeocodeResult {
     pub label: String,
@@ -262,7 +325,7 @@ impl Geocoder {
                     ("q", query.to_string()),
                     ("format", "jsonv2".to_string()),
                     ("limit", "5".to_string()),
-                    ("addressdetails", "0".to_string()),
+                    ("addressdetails", "1".to_string()),
                 ],
             )
             .await?

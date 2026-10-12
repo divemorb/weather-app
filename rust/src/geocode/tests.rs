@@ -180,7 +180,7 @@ async fn search_request_carries_user_agent_and_jsonv2_params() {
     assert_eq!(req.param("format"), Some("jsonv2"));
     assert_eq!(req.param("q"), Some("Marienplatz 1, München"));
     assert_eq!(req.param("limit"), Some("5"));
-    assert_eq!(req.param("addressdetails"), Some("0"));
+    assert_eq!(req.param("addressdetails"), Some("1"));
 }
 
 #[tokio::test]
@@ -270,4 +270,29 @@ async fn search_throttles_concurrent_searches() {
         elapsed <= 2.0,
         "only the second search may wait, took {elapsed} s"
     );
+}
+
+#[test]
+fn short_label_matches_the_shared_table() {
+    #[derive(serde::Deserialize)]
+    struct Table {
+        cases: Vec<Case>,
+    }
+    #[derive(serde::Deserialize)]
+    struct Case {
+        case: String,
+        entry: serde_json::Map<String, Value>,
+        label: String,
+    }
+    let table: Table = serde_json::from_str(include_str!("../../../tests/geocode_labels.json"))
+        .expect("the shared label table parses");
+    for case in &table.cases {
+        let mut entry = case.entry.clone();
+        entry.insert("lat".to_string(), json!("52.5"));
+        entry.insert("lon".to_string(), json!("13.4"));
+        let results =
+            parse_nominatim(&json!([entry])).unwrap_or_else(|err| panic!("{}: {err}", case.case));
+        assert_eq!(results.len(), 1, "{}", case.case);
+        assert_eq!(results[0].label, case.label, "{}", case.case);
+    }
 }
