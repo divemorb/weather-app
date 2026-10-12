@@ -7,20 +7,16 @@
  * of widening the page.
  */
 
-/* The card's padding lives around the body; the summary keeps its own.
- * Closed, the card is just the summary, so the bottom padding shrinks to
- * the top's. */
-.details { padding: 4px 22px 22px; }
-.details:not([open]) { padding-bottom: 4px; }
+/* The card's padding lives around the title and body (the h2 was the old
+ * summary; the card is a plain section now, W4b). */
+.details { padding: 16px 22px 22px; }
 
-.details summary {
-  min-height: 44px; /* the bare line is 22 px; the row needs at least 24 */
-  padding: 12px 0;
+.details-title {
+  margin: 0;
+  padding-bottom: 12px;
   font-size: 15px; font-weight: 600; letter-spacing: -0.01em;
-  cursor: pointer;
+  color: var(--text);
 }
-
-.details-title { color: var(--text); }
 
 /* One constrained column: an implicit auto column would grow to the
  * accuracy table's min-content width and push the card's content out. */
@@ -213,7 +209,6 @@
 }
 
 @media (min-width: 720px) {
-  .details { padding: 8px 30px 30px; }
-  .details summary { padding: 14px 0; }
-  .details:not([open]) { padding-bottom: 8px; }
+  .details { padding: 20px 30px 30px; }
+  .details-title { padding-bottom: 14px; }
 }

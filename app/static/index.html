@@ -204,13 +204,14 @@
         <ul class="chart-legend" id="chart-legend" hidden></ul>
       </section>
 
-      <!-- Details: the technical parts, collapsed on load; details.js
-           fills #details-body from /api/rain-probability, /api/sources,
+      <!-- Details: the detailed view is the details page (W4b) — the
+           card sits open under the top bar; details.js fills
+           #details-body from /api/rain-probability, /api/sources,
            /api/schedule and /api/model-accuracy -->
-      <details class="card details" id="details" data-test="details">
-        <summary id="details-summary"><span class="details-title" id="details-title"></span></summary>
+      <section class="card details" id="details" data-test="details">
+        <h2 class="details-title" id="details-title"></h2>
         <div class="details-body" id="details-body"></div>
-      </details>
+      </section>
     </main>
 
     <footer class="attr" id="attribution" data-test="attribution"></footer>
