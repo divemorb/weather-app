@@ -13,7 +13,7 @@ The REST contract of the app: the endpoint table, the interactive-docs note, and
 | `GET /api/model-accuracy` | per-model forecast accuracy (window) |
 | `GET /api/sources` | per-source age / staleness |
 | `GET /api/schedule` | next backend refresh per job (UI countdown) |
-| `GET /api/geocode` | address search for the setup wizard (Nominatim; `q` min 3 chars) |
+| `GET /api/geocode` | address search for the setup wizard (Nominatim; `q` min 3 chars; each result's `label` is the short two-line place label built from the Nominatim `address` parts, falling back to the `display_name`) |
 | `POST /api/location` | set the home location (same-origin JSON only; 403 for foreign origins) |
 | `POST /api/reports` | report what the sky really looks like ("Stimmt nicht?"; same-origin JSON only) |
 | `GET /api/reports/current` | the fresh report (observed within the last 30 min), or `null` |

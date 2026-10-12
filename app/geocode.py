@@ -1,6 +1,6 @@
 """Address search via OpenStreetMap Nominatim (setup wizard).
 
-  * ``GET /search?q=<text>&format=jsonv2&limit=5&addressdetails=0`` answers
+  * ``GET /search?q=<text>&format=jsonv2&limit=5&addressdetails=1`` answers
     with a JSON **list**; each entry has ``"lat"`` / ``"lon"`` as **strings**
     (e.g. ``"48.1374990"``) and a ``"display_name"``. No match -> ``[]``.
   * A **custom ``User-Agent`` is required**: the httpx2 default and an empty
@@ -38,12 +38,60 @@ _MIN_REQUEST_SPACING_SECONDS = 1.1
 _MAX_CACHE_ENTRIES = 100
 
 
+#: The address parts that may form the second label line, in priority order
+#: (phone test P1: the city is the first present of these).
+_CITY_PARTS = ("city", "town", "village", "municipality", "hamlet")
+
+
+def _short_label(entry: dict[str, Any]) -> str:
+    """The two-line place label (phone test P1, 2026-10-12), German order.
+
+    Line 1: ``road`` + ``" " + house_number`` when there is a number; without
+    a road, the entry's ``name`` (a number without a road is dropped). If the
+    name equals the city, line 1 is empty. Line 2: ``postcode`` + city, the
+    city alone, or the postcode alone. The non-empty lines are joined by a
+    newline; if both are empty the ``name`` is used, and if that is missing
+    too, the ``display_name`` (as before). Untrusted upstream data: a part
+    counts only if it is a non-empty string, and an ``address`` that is not
+    an object counts as empty.
+    """
+    address = entry.get("address")
+    if not isinstance(address, dict):
+        address = {}
+
+    def part(key: str) -> str:
+        value = address.get(key)
+        return value if isinstance(value, str) and value else ""
+
+    road = part("road")
+    number = part("house_number")
+    city = ""
+    for key in _CITY_PARTS:
+        city = part(key)
+        if city:
+            break
+    line1 = f"{road} {number}" if road and number else (road or "")
+    if not line1:
+        name = entry.get("name")
+        name = name if isinstance(name, str) and name else ""
+        line1 = "" if name == city else name
+    line2 = f"{part('postcode')} {city}".strip()
+    lines = [line for line in (line1, line2) if line]
+    label = "\n".join(lines)
+    if not label:
+        name = entry.get("name")
+        label = name if isinstance(name, str) and name else entry["display_name"]
+    return label
+
+
 @malformed_is_source_error("Nominatim search")
 def parse_nominatim(payload: Any) -> list[dict[str, Any]]:
     """Parse a Nominatim ``/search`` payload into up to 5
     ``{"label", "latitude", "longitude"}`` dicts, skipping entries with
-    missing or non-numeric fields (upstream data is untrusted). A non-list
-    payload becomes :exc:`SourceError`.
+    missing or non-numeric fields (upstream data is untrusted). The
+    ``label`` is the short two-line place label (see :func:`_short_label`),
+    falling back to the entry's ``display_name``. A non-list payload
+    becomes :exc:`SourceError`.
     """
     if not isinstance(payload, list):
         raise SourceError("Nominatim search: expected a JSON list")
@@ -59,7 +107,9 @@ def parse_nominatim(payload: Any) -> list[dict[str, Any]]:
             lon = float(entry.get("lon"))
         except (TypeError, ValueError):
             continue
-        out.append({"label": label, "latitude": lat, "longitude": lon})
+        out.append(
+            {"label": _short_label(entry), "latitude": lat, "longitude": lon}
+        )
         if len(out) == 5:
             break
     return out
@@ -114,7 +164,7 @@ class Geocoder:
                 await stream_json_capped(
                     self._http,
                     f"{self._base}/search",
-                    {"q": query, "format": "jsonv2", "limit": 5, "addressdetails": 0},
+                    {"q": query, "format": "jsonv2", "limit": 5, "addressdetails": 1},
                 )
             )
         if len(self._cache) >= _MAX_CACHE_ENTRIES:
