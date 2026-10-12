@@ -84,7 +84,7 @@ html.kiosk #dashboard [data-test="details"] { display: none; }
  * The sizes are shares of the screen height, so 1280x800 (the tablet) and
  * 1920x1080 (the TV) fill the same card with the same proportions. */
 
-html.kiosk .glance-answer { font-size: 6.2vh; line-height: 1.15; }
+html.kiosk .glance-answer { font-size: 6.2vh; line-height: 1.15; overflow-wrap: break-word; }
 /* F5: the radar line comes first, so it stays at least as large as the
  * "why" line under it (both read from across the room at the same size). */
 html.kiosk .glance-when { margin-top: 1.4vh; font-size: 2.5vh; }
@@ -102,6 +102,11 @@ html.kiosk .radar-strip { height: 9vh; gap: 5px; }
 html.kiosk .radar-labels { height: 2.2vh; margin-top: 0.8vh; font-size: 2vh; }
 html.kiosk .radar-caption { margin-top: 1.2vh; font-size: 2vh; }
 html.kiosk .radar-unavailable { font-size: 2.2vh; }
+
+/* W4c: in the big view the radar caption (and the other muted lines) sit on
+ * the glass; on a rainy sky that glass is #505e6e, where the theme's muted
+ * #c3cad2 is 4.0:1 (needs 4.5:1). A lighter muted colour restores it. */
+html.kiosk[data-theme="dark"] { --muted: #dfe4ea; }
 
 /* ---- Now (right, top) ---------------------------------------------------- */
 
