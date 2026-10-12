@@ -54,7 +54,8 @@ const KIND_ICON = {
     + '<rect x="11.5" y="20.4" width="2" height="2" rx="0.5" fill="currentColor" stroke="none"/>'
     + '<rect x="15.4" y="19.4" width="2" height="2" rx="0.5" fill="currentColor" stroke="none"/>',
 };
-const OPEN_ICON = '<path d="M20 12a8 8 0 1 1-2.4-5.7"/>' + '<path d="M20 3.5v4.8h-4.8"/>';
+/* P3 (phone test, 2026-10-12): a slanted pencil, tip at the bottom left. */
+const OPEN_ICON = '<path d="M4 20l1-4L16 5l3 3L8 19z"/>' + '<path d="M14 7l3 3"/>';
 const CLOSE_ICON = '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>';
 
 function makeBtn(cls, hook, label, icon, extra) {
@@ -69,7 +70,11 @@ function makeBtn(cls, hook, label, icon, extra) {
 }
 
 function build() {
-  openBtn = makeBtn("report-open-btn", "report-open", t(lang, "report.open"), OPEN_ICON);
+  /* The visible word is the accessible name (WCAG 2.5.3); the SVG is aria-hidden. */
+  openBtn = makeBtn("report-open-btn", "report-open", null, OPEN_ICON);
+  const openWord = document.createElement("span");
+  openWord.textContent = t(lang, "report.open");
+  openBtn.appendChild(openWord);
   openBtn.addEventListener("click", open);
 
   back = document.createElement("div");

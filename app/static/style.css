@@ -94,6 +94,9 @@ a:hover { text-decoration: underline; }
 .place {
   display: block;
   font-size: 20px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.25;
+  /* The label is two lines ("road number" / "postcode city"); pre-line
+   * renders them as written and never splits a word mid-label. */
+  white-space: pre-line;
   overflow-wrap: break-word;
 }
 
@@ -342,7 +345,7 @@ button:focus-visible, a:focus-visible {
   padding: 11px 14px; font: inherit; font-size: 15px; color: var(--text);
   background: var(--card); border: 1px solid var(--border); border-radius: 10px;
   cursor: pointer;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  white-space: pre-line; /* the label shows its two lines as written */
 }
 .setup-result:hover { border-color: var(--muted); }
 .setup-result.selected { border-color: var(--accent); background: var(--accent-soft); }
@@ -366,6 +369,14 @@ button:focus-visible, a:focus-visible {
 /* ---- footer ------------------------------------------------------------ */
 
 .attr { margin-top: 26px; font-size: 13px; line-height: 1.6; color: var(--muted); }
+
+/* ---- phones: the top bar wraps ------------------------------------------ */
+/* At 360 px the buttons leave the place ~103 px, so the bar wraps and the
+ * brand takes its own full-width row under the buttons. */
+@media (max-width: 600px) {
+  .topbar { flex-wrap: wrap; }
+  .brand { order: 2; flex: 1 1 100%; }
+}
 
 /* ---- wider layout from 720 px ------------------------------------------- */
 

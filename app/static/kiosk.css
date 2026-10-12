@@ -71,6 +71,11 @@ html.kiosk #dashboard .card {
 html.kiosk .glance { grid-column: 1; grid-row: 1 / 3; padding: 2.5vh 26px; }
 html.kiosk .now { grid-column: 2; grid-row: 1; padding: 2.5vh 26px; }
 html.kiosk #chart-card { grid-column: 2; grid-row: 2; padding: 14px 22px; }
+/* P3: the wider pencil + word button (~98x44) would lie over the host's
+ * headline at 360 px; the host's top padding clears it. Found by the
+ * attribute, never by an id (same specificity as the .glance padding, so
+ * this must stay after it). */
+html.kiosk .card[data-report-host] { padding-top: 62px; }
 /* The <details> also carries .card; the id keeps this rule above the
  * flex rule for the cards above (equal specificity, later wins). */
 html.kiosk #dashboard [data-test="details"] { display: none; }

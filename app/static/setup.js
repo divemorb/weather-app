@@ -139,7 +139,8 @@ function pickResult(r, btn) {
     b.classList.toggle("selected", isPicked);
     b.setAttribute("aria-pressed", isPicked ? "true" : "false");
   }
-  status(t(lang, "setup.status.selected", { label: r.label }));
+  /* The label is two lines; in a sentence the lines are joined by ", ". */
+  status(t(lang, "setup.status.selected", { label: r.label.replace(/\n/g, ", ") }));
 }
 
 function renderResults(results) {
@@ -157,7 +158,7 @@ function renderResults(results) {
     btn.className = "setup-result";
     btn.setAttribute("data-test", "setup-result");
     btn.textContent = r.label;
-    btn.title = r.label;
+    btn.title = r.label.replace(/\n/g, ", ");
     btn.setAttribute("aria-pressed", "false");
     btn.addEventListener("click", () => pickResult(r, btn));
     li.appendChild(btn);
