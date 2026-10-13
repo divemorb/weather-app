@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import math
 import calendar
 import fnmatch
@@ -702,12 +703,15 @@ def start_app(sc: dict, args, tmp: pathlib.Path, static: pathlib.Path | None = N
 
 def run_scenario(name: str, browsers: dict, args, res: Results):
     sc = next(s for s in SCENARIOS if s["name"] == BACKEND.get(name, name))
-    langs = [lang for lang in SCENARIO_LANGS.get(name, ["en", "de"]) if lang in browsers]
+    langs = [lang for lang in SCENARIO_LANGS.get(name, ["en", "de"])
+             if lang in browsers and any(args.selected(f"{name}/{lang}/{c}") for c in check_names(name, lang))]
+    if not langs:
+        return
     with tempfile.TemporaryDirectory(prefix="uitest-") as tmp:
-        static = None
+        static = args.static
         if name == "report-glance":  # the same page with the report picker on the glance
             static = pathlib.Path(tmp) / "static"
-            report_ui.static_copy(STATIC, static)
+            report_ui.static_copy(args.static or STATIC, static)
         fake, proc, port, error = start_app(sc, args, pathlib.Path(tmp), static)
         try:
             if error:
@@ -718,7 +722,7 @@ def run_scenario(name: str, browsers: dict, args, res: Results):
             base = f"http://127.0.0.1:{port}"
             for lang in langs:
                 prefix = f"{name}/{lang}/"
-                names = check_names(name, lang)
+                names = [c for c in check_names(name, lang) if args.selected(prefix + c)]
 
                 def add(check, problems, prefix=prefix, names=names):
                     if check in names:
@@ -761,7 +765,7 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
         shot(pg, "desktop-light")
         done(pg)
     elif name == "sky":
-        run_sky(browser, base, sc, lang, add, done, shot)
+        run_sky(browser, base, sc, lang, names, add, done, shot)
     elif name in ("report", "report-glance"):
         report_ui.run(sys.modules[__name__], name, sc, browser, base, lang, names, add, done, shot)
     elif name == "unconfigured":
@@ -1007,10 +1011,13 @@ def motion_problems(pg: UIPage, scene: str, moving: bool) -> list[str]:
     return []
 
 
-def run_sky(browser, base, sc, lang, add, done, shot):
+def run_sky(browser, base, sc, lang, names, add, done, shot):
+    """The sky's checks; the work of a check not in `names` (--only) is skipped."""
     now_body = _get_json(base + "/api/now")
     radar_body = _get_json(base + "/api/radar/next-hour")
     for case, (icon, radar, want) in SCENE_CASES.items():
+        if f"scene-{case}" not in names and not (case == "cloudy" and "sky-layer" in names):
+            continue
         pg = UIPage(browser, base, sc["now"], lang, fakes=scene_fakes(case, now_body, radar_body))
         got = scene_of(pg)
         add(f"scene-{case}", [] if got == want else
@@ -1020,17 +1027,20 @@ def run_sky(browser, base, sc, lang, add, done, shot):
         done(pg)
     for scene in SCENES:
         fakes = scene_fakes(SCENE_SOURCE[scene], now_body, radar_body)
-        if scene != "none":
+        if scene != "none" and f"motion-{scene}" in names:
             pg = UIPage(browser, base, sc["now"], lang, fakes=fakes)
             add(f"motion-{scene}", motion_problems(pg, scene, moving=True))
             done(pg)
-        pg = UIPage(browser, base, sc["now"], lang, reduced=True, fakes=fakes)
-        add(f"still-{scene}", motion_problems(pg, scene, moving=False))
-        done(pg)
-        if scene in GLASS_SCENES:
+        if f"still-{scene}" in names:
+            pg = UIPage(browser, base, sc["now"], lang, reduced=True, fakes=fakes)
+            add(f"still-{scene}", motion_problems(pg, scene, moving=False))
+            done(pg)
+        if scene in GLASS_SCENES and f"glass-{scene}" in names:
             add(f"glass-{scene}", [p for theme in ("light", "dark")
                                    for p in glass_problems(browser, base, sc, lang, scene, theme, fakes)])
         for theme in ("light", "dark"):
+            if f"contrast-{scene}-{theme}" not in names:
+                continue
             problems = []
             for w, h, query in CONTRAST_VIEWS:
                 view = f"{w}x{h}{' ' + query if query else ''}"
@@ -1739,8 +1749,10 @@ def run_wizard(browser, base, sc, lang, add, done, shot):
 
 # --- unit tests, static files -------------------------------------------------
 
-def run_unit(res: Results):
+def run_unit(res: Results, selected):
     for path in unit_files():
+        if not selected(f"unit/{path.name}"):
+            continue
         r = subprocess.run(["node", "--test", str(path)], cwd=REPO, capture_output=True, text=True, timeout=120)
         out = r.stdout + r.stderr
         if r.returncode == 0:
@@ -1752,8 +1764,8 @@ def run_unit(res: Results):
         res.add(f"unit/{path.name}", (failed[:6] + detail) or [out[-600:]])
 
 
-def check_static(res: Results):
-    files = sorted(STATIC.iterdir())
+def check_static(res: Results, static: pathlib.Path):
+    files = sorted(static.iterdir())
     total = sum(p.stat().st_size for p in files if p.is_file())
     res.add("budget", [] if total <= BUDGET_BYTES else
             [f"app/static is {total / 1024:.1f} KB, budget {BUDGET_BYTES // 1024} KB"])
@@ -1762,6 +1774,33 @@ def check_static(res: Results):
 
 
 # --- main -----------------------------------------------------------------
+
+SANDBOX_ENV = "WETTER_UITEST_SANDBOX"  # set by the watchdog in Qwen's sandbox only
+SANDBOX_MAX_SCENARIOS = 3
+
+
+def sandbox_refusal(args, scenarios, langs) -> str | None:
+    """In Qwen's sandbox a run covers at most SANDBOX_MAX_SCENARIOS scenarios:
+    the full suite is the watchdog's (it runs it after the attempt), and a
+    full run there costs 12 minutes of the attempt. None, or why refused
+    and what to run instead."""
+    if not os.environ.get(SANDBOX_ENV):
+        return None
+    chosen = [sc for sc in scenarios
+              if any(args.selected(f"{sc}/{lang}/{c}") for lang in SCENARIO_LANGS.get(sc, ["en", "de"])
+                     if lang in langs for c in check_names(sc, lang))]
+    if args.scenario and len(chosen) <= SANDBOX_MAX_SCENARIOS:
+        return None
+    what = (f"{len(chosen)} scenarios ({' '.join(chosen)})" if args.scenario
+            else "the full suite (no --scenario)")
+    return (f"uitest: not run. This run would cover {what}; in this sandbox a run covers at most "
+            f"{SANDBOX_MAX_SCENARIOS} scenarios, chosen with --scenario.\n"
+            "The full suite takes about 12 minutes, and the watchdog runs it anyway after you finish, "
+            "so don't run it yourself. Run the scenarios your change touches, output into a file, e.g.:\n"
+            "  python3 rust/uitest/run.py --scenario live > /tmp/ui.log 2>&1; tail -3 /tmp/ui.log\n"
+            "then read the details with `grep -A8 '^FAIL' /tmp/ui.log` (don't run it again to see other lines).\n"
+            "Single checks: --only 'live/en/glance-*' (with --scenario); all check names: --list.")
+
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -1773,22 +1812,32 @@ def main():
                          "excludes (a later step's checks); others are reported only")
     ap.add_argument("--shots", metavar="DIR", help="save screenshots there (for a design review)")
     ap.add_argument("--no-unit", action="store_true", help="skip the JS unit tests")
+    ap.add_argument("--only", nargs="+", metavar="PATTERN",
+                    help="run only the checks matching these patterns (fnmatch, * crosses /, e.g. "
+                         "'sky/en/contrast-snow-*'); scenarios without a match don't start, sky skips the rest")
+    ap.add_argument("--static", metavar="DIR", type=pathlib.Path,
+                    help="serve this folder instead of app/static (planted faults: faults.py)")
     ap.add_argument("--list", action="store_true", help="list the checks and exit")
     ap.add_argument("--backend-log", default=None, help="file for the app's output (default: discard)")
     args = ap.parse_args()
     scenarios = args.scenario or UI_SCENARIOS
     langs = args.lang or list(LOCALES)
+    args.selected = lambda name: not args.only or any(fnmatch.fnmatch(name, p) for p in args.only)
     if args.list:
-        print("\n".join(all_names(scenarios, langs)))
+        print("\n".join(n for n in all_names(scenarios, langs) if args.selected(n)))
         return 0
+    refused = sandbox_refusal(args, scenarios, langs)
+    if refused:
+        print(refused, file=sys.stderr)
+        return 2
     args.log = open(args.backend_log, "a") if args.backend_log else subprocess.DEVNULL
     if args.shots:
         pathlib.Path(args.shots).mkdir(parents=True, exist_ok=True)
 
     res = Results()
-    check_static(res)
+    check_static(res, args.static or STATIC)
     if not args.no_unit:
-        run_unit(res)
+        run_unit(res, args.selected)
     browsers = {}
     try:
         for lang in langs:
@@ -1800,7 +1849,8 @@ def main():
             b.close()
 
     passed = failed = required_failed = 0
-    expected = [n for n in all_names(scenarios, langs) if not (args.no_unit and n.startswith("unit/"))]
+    expected = [n for n in all_names(scenarios, langs)
+                if args.selected(n) and not (args.no_unit and n.startswith("unit/"))]
     for name in expected:
         problems = res.problems.get(name)
         if problems is None:

@@ -1,0 +1,390 @@
+{
+ "_doc": "Planted faults (faults.py): each edits a copy of app/static; the named checks must then fail. They prove the harness still sees these defects, so a faster or rewritten harness can't quietly weaken a check. find must occur exactly once in file; append adds to the end. faults.py --require: a fault is required when fault/<name> matches like the other harnesses' patterns (the baseline requires none). gaps: defects today's checks don't see (2026-10-13); faults.py --gaps runs them and reports which are seen now (for T3).",
+ "faults": [
+  {
+   "name": "contrast-muted-dark",
+   "why": "dark muted text too dark on the glass tiles",
+   "edits": [
+    {
+     "file": "style.css",
+     "find": "  --muted: #c3cad2;",
+     "replace": "  --muted: #5a616a;"
+    }
+   ],
+   "scenario": [
+    "sky"
+   ],
+   "only": [
+    "sky/en/contrast-cloudy-dark"
+   ],
+   "must_fail": [
+    "sky/en/contrast-cloudy-dark"
+   ]
+  },
+  {
+   "name": "tiles-light-half-time",
+   "why": "the dark tiles turn light grey for half of every 2 s: only some moments show it",
+   "edits": [
+    {
+     "file": "layout.css",
+     "append": "\n@keyframes fault-glass { 0%, 49.9% { background: rgb(27 30 35 / 0.66); } 50%, 100% { background: rgb(160 165 170 / 0.92); } }\n:root[data-theme=\"dark\"] main#dashboard .card { animation: fault-glass 2s linear infinite; }\n"
+    }
+   ],
+   "scenario": [
+    "sky"
+   ],
+   "only": [
+    "sky/en/contrast-clear-night-dark"
+   ],
+   "must_fail": [
+    "sky/en/contrast-clear-night-dark"
+   ]
+  },
+  {
+   "name": "sky-frozen",
+   "why": "the sky never moves",
+   "edits": [
+    {
+     "file": "sky.css",
+     "find": "@media (prefers-reduced-motion: no-preference) {",
+     "replace": "@media (max-width: 1px) {"
+    }
+   ],
+   "scenario": [
+    "sky"
+   ],
+   "only": [
+    "sky/en/motion-rain",
+    "sky/en/glass-rain"
+   ],
+   "must_fail": [
+    "sky/en/motion-rain",
+    "sky/en/glass-rain"
+   ]
+  },
+  {
+   "name": "reduced-motion-ignored",
+   "why": "the sky moves although the user asked for reduced motion",
+   "edits": [
+    {
+     "file": "sky.css",
+     "find": "@media (prefers-reduced-motion: no-preference) {",
+     "replace": "@media all {"
+    }
+   ],
+   "scenario": [
+    "sky"
+   ],
+   "only": [
+    "sky/en/still-snow"
+   ],
+   "must_fail": [
+    "sky/en/still-snow"
+   ]
+  },
+  {
+   "name": "glass-opaque",
+   "why": "the light tiles are opaque, the sky doesn't show through",
+   "edits": [
+    {
+     "file": "layout.css",
+     "find": "main#dashboard .card { background: rgb(255 255 255 / 0.66); }",
+     "replace": "main#dashboard .card { background: rgb(255 255 255 / 1); }"
+    }
+   ],
+   "scenario": [
+    "sky"
+   ],
+   "only": [
+    "sky/en/glass-clear-day"
+   ],
+   "must_fail": [
+    "sky/en/glass-clear-day"
+   ]
+  },
+  {
+   "name": "scene-snow-as-rain",
+   "why": "snow under a raining radar turns into rain (rule B broken)",
+   "edits": [
+    {
+     "file": "format.js",
+     "find": "const STAYS_ICONS = new Set([\"sleet\", \"snow\", \"hail\", \"thunderstorm\"]);",
+     "replace": "const STAYS_ICONS = new Set([\"sleet\", \"hail\", \"thunderstorm\"]);"
+    }
+   ],
+   "scenario": [
+    "sky"
+   ],
+   "only": [
+    "sky/en/scene-*"
+   ],
+   "must_fail": [
+    "sky/en/scene-*"
+   ]
+  },
+  {
+   "name": "overflow-360",
+   "why": "a tile wider than a small phone",
+   "edits": [
+    {
+     "file": "layout.css",
+     "append": "\nmain#dashboard .card { min-width: 480px; }\n"
+    }
+   ],
+   "scenario": [
+    "live"
+   ],
+   "lang": [
+    "en"
+   ],
+   "must_fail": [
+    "live/en/overflow-360"
+   ]
+  },
+  {
+   "name": "en-rain-likely",
+   "why": "the rain answer changed",
+   "edits": [
+    {
+     "file": "i18n.js",
+     "find": "\"answer.likely\": \"Rain likely in the next hour\",",
+     "replace": "\"answer.likely\": \"Rain likely soon\","
+    }
+   ],
+   "scenario": [
+    "rain"
+   ],
+   "lang": [
+    "en"
+   ],
+   "must_fail": [
+    "rain/en/rain-answer"
+   ]
+  },
+  {
+   "name": "accuracy-head",
+   "why": "the accuracy table's head changed",
+   "edits": [
+    {
+     "file": "i18n.js",
+     "find": "\"accuracy.head.hits\": \"Hits\",",
+     "replace": "\"accuracy.head.hits\": \"Hit\","
+    }
+   ],
+   "scenario": [
+    "accuracy"
+   ],
+   "lang": [
+    "en"
+   ],
+   "must_fail": [
+    "accuracy/en/*"
+   ]
+  },
+  {
+   "name": "report-confirm",
+   "why": "the report's confirm button text changed",
+   "edits": [
+    {
+     "file": "i18n-report.js",
+     "find": "\"report.confirm\": \"That's right\",",
+     "replace": "\"report.confirm\": \"Right\","
+    }
+   ],
+   "scenario": [
+    "report"
+   ],
+   "lang": [
+    "en"
+   ],
+   "must_fail": [
+    "report/en/report-shows"
+   ]
+  },
+  {
+   "name": "radar-unavailable-hidden",
+   "why": "the radar's 'not available' line is never shown",
+   "edits": [
+    {
+     "file": "style.css",
+     "append": "\n[data-test=radar-unavailable] { display: none !important; }\n"
+    }
+   ],
+   "scenario": [
+    "errors"
+   ],
+   "lang": [
+    "de"
+   ],
+   "must_fail": [
+    "errors/de/radar-unavailable"
+   ]
+  },
+  {
+   "name": "fallback-mark-hidden",
+   "why": "the mark for a value from another station is hidden",
+   "edits": [
+    {
+     "file": "style.css",
+     "append": "\n[data-test=now-fallback] { display: none !important; }\n"
+    }
+   ],
+   "scenario": [
+    "fallback"
+   ],
+   "lang": [
+    "en"
+   ],
+   "must_fail": [
+    "fallback/en/now-fallback"
+   ]
+  },
+  {
+   "name": "setup-save-hidden",
+   "why": "the wizard has no save button",
+   "edits": [
+    {
+     "file": "style.css",
+     "append": "\n[data-test=setup-save] { display: none !important; }\n"
+    }
+   ],
+   "scenario": [
+    "unconfigured"
+   ],
+   "lang": [
+    "en"
+   ],
+   "must_fail": [
+    "unconfigured/en/setup-visible"
+   ]
+  },
+  {
+   "name": "wizard-lat-91",
+   "why": "the wizard accepts latitude 91",
+   "edits": [
+    {
+     "file": "setup.js",
+     "find": "lat < -90 || lat > 90",
+     "replace": "lat < -90 || lat > 91"
+    }
+   ],
+   "scenario": [
+    "wizard"
+   ],
+   "lang": [
+    "de",
+    "en"
+   ],
+   "must_fail": [
+    "wizard/*/validation"
+   ]
+  },
+  {
+   "name": "report-button-hidden",
+   "why": "the report button on the glance is hidden",
+   "edits": [
+    {
+     "file": "report.css",
+     "append": "\n[data-test=report-open] { display: none !important; }\n"
+    }
+   ],
+   "scenario": [
+    "report-glance"
+   ],
+   "lang": [
+    "en"
+   ],
+   "must_fail": [
+    "report-glance/en/*"
+   ]
+  }
+ ],
+ "gaps": [
+  {
+   "name": "en-feels",
+   "why": "an English text changed",
+   "edits": [
+    {
+     "file": "i18n.js",
+     "find": "\"now.feels\": \"Feels like\",",
+     "replace": "\"now.feels\": \"Feels lik\","
+    }
+   ],
+   "scenario": [
+    "live"
+   ],
+   "lang": [
+    "en"
+   ],
+   "must_fail": [
+    "live/en/*"
+   ],
+   "seen_by_today": "missed 2026-10-13"
+  },
+  {
+   "name": "de-radar-unavailable",
+   "why": "a German error text changed",
+   "edits": [
+    {
+     "file": "i18n.js",
+     "find": "\"radar.unavailable\": \"Radar: nicht verfügbar\",",
+     "replace": "\"radar.unavailable\": \"Radar: nicht da\","
+    }
+   ],
+   "scenario": [
+    "errors"
+   ],
+   "lang": [
+    "de"
+   ],
+   "must_fail": [
+    "errors/de/*"
+   ],
+   "seen_by_today": "missed 2026-10-13"
+  },
+  {
+   "name": "fallback-name",
+   "why": "the fallback station line changed",
+   "edits": [
+    {
+     "file": "i18n.js",
+     "find": "\"now.fallback\": \"from {name}\",",
+     "replace": "\"now.fallback\": \"by {name}\","
+    }
+   ],
+   "scenario": [
+    "fallback"
+   ],
+   "lang": [
+    "en"
+   ],
+   "must_fail": [
+    "fallback/en/*"
+   ],
+   "seen_by_today": "missed 2026-10-13"
+  },
+  {
+   "name": "setup-save",
+   "why": "the wizard's save button text changed",
+   "edits": [
+    {
+     "file": "i18n.js",
+     "find": "\"setup.save\": \"Save location\",",
+     "replace": "\"setup.save\": \"Save\","
+    }
+   ],
+   "scenario": [
+    "wizard",
+    "unconfigured"
+   ],
+   "lang": [
+    "en",
+    "de"
+   ],
+   "must_fail": [
+    "wizard/en/*"
+   ],
+   "seen_by_today": "missed 2026-10-13"
+  }
+ ]
+}
