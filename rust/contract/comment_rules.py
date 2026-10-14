@@ -130,7 +130,7 @@ def check(path, rules, area):
             m = STEP_ID.search(t) or (dates and DATE.search(t))
             if m:
                 v.append((rel, i, "no-history", m.group(0)))
-    if "no-python" in rules and path.suffix == ".rs":
+    if "no-python" in rules and path.suffix == ".rs" and "pyfmt" not in path.name:  # pyfmt formats like Python on purpose
         v += [(rel, i, "no-python", t[:60]) for i, t in com if re.search(r"\bPython\b", t)]
     runs = blocks(com)
     first_code = next((i for i, l in enumerate(path.read_text().splitlines(), 1)
