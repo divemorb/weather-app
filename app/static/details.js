@@ -24,8 +24,9 @@
  */
 import {
   DASH, PAGE_RELOAD_AFTER_REFRESH_MS, PAGE_REFRESH_MS, fmtAge, fmtCountdown, fmtMm,
-  fmtPercent, modelLabel, nextLoadDelay, rainObserved, sortAccuracy,
+  fmtPercent, nextLoadDelay, rainObserved,
 } from "./format.js";
+import { accuracyRows } from "./accuracyrows.js";
 import { t } from "./i18n.js";
 import { stationsSection } from "./stationmap.js";
 import { reportsSection } from "./reportdetails.js";
@@ -367,30 +368,12 @@ function buildTable(models) {
   }
   head.appendChild(headRow);
   table.appendChild(head);
-  const body = document.createElement("tbody");
-  for (const name of sortAccuracy(models)) {
-    const m = models[name];
-    const row = document.createElement("tr");
-    row.setAttribute("data-test", "accuracy-row");
-    row.setAttribute("data-model", name);
-    if (!m.enough_data) row.className = "low";
-    const cells = [
-      modelLabel(name),
-      m.n_samples,
-      m.hits,
-      m.misses,
-      m.false_alarms,
-      fmtPercent(typeof m.event_accuracy === "number" ? m.event_accuracy * 100 : null, locale),
-      fmtMm(m.mae_mm, locale, 2),
-    ];
-    for (const c of cells) {
-      const td = document.createElement("td");
-      td.textContent = c == null ? DASH : String(c);
-      row.appendChild(td);
-    }
-    body.appendChild(row);
-  }
-  table.appendChild(body);
+  /* The shared rows (accuracyrows.js): the station's table alone has the
+   * greying (low) and the mae column after the hit rate (the extra). */
+  table.appendChild(accuracyRows(
+    models, locale, "accuracy-row", true,
+    (m) => fmtMm(m.mae_mm, locale, 2),
+  ));
   scroll.appendChild(table);
   return scroll;
 }

@@ -12,7 +12,7 @@
  * the section can fail independently like the other Details sections.
  */
 import { t } from "./i18n.js";
-import { DASH, fmtPercent, modelLabel, sortAccuracy } from "./format.js";
+import { accuracyRows } from "./accuracyrows.js";
 
 /* The user_reports block ({hours, confirmed_hours, models}) or null. */
 function userReports(accuracy) {
@@ -79,28 +79,7 @@ function reportsTable(models, lang, locale) {
   }
   head.appendChild(headRow);
   table.appendChild(head);
-  const body = document.createElement("tbody");
-  for (const name of sortAccuracy(models)) {
-    const m = models[name];
-    const row = document.createElement("tr");
-    row.setAttribute("data-test", "accuracy-reports-row");
-    row.setAttribute("data-model", name);
-    const cells = [
-      modelLabel(name),
-      m.n_samples,
-      m.hits,
-      m.misses,
-      m.false_alarms,
-      fmtPercent(typeof m.event_accuracy === "number" ? m.event_accuracy * 100 : null, locale),
-    ];
-    for (const c of cells) {
-      const td = document.createElement("td");
-      td.textContent = c == null ? DASH : String(c);
-      row.appendChild(td);
-    }
-    body.appendChild(row);
-  }
-  table.appendChild(body);
+  table.appendChild(accuracyRows(models, locale, "accuracy-reports-row", false, null));
   scroll.appendChild(table);
   return scroll;
 }
