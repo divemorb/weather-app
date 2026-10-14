@@ -142,13 +142,14 @@ def run_jobs(args, jobs: list[dict], job_checks: list[list[str]]) -> dict[str, l
         nonlocal next_idx, remaining
         if next_idx >= len(jobs):
             return False
-        if not workers[i].send({**jobs[next_idx], "idx": next_idx}):
-            fail_job(next_idx)
+        idx = next_idx
+        next_idx += 1
+        if not workers[i].send({**jobs[idx], "idx": idx}):
+            fail_job(idx)
             remaining -= 1
             workers[i].close()
             return False
-        busy[i] = next_idx
-        next_idx += 1
+        busy[i] = idx
         return True
 
     def absorb(line: str, idx: int):
@@ -190,6 +191,15 @@ def run_jobs(args, jobs: list[dict], job_checks: list[list[str]]) -> dict[str, l
                     progress = True
                     break
             if not progress:
+                if all(b is None for b in busy):
+                    # nothing in flight, yet jobs left: every worker died (or a
+                    # send failed); hand them to a live worker, else fail them
+                    live = [i for i in range(n) if not workers[i].dead()]
+                    if not (live and dispatch(live[0])):
+                        for idx in range(next_idx, len(jobs)):
+                            fail_job(idx)
+                        remaining = 0
+                    continue
                 time.sleep(0.02)
         deadline = time.monotonic() + 10
         for i in range(n):
