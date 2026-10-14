@@ -60,7 +60,7 @@ _spec.loader.exec_module(contract)
 
 from cdp import Browser  # noqa: E402
 from expect import (  # noqa: E402
-    ACCURACY_HEAD, ANSWER, ATTRIBUTION_LINKS, BUDGET_BYTES, CONFIG_RETRY_S, CONTRAST_GAP_S, CONTRAST_MOMENTS,
+    ACCURACY_HEAD, ANSWER, ATTRIBUTION_LINKS, BUDGET_BYTES, CONFIG_RETRY_S, CONTRAST_MOMENTS,
     CONTRAST_PCT, CONTRAST_VIEWS, FIXED, KIOSK_CHART_LABEL_PX, KIOSK_CHART_MIN,
     KIOSK_CHART_MIN_W, KIOSK_DRY_CHART_MAX, LAYOUT_COLUMNS, LAYOUT_MIN_TRACK, LAYOUT_SPACE, LAYOUT_WIDE,
     MAP_BEARING_TOLERANCE, MAP_MARKS, MAP_RADIUS_KM, MOTION_GAP_S, MOTION_MIN, NOW_STATION, GLASS_MIN_RATIO,
@@ -367,16 +367,24 @@ def theme_icon_problems(icons: dict) -> list[str]:
     return problems
 
 
+def seek_cycle(pg, phase: float):
+    """Pause every animation and seek it to `phase` of its own cycle (moment m of
+    the contrast check, phase m / CONTRAST_MOMENTS: each cycle is a different
+    length, so phases spread over the whole sky state, not one time window).
+    Leaves the animations paused: only for pages closed right after."""
+    pg.js(f"__ui.seekCycle({phase!r})")
+
+
 def contrast_problems(pg) -> list[str]:
     """WCAG AA for every visible text against the pixels drawn behind it (the text
     made transparent for the screenshot), so translucent tiles over a moving sky
     count as they look: CONTRAST_MOMENTS moments, scrolled through the page; per
     text the worst moment counts, and within it the CONTRAST_PCT worst pixels may
-    be below (a raindrop crossing a word)."""
+    be below (a raindrop crossing a word). The moments are seeked, not waited for:
+    every animation is paused at a fixed phase of its own cycle."""
     worst: dict[str, dict] = {}
     for m in range(CONTRAST_MOMENTS):
-        if m:
-            time.sleep(CONTRAST_GAP_S)
+        seek_cycle(pg, m / CONTRAST_MOMENTS)
         info = pg.js("__ui.page()")
         vh, sh = info["ih"], info["sh"]
         tops = list(range(0, max(sh - vh, 0) + 1, max(vh - 40, 100)))
@@ -765,7 +773,7 @@ def run_pages(name, sc, browser, base, lang, names, add, args):
         shot(pg, "desktop-light")
         done(pg)
     elif name == "sky":
-        run_sky(browser, base, sc, lang, names, add, done, shot)
+        run_sky(browser, base, sc, lang, names, add, done, shot, args)
     elif name in ("report", "report-glance"):
         report_ui.run(sys.modules[__name__], name, sc, browser, base, lang, names, add, done, shot)
     elif name == "unconfigured":
@@ -1011,7 +1019,7 @@ def motion_problems(pg: UIPage, scene: str, moving: bool) -> list[str]:
     return []
 
 
-def run_sky(browser, base, sc, lang, names, add, done, shot):
+def run_sky(browser, base, sc, lang, names, add, done, shot, args):
     """The sky's checks; the work of a check not in `names` (--only) is skipped."""
     now_body = _get_json(base + "/api/now")
     radar_body = _get_json(base + "/api/radar/next-hour")
@@ -1049,18 +1057,23 @@ def run_sky(browser, base, sc, lang, names, add, done, shot):
                 if got != scene:
                     problems.append(f"{view}: data-scene={got!r}, expected {scene!r}")
                 problems += [f"{view}: {p}" for p in contrast_problems(pg)]
-                if w >= 1280:  # frames for the review
+                if w >= 1280:  # frames for the review (the sleep is only there so
+                    # consecutive --shots frames differ; without --shots it is pure waste)
                     for i in range(3):
                         shot(pg, f"scene-{scene}-{theme}-{view.replace(' ', '-')}-{i}", full=False)
-                        time.sleep(0.4)
+                        if args.shots:
+                            time.sleep(0.4)
                 done(pg)
             add(f"contrast-{scene}-{theme}", problems)
 
 
 def glass_problems(browser, base, sc, lang, scene, theme, fakes) -> list[str]:
     """The default view at GLASS_VIEW, text made transparent: the moving sky changes
-    the pixels inside the tiles at least GLASS_MIN_RATIO as much as outside them."""
+    the pixels inside the tiles at least GLASS_MIN_RATIO as much as outside them.
+    The pair is seeked, not waited for: all animations paused, first frame at
+    GLASS_BASE_MS, the second GLASS_GAP_S later."""
     w, h = GLASS_VIEW
+    GLASS_BASE_MS = 3000
     pg = UIPage(browser, base, sc["now"], lang, width=w, height=h, scheme=theme, query="", fakes=fakes)
     try:
         got = scene_of(pg)
@@ -1072,8 +1085,14 @@ def glass_problems(browser, base, sc, lang, scene, theme, fakes) -> list[str]:
             return [f"{theme}: no visible tiles in main#dashboard"]
         pg.js("__ui.hideText(true)")
         pg.frame()
+        # the two frames GLASS_GAP_S apart, seeked instead of waited for (the sky
+        # is pure CSS keyframes; seeking leaves the animations paused, fine: the
+        # page is closed in `finally`)
+        pg.js(f"__ui.seekTime({GLASS_BASE_MS:.0f})")
+        pg.frame()
         a = pg.shot_b64()
-        time.sleep(GLASS_GAP_S)
+        pg.js(f"__ui.seekTime({GLASS_BASE_MS + GLASS_GAP_S * 1000:.0f})")
+        pg.frame()
         b = pg.shot_b64()
         r = pg.js(f"__ui.diffIn({json.dumps(a)}, {json.dumps(b)}, {json.dumps(rects)}, {GLASS_DELTA})")
         pg.js("__ui.hideText(false)")

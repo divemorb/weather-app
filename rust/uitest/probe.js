@@ -404,7 +404,35 @@
     });
   }
 
+  // Pause every animation and seek it to `phase` (0..1) of its own cycle:
+  // currentTime = delay + (phase + n) * duration, n the smallest >= 0 that keeps
+  // it >= 0 (CSS uses negative delays, e.g. -17 s). Skips animations without a
+  // finite positive duration. Leaves them paused: only for pages closed right
+  // after (the contrast check).
+  function seekCycle(phase) {
+    for (const a of document.getAnimations()) {
+      const e = a.effect;
+      if (!e || !e.getComputedTiming) continue;
+      const t = e.getComputedTiming();
+      if (!Number.isFinite(t.duration) || !(t.duration > 0)) continue;
+      a.pause();
+      let n = 0;
+      while (t.delay + (phase + n) * t.duration < 0) n++;
+      a.currentTime = t.delay + (phase + n) * t.duration;
+    }
+  }
+
+  // Pause every animation and seek it to the given absolute time in milliseconds
+  // (the glass check: two frames GLASS_GAP_S apart without waiting for them).
+  // Leaves them paused: only for pages closed right after.
+  function seekTime(ms) {
+    for (const a of document.getAnimations()) {
+      a.pause();
+      a.currentTime = ms;
+    }
+  }
+
   window.__ui = { info, page, overflowing, controls, animations, openDetails, icons, textColor, clipped,
     sticksOut, summaryGaps, tiles, sky, onlySky, hideText, textItems, pixelContrast, diff, diffIn,
-    medianIn };
+    medianIn, seekCycle, seekTime };
 })();
