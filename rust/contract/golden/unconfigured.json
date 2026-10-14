@@ -1,6 +1,6 @@
 {
  "now": "2026-09-30T10:27:10Z",
- "python_memory_kb": 64632,
+ "python_memory_kb": 64012,
  "upstream": [],
  "cases": {
   "healthz": {
@@ -287,8 +287,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "7761207f462e7fedf525aad4045066c9ef27e0dd2cf734b9877aba0d4d4c82fe",
-   "length": 11258
+   "sha256": "2b601c3758b742f928a7a19f386afb06b2f8b8b9f26e46fbc1cc521d372803d9",
+   "length": 11271
   },
   "static/index.html": {
    "status": 200,
@@ -301,8 +301,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "7761207f462e7fedf525aad4045066c9ef27e0dd2cf734b9877aba0d4d4c82fe",
-   "length": 11258
+   "sha256": "2b601c3758b742f928a7a19f386afb06b2f8b8b9f26e46fbc1cc521d372803d9",
+   "length": 11271
   },
   "static/api.js": {
    "status": 200,
@@ -371,8 +371,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "ea694f4fe448b09f976306505970ff282ba93d9c974a96e86c67fe40b7feea1a",
-   "length": 5500
+   "sha256": "6f34515d3c8aeacba241274e82c23086dac518b261dcba023c9e4d9602c9b596",
+   "length": 5279
   },
   "static/details.js": {
    "status": 200,
@@ -441,8 +441,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "7d18c07669f463aa079cc6dd048e2787b1143c5e3bc3231de51213dded7339c7",
-   "length": 8907
+   "sha256": "5ba27154a2e330f17d616d4e5966883c4583ce99911b029bfb4aa6cc9baa06a9",
+   "length": 9521
   },
   "static/now.js": {
    "status": 200,
@@ -469,8 +469,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "bb462d0d2f52872470dfcd588119549074a107d79deda9cf4d2fc9a2481ea08b",
-   "length": 7713
+   "sha256": "38b88041e90856a5c2a4608cb6fcd72d4d580d8cc28a14d09a73bef6cf16be4e",
+   "length": 7831
   },
   "static/stationmap.js": {
    "status": 200,
@@ -497,8 +497,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "b5a872713e2a2e16d8ca3e41cf0d5d31425bc8fe87d835d30b9126026024c231",
-   "length": 12475
+   "sha256": "b129d4e67a986f03a42b58ab828020fbae2d9721193af22c3c0f6f3da239ee73",
+   "length": 12961
   },
   "static/app.js-revalidate": {
    "status": 304,
