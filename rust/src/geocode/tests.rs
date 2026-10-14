@@ -26,6 +26,15 @@ fn http() -> reqwest::Client {
     upstream::http_client(10.0).expect("building the test client")
 }
 
+/// The expected single parse result of the malformed-entry tests.
+fn single_result(label: &str) -> Vec<GeocodeResult> {
+    vec![GeocodeResult {
+        label: label.to_string(),
+        latitude: 48.5,
+        longitude: 11.5,
+    }]
+}
+
 /// A geocoder against the fake upstream with a constant clock at 1000 s
 /// and a sleep that only records (no real waiting).
 fn geocoder(fake: &FakeUpstream, sleeps: &Arc<Mutex<Vec<f64>>>) -> Geocoder {
@@ -72,11 +81,7 @@ fn parse_nominatim_skips_malformed_entries() {
     ]);
     assert_eq!(
         parse_nominatim(&payload).expect("a valid list"),
-        vec![GeocodeResult {
-            label: "fine".to_string(),
-            latitude: 48.5,
-            longitude: 11.5,
-        }]
+        single_result("fine")
     );
 }
 
@@ -150,11 +155,7 @@ fn parse_nominatim_skips_non_finite_coordinates() {
     ]);
     assert_eq!(
         parse_nominatim(&payload).expect("a valid list"),
-        vec![GeocodeResult {
-            label: "ok".to_string(),
-            latitude: 48.5,
-            longitude: 11.5,
-        }]
+        single_result("ok")
     );
 }
 

@@ -13,20 +13,22 @@ fn prob_cfg(weight_radar: f64, weight_models: f64, weight_ensemble: f64) -> Prob
     }
 }
 
+/// The zero-weight fallback: all three signals at one third each.
+fn thirds() -> Vec<(String, f64)> {
+    vec![
+        ("radar".to_string(), 0.333_333_333_333_333_3),
+        ("models".to_string(), 0.333_333_333_333_333_3),
+        ("ensemble".to_string(), 0.333_333_333_333_333_3),
+    ]
+}
+
 #[test]
 fn combine_all_weights_zero_uses_equal_weights() {
     let cfg = prob_cfg(0.0, 0.0, 0.0);
     let (prob, weights) = combine_signals(&cfg, true, Some(true), Some(30.0), Some(0.0));
     // (100 + 30 + 0) / 3
     assert_eq!(prob, 43.333_333_333_333_33);
-    assert_eq!(
-        weights,
-        vec![
-            ("radar".to_string(), 0.333_333_333_333_333_3),
-            ("models".to_string(), 0.333_333_333_333_333_3),
-            ("ensemble".to_string(), 0.333_333_333_333_333_3),
-        ]
-    );
+    assert_eq!(weights, thirds());
 }
 
 #[test]
@@ -43,14 +45,7 @@ fn combine_negative_weight_sum_uses_equal_weights() {
     let (prob, weights) = combine_signals(&cfg, true, Some(false), Some(90.0), Some(60.0));
     // (0 + 90 + 60) / 3
     assert_eq!(prob, 50.0);
-    assert_eq!(
-        weights,
-        vec![
-            ("radar".to_string(), 0.333_333_333_333_333_3),
-            ("models".to_string(), 0.333_333_333_333_333_3),
-            ("ensemble".to_string(), 0.333_333_333_333_333_3),
-        ]
-    );
+    assert_eq!(weights, thirds());
 }
 
 #[test]

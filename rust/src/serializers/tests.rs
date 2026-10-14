@@ -31,6 +31,18 @@ fn make_conditions() -> CurrentConditions {
     }
 }
 
+fn accuracy(n: i64, mae: f64, hits: i64, misses: i64, fa: i64, cn: i64, ea: f64) -> ModelAccuracy {
+    ModelAccuracy {
+        n_samples: n,
+        mae_mm: Some(mae),
+        hits,
+        misses,
+        false_alarms: fa,
+        correct_negatives: cn,
+        event_accuracy: Some(ea),
+    }
+}
+
 fn make_rain() -> RainProbability {
     RainProbability {
         probability_pct: 75.0,
@@ -283,31 +295,16 @@ fn models_24h_empty() {
 
 #[test]
 fn model_accuracy_full() {
-    let mut models: BTreeMap<String, ModelAccuracy> = BTreeMap::new();
-    models.insert(
-        "icon_d2".to_string(),
-        ModelAccuracy {
-            n_samples: 100,
-            mae_mm: Some(0.205),
-            hits: 20,
-            misses: 10,
-            false_alarms: 15,
-            correct_negatives: 55,
-            event_accuracy: Some(0.75),
-        },
-    );
-    models.insert(
-        "gfs_seamless".to_string(),
-        ModelAccuracy {
-            n_samples: 10,
-            mae_mm: Some(0.4),
-            hits: 2,
-            misses: 3,
-            false_alarms: 2,
-            correct_negatives: 3,
-            event_accuracy: Some(0.5),
-        },
-    );
+    let models: BTreeMap<String, ModelAccuracy> = BTreeMap::from([
+        (
+            "icon_d2".to_string(),
+            accuracy(100, 0.205, 20, 10, 15, 55, 0.75),
+        ),
+        (
+            "gfs_seamless".to_string(),
+            accuracy(10, 0.4, 2, 3, 2, 3, 0.5),
+        ),
+    ]);
     let stations = [ObsStation {
         name: Some("Berlin-Friedrichshain/Spree".to_string()),
         distance_m: Some(json!(1860.0)),

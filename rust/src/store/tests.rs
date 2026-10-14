@@ -56,6 +56,33 @@ fn db_path(dir: &tempfile::TempDir) -> String {
     dir.path().join("weather.db").to_string_lossy().into_owned()
 }
 
+/// The migration marker: `app_meta.forecast_history_version` after a connect.
+fn schema_version(store: &Store) -> Option<String> {
+    store.get_meta("forecast_history_version").unwrap()
+}
+
+/// The `forecast_history` DDL the legacy (v1 and v2) databases share.
+const LEGACY_FORECAST_HISTORY: &str = "CREATE TABLE forecast_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    model TEXT NOT NULL,
+    issued_at TEXT NOT NULL,
+    valid_from TEXT NOT NULL,
+    valid_to TEXT NOT NULL,
+    precip_mm REAL NOT NULL,
+    observed_mm REAL,
+    created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+);";
+
+/// A legacy database: the shared table DDL plus the caller's index, extra
+/// tables and seed rows; returns the db path.
+fn legacy_db(dir: &tempfile::TempDir, extra: &str) -> String {
+    let db = db_path(dir);
+    let conn = Connection::open(&db).unwrap();
+    conn.execute_batch(&format!("{LEGACY_FORECAST_HISTORY}{extra}"))
+        .unwrap();
+    db
+}
+
 #[test]
 fn insert_twice_keeps_one_row_with_newer_value() {
     let (_dir, store) = fresh_store();
@@ -189,45 +216,25 @@ fn compared_forecasts_filters_window_and_null_observations() {
 #[test]
 fn migrates_old_db_once() {
     let dir = tempfile::tempdir().unwrap();
-    let db = db_path(&dir);
 
     // --- "old" database: v1 schema + two duplicate (model, valid_from) rows
     //     (hourly re-inserts, mislabelled) ---
-    {
-        let conn = Connection::open(&db).unwrap();
-        conn.execute_batch(
-            "CREATE TABLE forecast_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                model TEXT NOT NULL,
-                issued_at TEXT NOT NULL,
-                valid_from TEXT NOT NULL,
-                valid_to TEXT NOT NULL,
-                precip_mm REAL NOT NULL,
-                observed_mm REAL,
-                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-            );
-            CREATE INDEX idx_fh_model_hour ON forecast_history (model, valid_from);
-            CREATE TABLE app_meta (key TEXT PRIMARY KEY, value TEXT);
-            INSERT INTO forecast_history (model, issued_at, valid_from, valid_to, precip_mm)
-            VALUES ('icon_d2', '2025-01-01T11:00:00Z', '2025-01-01T12:00:00Z',
-                    '2025-01-01T13:00:00Z', 0.5),
-                   ('icon_d2', '2025-01-01T11:30:00Z', '2025-01-01T12:00:00Z',
-                    '2025-01-01T13:00:00Z', 0.7);",
-        )
-        .unwrap();
-    }
+    let db = legacy_db(
+        &dir,
+        "CREATE INDEX idx_fh_model_hour ON forecast_history (model, valid_from);
+         CREATE TABLE app_meta (key TEXT PRIMARY KEY, value TEXT);
+         INSERT INTO forecast_history (model, issued_at, valid_from, valid_to, precip_mm)
+         VALUES ('icon_d2', '2025-01-01T11:00:00Z', '2025-01-01T12:00:00Z',
+                 '2025-01-01T13:00:00Z', 0.5),
+                ('icon_d2', '2025-01-01T11:30:00Z', '2025-01-01T12:00:00Z',
+                 '2025-01-01T13:00:00Z', 0.7);",
+    );
 
     // --- first connect on the new code: deletes old rows, records v3 ---
     {
         let store = Store::open(&db).unwrap();
         assert_eq!(rows(&store), []);
-        assert_eq!(
-            store
-                .get_meta("forecast_history_version")
-                .unwrap()
-                .as_deref(),
-            Some(SCHEMA_VERSION)
-        );
+        assert_eq!(schema_version(&store), Some(SCHEMA_VERSION.to_string()));
 
         // --- a later connect must NOT wipe rows written after the migration ---
         let r = row(
@@ -329,48 +336,28 @@ fn v2_db_migrates_to_v3_dropping_model_accuracy() {
     // A version-2 DB (with the unused `model_accuracy` table) migrates to v3
     // once and keeps its data.
     let dir = tempfile::tempdir().unwrap();
-    let db = db_path(&dir);
-    {
-        let conn = Connection::open(&db).unwrap();
-        conn.execute_batch(
-            "CREATE TABLE forecast_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                model TEXT NOT NULL,
-                issued_at TEXT NOT NULL,
-                valid_from TEXT NOT NULL,
-                valid_to TEXT NOT NULL,
-                precip_mm REAL NOT NULL,
-                observed_mm REAL,
-                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
-            );
-            CREATE UNIQUE INDEX ux_fh_model_from ON forecast_history (model, valid_from);
-            CREATE TABLE model_accuracy (
-                model TEXT PRIMARY KEY,
-                n_samples INTEGER NOT NULL DEFAULT 0,
-                mean_error REAL,
-                updated_at TEXT
-            );
-            CREATE TABLE app_meta (key TEXT PRIMARY KEY, value TEXT);
-            INSERT INTO app_meta (key, value) VALUES ('forecast_history_version', '2');
-            INSERT INTO forecast_history (model, issued_at, valid_from, valid_to, precip_mm)
-            VALUES ('icon_d2', '2025-01-01T11:00:00Z', '2025-01-01T12:00:00Z',
-                    '2025-01-01T13:00:00Z', 0.5);
-            INSERT INTO model_accuracy (model, n_samples) VALUES ('icon_d2', 3);",
-        )
-        .unwrap();
-    }
+    let db = legacy_db(
+        &dir,
+        "CREATE UNIQUE INDEX ux_fh_model_from ON forecast_history (model, valid_from);
+         CREATE TABLE model_accuracy (
+            model TEXT PRIMARY KEY,
+            n_samples INTEGER NOT NULL DEFAULT 0,
+            mean_error REAL,
+            updated_at TEXT
+         );
+         CREATE TABLE app_meta (key TEXT PRIMARY KEY, value TEXT);
+         INSERT INTO app_meta (key, value) VALUES ('forecast_history_version', '2');
+         INSERT INTO forecast_history (model, issued_at, valid_from, valid_to, precip_mm)
+         VALUES ('icon_d2', '2025-01-01T11:00:00Z', '2025-01-01T12:00:00Z',
+                 '2025-01-01T13:00:00Z', 0.5);
+         INSERT INTO model_accuracy (model, n_samples) VALUES ('icon_d2', 3);",
+    );
 
     {
         let store = Store::open(&db).unwrap();
         // the v2 row survives the v3 migration (only the table is dropped)
         assert_eq!(rows(&store).len(), 1);
-        assert_eq!(
-            store
-                .get_meta("forecast_history_version")
-                .unwrap()
-                .as_deref(),
-            Some(SCHEMA_VERSION)
-        );
+        assert_eq!(schema_version(&store), Some(SCHEMA_VERSION.to_string()));
         let conn = store.lock_for_tests();
         let name: Option<String> = conn
             .query_row(

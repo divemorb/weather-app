@@ -2,18 +2,16 @@
 //! `GET /api/reports/current`, `DELETE /api/reports/{id}`), against a real
 //! aggregator over the fake upstream. The clock is fixed at `testkit::NOW`.
 
-use axum::body::Body;
-use axum::http::{HeaderMap, Request, StatusCode};
+use axum::http::{HeaderMap, StatusCode};
 use chrono::TimeDelta;
 use serde_json::Value;
-use tower::ServiceExt;
 
 use crate::aggregator::testkit::{CfgOpts, FakeUpstream, now};
 use crate::reports::ReportKind;
 use crate::times;
 
 use super::api_tests::api_state;
-use super::{AppState, build_router};
+use super::{AppState, httptest};
 
 /// The same-origin headers (the contract's `SAME_ORIGIN`).
 const SAME_ORIGIN: &[(&str, &str)] = &[
@@ -25,6 +23,7 @@ const FOREIGN: &[(&str, &str)] = &[
     ("origin", "http://evil.example"),
 ];
 
+/// A request to the report endpoints (the host is the default test host).
 async fn call(
     state: AppState,
     method: &str,
@@ -32,24 +31,7 @@ async fn call(
     body: Option<&str>,
     headers: &[(&str, &str)],
 ) -> (StatusCode, HeaderMap, String) {
-    let mut builder = Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("host", "127.0.0.1:8000");
-    for (name, value) in headers.iter().copied() {
-        builder = builder.header(name, value);
-    }
-    let bytes = body.map(str::as_bytes).unwrap_or_default().to_vec();
-    let res = build_router(state)
-        .oneshot(builder.body(Body::from(bytes)).unwrap())
-        .await
-        .unwrap();
-    let status = res.status();
-    let headers = res.headers().clone();
-    let body = axum::body::to_bytes(res.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    (status, headers, String::from_utf8(body.to_vec()).unwrap())
+    httptest::call(state, method, uri, "127.0.0.1:8000", body, headers).await
 }
 
 fn body_json(body: &str) -> Value {

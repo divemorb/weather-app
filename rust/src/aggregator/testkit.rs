@@ -147,11 +147,24 @@ pub struct Payloads {
 pub fn make_payloads() -> Payloads {
     Payloads {
         current: Some(current_payload()),
-        radar: Some(radar_payload(&[("2025-01-01T12:00:00Z", &[(5, 5, 20)])])),
+        radar: Some(standard_radar_payload()),
         forecast: Some(forecast_payload()),
         ensemble: Some(ensemble_payload()),
         weather: None,
     }
+}
+
+/// The single raining frame the standard radar payload carries.
+pub fn standard_radar_payload() -> Value {
+    radar_payload(&[("2025-01-01T12:00:00Z", &[(5, 5, 20)])])
+}
+
+/// Only the Open-Meteo sources are served (no Bright Sky data).
+pub fn openmeteo_only_payloads() -> Payloads {
+    let mut payloads = make_payloads();
+    payloads.current = None;
+    payloads.radar = None;
+    payloads
 }
 
 /// Wire the fake upstream: each set payload goes to its path; a source
@@ -267,4 +280,77 @@ pub fn make_aggregator(cfg: AppConfig, store: Store) -> super::Aggregator {
 /// Python's in-memory test store.
 pub fn memory_store() -> Store {
     Store::open(":memory:").expect("the in-memory store opens")
+}
+
+/// `pytest.approx(expected)` with the default tolerances.
+pub fn approx(actual: f64, expected: f64) -> bool {
+    let tol = if expected == 0.0 {
+        1e-12
+    } else {
+        1e-6 * expected.abs()
+    };
+    (actual - expected).abs() <= tol
+}
+
+/// A `LocationConfig` at (latitude, longitude) in Europe/Berlin, no label
+/// (the `make_cfg` location).
+pub fn location(latitude: f64, longitude: f64) -> LocationConfig {
+    LocationConfig {
+        latitude,
+        longitude,
+        timezone: "Europe/Berlin".to_string(),
+        label: String::new(),
+    }
+}
+
+/// The full setup most aggregator tests share: the fake upstream with all
+/// four cache payloads served, and the aggregator over `store`.
+pub fn standard_aggregator_with_store(
+    opts: CfgOpts,
+    store: Store,
+) -> (FakeUpstream, super::Aggregator) {
+    let fake = FakeUpstream::start();
+    let payloads = make_payloads();
+    serve(&fake, &payloads, &[]);
+    let agg = make_aggregator(make_cfg(&fake, opts), store);
+    (fake, agg)
+}
+
+/// `standard_aggregator` but the sources named in `errors` answer 500.
+pub fn standard_aggregator_with_errors(
+    opts: CfgOpts,
+    errors: impl IntoIterator<Item = Source>,
+) -> (FakeUpstream, super::Aggregator) {
+    let errors: Vec<Source> = errors.into_iter().collect();
+    let fake = FakeUpstream::start();
+    let payloads = make_payloads();
+    serve(&fake, &payloads, &errors);
+    let agg = make_aggregator(make_cfg(&fake, opts), memory_store());
+    (fake, agg)
+}
+
+/// `standard_aggregator_with_store` over a fresh in-memory store.
+pub fn standard_aggregator(opts: CfgOpts) -> (FakeUpstream, super::Aggregator) {
+    standard_aggregator_with_store(opts, memory_store())
+}
+
+/// The `valid_from -> observed_mm` of every compared history row.
+pub fn filled_hours(store: &Store) -> std::collections::HashMap<String, f64> {
+    let conn = store.lock_for_tests();
+    let mut stmt = conn
+        .prepare(
+            "SELECT valid_from, observed_mm FROM forecast_history \
+             WHERE observed_mm IS NOT NULL",
+        )
+        .unwrap();
+    let rows = stmt
+        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, f64>(1)?)))
+        .unwrap()
+        .collect::<Result<Vec<_>, _>>()
+        .unwrap();
+    let mut out = std::collections::HashMap::new();
+    for (valid_from, mm) in rows {
+        out.insert(valid_from, mm);
+    }
+    out
 }

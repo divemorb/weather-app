@@ -6,16 +6,6 @@ use crate::models::RainProbability;
 use crate::pyfmt::py_sum;
 use crate::series::HistoryRow;
 
-/// `pytest.approx(expected)` with the default tolerances.
-fn approx(actual: f64, expected: f64) -> bool {
-    let tol = if expected == 0.0 {
-        1e-12
-    } else {
-        1e-6 * expected.abs()
-    };
-    (actual - expected).abs() <= tol
-}
-
 /// The weight of one signal in `weights_used`.
 fn weight(prob: &RainProbability, name: &str) -> f64 {
     prob.weights_used
@@ -40,20 +30,9 @@ fn accuracy_rows(model: &str, n: usize, start_hour: usize) -> Vec<HistoryRow> {
         .collect()
 }
 
-/// Only the Open-Meteo sources are served (no Bright Sky data).
-fn openmeteo_only_payloads() -> Payloads {
-    let mut payloads = make_payloads();
-    payloads.current = None;
-    payloads.radar = None;
-    payloads
-}
-
 #[tokio::test]
 async fn get_rain_probability_all_signals() {
-    let fake = FakeUpstream::start();
-    let payloads = make_payloads();
-    serve(&fake, &payloads, &[]);
-    let agg = make_aggregator(make_cfg(&fake, CfgOpts::default()), memory_store());
+    let (_fake, agg) = standard_aggregator(CfgOpts::default());
 
     agg.refresh_radar().await;
     agg.refresh_models().await;
@@ -120,13 +99,10 @@ fn get_rain_probability_no_data_at_all() {
     assert!(prob.explanation.contains("No data"));
 }
 
-#[tokio::test]
-async fn get_rain_probability_accuracy_weights_applied() {
-    // icon_d2 (rains, vote 0.4 mm): 1 hit + 1 false alarm -> event_accuracy
-    // 0.5. icon_eu (dry): 2 false alarms -> event_accuracy 0.0, weight
-    // floored at 0.1. Both have >= min_samples=2, so the gate passes and the
-    // model signal is weighted: 100 * 0.5 / (0.5 + 0.1) = 83.33 (plain: 50).
-    // radar 100, ensemble 50 -> 0.5*100 + 0.3*83.33 + 0.2*50 = 85
+/// The compared-hours setup shared by the accuracy-weighting tests: both
+/// models carry 2 compared hours (4 observations), and the aggregator
+/// refreshes with `use_accuracy_weights` as chosen.
+async fn accuracy_aggregator(use_weights: bool) -> (FakeUpstream, super::Aggregator) {
     let store = memory_store();
     store
         .add_forecasts(&accuracy_rows("icon_d2", 2, 11))
@@ -134,23 +110,32 @@ async fn get_rain_probability_accuracy_weights_applied() {
     store
         .add_forecasts(&accuracy_rows("icon_eu", 2, 13))
         .unwrap();
-    store.set_observation("2024-12-20T11:00:00Z", 0.3).unwrap(); // icon_d2: hit
-    store.set_observation("2024-12-20T12:00:00Z", 0.0).unwrap(); // icon_d2: false alarm
-    store.set_observation("2024-12-20T13:00:00Z", 0.0).unwrap(); // icon_eu: false alarm
-    store.set_observation("2024-12-20T14:00:00Z", 0.0).unwrap(); // icon_eu: false alarm
-
+    store.set_observation("2024-12-20T11:00:00Z", 0.3).unwrap();
+    store.set_observation("2024-12-20T12:00:00Z", 0.0).unwrap();
+    store.set_observation("2024-12-20T13:00:00Z", 0.0).unwrap();
+    store.set_observation("2024-12-20T14:00:00Z", 0.0).unwrap();
     let fake = FakeUpstream::start();
     let payloads = make_payloads();
     serve(&fake, &payloads, &[]);
     let opts = CfgOpts {
-        use_accuracy_weights: true,
+        use_accuracy_weights: use_weights,
         min_samples: 2,
         ..CfgOpts::default()
     };
     let agg = make_aggregator(make_cfg(&fake, opts), store);
-
     agg.refresh_radar().await;
     agg.refresh_models().await;
+    (fake, agg)
+}
+
+#[tokio::test]
+async fn get_rain_probability_accuracy_weights_applied() {
+    // icon_d2 (rains, vote 0.4 mm): 1 hit + 1 false alarm -> event_accuracy
+    // 0.5. icon_eu (dry): 2 false alarms -> event_accuracy 0.0, weight
+    // floored at 0.1. Both have >= min_samples=2, so the gate passes and the
+    // model signal is weighted: 100 * 0.5 / (0.5 + 0.1) = 83.33 (plain: 50).
+    // radar 100, ensemble 50 -> 0.5*100 + 0.3*83.33 + 0.2*50 = 85
+    let (_fake, agg) = accuracy_aggregator(true).await;
 
     let prob = agg.get_rain_probability().unwrap();
     assert!(approx(prob.probability_pct, 85.0));
@@ -171,15 +156,12 @@ async fn get_rain_probability_accuracy_gate_falls_back() {
         .unwrap();
     store.set_observation("2024-12-20T11:00:00Z", 0.3).unwrap();
 
-    let fake = FakeUpstream::start();
-    let payloads = make_payloads();
-    serve(&fake, &payloads, &[]);
     let opts = CfgOpts {
         use_accuracy_weights: true,
         min_samples: 2,
         ..CfgOpts::default()
     };
-    let agg = make_aggregator(make_cfg(&fake, opts), store);
+    let (_fake, agg) = standard_aggregator_with_store(opts, store);
 
     agg.refresh_radar().await;
     agg.refresh_models().await;
@@ -194,30 +176,7 @@ async fn get_rain_probability_accuracy_gate_falls_back() {
 #[tokio::test]
 async fn get_rain_probability_no_weights_when_disabled() {
     // flag off + accuracy data present -> equal weights, no mention
-    let store = memory_store();
-    store
-        .add_forecasts(&accuracy_rows("icon_d2", 2, 11))
-        .unwrap();
-    store
-        .add_forecasts(&accuracy_rows("icon_eu", 2, 13))
-        .unwrap();
-    store.set_observation("2024-12-20T11:00:00Z", 0.3).unwrap();
-    store.set_observation("2024-12-20T12:00:00Z", 0.0).unwrap();
-    store.set_observation("2024-12-20T13:00:00Z", 0.0).unwrap();
-    store.set_observation("2024-12-20T14:00:00Z", 0.0).unwrap();
-
-    let fake = FakeUpstream::start();
-    let payloads = make_payloads();
-    serve(&fake, &payloads, &[]);
-    // flag explicitly off
-    let opts = CfgOpts {
-        use_accuracy_weights: false,
-        ..CfgOpts::default()
-    };
-    let agg = make_aggregator(make_cfg(&fake, opts), store);
-
-    agg.refresh_radar().await;
-    agg.refresh_models().await;
+    let (_fake, agg) = accuracy_aggregator(false).await;
 
     let prob = agg.get_rain_probability().unwrap();
     assert!(approx(prob.probability_pct, 75.0));
@@ -230,15 +189,12 @@ async fn get_rain_probability_accuracy_read_failure_falls_back() {
     // flag on + the accuracy read failing (e.g. database error) must not
     // break the headline number: equal weights are used and the explanation
     // does not claim accuracy weighting
-    let fake = FakeUpstream::start();
-    let payloads = make_payloads();
-    serve(&fake, &payloads, &[]);
     let opts = CfgOpts {
         use_accuracy_weights: true,
         min_samples: 2,
         ..CfgOpts::default()
     };
-    let agg = make_aggregator(make_cfg(&fake, opts), memory_store());
+    let (_fake, agg) = standard_aggregator(opts);
 
     agg.refresh_radar().await;
     agg.refresh_models().await;

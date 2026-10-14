@@ -248,6 +248,11 @@ fn scored_forecasts_returns_the_scored_rows_labelled_by_hour() {
         valid_to: "2025-01-01T10:00:00Z".to_string(),
         precip_mm,
     };
+    let scored = |model: &str, valid_from: &str, precip_mm: f64| ScoredRow {
+        model: model.to_string(),
+        valid_from: valid_from.to_string(),
+        precip_mm,
+    };
     store
         .add_forecasts(&[
             hour("a_model", "2025-01-01T08:00:00Z", 0.5),
@@ -265,16 +270,8 @@ fn scored_forecasts_returns_the_scored_rows_labelled_by_hour() {
     assert_eq!(
         rows,
         vec![
-            ScoredRow {
-                model: "a_model".to_string(),
-                valid_from: "2025-01-01T09:00:00Z".to_string(),
-                precip_mm: 0.4,
-            },
-            ScoredRow {
-                model: "b_model".to_string(),
-                valid_from: "2025-01-01T09:00:00Z".to_string(),
-                precip_mm: 1.5,
-            },
+            scored("a_model", "2025-01-01T09:00:00Z", 0.4),
+            scored("b_model", "2025-01-01T09:00:00Z", 1.5),
         ]
     );
     // An earlier cut lets the 08:00 row join (model order first, then the
@@ -283,11 +280,7 @@ fn scored_forecasts_returns_the_scored_rows_labelled_by_hour() {
     assert_eq!(
         rows,
         vec![
-            ScoredRow {
-                model: "a_model".to_string(),
-                valid_from: "2025-01-01T08:00:00Z".to_string(),
-                precip_mm: 0.5,
-            },
+            scored("a_model", "2025-01-01T08:00:00Z", 0.5),
             rows[1].clone(),
             rows[2].clone(),
         ]

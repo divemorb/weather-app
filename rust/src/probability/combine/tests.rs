@@ -51,6 +51,31 @@ fn vote(name: &str, mm: Option<f64>) -> ModelVote {
     }
 }
 
+/// A 4-step member series: `mm` at `rain_index`, dry (0.0) at the rest.
+fn member(rain_index: usize, mm: f64) -> Vec<Option<f64>> {
+    (0..4)
+        .map(|i| Some(if i == rain_index { mm } else { 0.0 }))
+        .collect()
+}
+
+/// A dry 4-step member series.
+fn dry_member() -> Vec<Option<f64>> {
+    vec![Some(0.0); 4]
+}
+
+/// The votes of a (rain 0.5 mm) and b (dry).
+fn ab_votes() -> Vec<ModelVote> {
+    vec![vote("a", Some(0.5)), vote("b", Some(0.0))]
+}
+
+/// Full-sample accuracy rows: a = 0.9, b = 0.3.
+fn accuracy_ab() -> BTreeMap<String, ModelAccuracy> {
+    let mut m = BTreeMap::new();
+    m.insert("a".to_string(), accuracy_row(100, 0.9, 0.1));
+    m.insert("b".to_string(), accuracy_row(100, 0.3, 0.4));
+    m
+}
+
 fn accuracy_row(n_samples: i64, event_accuracy: f64, mae_mm: f64) -> ModelAccuracy {
     ModelAccuracy {
         n_samples,
@@ -68,10 +93,10 @@ fn ensemble_vote_share() {
     // now = 11:30 -> the next hour is [11:30, 12:30); the first step stamped
     // after now is idx0 (stamped 12:00, covering 11:00-12:00, the next hour).
     let data = ensemble(vec![
-        vec![Some(1.0), Some(0.0), Some(0.0), Some(0.0)], // rain at idx0
-        vec![Some(0.0), Some(0.0), Some(0.0), Some(0.0)], // dry at idx0
-        vec![Some(0.05), Some(0.0), Some(0.0), Some(0.0)], // below threshold (0.1)
-        vec![Some(3.0), Some(0.0), Some(0.0), Some(0.0)], // rain at idx0
+        member(0, 1.0),  // rain at idx0
+        dry_member(),    // dry at idx0
+        member(0, 0.05), // below threshold (0.1)
+        member(0, 3.0),  // rain at idx0
     ]);
     let vote = ensemble_vote(Some(&data), 0.1, now() - TimeDelta::minutes(30));
     assert_eq!(vote.n_members, 4);
@@ -84,10 +109,8 @@ fn ensemble_vote_now_exactly_on_boundary_selects_next_index() {
     // steps are stamped 12:00, 13:00, ...; at now = 12:00 exactly, idx0
     // (stamped 12:00) covers 11:00-12:00 and is the past, so idx1 (stamped
     // 13:00, covering 12:00-13:00) must be selected.
-    let data = ensemble(vec![
-        vec![Some(0.0), Some(5.0), Some(0.0), Some(0.0)], // dry at idx0 (past), rain at idx1
-        vec![Some(0.0), Some(5.0), Some(0.0), Some(0.0)],
-    ]);
+    // dry at idx0 (past), rain at idx1
+    let data = ensemble(vec![member(1, 5.0), member(1, 5.0)]);
     let vote = ensemble_vote(Some(&data), 0.1, now());
     assert_eq!(vote.n_rain_members, 2);
     assert!(approx(vote.probability_pct.unwrap(), 100.0));
@@ -98,10 +121,8 @@ fn ensemble_vote_uses_current_hour() {
     // now = 12:30 -> the next hour is [12:30, 13:30); the first step stamped
     // after now is idx1 (stamped 13:00, covering 12:00-13:00).
     let now = now() + TimeDelta::minutes(30);
-    let data = ensemble(vec![
-        vec![Some(0.0), Some(5.0), Some(0.0), Some(0.0)], // dry at idx0, rain at idx1
-        vec![Some(0.0), Some(0.0), Some(0.0), Some(0.0)], // dry at idx1
-    ]);
+    // dry at idx0, rain at idx1
+    let data = ensemble(vec![member(1, 5.0), dry_member()]);
     let vote = ensemble_vote(Some(&data), 0.1, now);
     assert_eq!(vote.n_rain_members, 1);
     assert!(approx(vote.probability_pct.unwrap(), 50.0));
@@ -111,10 +132,7 @@ fn ensemble_vote_uses_current_hour() {
 fn ensemble_vote_stale_is_none() {
     // now beyond the series (all hours in the past)
     let now = now() + TimeDelta::hours(5);
-    let data = ensemble(vec![
-        vec![Some(1.0), Some(0.0), Some(0.0), Some(0.0)],
-        vec![Some(1.0), Some(0.0), Some(0.0), Some(0.0)],
-    ]);
+    let data = ensemble(vec![member(0, 1.0), member(0, 1.0)]);
     let vote = ensemble_vote(Some(&data), 0.1, now);
     assert_eq!(vote.probability_pct, None);
 }
@@ -132,10 +150,9 @@ fn ensemble_vote_none_inputs() {
 #[test]
 fn ensemble_vote_skips_null_members() {
     // now = 11:30 -> idx0 (stamped 12:00) is the next hour
-    let data = ensemble(vec![
-        vec![Some(1.0), Some(0.0), Some(0.0), Some(0.0)],
-        vec![None, Some(0.0), Some(0.0), Some(0.0)],
-    ]);
+    let mut null_first = dry_member();
+    null_first[0] = None;
+    let data = ensemble(vec![member(0, 1.0), null_first]);
     let vote = ensemble_vote(Some(&data), 0.1, now() - TimeDelta::minutes(30));
     // only member 0 is usable; it rains -> 100%
     assert_eq!(vote.n_rain_members, 1);
@@ -149,10 +166,7 @@ fn ensemble_vote_skips_null_members() {
 #[test]
 fn ensemble_vote_best_overlap_now_11h00_picks_12h00() {
     // now = 11:00 -> 12:00 covers 11:00-12:00 entirely (60 min overlap)
-    let data = ensemble(vec![
-        vec![Some(5.0), Some(0.0), Some(0.0), Some(0.0)],
-        vec![Some(0.0), Some(0.0), Some(0.0), Some(0.0)],
-    ]);
+    let data = ensemble(vec![member(0, 5.0), dry_member()]);
     let vote = ensemble_vote(Some(&data), 0.1, now() - TimeDelta::hours(1));
     assert_eq!(vote.n_rain_members, 1);
     assert!(approx(vote.probability_pct.unwrap(), 50.0));
@@ -162,10 +176,7 @@ fn ensemble_vote_best_overlap_now_11h00_picks_12h00() {
 fn ensemble_vote_best_overlap_now_11h20_picks_12h00() {
     // now = 11:20 -> 12:00 covers 11:00-12:00 (40 min overlap with the next
     // 60 min, more than 13:00's 20)
-    let data = ensemble(vec![
-        vec![Some(5.0), Some(0.0), Some(0.0), Some(0.0)],
-        vec![Some(0.0), Some(0.0), Some(0.0), Some(0.0)],
-    ]);
+    let data = ensemble(vec![member(0, 5.0), dry_member()]);
     let vote = ensemble_vote(Some(&data), 0.1, now() - TimeDelta::minutes(40));
     assert_eq!(vote.n_rain_members, 1);
     assert!(approx(vote.probability_pct.unwrap(), 50.0));
@@ -175,10 +186,7 @@ fn ensemble_vote_best_overlap_now_11h20_picks_12h00() {
 fn ensemble_vote_best_overlap_now_11h30_tie_prefers_earlier_stamp() {
     // now = 11:30 -> 12:00 and 13:00 each overlap by exactly 30 min; the
     // earlier stamp (12:00) wins.
-    let data = ensemble(vec![
-        vec![Some(5.0), Some(0.0), Some(0.0), Some(0.0)],
-        vec![Some(0.0), Some(0.0), Some(0.0), Some(0.0)],
-    ]);
+    let data = ensemble(vec![member(0, 5.0), dry_member()]);
     let vote = ensemble_vote(Some(&data), 0.1, now() - TimeDelta::minutes(30));
     assert_eq!(vote.n_rain_members, 1);
     assert!(approx(vote.probability_pct.unwrap(), 50.0));
@@ -188,10 +196,7 @@ fn ensemble_vote_best_overlap_now_11h30_tie_prefers_earlier_stamp() {
 fn ensemble_vote_best_overlap_now_11h50_picks_13h00() {
     // now = 11:50 -> 13:00 covers 12:00-13:00 (50 min overlap with the next
     // 60 min, more than 12:00's 10).
-    let data = ensemble(vec![
-        vec![Some(0.0), Some(5.0), Some(0.0), Some(0.0)],
-        vec![Some(0.0), Some(0.0), Some(0.0), Some(0.0)],
-    ]);
+    let data = ensemble(vec![member(1, 5.0), dry_member()]);
     let vote = ensemble_vote(Some(&data), 0.1, now() - TimeDelta::minutes(10));
     assert_eq!(vote.n_rain_members, 1);
     assert!(approx(vote.probability_pct.unwrap(), 50.0));
@@ -201,10 +206,7 @@ fn ensemble_vote_best_overlap_now_11h50_picks_13h00() {
 fn ensemble_vote_best_overlap_stale_under_30_min_is_none() {
     // now = 14:45 -> the last stamp (15:00) is only 15 min ahead, less than
     // 30 min: the series is stale, no hour qualifies -> None.
-    let data = ensemble(vec![
-        vec![Some(0.0), Some(0.0), Some(0.0), Some(5.0)],
-        vec![Some(0.0), Some(0.0), Some(0.0), Some(5.0)],
-    ]);
+    let data = ensemble(vec![member(3, 5.0), member(3, 5.0)]);
     let vote = ensemble_vote(Some(&data), 0.1, now() + TimeDelta::minutes(165));
     assert_eq!(vote.probability_pct, None);
 }
@@ -218,10 +220,10 @@ fn weighted_signal_equal_accuracy_matches_plain_signal() {
         vote("b", Some(0.0)), // dry
         vote("c", Some(2.0)), // rain
     ];
-    let mut accuracy = BTreeMap::new();
-    for n in ["a", "b", "c"] {
-        accuracy.insert(n.to_string(), accuracy_row(100, 1.0, 0.0));
-    }
+    let accuracy: BTreeMap<String, ModelAccuracy> = ["a", "b", "c"]
+        .iter()
+        .map(|n| (n.to_string(), accuracy_row(100, 1.0, 0.0)))
+        .collect();
     let (signal, n_rain, n_total, weighted) = weighted_model_signal(&votes, &accuracy, 0.1, 48);
     let (plain, plain_rain, plain_total) = model_rain_signal(&votes, 0.1);
     assert!(weighted);
@@ -236,7 +238,7 @@ fn weighted_signal_gate_falls_back_below_min_samples() {
     // one model has too few samples (and one has no accuracy row at all)
     // -> weighted_applied is False and the plain equal-weight signal is
     // returned (1 of 2 -> 50 %)
-    let votes = vec![vote("a", Some(0.5)), vote("b", Some(0.0))];
+    let votes = ab_votes();
     let mut accuracy = BTreeMap::new();
     accuracy.insert("a".to_string(), accuracy_row(47, 1.0, 0.0));
     let (signal, n_rain, n_total, weighted) = weighted_model_signal(&votes, &accuracy, 0.1, 48);
@@ -254,10 +256,8 @@ fn weighted_signal_more_accurate_model_pulls_share() {
     // a: rain, accuracy 0.9 -> weight 0.9
     // b: dry,  accuracy 0.3 -> weight 0.3
     // weighted: 100 * 0.9 / (0.9 + 0.3) = 75  (plain would be 50)
-    let votes = vec![vote("a", Some(0.5)), vote("b", Some(0.0))];
-    let mut accuracy = BTreeMap::new();
-    accuracy.insert("a".to_string(), accuracy_row(100, 0.9, 0.1));
-    accuracy.insert("b".to_string(), accuracy_row(100, 0.3, 0.4));
+    let votes = ab_votes();
+    let accuracy = accuracy_ab();
     let (signal, n_rain, n_total, weighted) = weighted_model_signal(&votes, &accuracy, 0.1, 48);
     assert!(weighted);
     assert_eq!((n_rain, n_total), (1, 2));
@@ -270,7 +270,7 @@ fn weighted_signal_zero_accuracy_uses_0p1_floor() {
     // a: rain with event_accuracy 0.0 -> weight floored at 0.1
     // b: dry,  accuracy 0.9 -> weight 0.9
     // weighted: 100 * 0.1 / (0.1 + 0.9) = 10  (a is down-weighted, not muted)
-    let votes = vec![vote("a", Some(0.5)), vote("b", Some(0.0))];
+    let votes = ab_votes();
     let mut accuracy = BTreeMap::new();
     accuracy.insert("a".to_string(), accuracy_row(100, 0.0, 0.5));
     accuracy.insert("b".to_string(), accuracy_row(100, 0.9, 0.1));
@@ -283,9 +283,7 @@ fn weighted_signal_zero_accuracy_uses_0p1_floor() {
 fn weighted_signal_skips_models_without_data() {
     // c has no data -> does not vote and does not trip the gate either
     let votes = vec![vote("a", Some(0.5)), vote("b", Some(0.0)), vote("c", None)];
-    let mut accuracy = BTreeMap::new();
-    accuracy.insert("a".to_string(), accuracy_row(100, 0.9, 0.1));
-    accuracy.insert("b".to_string(), accuracy_row(100, 0.3, 0.4));
+    let accuracy = accuracy_ab();
     let (signal, n_rain, n_total, weighted) = weighted_model_signal(&votes, &accuracy, 0.1, 48);
     assert!(weighted);
     assert_eq!((n_rain, n_total), (1, 2));

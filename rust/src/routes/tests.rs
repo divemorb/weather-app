@@ -1,10 +1,15 @@
-use axum::body::Body;
-use axum::http::{HeaderMap, Request, StatusCode};
-use tower::ServiceExt;
+use std::sync::Arc;
+
+use axum::http::{HeaderMap, StatusCode};
 
 use crate::aggregator::testkit::CfgOpts;
 
-use super::*;
+use super::{AppState, httptest};
+
+/// All five security headers.
+fn assert_security_headers(headers: &HeaderMap) {
+    httptest::assert_security_headers(headers);
+}
 
 fn test_state() -> AppState {
     let dir = tempfile::tempdir().unwrap();
@@ -19,62 +24,13 @@ fn test_state() -> AppState {
     }
 }
 
-fn test_router() -> Router {
-    build_router(test_state())
-}
-
 async fn call(
     method: &str,
     uri: &str,
     host: &str,
     headers: &[(&str, &str)],
 ) -> (StatusCode, HeaderMap, String) {
-    let mut builder = Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("host", host);
-    for (name, value) in headers.iter().copied() {
-        builder = builder.header(name, value);
-    }
-    let res = test_router()
-        .oneshot(builder.body(Body::empty()).unwrap())
-        .await
-        .unwrap();
-    let status = res.status();
-    let headers = res.headers().clone();
-    let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    (status, headers, String::from_utf8(bytes.to_vec()).unwrap())
-}
-
-fn assert_security_headers(headers: &HeaderMap) {
-    assert_eq!(
-        headers
-            .get("content-security-policy")
-            .and_then(|v| v.to_str().ok()),
-        Some(crate::security::CSP)
-    );
-    assert_eq!(
-        headers
-            .get("x-content-type-options")
-            .and_then(|v| v.to_str().ok()),
-        Some("nosniff")
-    );
-    assert_eq!(
-        headers.get("referrer-policy").and_then(|v| v.to_str().ok()),
-        Some("no-referrer")
-    );
-    assert_eq!(
-        headers
-            .get("cross-origin-resource-policy")
-            .and_then(|v| v.to_str().ok()),
-        Some("same-origin")
-    );
-    assert_eq!(
-        headers.get("cache-control").and_then(|v| v.to_str().ok()),
-        Some("no-cache")
-    );
+    httptest::call(test_state(), method, uri, host, None, headers).await
 }
 
 #[tokio::test]

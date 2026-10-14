@@ -4,11 +4,9 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use axum::body::Body;
-use axum::http::{HeaderMap, Request, StatusCode};
+use axum::http::{HeaderMap, StatusCode};
 use chrono::TimeDelta;
 use serde_json::Value;
-use tower::ServiceExt;
 
 use crate::aggregator::{
     Job,
@@ -20,7 +18,7 @@ use crate::store::Source;
 use crate::testutil::fake_upstream::FakeUpstream;
 use crate::times;
 
-use super::{AppState, build_router};
+use super::{AppState, httptest};
 
 /// The test `AppState`: a real aggregator (empty cache) over the fake
 /// upstream, no scheduler, the geocoder pointed at the fake, no static
@@ -42,71 +40,41 @@ pub(crate) fn api_state(fake: &FakeUpstream, opts: CfgOpts) -> AppState {
     }
 }
 
+/// `api_state` with the default config: the setup of most of these tests.
+fn default_state() -> AppState {
+    api_state(&FakeUpstream::start(), CfgOpts::default())
+}
+
+/// A GET request to the API (the host is the default test host, no body).
 async fn call(
     state: AppState,
     uri: &str,
     headers: &[(&str, &str)],
 ) -> (StatusCode, HeaderMap, String) {
-    let mut builder = Request::builder()
-        .method("GET")
-        .uri(uri)
-        .header("host", "127.0.0.1:8000");
-    for (name, value) in headers.iter().copied() {
-        builder = builder.header(name, value);
-    }
-    let res = build_router(state)
-        .oneshot(builder.body(Body::empty()).unwrap())
-        .await
-        .unwrap();
-    let status = res.status();
-    let headers = res.headers().clone();
-    let bytes = axum::body::to_bytes(res.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    (status, headers, String::from_utf8(bytes.to_vec()).unwrap())
+    httptest::call(state, "GET", uri, "127.0.0.1:8000", None, headers).await
 }
 
 fn body_json(body: &str) -> Value {
     serde_json::from_str(body).unwrap()
 }
 
+/// A GET that must answer 200 with a JSON body; returns the parsed body.
+async fn get_json(state: AppState, uri: &str) -> Value {
+    let (status, _headers, body) = call(state, uri, &[]).await;
+    assert_eq!(status, StatusCode::OK);
+    body_json(&body)
+}
+
+/// All five security headers.
 fn assert_security_headers(headers: &HeaderMap) {
-    assert_eq!(
-        headers
-            .get("content-security-policy")
-            .and_then(|v| v.to_str().ok()),
-        Some(crate::security::CSP)
-    );
-    assert_eq!(
-        headers
-            .get("x-content-type-options")
-            .and_then(|v| v.to_str().ok()),
-        Some("nosniff")
-    );
-    assert_eq!(
-        headers.get("referrer-policy").and_then(|v| v.to_str().ok()),
-        Some("no-referrer")
-    );
-    assert_eq!(
-        headers
-            .get("cross-origin-resource-policy")
-            .and_then(|v| v.to_str().ok()),
-        Some("same-origin")
-    );
-    assert_eq!(
-        headers.get("cache-control").and_then(|v| v.to_str().ok()),
-        Some("no-cache")
-    );
+    httptest::assert_security_headers(headers);
 }
 
 #[tokio::test]
 async fn api_config() {
-    let fake = FakeUpstream::start();
-    let state = api_state(&fake, CfgOpts::default());
+    let state = default_state();
     let cfg = state.aggregator.cfg();
-    let (status, _headers, body) = call(state, "/api/config", &[]).await;
-    assert_eq!(status, StatusCode::OK);
-    let body = body_json(&body);
+    let body = get_json(state, "/api/config").await;
     assert_eq!(body["configured"], Value::Bool(true));
     let location = cfg.location.as_ref().unwrap();
     assert_eq!(
@@ -150,20 +118,15 @@ async fn api_config_unconfigured() {
             ..CfgOpts::default()
         },
     );
-    let (status, _headers, body) = call(state, "/api/config", &[]).await;
-    assert_eq!(status, StatusCode::OK);
-    let body = body_json(&body);
+    let body = get_json(state, "/api/config").await;
     assert_eq!(body["configured"], Value::Bool(false));
     assert_eq!(body["location"], Value::Null);
 }
 
 #[tokio::test]
 async fn api_now_empty() {
-    let fake = FakeUpstream::start();
-    let state = api_state(&fake, CfgOpts::default());
-    let (status, _headers, body) = call(state, "/api/now", &[]).await;
-    assert_eq!(status, StatusCode::OK);
-    let body = body_json(&body);
+    let state = default_state();
+    let body = get_json(state, "/api/now").await;
     assert_eq!(body["available"], Value::Bool(false));
     assert_eq!(body["conditions"], Value::Null);
     assert_eq!(body["age_seconds"], Value::Null);
@@ -171,11 +134,8 @@ async fn api_now_empty() {
 
 #[tokio::test]
 async fn api_rain_probability_no_data() {
-    let fake = FakeUpstream::start();
-    let state = api_state(&fake, CfgOpts::default());
-    let (status, _headers, body) = call(state, "/api/rain-probability", &[]).await;
-    assert_eq!(status, StatusCode::OK);
-    let body = body_json(&body);
+    let state = default_state();
+    let body = get_json(state, "/api/rain-probability").await;
     assert_eq!(body["probability_pct"], serde_json::json!(0.0));
     assert_eq!(body["weights_used"], serde_json::json!({}));
     assert!(body["explanation"].as_str().unwrap().contains("No data"));
@@ -183,11 +143,8 @@ async fn api_rain_probability_no_data() {
 
 #[tokio::test]
 async fn api_radar_next_hour_unavailable() {
-    let fake = FakeUpstream::start();
-    let state = api_state(&fake, CfgOpts::default());
-    let (status, _headers, body) = call(state, "/api/radar/next-hour", &[]).await;
-    assert_eq!(status, StatusCode::OK);
-    let body = body_json(&body);
+    let state = default_state();
+    let body = get_json(state, "/api/radar/next-hour").await;
     assert_eq!(body["available"], Value::Bool(false));
     assert_eq!(body["steps"].as_array().unwrap().len(), 12);
 }
@@ -195,11 +152,8 @@ async fn api_radar_next_hour_unavailable() {
 /// empty cache: the forecast source is reported unavailable.
 #[tokio::test]
 async fn api_models_24h_empty() {
-    let fake = FakeUpstream::start();
-    let state = api_state(&fake, CfgOpts::default());
-    let (status, _headers, body) = call(state, "/api/models/24h", &[]).await;
-    assert_eq!(status, StatusCode::OK);
-    let body = body_json(&body);
+    let state = default_state();
+    let body = get_json(state, "/api/models/24h").await;
     assert_eq!(body["available"], Value::Bool(false));
     assert_eq!(body["hours"], serde_json::json!([]));
     assert_eq!(body["models"], serde_json::json!([]));
@@ -208,11 +162,8 @@ async fn api_models_24h_empty() {
 
 #[tokio::test]
 async fn api_model_accuracy_empty() {
-    let fake = FakeUpstream::start();
-    let state = api_state(&fake, CfgOpts::default());
-    let (status, _headers, body) = call(state, "/api/model-accuracy", &[]).await;
-    assert_eq!(status, StatusCode::OK);
-    let body = body_json(&body);
+    let state = default_state();
+    let body = get_json(state, "/api/model-accuracy").await;
     assert_eq!(body["models"], serde_json::json!({}));
     assert_eq!(body["window_days"], serde_json::json!(30));
     assert_eq!(body["min_samples"], serde_json::json!(48));
@@ -220,8 +171,7 @@ async fn api_model_accuracy_empty() {
 
 #[tokio::test]
 async fn api_sources() {
-    let fake = FakeUpstream::start();
-    let state = api_state(&fake, CfgOpts::default());
+    let state = default_state();
     let payloads = testkit::make_payloads();
     let now = testkit::now();
     let store = state.aggregator.store();
@@ -235,9 +185,7 @@ async fn api_sources() {
             .put_cache(source, payload, now - TimeDelta::seconds(60))
             .unwrap();
     }
-    let (status, _headers, body) = call(state, "/api/sources", &[]).await;
-    assert_eq!(status, StatusCode::OK);
-    let body = body_json(&body);
+    let body = get_json(state, "/api/sources").await;
     let mut keys: Vec<&str> = body
         .as_object()
         .unwrap()
@@ -257,8 +205,7 @@ async fn api_sources() {
 
 #[tokio::test]
 async fn api_schedule() {
-    let fake = FakeUpstream::start();
-    let mut state = api_state(&fake, CfgOpts::default());
+    let mut state = default_state();
     let scheduler = Arc::new(Scheduler::new());
     scheduler.set_next_run(
         Job::Radar,
@@ -266,9 +213,7 @@ async fn api_schedule() {
     );
     state.scheduler = Some(scheduler);
     let cfg = state.aggregator.cfg();
-    let (status, _headers, body) = call(state, "/api/schedule", &[]).await;
-    assert_eq!(status, StatusCode::OK);
-    let body = body_json(&body);
+    let body = get_json(state, "/api/schedule").await;
     assert!(body["server_time_utc"].as_str().unwrap().ends_with('Z'));
     assert_eq!(
         body["jobs"]["radar"],
@@ -283,8 +228,7 @@ async fn api_schedule() {
 
 #[tokio::test]
 async fn no_cors_for_foreign_origin() {
-    let fake = FakeUpstream::start();
-    let state = api_state(&fake, CfgOpts::default());
+    let state = default_state();
     let (status, headers, _body) =
         call(state, "/api/config", &[("origin", "https://evil.example")]).await;
     assert_eq!(status, StatusCode::OK);
@@ -294,8 +238,7 @@ async fn no_cors_for_foreign_origin() {
 /// a broken store makes `/api/now` fail with the middleware's plain-text 500.
 #[tokio::test]
 async fn unhandled_error_500_still_carries_security_headers() {
-    let fake = FakeUpstream::start();
-    let state = api_state(&fake, CfgOpts::default());
+    let state = default_state();
     state
         .aggregator
         .store()

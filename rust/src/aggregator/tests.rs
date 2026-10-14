@@ -8,21 +8,32 @@ use crate::config::LocationConfig;
 use crate::location::{self, location_from_json};
 use crate::times::Clock;
 
-fn loc(latitude: f64, longitude: f64) -> LocationConfig {
-    LocationConfig {
+/// The location stored in the meta (the `set_location` result).
+fn stored_location(agg: &Aggregator) -> Option<LocationConfig> {
+    location_from_json(
+        agg.store()
+            .get_meta(location::LOCATION_KEY)
+            .unwrap()
+            .as_deref(),
+    )
+}
+
+/// `set_location` propagated: the meta, the config and both clients agree.
+fn location_everywhere(agg: &Aggregator, latitude: f64, longitude: f64) {
+    let loc = location(latitude, longitude);
+    assert_eq!(stored_location(agg), Some(loc.clone()));
+    assert_eq!(agg.cfg().location, Some(loc));
+    let client_location = Location {
         latitude,
         longitude,
-        timezone: "Europe/Berlin".to_string(),
-        label: String::new(),
-    }
+    };
+    assert_eq!(agg.brightsky().location(), Some(client_location));
+    assert_eq!(agg.openmeteo().location(), Some(client_location));
 }
 
 #[tokio::test]
 async fn refresh_radar_caches_payloads() {
-    let fake = FakeUpstream::start();
-    let payloads = make_payloads();
-    serve(&fake, &payloads, &[]);
-    let agg = make_aggregator(make_cfg(&fake, CfgOpts::default()), memory_store());
+    let (_fake, agg) = standard_aggregator(CfgOpts::default());
 
     agg.refresh_radar().await;
 
@@ -43,11 +54,7 @@ async fn refresh_radar_caches_payloads() {
 
 #[tokio::test]
 async fn refresh_radar_tolerates_one_failing_source() {
-    let fake = FakeUpstream::start();
-    let payloads = make_payloads();
-    let errors = [Source::Current];
-    serve(&fake, &payloads, &errors);
-    let agg = make_aggregator(make_cfg(&fake, CfgOpts::default()), memory_store());
+    let (_fake, agg) = standard_aggregator_with_errors(CfgOpts::default(), [Source::Current]);
 
     agg.refresh_radar().await; // must not raise
     assert!(
@@ -76,11 +83,7 @@ async fn refresh_radar_tolerates_one_failing_source() {
 
 #[tokio::test]
 async fn refresh_models_tolerates_ensemble_failure() {
-    let fake = FakeUpstream::start();
-    let payloads = make_payloads();
-    let errors = [Source::Ensemble];
-    serve(&fake, &payloads, &errors);
-    let agg = make_aggregator(make_cfg(&fake, CfgOpts::default()), memory_store());
+    let (_fake, agg) = standard_aggregator_with_errors(CfgOpts::default(), [Source::Ensemble]);
 
     agg.refresh_models().await; // must not raise
     assert!(
@@ -105,10 +108,7 @@ async fn refresh_models_tolerates_ensemble_failure() {
 
 #[tokio::test]
 async fn refresh_models_writes_forecast_history() {
-    let fake = FakeUpstream::start();
-    let payloads = make_payloads();
-    serve(&fake, &payloads, &[]);
-    let agg = make_aggregator(make_cfg(&fake, CfgOpts::default()), memory_store());
+    let (_fake, agg) = standard_aggregator(CfgOpts::default());
 
     agg.refresh_models().await;
 
@@ -143,15 +143,12 @@ async fn refresh_models_writes_forecast_history() {
 
 #[tokio::test]
 async fn source_status_marks_stale() {
-    let fake = FakeUpstream::start();
-    let payloads = make_payloads();
-    serve(&fake, &payloads, &[]);
     let opts = CfgOpts {
         stale_radar: 0,
         stale_models: 0,
         ..CfgOpts::default()
     };
-    let agg = make_aggregator(make_cfg(&fake, opts), memory_store());
+    let (_fake, agg) = standard_aggregator(opts);
 
     agg.refresh_radar().await;
     // one second later: age 1 > threshold 0 -> stale
@@ -164,14 +161,11 @@ async fn source_status_marks_stale() {
 
 #[tokio::test]
 async fn aggregator_without_location_makes_no_fetch_calls() {
-    let fake = FakeUpstream::start();
-    let payloads = make_payloads();
-    serve(&fake, &payloads, &[]);
     let opts = CfgOpts {
         location: None,
         ..CfgOpts::default()
     };
-    let agg = make_aggregator(make_cfg(&fake, opts), memory_store());
+    let (fake, agg) = standard_aggregator(opts);
 
     agg.refresh_radar().await;
     agg.refresh_models().await;
@@ -205,9 +199,6 @@ async fn aggregator_without_location_makes_no_fetch_calls() {
 
 #[tokio::test]
 async fn set_location_first_time_stores_without_clearing() {
-    let fake = FakeUpstream::start();
-    let payloads = make_payloads();
-    serve(&fake, &payloads, &[]);
     let opts = CfgOpts {
         location: None,
         ..CfgOpts::default()
@@ -215,15 +206,11 @@ async fn set_location_first_time_stores_without_clearing() {
     let store = memory_store();
     // pre-fill the cache (it belongs to the old location — or to nothing)
     store
-        .put_cache(
-            Source::Radar,
-            payloads.radar.as_ref().unwrap(),
-            testkit::now(),
-        )
+        .put_cache(Source::Radar, &standard_radar_payload(), testkit::now())
         .unwrap();
-    let agg = make_aggregator(make_cfg(&fake, opts), store);
+    let (_fake, agg) = standard_aggregator_with_store(opts, store);
 
-    agg.set_location(loc(52.0, 13.0)).unwrap();
+    agg.set_location(location(52.0, 13.0)).unwrap();
 
     // nothing was cleared: the first location has no old data to throw away
     assert!(
@@ -232,30 +219,7 @@ async fn set_location_first_time_stores_without_clearing() {
             .unwrap()
             .is_some()
     );
-    assert_eq!(
-        location_from_json(
-            agg.store()
-                .get_meta(location::LOCATION_KEY)
-                .unwrap()
-                .as_deref()
-        ),
-        Some(loc(52.0, 13.0))
-    );
-    assert_eq!(agg.cfg().location, Some(loc(52.0, 13.0)));
-    assert_eq!(
-        agg.brightsky().location(),
-        Some(Location {
-            latitude: 52.0,
-            longitude: 13.0
-        })
-    );
-    assert_eq!(
-        agg.openmeteo().location(),
-        Some(Location {
-            latitude: 52.0,
-            longitude: 13.0
-        })
-    );
+    location_everywhere(&agg, 52.0, 13.0);
     // the skip flag is reset: the next refresh fetches again
     agg.refresh_radar().await;
     assert!(
@@ -268,19 +232,12 @@ async fn set_location_first_time_stores_without_clearing() {
 
 #[tokio::test]
 async fn set_location_near_same_is_not_a_move() {
-    let fake = FakeUpstream::start();
-    let payloads = make_payloads();
-    serve(&fake, &payloads, &[]);
-    let agg = make_aggregator(make_cfg(&fake, CfgOpts::default()), memory_store());
+    let (_fake, agg) = standard_aggregator(CfgOpts::default());
     agg.store()
-        .put_cache(
-            Source::Radar,
-            payloads.radar.as_ref().unwrap(),
-            testkit::now(),
-        )
+        .put_cache(Source::Radar, &standard_radar_payload(), testkit::now())
         .unwrap();
 
-    agg.set_location(loc(52.005, 13.005)).unwrap(); // ~550 m away
+    agg.set_location(location(52.005, 13.005)).unwrap(); // ~550 m away
 
     // kept: within the 1 km epsilon
     assert!(
@@ -289,31 +246,20 @@ async fn set_location_near_same_is_not_a_move() {
             .unwrap()
             .is_some()
     );
-    assert_eq!(agg.cfg().location, Some(loc(52.005, 13.005)));
+    assert_eq!(agg.cfg().location, Some(location(52.005, 13.005)));
 }
 
 #[tokio::test]
 async fn set_location_moved_clears_location_data() {
-    let fake = FakeUpstream::start();
-    let payloads = make_payloads();
-    serve(&fake, &payloads, &[]);
-    let agg = make_aggregator(make_cfg(&fake, CfgOpts::default()), memory_store());
+    let (_fake, agg) = standard_aggregator(CfgOpts::default());
     agg.store()
-        .put_cache(
-            Source::Radar,
-            payloads.radar.as_ref().unwrap(),
-            testkit::now(),
-        )
+        .put_cache(Source::Radar, &standard_radar_payload(), testkit::now())
         .unwrap();
     agg.store()
-        .put_cache(
-            Source::Forecast,
-            payloads.forecast.as_ref().unwrap(),
-            testkit::now(),
-        )
+        .put_cache(Source::Forecast, &forecast_payload(), testkit::now())
         .unwrap();
 
-    agg.set_location(loc(52.52, 13.405)).unwrap(); // Berlin: far away
+    agg.set_location(location(52.52, 13.405)).unwrap(); // Berlin: far away
 
     assert!(
         agg.store()
@@ -327,28 +273,5 @@ async fn set_location_moved_clears_location_data() {
             .unwrap()
             .is_none()
     );
-    assert_eq!(
-        location_from_json(
-            agg.store()
-                .get_meta(location::LOCATION_KEY)
-                .unwrap()
-                .as_deref()
-        ),
-        Some(loc(52.52, 13.405))
-    );
-    assert_eq!(agg.cfg().location, Some(loc(52.52, 13.405)));
-    assert_eq!(
-        agg.brightsky().location(),
-        Some(Location {
-            latitude: 52.52,
-            longitude: 13.405
-        })
-    );
-    assert_eq!(
-        agg.openmeteo().location(),
-        Some(Location {
-            latitude: 52.52,
-            longitude: 13.405
-        })
-    );
+    location_everywhere(&agg, 52.52, 13.405);
 }

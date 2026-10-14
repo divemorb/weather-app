@@ -1,11 +1,22 @@
 use super::*;
 
+const PYFMT_FIXTURE: &str = include_str!("../../contract/fixtures/pyfmt_cases.json");
+const SUM_FIXTURE: &str = include_str!("../../contract/fixtures/py_cases/sum.json");
+const HYPOT_FIXTURE: &str = include_str!("../../contract/fixtures/py_cases/hypot.json");
+
+/// The `cases` array of a Python-reference fixture.
+fn fixture_cases(json: &str) -> Vec<serde_json::Value> {
+    let data: serde_json::Value = serde_json::from_str(json).unwrap();
+    data["cases"]
+        .as_array()
+        .expect("fixture has a cases array")
+        .clone()
+}
+
 #[test]
 fn reference_cases_match_python() {
     // Reference values produced by Python 3.14's round/format for 3036 inputs.
-    let data: serde_json::Value =
-        serde_json::from_str(include_str!("../../contract/fixtures/pyfmt_cases.json")).unwrap();
-    let cases = data["cases"].as_array().expect("fixture has a cases array");
+    let cases = fixture_cases(PYFMT_FIXTURE);
     let mut mismatches = 0;
     let mut first: Vec<String> = Vec::new();
     let note = |first: &mut Vec<String>, what: &str, x: f64, got: String, want: String| {
@@ -110,9 +121,7 @@ fn py_fmt_0f_125_halves_even() {
 fn py_sum_reference_matches_python() {
     // Reference values produced by Python 3.12's builtin sum() for 3011
     // lists; `values` and `sum` are f64 bit patterns.
-    let data: serde_json::Value =
-        serde_json::from_str(include_str!("../../contract/fixtures/py_cases/sum.json")).unwrap();
-    let cases = data["cases"].as_array().expect("fixture has a cases array");
+    let cases = fixture_cases(SUM_FIXTURE);
     let mut mismatches = 0;
     let mut first: Vec<String> = Vec::new();
     for c in cases {
@@ -138,9 +147,7 @@ fn py_sum_reference_matches_python() {
 fn py_hypot_reference_matches_python() {
     // Reference values produced by Python 3.12's math.hypot for 4006 pairs;
     // `dx`, `dy` and `hypot` are f64 bit patterns.
-    let data: serde_json::Value =
-        serde_json::from_str(include_str!("../../contract/fixtures/py_cases/hypot.json")).unwrap();
-    let cases = data["cases"].as_array().expect("fixture has a cases array");
+    let cases = fixture_cases(HYPOT_FIXTURE);
     let mut mismatches = 0;
     let mut first: Vec<String> = Vec::new();
     for c in cases {

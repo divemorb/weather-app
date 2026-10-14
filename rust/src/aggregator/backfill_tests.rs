@@ -9,17 +9,39 @@ use serde_json::{Value, json};
 
 use super::testkit::*;
 use super::*;
-use crate::config::LocationConfig;
 use crate::stations::OBSERVATION_STATIONS_KEY;
 use crate::times::Clock;
 
-fn loc(latitude: f64, longitude: f64) -> LocationConfig {
-    LocationConfig {
-        latitude,
-        longitude,
-        timezone: "Europe/Berlin".to_string(),
-        label: String::new(),
-    }
+/// The standard aggregator over a fake upstream that also serves the
+/// /weather records around NOW.
+fn weather_aggregator() -> (FakeUpstream, super::Aggregator) {
+    let fake = FakeUpstream::start();
+    let payloads = Payloads {
+        weather: Some(weather_payload_around_now()),
+        ..make_payloads()
+    };
+    serve(&fake, &payloads, &[]);
+    let agg = make_aggregator(make_cfg(&fake, CfgOpts::default()), memory_store());
+    (fake, agg)
+}
+
+/// `weather_aggregator` with the clock fixed and one backfill already run.
+async fn backfilled_aggregator() -> (FakeUpstream, super::Aggregator) {
+    let (fake, agg) = weather_aggregator();
+    agg.set_clock(Clock::fixed(now()));
+    agg.backfill_observations().await;
+    (fake, agg)
+}
+
+/// `testkit::filled_hours` plus the backfill invariant: the skipped
+/// forecast-source value (9.9 mm) must never land in the history.
+fn filled_hours(store: &Store) -> HashMap<String, f64> {
+    let filled = testkit::filled_hours(store);
+    assert!(
+        filled.values().all(|&mm| mm != 9.9),
+        "the forecast-source value must never land"
+    );
+    filled
 }
 
 /// /weather records around the frozen NOW = 2025-01-01 12:00.
@@ -57,29 +79,6 @@ fn weather_payload_around_now() -> Value {
     })
 }
 
-/// `valid_from -> observed_mm` for all observed rows (both models carry the
-/// same value per hour, so one entry per hour).
-fn filled_hours(store: &Store) -> HashMap<String, f64> {
-    let conn = store.lock_for_tests();
-    let mut stmt = conn
-        .prepare(
-            "SELECT valid_from, observed_mm FROM forecast_history \
-             WHERE observed_mm IS NOT NULL",
-        )
-        .unwrap();
-    let rows = stmt
-        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, f64>(1)?)))
-        .unwrap()
-        .collect::<Result<Vec<_>, _>>()
-        .unwrap();
-    let mut out = HashMap::new();
-    for (valid_from, mm) in rows {
-        assert_ne!(mm, 9.9, "the forecast-source value must never land");
-        out.insert(valid_from, mm);
-    }
-    out
-}
-
 fn forecast_history_count(store: &Store) -> usize {
     let conn = store.lock_for_tests();
     let n: i64 = conn
@@ -90,13 +89,7 @@ fn forecast_history_count(store: &Store) -> usize {
 
 #[tokio::test]
 async fn backfill_observations_fills_matching_hours_only() {
-    let fake = FakeUpstream::start();
-    let payloads = Payloads {
-        weather: Some(weather_payload_around_now()),
-        ..make_payloads()
-    };
-    serve(&fake, &payloads, &[]);
-    let agg = make_aggregator(make_cfg(&fake, CfgOpts::default()), memory_store());
+    let (_fake, agg) = weather_aggregator();
 
     // History rows are stored with valid_from >= issued_at, so an
     // observation (hour = stamp - 1h) only matches once its hour has
@@ -120,13 +113,7 @@ async fn backfill_observations_fills_matching_hours_only() {
 
 #[tokio::test]
 async fn refresh_models_triggers_backfill() {
-    let fake = FakeUpstream::start();
-    let payloads = Payloads {
-        weather: Some(weather_payload_around_now()),
-        ..make_payloads()
-    };
-    serve(&fake, &payloads, &[]);
-    let agg = make_aggregator(make_cfg(&fake, CfgOpts::default()), memory_store());
+    let (_fake, agg) = weather_aggregator();
 
     agg.set_clock(Clock::fixed(now()));
     agg.refresh_models().await; // history rows written; no observation match yet
@@ -171,16 +158,7 @@ async fn backfill_without_observations_is_noop() {
 
 #[tokio::test]
 async fn failed_or_empty_backfill_keeps_the_stations() {
-    let fake = FakeUpstream::start();
-    let payloads = Payloads {
-        weather: Some(weather_payload_around_now()),
-        ..make_payloads()
-    };
-    serve(&fake, &payloads, &[]);
-    let agg = make_aggregator(make_cfg(&fake, CfgOpts::default()), memory_store());
-
-    agg.set_clock(Clock::fixed(now()));
-    agg.backfill_observations().await;
+    let (fake, agg) = backfilled_aggregator().await;
     let stored = agg
         .store()
         .get_meta(OBSERVATION_STATIONS_KEY)
@@ -219,30 +197,21 @@ async fn failed_or_empty_backfill_keeps_the_stations() {
 async fn moving_clears_the_stations_the_same_place_keeps_them() {
     // The stations belong to the old location: a far move deletes them with
     // the cache and the history, a move within ~1 km keeps them.
-    let fake = FakeUpstream::start();
-    let payloads = Payloads {
-        weather: Some(weather_payload_around_now()),
-        ..make_payloads()
-    };
-    serve(&fake, &payloads, &[]);
-    let agg = make_aggregator(make_cfg(&fake, CfgOpts::default()), memory_store());
-
-    agg.set_clock(Clock::fixed(now()));
-    agg.backfill_observations().await;
+    let (_fake, agg) = backfilled_aggregator().await;
     let stored = agg
         .store()
         .get_meta(OBSERVATION_STATIONS_KEY)
         .unwrap()
         .expect("the backfill stored the stations");
 
-    agg.set_location(loc(52.001, 13.001)).unwrap(); // make_cfg: 52.0/13.0
+    agg.set_location(location(52.001, 13.001)).unwrap(); // make_cfg: 52.0/13.0
     assert_eq!(
         agg.store().get_meta(OBSERVATION_STATIONS_KEY).unwrap(),
         Some(stored),
         "a near move keeps the stored stations"
     );
 
-    agg.set_location(loc(48.137, 11.575)).unwrap(); // Munich: far away
+    agg.set_location(location(48.137, 11.575)).unwrap(); // Munich: far away
     assert_eq!(
         agg.store().get_meta(OBSERVATION_STATIONS_KEY).unwrap(),
         None,

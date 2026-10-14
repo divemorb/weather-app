@@ -8,16 +8,6 @@ use super::testkit::{self, *};
 use super::*;
 use crate::series::HistoryRow;
 
-/// `pytest.approx(expected)` with the default tolerances.
-fn approx(actual: f64, expected: f64) -> bool {
-    let tol = if expected == 0.0 {
-        1e-12
-    } else {
-        1e-6 * expected.abs()
-    };
-    (actual - expected).abs() <= tol
-}
-
 fn row(
     model: &str,
     issued_at: &str,
@@ -32,14 +22,6 @@ fn row(
         valid_to: valid_to.to_string(),
         precip_mm,
     }
-}
-
-/// Only the Open-Meteo sources are served (no Bright Sky data).
-fn openmeteo_only_payloads() -> Payloads {
-    let mut payloads = make_payloads();
-    payloads.current = None;
-    payloads.radar = None;
-    payloads
 }
 
 #[tokio::test]

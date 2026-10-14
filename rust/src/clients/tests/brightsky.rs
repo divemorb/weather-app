@@ -5,7 +5,12 @@ use serde_json::json;
 
 use crate::testutil;
 use crate::testutil::fake_upstream::{FakeResponse, FakeUpstream};
-use crate::upstream::MAX_RESPONSE_BYTES;
+use crate::upstream::{MAX_RESPONSE_BYTES, SourceError};
+
+/// `fetch_current_payload` is expected to fail; returns the `SourceError`.
+async fn fetch_current_err(client: &super::BrightSkyClient, msg: &str) -> SourceError {
+    client.fetch_current_payload().await.expect_err(msg)
+}
 
 #[tokio::test]
 async fn client_fetch_weather_payload_requests_window() {
@@ -109,10 +114,7 @@ async fn client_http_error_raises_source_error() {
     let fake = FakeUpstream::start();
     fake.set("/bs/current_weather", FakeResponse::Status(500));
     let client = brightsky(&fake);
-    let err = client
-        .fetch_current_payload()
-        .await
-        .expect_err("HTTP 500 is a SourceError");
+    let err = fetch_current_err(&client, "HTTP 500 is a SourceError").await;
     assert!(err.to_string().contains("Bright Sky /current_weather"));
 }
 
@@ -129,10 +131,7 @@ async fn client_rejects_body_over_response_size_cap() {
         },
     );
     let client = brightsky(&fake);
-    let err = client
-        .fetch_current_payload()
-        .await
-        .expect_err("an oversized body is a SourceError");
+    let err = fetch_current_err(&client, "an oversized body is a SourceError").await;
     assert!(err.to_string().contains("cap"));
 }
 
@@ -144,10 +143,7 @@ async fn client_deeply_nested_json_raises_source_error() {
     let body = "[".repeat(100_000) + &"]".repeat(100_000);
     fake.set("/bs/current_weather", FakeResponse::Raw(body));
     let client = brightsky(&fake);
-    let err = client
-        .fetch_current_payload()
-        .await
-        .expect_err("deeply nested JSON is a SourceError");
+    let err = fetch_current_err(&client, "deeply nested JSON is a SourceError").await;
     assert!(err.to_string().contains("not valid JSON"));
 }
 

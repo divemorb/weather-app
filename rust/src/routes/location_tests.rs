@@ -4,20 +4,19 @@
 
 use std::sync::Arc;
 
-use axum::body::Body;
-use axum::http::{HeaderMap, Request, StatusCode};
+use axum::http::{HeaderMap, StatusCode};
 use serde_json::Value;
-use tower::ServiceExt;
 
 use crate::aggregator::testkit::{CfgOpts, FakeResponse, FakeUpstream};
 
 use super::api_tests::api_state;
-use super::{AppState, build_router};
+use super::{AppState, httptest};
 
 fn default_body() -> &'static str {
     r#"{"latitude": 48.13749, "longitude": 11.57552, "timezone": "Europe/Berlin", "label": "München"}"#
 }
 
+/// A request to the location endpoints (the host is the default test host).
 async fn call(
     state: AppState,
     method: &str,
@@ -25,43 +24,11 @@ async fn call(
     body: Option<&str>,
     headers: &[(&str, &str)],
 ) -> (StatusCode, HeaderMap, String) {
-    let mut builder = Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("host", "127.0.0.1:8000");
-    for (name, value) in headers.iter().copied() {
-        builder = builder.header(name, value);
-    }
-    let bytes = body.map(str::as_bytes).unwrap_or_default().to_vec();
-    let res = build_router(state)
-        .oneshot(builder.body(Body::from(bytes)).unwrap())
-        .await
-        .unwrap();
-    let status = res.status();
-    let headers = res.headers().clone();
-    let body = axum::body::to_bytes(res.into_body(), usize::MAX)
-        .await
-        .unwrap();
-    (status, headers, String::from_utf8(body.to_vec()).unwrap())
+    httptest::call(state, method, uri, "127.0.0.1:8000", body, headers).await
 }
 
 fn body_json(body: &str) -> Value {
     serde_json::from_str(body).unwrap()
-}
-
-fn assert_security_headers(headers: &HeaderMap) {
-    assert_eq!(
-        headers
-            .get("x-content-type-options")
-            .and_then(|v| v.to_str().ok()),
-        Some("nosniff")
-    );
-    assert_eq!(
-        headers
-            .get("content-security-policy")
-            .and_then(|v| v.to_str().ok()),
-        Some(crate::security::CSP)
-    );
 }
 
 #[tokio::test]
@@ -303,7 +270,7 @@ async fn post_location_security_headers_still_present_on_403_and_422() {
     )
     .await;
     assert_eq!(status, StatusCode::FORBIDDEN);
-    assert_security_headers(&headers);
+    httptest::assert_security_headers(&headers);
     let (status, headers, _body) = call(
         api_state(&fake, CfgOpts::default()),
         "POST",
@@ -313,7 +280,7 @@ async fn post_location_security_headers_still_present_on_403_and_422() {
     )
     .await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
-    assert_security_headers(&headers);
+    httptest::assert_security_headers(&headers);
 }
 
 /// the geocoder points at the fake's `/nom/search`.
