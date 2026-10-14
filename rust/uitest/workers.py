@@ -131,92 +131,110 @@ class Worker:
             self.proc.wait(timeout=5)
 
 
-def run_jobs(args, jobs: list[dict], job_checks: list[list[str]]) -> dict[str, list[str]]:
-    """Run the jobs in worker processes (all workers kept busy) and return the
-    merged problems, as a ``Results.problems`` dict. A worker that dies
-    reports its in-flight job's checks as failed (as ``run_scenario`` does on
-    a harness error), never as missing."""
-    n = max(1, min(args.workers, MAX_WORKERS, len(jobs)))
-    workers = [Worker(k, args) for k in range(n)]
-    problems: dict[str, list[str]] = {}
-    busy = [None] * n  # the job idx in flight on worker i
-    next_idx = 0
+class JobPool:
+    """The workers' dispatch loop: one job per worker (``busy[i]`` the job idx
+    in flight on worker i), the results merged into ``problems`` as a
+    ``Results.problems`` dict. A worker that dies reports its in-flight
+    job's checks as failed (as ``run_scenario`` does on a harness error),
+    never as missing."""
 
-    def dispatch(i: int) -> bool:
-        nonlocal next_idx, remaining
-        if next_idx >= len(jobs):
+    def __init__(self, args, jobs: list[dict], job_checks: list[list[str]]):
+        self.jobs, self.job_checks = jobs, job_checks
+        n = max(1, min(args.workers, MAX_WORKERS, len(jobs)))
+        self.workers = [Worker(k, args) for k in range(n)]
+        self.problems: dict[str, list[str]] = {}
+        self.busy = [None] * n
+        self.next_idx = 0
+        self.remaining = len(jobs)
+
+    def fail_job(self, idx: int):
+        for name in self.job_checks[idx]:
+            self.problems.setdefault(name, []).append("the worker process died before this check ran")
+
+    def dispatch(self, i: int) -> bool:
+        """Give worker i the next job (or close it when there are none left)."""
+        if self.next_idx >= len(self.jobs):
             return False
-        idx = next_idx
-        next_idx += 1
-        if not workers[i].send({**jobs[idx], "idx": idx}):
-            fail_job(idx)
-            remaining -= 1
-            workers[i].close()
+        idx = self.next_idx
+        self.next_idx += 1
+        if not self.workers[i].send({**self.jobs[idx], "idx": idx}):
+            self.fail_job(idx)
+            self.remaining -= 1
+            self.workers[i].close()
             return False
-        busy[i] = idx
+        self.busy[i] = idx
         return True
 
-    def absorb(line: str, idx: int):
+    def absorb(self, line: str, idx: int):
         if line.startswith(RESULT_PREFIX):
             # extend, don't overwrite: a few checks (the sky's console and
             # requests) are added by every job and must be the union of what
             # every page of the scenario showed (as in the serial run)
             for name, ps in json.loads(line[len(RESULT_PREFIX):])["problems"].items():
-                problems.setdefault(name, []).extend(ps)
+                self.problems.setdefault(name, []).extend(ps)
         else:
-            for name in job_checks[idx]:
-                problems.setdefault(name, []).append(f"worker died: {line[:200]!r}")
+            for name in self.job_checks[idx]:
+                self.problems.setdefault(name, []).append(f"worker died: {line[:200]!r}")
 
-    def fail_job(idx: int):
-        for name in job_checks[idx]:
-            problems.setdefault(name, []).append("the worker process died before this check ran")
-
-    remaining = len(jobs)
-    try:
-        for i in range(n):
-            dispatch(i)
-        while remaining:
-            progress = False
-            for i in range(n):
-                if busy[i] is None:
-                    continue
-                if workers[i].has_result():
-                    absorb(workers[i].next_result(), busy[i])
-                    busy[i] = None
-                    remaining -= 1
-                    dispatch(i)
-                    progress = True
-                    break
-                if workers[i].dead():  # no result: the worker died mid-job
-                    fail_job(busy[i])
-                    busy[i] = None
-                    remaining -= 1
-                    workers[i].close()
-                    progress = True
-                    break
-            if not progress:
-                if all(b is None for b in busy):
-                    # nothing in flight, yet jobs left: every worker died (or a
-                    # send failed); hand them to a live worker, else fail them
-                    live = [i for i in range(n) if not workers[i].dead()]
-                    if not (live and dispatch(live[0])):
-                        for idx in range(next_idx, len(jobs)):
-                            fail_job(idx)
-                        remaining = 0
-                    continue
-                time.sleep(0.02)
+    def drain_deadline(self) -> None:
+        """The in-flight results that still land before the deadline, then
+        the workers closed."""
         deadline = time.monotonic() + 10
-        for i in range(n):
-            if busy[i] is not None and time.monotonic() < deadline:
-                if workers[i].has_result():
-                    absorb(workers[i].next_result(), busy[i])
-                    busy[i] = None
-            workers[i].close()
-    except Exception:
-        for worker in workers:
-            worker.proc.kill()
-        raise
-    return problems
+        for i, worker in enumerate(self.workers):
+            if self.busy[i] is not None and time.monotonic() < deadline:
+                if worker.has_result():
+                    self.absorb(worker.next_result(), self.busy[i])
+                    self.busy[i] = None
+            worker.close()
+
+    def poll(self) -> dict[str, list[str]]:
+        """Serve the jobs to the workers until every one is absorbed; on a
+        harness error the workers are killed and the error re-raised."""
+        try:
+            for i in range(len(self.workers)):
+                self.dispatch(i)
+            while self.remaining:
+                progress = False
+                for i in range(len(self.workers)):
+                    if self.busy[i] is None:
+                        continue
+                    if self.workers[i].has_result():
+                        self.absorb(self.workers[i].next_result(), self.busy[i])
+                        self.busy[i] = None
+                        self.remaining -= 1
+                        self.dispatch(i)
+                        progress = True
+                        break
+                    if self.workers[i].dead():  # no result: the worker died mid-job
+                        self.fail_job(self.busy[i])
+                        self.busy[i] = None
+                        self.remaining -= 1
+                        self.workers[i].close()
+                        progress = True
+                        break
+                if not progress:
+                    if all(b is None for b in self.busy):
+                        # nothing in flight, yet jobs left: every worker died (or a
+                        # send failed); hand them to a live worker, else fail them
+                        live = [i for i in range(len(self.workers)) if not self.workers[i].dead()]
+                        if not (live and self.dispatch(live[0])):
+                            for idx in range(self.next_idx, len(self.jobs)):
+                                self.fail_job(idx)
+                            self.remaining = 0
+                        continue
+                    time.sleep(0.02)
+            self.drain_deadline()
+        except Exception:
+            for worker in self.workers:
+                worker.proc.kill()
+            raise
+        return self.problems
+
+
+def run_jobs(args, jobs: list[dict], job_checks: list[list[str]]) -> dict[str, list[str]]:
+    """Run the jobs in worker processes (all workers kept busy) and return
+    the merged problems (see ``JobPool``)."""
+    return JobPool(args, jobs, job_checks).poll()
 
 
 # --- the jobs (one per scenario, sky one per scene) -------------------------

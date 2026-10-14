@@ -1,26 +1,41 @@
 """The run of the report scenario: the flip and the picker, saving, the sky
-following a fresh report, and Details scoring the reports (report_run)."""
+following a fresh report, and Details scoring the reports (report_run).
+
+``run`` runs one named part per phase of the scenario, in the same order the
+page's actions have always run; each part is ``run_<phase>`` or ``<phase>``."""
 from __future__ import annotations
 
 import json
-import time
 
-from expect import (MODEL_LABELS, REPORT_FIT, REPORT_INTENSITY, REPORT_SAVE_S, REPORT_SCENE_KIND,
-                    REPORT_SKY_CASES, REPORT_TEXT, SCENE_LABEL)
-from page import Run, UIPage, View, has, norm
-from report_ui import (FIT, HIDE_FRONT, LANG_I, OPEN_CLEAR, _api, _iso, back_contrast,
-                       clear_fresh, closed_problems, current, kind_scene, line_problems,
-                       open_back, open_label_problems, picker_problems, sel, settle_turn,
-                       shows_problems, state, visible, wait)
+from expect import MODEL_LABELS, REPORT_FIT, REPORT_SKY_CASES, REPORT_TEXT, SCENE_LABEL
+from page import Run, UIPage, has, norm
+from report_save import run_save
+from report_ui import (FIT, LANG_I, OPEN_CLEAR, _api, _iso, back_contrast,
+                       clear_fresh, closed_problems, current, open_back, open_label_problems,
+                       picker_problems, sel, settle_turn, shows_problems, state, visible, wait)
 
 def run(run: Run):
-    i = LANG_I[run.lang]
-    now = run.sc["now"]
-    page = lambda **kw: UIPage(run.browser, run.base, now, run.lang, View(**kw))  # noqa: E731
+    """The phases of the report scenario, in order: A the desktop (the big
+    view), then B saving, C the sky after a fresh report, D Details."""
+    clear_fresh(run.base)
+    pg = desktop_checks(run)
+    close_checks(run, pg)
+    contrast_checks(run)
+    fit_checks(run)
+    locked_motion_checks(run)
+    if "report-save" in run.names:
+        run_save(run)
+    if "sky-report-none" in run.names:
+        run_sky(run)
+    if "details-reports" in run.names:
+        details_checks(run)
     clear_fresh(run.base)
 
-    # A: desktop (the big view): closed, open, the picker
-    pg = page()
+
+def desktop_checks(run: Run) -> UIPage:
+    """A1: the big view: closed, open, the flip, the picker, the buttons.
+    The back is left open on the page (A2 closes it there)."""
+    pg = run.page()
     s = state(pg)
     run.add("report-closed", closed_problems(s))
     opens = [e for e in pg.ui("report-open") if e["visible"]]
@@ -43,7 +58,12 @@ def run(run: Run):
     if "report-buttons" in run.names:
         run.add("report-buttons", pg.js("__ui.controls()"))
     run.shot(pg, "report-back")
-    # close with the button: the front again, the focus back on ↻, nothing saved
+    return pg
+
+
+def close_checks(run: Run, pg: UIPage):
+    """A2: closing the back (the button, then Escape): the front again, the
+    focus back on the open button, nothing saved."""
     if "report-close" in run.names:
         problems = pg.click(selector=sel("report-close"))
         problems += (wait(pg, lambda s: not s.get("backLive") and s.get("frontLive"), 1.5, "the front")
@@ -65,18 +85,24 @@ def run(run: Run):
         run.add("report-escape", problems + (["Escape saved a report"] if current(run.base) else []))
     run.done(pg)
 
+
+def contrast_checks(run: Run):
+    """A3: the back's contrast, light and dark."""
     for theme in ("light", "dark"):
         if f"report-contrast-{theme}" in run.names:
-            pg = page(scheme=theme)
+            pg = run.page(scheme=theme)
             run.add(f"report-contrast-{theme}", back_contrast(pg))
             run.done(pg)
 
-    # the back fits the host everywhere, the host keeps its size, the big view doesn't scroll
+
+def fit_checks(run: Run):
+    """A4: the back fits the host everywhere, the host keeps its size, the
+    big view doesn't scroll; the open button clears the fresh badge."""
     clear = []
     for variant, (w, h, query) in REPORT_FIT.items():
         if f"report-fit-{variant}" not in run.names:
             continue
-        pg = page(width=w, height=h, query=query)
+        pg = run.page(width=w, height=h, query=query)
         pg.js("document.querySelector('[data-report-host]').scrollIntoView({block: 'center'})")
         before = state(pg)
         if not query:
@@ -95,15 +121,18 @@ def run(run: Run):
     if "report-open-clear" in run.names:
         run.add("report-open-clear", clear)
 
+
+def locked_motion_checks(run: Run):
+    """A5: the locked wall display shows the open button; the turn animates
+    (report-motion), but not with prefers-reduced-motion (report-still)."""
     if "report-locked" in run.names:
-        pg = page(width=1280, height=800, query="?kiosk")
+        pg = run.page(width=1280, height=800, query="?kiosk")
         n = len(visible(pg, "report-open"))
         run.add("report-locked", [f"{n} visible [data-test=report-open] on the locked wall display"] if n else [])
         run.done(pg)
-
     if "report-motion" in run.names:
         for check, reduced in (("report-motion", False), ("report-still", True)):
-            pg = page(reduced=reduced)
+            pg = run.page(reduced=reduced)
             running = pg.js("""(() => { const h = document.querySelector('[data-report-host]');
                 h.querySelector('[data-test="report-open"]').click();
                 return document.getAnimations().filter((a) => a.playState === 'running'
@@ -115,206 +144,68 @@ def run(run: Run):
                 run.add(check, [] if running else ["no animation or transition runs in the tile when it turns"])
             run.done(pg)
 
-    # B: saving (W1b)
-    if "report-save" in run.names:
-        run_save(run)
 
-    # C: the sky follows a fresh report (W2), with faked answers
-    if "sky-report-none" in run.names:
-        run_sky(run)
-
-    # D: Details (W3)
-    if "details-reports" in run.names:
-        pg = page(query="?detailed")
-        pg.js("__ui.openDetails()")
-        pg.settle()
-        run.add("details-reports", details_problems(pg, run.lang, run.base))
-        run.shot(pg, "report-details")
-        run.done(pg)
-        pg = page(width=360, height=740, query="?detailed")
-        pg.js("__ui.openDetails()")
-        pg.settle()
-        info = pg.js("__ui.page()")
-        run.add("details-reports-fit", ([] if info["sw"] <= 361 else [f"page is {info['sw']} px wide at 360 px"])
-                + [f"at 360 px: {p}" for p in pg.js('__ui.sticksOut("details")')])
-        run.done(pg)
-    clear_fresh(run.base)
+def details_checks(run: Run):
+    """D: Details scores the saved reports, on the big and the 360 px view."""
+    pg = run.page(query="?detailed")
+    pg.js("__ui.openDetails()")
+    pg.settle()
+    run.add("details-reports", details_problems(pg, run.lang, run.base))
+    run.shot(pg, "report-details")
+    run.done(pg)
+    pg = run.page(width=360, height=740, query="?detailed")
+    pg.js("__ui.openDetails()")
+    pg.settle()
+    info = pg.js("__ui.page()")
+    run.add("details-reports-fit", ([] if info["sw"] <= 361 else [f"page is {info['sw']} px wide at 360 px"])
+            + [f"at 360 px: {p}" for p in pg.js('__ui.sticksOut("details")')])
+    run.done(pg)
 
 
-def run_save(run: Run):
-    base = run.base
-    now = run.sc["now"]
+def sky_case(run: Run, case: str, fields: dict, clock: str | None, scene: str) -> None:
+    """C: one case (sky-report-<case>): with a fresh report faked from
+    another device, the sky shows its scene and the sky-reason names it."""
     lang = run.lang
-    names = run.names
-    add = run.add
-    done = run.done
-    shot = run.shot
-    pg_factory = run.page
-
-    def saved_and_back(pg, want: dict) -> list[str]:
-        end = time.monotonic() + REPORT_SAVE_S
-        got = None
-        while time.monotonic() < end:
-            got = current(base)
-            s = state(pg)
-            if got and not s.get("backLive") and s.get("frontLive"):
-                break
-            pg.p.wait_idle(timeout=0.3, idle=0.1)
-        out = []
-        if not got:
-            return [f"nothing saved within {REPORT_SAVE_S} s (GET /api/reports/current is null)"]
-        for k, v in want.items():
-            if got.get(k) != v:
-                out.append(f"saved {k}={got.get(k)!r}, expected {v!r} (report {got})")
-        s = state(pg)
-        if s.get("backLive") or not s.get("frontLive"):
-            out.append(f"the tile did not turn back within {REPORT_SAVE_S} s")
-        return out
-
-    # fog, 15 min ago
-    clear_fresh(base)
-    pg = pg_factory()
-    problems = open_back(pg)
-    problems = problems or pg.click(selector=sel("report-when", minutes="15"))
-    problems = problems or pg.click(selector=sel("report-kind", kind="fog"))
-    problems = problems or saved_and_back(pg, {"kind": "fog", "intensity": None, "confirms": False,
-                                               "observed_at": _iso(now, -15)})
-    rep = current(base)
-    if not problems and rep:
-        problems = line_problems(pg, lang, rep, now)
-    add("report-save", problems)
-    shot(pg, "report-saved")
-    if "sky-after-save" in names:
-        problems = []
-        if rep:
-            scene = kind_scene(rep, rep["observed_at"])
-            got = pg.js("document.documentElement.getAttribute('data-scene')")
-            if got != scene:
-                problems.append(f"data-scene {got!r} after saving {rep['kind']}, expected {scene!r}")
-            want = REPORT_TEXT["sky"][lang].format(scene=SCENE_LABEL[scene][LANG_I[lang]], time=pg.times([rep["observed_at"]])[0])
-            reason = visible(pg, "sky-reason")
-            if len(reason) != 1 or norm(reason[0]["text"]) != want:
-                problems.append(f"sky-reason {[r['text'] for r in reason]}, expected {want!r}")
-        else:
-            problems.append("nothing saved (see report-save)")
-        add("sky-after-save", problems)
-    # undo
-    problems = [] if rep else ["nothing saved (see report-save)"]
-    if rep:
-        problems = pg.click(selector=sel("report-undo"))
-        end = time.monotonic() + REPORT_SAVE_S
-        while current(base) and time.monotonic() < end:
-            pg.p.wait_idle(timeout=0.3, idle=0.1)
-        if current(base):
-            problems.append("the report is still there after undo")
-        n = pg.js("[...document.querySelectorAll('[data-report-host] [data-test=\"report-line\"]')]"
-                  ".filter((el) => el.checkVisibility()).length")
-        if n:
-            problems.append("report-line still visible after undo")
-    add("report-undo", problems)
-    done(pg)
-
-    # rain, heavy
-    for check, button, want in (("report-intensity", ("report-intensity", {"intensity": "heavy"}), "heavy"),
-                                ("report-skip", ("report-intensity-skip", {}), None)):
-        clear_fresh(base)
-        pg = pg_factory()
-        problems = open_back(pg) or pg.click(selector=sel("report-kind", kind="rain"))
-        if not problems:
-            choices = visible(pg, "report-intensity")
-            got = [(c["attrs"].get("data-intensity"), norm(c["name"])) for c in choices]
-            exp = [(k, v[LANG_I[lang]]) for k, v in REPORT_INTENSITY.items()]
-            if got != exp:
-                problems.append(f"report-intensity (data-intensity, name) {got}, expected {exp}")
-            skip = visible(pg, "report-intensity-skip")
-            if len(skip) != 1 or norm(skip[0]["name"]) != REPORT_TEXT["skip"][lang]:
-                problems.append(f"report-intensity-skip: {[x['name'] for x in skip]}, expected {REPORT_TEXT['skip'][lang]!r}")
-            if current(base):
-                problems.append("rain was saved before its intensity was chosen")
-            problems += pg.js(FIT)
-        if not problems:
-            problems = pg.click(selector=sel(button[0], **button[1]))
-            problems = problems or saved_and_back(pg, {"kind": "rain", "intensity": want, "confirms": False,
-                                                       "observed_at": now})
-            rep = current(base)
-            if not problems and rep:
-                problems = line_problems(pg, lang, rep, now)
-        add(check, problems)
-        done(pg)
-
-    # "That's right": what the page shows, confirmed
-    clear_fresh(base)
-    pg = pg_factory()
-    scene = state(pg).get("scene")
-    want = REPORT_SCENE_KIND.get(scene)
-    problems = [] if want else [f"the page shows {scene!r}, which no report kind names (the check needs one)"]
-    problems = problems or open_back(pg) or pg.click(selector=sel("report-confirm"))
-    if not problems:
-        problems = saved_and_back(pg, {"kind": want[0], "intensity": want[1], "confirms": True, "observed_at": now})
-        rep = current(base)
-        if not problems and rep:
-            problems = line_problems(pg, lang, rep, now)
-    add("report-confirm", problems)
-    done(pg)
-    clear_fresh(base)
-
-    # a failing save: the message, the back stays, nothing on the front
-    pg = pg_factory(fakes={"/api/reports": [(500, json.dumps({"detail": "boom"}))] * 4})
-    problems = open_back(pg) or pg.click(selector=sel("report-kind", kind="snow"))
-    if not problems:
-        pg.p.wait_idle(timeout=2, idle=0.3)
-        err = visible(pg, "report-error")
-        if len(err) != 1 or norm(err[0]["text"]) != REPORT_TEXT["failed"][lang]:
-            problems.append(f"report-error: {[e['text'] for e in err]}, expected {REPORT_TEXT['failed'][lang]!r}")
-        if not state(pg).get("backLive"):
-            problems.append("the back closed although nothing was saved")
-        if visible(pg, "report-line"):
-            problems.append("report-line shown although nothing was saved")
-    add("report-error", problems)
-    pg.close()  # its console has the faked 500 on purpose
-
-    # a fresh report from earlier (another device): the front shows it on load
-    rep = {"id": 77, "kind": "snow", "intensity": None, "confirms": False, "observed_at": _iso(now, -10)}
-    pg = pg_factory(fakes={"/api/reports/current": [(200, json.dumps({"report": rep}))] * 8})
-    add("report-line-fresh", line_problems(pg, lang, rep, now))
-    done(pg)
+    at = clock or run.sc["now"]
+    rep = {"id": 90, "intensity": None, "confirms": False, **fields, "observed_at": _iso(at, -5)}
+    pg = UIPage(run.browser, run.base, at, lang,
+                fakes={"/api/reports/current": [(200, json.dumps({"report": rep}))] * 8})
+    problems = []
+    got = pg.js("document.documentElement.getAttribute('data-scene')")
+    if got != scene:
+        problems.append(f"data-scene {got!r} with a fresh {fields} report, expected {scene!r}")
+    key = "sky-confirmed" if rep["confirms"] else "sky"
+    want = REPORT_TEXT[key][lang].format(scene=SCENE_LABEL[scene][LANG_I[lang]],
+                                         time=pg.times([rep["observed_at"]])[0])
+    reason = visible(pg, "sky-reason")
+    if len(reason) != 1 or norm(reason[0]["text"]) != want:
+        problems.append(f"sky-reason {[r['text'] for r in reason]}, expected {want!r}")
+    run.add(f"sky-report-{case}", problems)
+    run.done(pg)
 
 
-def run_sky(run: Run):
-    browser = run.browser
-    base = run.base
-    now = run.sc["now"]
+def sky_none(run: Run) -> None:
+    """C: without a fresh report the sky-reason is the sky's own (no report
+    named in it, sky-report-none)."""
     lang = run.lang
-    names = run.names
-    add = run.add
-    done = run.done
-    i = LANG_I[lang]
-    for case, (fields, clock, scene) in REPORT_SKY_CASES.items():
-        if f"sky-report-{case}" not in names:
-            continue
-        at = clock or now
-        rep = {"id": 90, "intensity": None, "confirms": False, **fields, "observed_at": _iso(at, -5)}
-        pg = UIPage(browser, base, at, lang,
-                       fakes={"/api/reports/current": [(200, json.dumps({"report": rep}))] * 8})
-        problems = []
-        got = pg.js("document.documentElement.getAttribute('data-scene')")
-        if got != scene:
-            problems.append(f"data-scene {got!r} with a fresh {fields} report, expected {scene!r}")
-        key = "sky-confirmed" if rep["confirms"] else "sky"
-        want = REPORT_TEXT[key][lang].format(scene=SCENE_LABEL[scene][i], time=pg.times([rep["observed_at"]])[0])
-        reason = visible(pg, "sky-reason")
-        if len(reason) != 1 or norm(reason[0]["text"]) != want:
-            problems.append(f"sky-reason {[r['text'] for r in reason]}, expected {want!r}")
-        add(f"sky-report-{case}", problems)
-        done(pg)
-    # no fresh report: the sky as before (the radar here)
-    pg = UIPage(browser, base, now, lang, fakes={"/api/reports/current": [(200, '{"report": null}')] * 8})
+    pg = UIPage(run.browser, run.base, run.sc["now"], lang,
+                fakes={"/api/reports/current": [(200, '{"report": null}')] * 8})
     reason = visible(pg, "sky-reason")
     text = reason[0]["text"] if reason else ""
     mine = "by you" if lang == "en" else "von dir"
-    add("sky-report-none", [f"sky-reason names a report without one: {text!r}"] if mine in text else
-        ([] if reason else ["no sky-reason shown"]))
-    done(pg)
+    run.add("sky-report-none", [f"sky-reason names a report without one: {text!r}"] if mine in text else
+            ([] if reason else ["no sky-reason shown"]))
+    run.done(pg)
+
+
+def run_sky(run: Run):
+    """C: the sky follows a fresh report (W2), with faked answers; and the
+    sky without one (sky-report-none)."""
+    for case, (fields, clock, scene) in REPORT_SKY_CASES.items():
+        if f"sky-report-{case}" not in run.names:
+            continue
+        sky_case(run, case, fields, clock, scene)
+    sky_none(run)
 
 
 def details_problems(pg, lang, base) -> list[str]:
