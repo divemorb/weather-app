@@ -1,0 +1,358 @@
+"""The run of the report scenario: the flip and the picker, saving, the sky
+following a fresh report, and Details scoring the reports (report_run)."""
+from __future__ import annotations
+
+import json
+import time
+
+from expect import (MODEL_LABELS, REPORT_FIT, REPORT_INTENSITY, REPORT_SAVE_S, REPORT_SCENE_KIND,
+                    REPORT_SKY_CASES, REPORT_TEXT, SCENE_LABEL)
+from page import UIPage, has, norm
+from report_ui import (FIT, HIDE_FRONT, LANG_I, OPEN_CLEAR, _api, _iso, back_contrast,
+                       clear_fresh, closed_problems, current, kind_scene, line_problems,
+                       open_back, open_label_problems, picker_problems, sel, settle_turn,
+                       shows_problems, state, visible, wait)
+
+def run(name, sc, browser, base, lang, names, add, done, shot):
+    i = LANG_I[lang]
+    now = sc["now"]
+    page = lambda **kw: UIPage(browser, base, now, lang, **kw)  # noqa: E731
+    clear_fresh(base)
+
+    # A: desktop (the big view): closed, open, the picker
+    pg = page()
+    s = state(pg)
+    add("report-closed", closed_problems(s))
+    opens = [e for e in pg.ui("report-open") if e["visible"]]
+    add("report-open", ([] if s.get("openLive") == 1 and len(opens) == 1 else
+                        [f"{len(opens)} visible [data-test=report-open] ({s.get('openCount')} in the host), expected 1"])
+        + open_label_problems(pg, opens, lang))
+    before = s.get("rect")
+    problems = open_back(pg)
+    s = state(pg)
+    if not problems:
+        if not s["focusInBack"]:
+            problems.append(f"the focus is on {s['focus']!r}, not inside the back")
+        if before and any(abs(a - b) > 1 for a, b in zip(before[2:], s["rect"][2:])):
+            problems.append(f"the tile changed its size: {before[2:]} -> {s['rect'][2:]}")
+    add("report-flip", problems)
+    if "report-picker" in names:
+        add("report-picker", picker_problems(pg, lang) if not problems else ["the back did not open"])
+    if "report-shows" in names:
+        add("report-shows", shows_problems(pg, lang, s.get("scene")) if not problems else ["the back did not open"])
+    if "report-buttons" in names:
+        add("report-buttons", pg.js("__ui.controls()"))
+    shot(pg, "report-back")
+    # close with the button: the front again, the focus back on ↻, nothing saved
+    if "report-close" in names:
+        problems = pg.click(selector=sel("report-close"))
+        problems += (wait(pg, lambda s: not s.get("backLive") and s.get("frontLive"), 1.5, "the front")
+                     or settle_turn(pg))
+        s = state(pg)
+        if not problems and s["focus"] != "report-open":
+            problems.append(f"the focus is on {s['focus']!r}, expected report-open")
+        if current(base):
+            problems.append("closing saved a report")
+        add("report-close", problems)
+    if "report-escape" in names:
+        problems = open_back(pg)
+        if not problems:
+            pg.p.send("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Escape", "code": "Escape",
+                                                 "windowsVirtualKeyCode": 27})
+            pg.p.send("Input.dispatchKeyEvent", {"type": "keyUp", "key": "Escape", "code": "Escape",
+                                                 "windowsVirtualKeyCode": 27})
+            problems = wait(pg, lambda s: not s.get("backLive") and s.get("frontLive"), 1.5, "Escape to close")
+        add("report-escape", problems + (["Escape saved a report"] if current(base) else []))
+    done(pg)
+
+    for theme in ("light", "dark"):
+        if f"report-contrast-{theme}" in names:
+            pg = page(scheme=theme)
+            add(f"report-contrast-{theme}", back_contrast(pg))
+            done(pg)
+
+    # the back fits the host everywhere, the host keeps its size, the big view doesn't scroll
+    clear = []
+    for variant, (w, h, query) in REPORT_FIT.items():
+        if f"report-fit-{variant}" not in names:
+            continue
+        pg = page(width=w, height=h, query=query)
+        pg.js("document.querySelector('[data-report-host]').scrollIntoView({block: 'center'})")
+        before = state(pg)
+        if not query:
+            clear += pg.js(OPEN_CLEAR)
+        problems = open_back(pg)
+        if not problems:
+            after = state(pg)
+            problems = pg.js(FIT)
+            if any(abs(a - b) > 1 for a, b in zip(before["rect"][2:], after["rect"][2:])):
+                problems.append(f"the tile changed its size: {before['rect'][2:]} -> {after['rect'][2:]}")
+            if query == "" and w >= 1000 and after["sh"] > after["ih"] + 1:
+                problems.append(f"the big view scrolls with the back open ({after['sh']} > {after['ih']} px)")
+        add(f"report-fit-{variant}", problems)
+        shot(pg, f"report-fit-{variant}", full=False)
+        done(pg)
+    if "report-open-clear" in names:
+        add("report-open-clear", clear)
+
+    if "report-locked" in names:
+        pg = page(width=1280, height=800, query="?kiosk")
+        n = len(visible(pg, "report-open"))
+        add("report-locked", [f"{n} visible [data-test=report-open] on the locked wall display"] if n else [])
+        done(pg)
+
+    if "report-motion" in names:
+        for check, reduced in (("report-motion", False), ("report-still", True)):
+            pg = page(reduced=reduced)
+            running = pg.js("""(() => { const h = document.querySelector('[data-report-host]');
+                h.querySelector('[data-test="report-open"]').click();
+                return document.getAnimations().filter((a) => a.playState === 'running'
+                  && a.effect && a.effect.target && (h === a.effect.target || h.contains(a.effect.target)))
+                  .map((a) => a.animationName || a.transitionProperty || 'animation'); })()""")
+            if reduced:
+                add(check, [f"the turn animates with prefers-reduced-motion: {running}"] if running else [])
+            else:
+                add(check, [] if running else ["no animation or transition runs in the tile when it turns"])
+            done(pg)
+
+    # B: saving (W1b)
+    if "report-save" in names:
+        run_save(pg_factory=page, base=base, now=now, lang=lang, names=names, add=add, done=done, shot=shot)
+
+    # C: the sky follows a fresh report (W2), with faked answers
+    if "sky-report-none" in names:
+        run_sky(browser, base, now, lang, names, add, done)
+
+    # D: Details (W3)
+    if "details-reports" in names:
+        pg = page(query="?detailed")
+        pg.js("__ui.openDetails()")
+        pg.settle()
+        add("details-reports", details_problems(pg, lang, base))
+        shot(pg, "report-details")
+        done(pg)
+        pg = page(width=360, height=740, query="?detailed")
+        pg.js("__ui.openDetails()")
+        pg.settle()
+        info = pg.js("__ui.page()")
+        add("details-reports-fit", ([] if info["sw"] <= 361 else [f"page is {info['sw']} px wide at 360 px"])
+            + [f"at 360 px: {p}" for p in pg.js('__ui.sticksOut("details")')])
+        done(pg)
+    clear_fresh(base)
+
+
+def run_save(pg_factory, base, now, lang, names, add, done, shot):
+    def saved_and_back(pg, want: dict) -> list[str]:
+        end = time.monotonic() + REPORT_SAVE_S
+        got = None
+        while time.monotonic() < end:
+            got = current(base)
+            s = state(pg)
+            if got and not s.get("backLive") and s.get("frontLive"):
+                break
+            pg.p.wait_idle(timeout=0.3, idle=0.1)
+        out = []
+        if not got:
+            return [f"nothing saved within {REPORT_SAVE_S} s (GET /api/reports/current is null)"]
+        for k, v in want.items():
+            if got.get(k) != v:
+                out.append(f"saved {k}={got.get(k)!r}, expected {v!r} (report {got})")
+        s = state(pg)
+        if s.get("backLive") or not s.get("frontLive"):
+            out.append(f"the tile did not turn back within {REPORT_SAVE_S} s")
+        return out
+
+    # fog, 15 min ago
+    clear_fresh(base)
+    pg = pg_factory()
+    problems = open_back(pg)
+    problems = problems or pg.click(selector=sel("report-when", minutes="15"))
+    problems = problems or pg.click(selector=sel("report-kind", kind="fog"))
+    problems = problems or saved_and_back(pg, {"kind": "fog", "intensity": None, "confirms": False,
+                                               "observed_at": _iso(now, -15)})
+    rep = current(base)
+    if not problems and rep:
+        problems = line_problems(pg, lang, rep, now)
+    add("report-save", problems)
+    shot(pg, "report-saved")
+    if "sky-after-save" in names:
+        problems = []
+        if rep:
+            scene = kind_scene(rep, rep["observed_at"])
+            got = pg.js("document.documentElement.getAttribute('data-scene')")
+            if got != scene:
+                problems.append(f"data-scene {got!r} after saving {rep['kind']}, expected {scene!r}")
+            want = REPORT_TEXT["sky"][lang].format(scene=SCENE_LABEL[scene][LANG_I[lang]], time=pg.times([rep["observed_at"]])[0])
+            reason = visible(pg, "sky-reason")
+            if len(reason) != 1 or norm(reason[0]["text"]) != want:
+                problems.append(f"sky-reason {[r['text'] for r in reason]}, expected {want!r}")
+        else:
+            problems.append("nothing saved (see report-save)")
+        add("sky-after-save", problems)
+    # undo
+    problems = [] if rep else ["nothing saved (see report-save)"]
+    if rep:
+        problems = pg.click(selector=sel("report-undo"))
+        end = time.monotonic() + REPORT_SAVE_S
+        while current(base) and time.monotonic() < end:
+            pg.p.wait_idle(timeout=0.3, idle=0.1)
+        if current(base):
+            problems.append("the report is still there after undo")
+        n = pg.js("[...document.querySelectorAll('[data-report-host] [data-test=\"report-line\"]')]"
+                  ".filter((el) => el.checkVisibility()).length")
+        if n:
+            problems.append("report-line still visible after undo")
+    add("report-undo", problems)
+    done(pg)
+
+    # rain, heavy
+    for check, button, want in (("report-intensity", ("report-intensity", {"intensity": "heavy"}), "heavy"),
+                                ("report-skip", ("report-intensity-skip", {}), None)):
+        clear_fresh(base)
+        pg = pg_factory()
+        problems = open_back(pg) or pg.click(selector=sel("report-kind", kind="rain"))
+        if not problems:
+            choices = visible(pg, "report-intensity")
+            got = [(c["attrs"].get("data-intensity"), norm(c["name"])) for c in choices]
+            exp = [(k, v[LANG_I[lang]]) for k, v in REPORT_INTENSITY.items()]
+            if got != exp:
+                problems.append(f"report-intensity (data-intensity, name) {got}, expected {exp}")
+            skip = visible(pg, "report-intensity-skip")
+            if len(skip) != 1 or norm(skip[0]["name"]) != REPORT_TEXT["skip"][lang]:
+                problems.append(f"report-intensity-skip: {[x['name'] for x in skip]}, expected {REPORT_TEXT['skip'][lang]!r}")
+            if current(base):
+                problems.append("rain was saved before its intensity was chosen")
+            problems += pg.js(FIT)
+        if not problems:
+            problems = pg.click(selector=sel(button[0], **button[1]))
+            problems = problems or saved_and_back(pg, {"kind": "rain", "intensity": want, "confirms": False,
+                                                       "observed_at": now})
+            rep = current(base)
+            if not problems and rep:
+                problems = line_problems(pg, lang, rep, now)
+        add(check, problems)
+        done(pg)
+
+    # "That's right": what the page shows, confirmed
+    clear_fresh(base)
+    pg = pg_factory()
+    scene = state(pg).get("scene")
+    want = REPORT_SCENE_KIND.get(scene)
+    problems = [] if want else [f"the page shows {scene!r}, which no report kind names (the check needs one)"]
+    problems = problems or open_back(pg) or pg.click(selector=sel("report-confirm"))
+    if not problems:
+        problems = saved_and_back(pg, {"kind": want[0], "intensity": want[1], "confirms": True, "observed_at": now})
+        rep = current(base)
+        if not problems and rep:
+            problems = line_problems(pg, lang, rep, now)
+    add("report-confirm", problems)
+    done(pg)
+    clear_fresh(base)
+
+    # a failing save: the message, the back stays, nothing on the front
+    pg = pg_factory(fakes={"/api/reports": [(500, json.dumps({"detail": "boom"}))] * 4})
+    problems = open_back(pg) or pg.click(selector=sel("report-kind", kind="snow"))
+    if not problems:
+        pg.p.wait_idle(timeout=2, idle=0.3)
+        err = visible(pg, "report-error")
+        if len(err) != 1 or norm(err[0]["text"]) != REPORT_TEXT["failed"][lang]:
+            problems.append(f"report-error: {[e['text'] for e in err]}, expected {REPORT_TEXT['failed'][lang]!r}")
+        if not state(pg).get("backLive"):
+            problems.append("the back closed although nothing was saved")
+        if visible(pg, "report-line"):
+            problems.append("report-line shown although nothing was saved")
+    add("report-error", problems)
+    pg.close()  # its console has the faked 500 on purpose
+
+    # a fresh report from earlier (another device): the front shows it on load
+    rep = {"id": 77, "kind": "snow", "intensity": None, "confirms": False, "observed_at": _iso(now, -10)}
+    pg = pg_factory(fakes={"/api/reports/current": [(200, json.dumps({"report": rep}))] * 8})
+    add("report-line-fresh", line_problems(pg, lang, rep, now))
+    done(pg)
+
+
+def run_sky(browser, base, now, lang, names, add, done):
+    i = LANG_I[lang]
+    for case, (fields, clock, scene) in REPORT_SKY_CASES.items():
+        if f"sky-report-{case}" not in names:
+            continue
+        at = clock or now
+        rep = {"id": 90, "intensity": None, "confirms": False, **fields, "observed_at": _iso(at, -5)}
+        pg = UIPage(browser, base, at, lang,
+                       fakes={"/api/reports/current": [(200, json.dumps({"report": rep}))] * 8})
+        problems = []
+        got = pg.js("document.documentElement.getAttribute('data-scene')")
+        if got != scene:
+            problems.append(f"data-scene {got!r} with a fresh {fields} report, expected {scene!r}")
+        key = "sky-confirmed" if rep["confirms"] else "sky"
+        want = REPORT_TEXT[key][lang].format(scene=SCENE_LABEL[scene][i], time=pg.times([rep["observed_at"]])[0])
+        reason = visible(pg, "sky-reason")
+        if len(reason) != 1 or norm(reason[0]["text"]) != want:
+            problems.append(f"sky-reason {[r['text'] for r in reason]}, expected {want!r}")
+        add(f"sky-report-{case}", problems)
+        done(pg)
+    # no fresh report: the sky as before (the radar here)
+    pg = UIPage(browser, base, now, lang, fakes={"/api/reports/current": [(200, '{"report": null}')] * 8})
+    reason = visible(pg, "sky-reason")
+    text = reason[0]["text"] if reason else ""
+    mine = "by you" if lang == "en" else "von dir"
+    add("sky-report-none", [f"sky-reason names a report without one: {text!r}"] if mine in text else
+        ([] if reason else ["no sky-reason shown"]))
+    done(pg)
+
+
+def details_problems(pg, lang, base) -> list[str]:
+    i = LANG_I[lang]
+    status, body = _api(base, "GET", "/api/model-accuracy")
+    ur = (body or {}).get("user_reports") if status == 200 else None
+    if not isinstance(ur, dict):
+        return [f"/api/model-accuracy has no user_reports (status {status})"]
+    out = []
+    sec = visible(pg, "accuracy-reports")
+    if len(sec) != 1:
+        return [f"{len(sec)} visible [data-test=accuracy-reports], expected 1"]
+    if not has(sec[0]["text"], REPORT_TEXT["acc-title"][lang]):
+        out.append(f"accuracy-reports lacks its title {REPORT_TEXT['acc-title'][lang]!r}")
+    inside = pg.js("(() => { const d = document.querySelector('[data-test=\"details\"]'); "
+                   "const s = document.querySelector('[data-test=\"accuracy-reports\"]'); return !!d && !!s && d.contains(s); })()")
+    if not inside:
+        out.append("accuracy-reports is not inside the Details card")
+    if not ur["models"]:
+        none = visible(pg, "accuracy-reports-none")
+        if len(none) != 1 or norm(none[0]["text"]) != REPORT_TEXT["acc-none"][lang]:
+            out.append(f"accuracy-reports-none: {[n['text'] for n in none]}, expected {REPORT_TEXT['acc-none'][lang]!r}")
+        return out
+    summary = visible(pg, "accuracy-reports-summary")
+    want = REPORT_TEXT["acc-summary"][lang].format(hours=ur["hours"], confirmed=ur["confirmed_hours"])
+    if len(summary) != 1 or norm(summary[0]["text"]) != want:
+        out.append(f"accuracy-reports-summary: {[s['text'] for s in summary]}, expected {want!r}")
+    note = visible(pg, "accuracy-reports-note")
+    if len(note) != 1 or norm(note[0]["text"]) != norm(REPORT_TEXT["acc-note"][lang]):
+        out.append(f"accuracy-reports-note: {[n['text'][:60] for n in note]}, expected the fixed note")
+    order = sorted(ur["models"], key=lambda m: -ur["models"][m]["event_accuracy"])  # stable: ties keep the API order
+    rows = visible(pg, "accuracy-reports-row")
+    got = [r["attrs"].get("data-model") for r in rows]
+    if got != order:
+        return out + [f"accuracy-reports-row data-model order {got}, expected {order} (best hit rate first)"]
+    locale = "en-US" if lang == "en" else "de-DE"
+    for r, model in zip(rows, order):
+        m = ur["models"][model]
+        pct = pg.js(f"new Intl.NumberFormat({locale!r}, {{style: 'percent', maximumFractionDigits: 0}})"
+                    f".format({m['event_accuracy']})")
+        cells = pg.js(f"[...document.querySelectorAll('[data-test=\"accuracy-reports-row\"][data-model=\"{model}\"] td')]"
+                      ".map((td) => td.textContent.trim())")
+        want = [MODEL_LABELS[model], str(m["n_samples"]), str(m["hits"]), str(m["misses"]), str(m["false_alarms"]), pct]
+        if [norm(c) for c in cells] != [norm(w) for w in want]:
+            out.append(f"row {model}: cells {cells}, expected {want}")
+    return out
+
+
+def none_problems(pg, lang) -> list[str]:
+    """Details without any report (the accuracy scenario): the none line, no rows."""
+    out = []
+    none = visible(pg, "accuracy-reports-none")
+    if len(none) != 1 or norm(none[0]["text"]) != REPORT_TEXT["acc-none"][lang]:
+        out.append(f"accuracy-reports-none: {[n['text'] for n in none]}, expected {REPORT_TEXT['acc-none'][lang]!r}")
+    if visible(pg, "accuracy-reports-row"):
+        out.append("accuracy-reports-row shown without reports")
+    return out

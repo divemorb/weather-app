@@ -17,6 +17,7 @@ to stdout; everything else (tracebacks) goes to stderr.
 """
 from __future__ import annotations
 
+import fnmatch
 import json
 import os
 import pathlib
@@ -26,8 +27,11 @@ import sys
 import threading
 import time
 
-PORT_BASE = 20000  # worker k may use the app ports 20000 + 100*k .. +100*k + 99
-PORT_SPAN = 100
+from cdp import Browser
+from expect import LOCALES, SCENES
+from names import SCENARIO_LANGS, check_names
+from scenario import PORT_BASE, PORT_SPAN, Results, run_scenario
+
 MAX_WORKERS = 8
 RESULT_PREFIX = "UITEST-RESULT "
 
@@ -213,3 +217,103 @@ def run_jobs(args, jobs: list[dict], job_checks: list[list[str]]) -> dict[str, l
             worker.proc.kill()
         raise
     return problems
+
+
+# --- the jobs (one per scenario, sky one per scene) -------------------------
+
+
+def _sky_scene_of(check: str) -> str | None:
+    """The scene of a sky check (``motion-<scene>``, ``still-<scene>``,
+    ``glass-<scene>``, ``contrast-<scene>-<theme>``), or None for the common ones."""
+    for prefix in ("motion-", "still-", "glass-", "contrast-"):
+        if check.startswith(prefix):
+            rest = check[len(prefix):]
+            if prefix == "contrast-":  # contrast-<scene>-<theme>
+                rest = rest.rsplit("-", 1)[0]
+            return rest
+    return None
+
+
+def sky_job_names() -> list[list[str]]:
+    """The sky's checks, one list per job: first the common ones (the
+    ``scene-*`` cases, ``sky-layer`` and ``layout-*``), then the checks of
+    each scene, so that no single job is the long pole of the whole run.
+    ``console`` and ``requests`` aggregate over the pages of every job, so
+    they are kept in all of them (the merge takes the union, as in the serial
+    run: an error on a per-scene page still fails them)."""
+    names = check_names("sky", "en")
+    common = [c for c in names if c in ("sky-layer",) or c.startswith(("scene-", "layout-"))]
+    jobs = [common]
+    for scene in SCENES:
+        jobs.append([c for c in names if _sky_scene_of(c) == scene])
+    for job in jobs:  # the per-page aggregations, in every job
+        job += ["console", "requests"]
+    return jobs
+
+
+def build_jobs(args, scenarios: list[str], langs: list[str]) -> tuple[list[dict], list[list[str]]]:
+    """The jobs to run, longest first, and the check names each job is
+    responsible for (a job that dies reports its checks as failed)."""
+    jobs: list[tuple[int, dict, list[str]]] = []
+    for name in scenarios:
+        if name != "sky":
+            jobs.append((JOB_RANK.get(name, 9), {"scenarios": [name], "only": None},
+                         [f"{name}/{lang}/{c}" for lang in SCENARIO_LANGS.get(name, ["en", "de"])
+                          if lang in langs for c in check_names(name, lang)]))
+            continue
+        for subset in sky_job_names():
+            jobs.append((JOB_RANK["sky"], {"scenarios": ["sky"], "only": subset},
+                         [f"sky/en/{c}" for c in subset]))
+    jobs.sort(key=lambda t: t[0])
+    return [j for _, j, _ in jobs], [names for _, _, names in jobs]
+
+
+def run_job(args, job: dict) -> dict[str, list[str]]:
+    """One job in a worker process (its own app, fake upstream and Chromium,
+    as ``run_scenario`` does per scenario today): ``{"scenarios": [...],
+    "only": [check names] or None}``; returns the problems, keyed by the
+    checks' full names."""
+    res = Results()
+    want_langs = args.lang or list(LOCALES)
+    needed = set()
+    for name in job["scenarios"]:  # only the languages this job's scenarios use
+        for lang in SCENARIO_LANGS.get(name, ["en", "de"]):
+            if lang in want_langs:
+                needed.add(lang)
+    browsers = {}
+    try:
+        for lang in want_langs:
+            if lang in needed:
+                browsers[lang] = Browser(lang=LOCALES[lang])
+        for name in job["scenarios"]:
+            run_scenario(name, browsers, args, res, checks=job.get("only"))
+    finally:
+        for b in browsers.values():
+            b.close()
+    return res.problems
+
+
+def worker_main() -> int:
+    """``--worker``: read the jobs from stdin (one JSON per line) and print
+    one RESULT line per job, in the order the jobs were given. ``parse_args``
+    lives in ``run`` (nothing but ``run`` may import it), so import it here,
+    only ever reached from ``run.main`` once ``run`` is loaded."""
+    from run import parse_args
+
+    args = parse_args()
+    args.selected = lambda name: not args.only or any(fnmatch.fnmatch(name, p) for p in args.only)
+    args.port_base = PORT_BASE + PORT_SPAN * args.worker_index
+    args.log = (open(f"{args.backend_log}.{args.worker_index}", "a") if args.backend_log
+                else subprocess.DEVNULL)
+    try:
+        for line in sys.stdin:
+            line = line.strip()
+            if not line:
+                continue
+            job = json.loads(line)
+            print(RESULT_PREFIX + json.dumps({"idx": job["idx"], "problems": run_job(args, job)}),
+                  flush=True)
+    finally:
+        if args.log is not subprocess.DEVNULL:
+            args.log.close()
+    return 0
