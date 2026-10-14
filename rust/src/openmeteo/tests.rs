@@ -196,7 +196,7 @@ fn ensemble_payload() -> Value {
     // 4 hours, control + 3 members (member01..03)
     crate::testutil::make_ensemble_payload(
         &HOURS,
-        nums(&[0.0, 0.1, 0.2, 0.3]),
+        &nums(&[0.0, 0.1, 0.2, 0.3]),
         &[
             nums(&[0.0, 0.5, 0.0, 0.0]),
             nums(&[0.0, 0.0, 0.0, 0.0]),
@@ -227,7 +227,7 @@ fn parse_ensemble_member_count_and_order() {
 
 #[test]
 fn parse_ensemble_zero_members() {
-    let payload = crate::testutil::make_ensemble_payload(&HOURS, nums(&[0.0, 0.0]), &[]);
+    let payload = crate::testutil::make_ensemble_payload(&HOURS, &nums(&[0.0, 0.0]), &[]);
     let data = parse_ensemble(&payload).unwrap();
     assert_eq!(data.n_members(), 0);
     assert!(data.member_precip_mm.is_empty());
@@ -244,7 +244,7 @@ fn parse_ensemble_wrong_type_raises_source_error() {
     // a string where a number belongs in the control series -> SourceError
     let payload = crate::testutil::make_ensemble_payload(
         &HOURS,
-        vec![json!("a"), json!(0.1), json!(0.2), json!(0.3)],
+        &[json!("a"), json!(0.1), json!(0.2), json!(0.3)],
         &[],
     );
     let err = parse_ensemble(&payload).unwrap_err();

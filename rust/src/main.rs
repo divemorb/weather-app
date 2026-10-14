@@ -52,6 +52,37 @@ async fn server() {
         }
     };
     tracing_subscriber::fmt().with_target(false).init();
+    let Some(startup) = startup(&mut term).await else {
+        return;
+    };
+    let state = app_state(startup);
+    let bind = std::env::var("BIND_ADDR").unwrap_or_else(|_| "0.0.0.0:8000".to_string());
+    let listener = match tokio::net::TcpListener::bind(&bind).await {
+        Ok(listener) => listener,
+        Err(err) => {
+            eprintln!("cannot bind BIND_ADDR={bind}: {err}");
+            std::process::exit(1);
+        }
+    };
+    tracing::info!("listening on {bind}");
+    if let Err(err) = axum::serve(listener, build_router(state))
+        .with_graceful_shutdown(async move { shutdown_requested(&mut term).await })
+        .await
+    {
+        eprintln!("server error: {err}");
+        std::process::exit(1);
+    }
+}
+
+/// Clock, config, database, clients and scheduler, ready to serve. `None`
+/// means a stop request came in during the startup refresh (clean exit).
+struct Startup {
+    agg: Arc<wetter::aggregator::Aggregator>,
+    scheduler: Arc<wetter::scheduler::Scheduler>,
+    geocoder: Arc<wetter::geocode::Geocoder>,
+}
+
+async fn startup(term: &mut Signal) -> Option<Startup> {
     let clock = match wetter::times::Clock::from_env(&|k| std::env::var(k).ok()) {
         Ok(clock) => clock,
         Err(err) => {
@@ -122,7 +153,7 @@ async fn server() {
         geocode_http,
     ));
     let scheduler = Arc::new(wetter::scheduler::Scheduler::new());
-    scheduler.start(agg.clone());
+    scheduler.start(&agg);
     // Warm the cache before the listener binds: /healthz answering means the
     // first refresh is done (a failing source must not block startup). A
     // stop request during the refresh exits cleanly: the spawned scheduler
@@ -130,13 +161,22 @@ async fn server() {
     // between the .awaits, so no half-done write survives.
     tokio::select! {
         () = wetter::scheduler::initial_refresh(&agg) => {},
-        () = shutdown_requested(&mut term) => {
+        () = shutdown_requested(term) => {
             tracing::info!("shutdown requested during startup");
-            return;
+            return None;
         }
     }
     scheduler.schedule_models_retry(&agg);
     tracing::info!("weather app started (db={})", config.database_path);
+    Some(Startup {
+        agg,
+        scheduler,
+        geocoder,
+    })
+}
+
+/// The router state from the startup parts.
+fn app_state(startup: Startup) -> AppState {
     let extra_hosts = parse_allowed_hosts(&std::env::var("ALLOWED_HOSTS").unwrap_or_default());
     let static_dir = std::env::var("STATIC_DIR").unwrap_or_else(|_| "/app/static".to_string());
     let static_files = match wetter::static_files::load(Path::new(&static_dir)) {
@@ -146,28 +186,12 @@ async fn server() {
             HashMap::new()
         }
     };
-    let state = AppState {
+    AppState {
         extra_hosts: Arc::new(extra_hosts),
         static_files: Arc::new(static_files),
-        aggregator: agg,
-        scheduler: Some(scheduler),
-        geocoder,
-    };
-    let bind = std::env::var("BIND_ADDR").unwrap_or_else(|_| "0.0.0.0:8000".to_string());
-    let listener = match tokio::net::TcpListener::bind(&bind).await {
-        Ok(listener) => listener,
-        Err(err) => {
-            eprintln!("cannot bind BIND_ADDR={bind}: {err}");
-            std::process::exit(1);
-        }
-    };
-    tracing::info!("listening on {bind}");
-    if let Err(err) = axum::serve(listener, build_router(state))
-        .with_graceful_shutdown(async move { shutdown_requested(&mut term).await })
-        .await
-    {
-        eprintln!("server error: {err}");
-        std::process::exit(1);
+        aggregator: startup.agg,
+        scheduler: Some(startup.scheduler),
+        geocoder: startup.geocoder,
     }
 }
 

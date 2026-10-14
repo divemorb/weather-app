@@ -177,11 +177,11 @@ enum Monotonic {
 }
 
 impl Monotonic {
-    fn now(&self) -> f64 {
+    fn now(self) -> f64 {
         match self {
             Self::System => start_instant().elapsed().as_secs_f64(),
             #[cfg(test)]
-            Monotonic::Fixed(v) => *v,
+            Self::Fixed(v) => v,
         }
     }
 }
@@ -209,7 +209,7 @@ impl ThrottleSleep {
                 tokio::time::sleep(wait_duration(wait)).await;
             }
             #[cfg(test)]
-            ThrottleSleep::Record(log) => {
+            Self::Record(log) => {
                 log.lock()
                     .unwrap_or_else(PoisonError::into_inner)
                     .push(wait);

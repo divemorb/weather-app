@@ -111,7 +111,7 @@ impl Scheduler {
     }
 
     /// Spawn both refresh jobs with the configured intervals.
-    pub fn start(self: &Arc<Self>, agg: Arc<Aggregator>) {
+    pub fn start(self: &Arc<Self>, agg: &Arc<Aggregator>) {
         let cfg = agg.cfg();
         let radar = interval(cfg.scheduling.radar_interval_minutes);
         let models = interval(cfg.scheduling.models_interval_minutes);
@@ -121,7 +121,7 @@ impl Scheduler {
     /// `start` with explicit periods.
     pub fn start_with_periods(
         self: &Arc<Self>,
-        agg: Arc<Aggregator>,
+        agg: &Arc<Aggregator>,
         radar: Duration,
         models: Duration,
     ) {
@@ -130,7 +130,7 @@ impl Scheduler {
             // First run one period after start.
             self.set_next_run(job, agg.now() + period_delta);
             let scheduler = Arc::clone(self);
-            let agg = Arc::clone(&agg);
+            let agg = Arc::clone(agg);
             tokio::spawn(async move {
                 let mut ticker =
                     tokio::time::interval_at(tokio::time::Instant::now() + period, period);

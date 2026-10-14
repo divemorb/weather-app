@@ -204,13 +204,16 @@ fn load_yaml(path: &Path) -> Result<Value, String> {
         return Ok(Value::Object(Map::new()));
     };
     let value = serde_saphyr::from_str::<Value>(&text)
-        .map_err(|err| format!("invalid YAML in {path:?}: {err}"))?;
+        .map_err(|err| format!("invalid YAML in {}: {err}", path.display()))?;
     if is_falsy(&value) {
         return Ok(Value::Object(Map::new()));
     }
     match value {
         Value::Object(_) => Ok(value),
-        _ => Err(format!("config file {path:?} must contain a mapping")),
+        _ => Err(format!(
+            "config file {} must contain a mapping",
+            path.display()
+        )),
     }
 }
 

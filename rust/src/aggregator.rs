@@ -331,6 +331,10 @@ impl Aggregator {
 
     /// `available` / `age_seconds` / `stale` for one source. `age_seconds`
     /// is None when the source has never been fetched.
+    #[expect(
+        clippy::cast_precision_loss,
+        reason = "stale minutes from config times 60, far below 2^52"
+    )]
     pub fn cache_meta(&self, source: Source) -> Result<CacheMeta, StoreError> {
         let cfg = self.cfg();
         let age = self

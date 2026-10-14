@@ -113,7 +113,7 @@ fn forecast_payload() -> Value {
 fn ensemble_payload() -> Value {
     testutil::make_ensemble_payload(
         &HOURS,
-        vec![json!(0.0), json!(0.1), json!(0.2), json!(0.3)],
+        &[json!(0.0), json!(0.1), json!(0.2), json!(0.3)],
         &[
             vec![json!(0.0), json!(0.5), json!(0.0), json!(0.0)],
             vec![json!(0.0); 4],

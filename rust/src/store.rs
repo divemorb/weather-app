@@ -3,7 +3,6 @@
 //! source so the app can serve page loads instantly and show per-source
 //! data age. The history tables support the optional accuracy extension
 //! (stored forecasts compared against later observations).
-//!
 //! All timestamps are UTC ISO-8601 strings.
 
 use std::io;
@@ -110,7 +109,6 @@ CREATE TABLE IF NOT EXISTS source_cache (
     fetched_at  TEXT NOT NULL,      -- UTC ISO-8601
     payload     TEXT NOT NULL       -- raw upstream JSON
 );
-
 CREATE TABLE IF NOT EXISTS forecast_history (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     model          TEXT NOT NULL,
@@ -126,7 +124,6 @@ CREATE TABLE IF NOT EXISTS forecast_history (
 -- NOTE: the old "model_accuracy" table (unused write-through table) was
 -- dropped in schema v3 (step 6e); accuracy is now computed on demand from
 -- forecast_history via compared_forecasts() + app.accuracy.model_accuracy.
-
 CREATE TABLE IF NOT EXISTS app_meta (
     key   TEXT PRIMARY KEY,
     value TEXT
@@ -167,7 +164,6 @@ impl Store {
     }
 
     // -- app meta (the location lives here at runtime) ------------------------
-
     pub fn get_meta(&self, key: &str) -> Result<Option<String>, StoreError> {
         let conn = self.lock_conn();
         let value: Option<Option<String>> = conn
@@ -188,7 +184,6 @@ impl Store {
     }
 
     /// Drop all data that belongs to the old location.
-    ///
     /// Called when the location changes: the cache, the forecast history
     /// and the observation stations all belong to the *old* location, so
     /// none of it may be served for the new one. (The accuracy window
@@ -206,7 +201,6 @@ impl Store {
     }
 
     // -- cache ---------------------------------------------------------------
-
     pub fn put_cache(
         &self,
         source: Source,
@@ -252,7 +246,6 @@ impl Store {
     }
 
     // -- history (extension) ---------------------------------------------------
-
     /// Upsert this hour's forecasts (idempotent per `model + valid_from`).
     ///
     /// Re-running the same refresh updates the row in place, keeping the
@@ -342,7 +335,6 @@ impl Store {
 /// once. The unique index must only exist once the old rows are gone,
 /// hence it is created here rather than in `SCHEMA`.
 /// v3: drop the unused `model_accuracy` table.
-/// Each migration runs at most once, so this is a no-op on later startups.
 fn migrate(conn: &mut Connection) -> Result<(), StoreError> {
     let tx = conn.transaction()?;
     let value: Option<Option<String>> = tx
@@ -352,7 +344,13 @@ fn migrate(conn: &mut Connection) -> Result<(), StoreError> {
             |r| r.get(0),
         )
         .optional()?;
-    let mut version = schema_version(value);
+    // The outer `None` is a missing row, the inner one a NULL value.
+    let stored = match value {
+        None => StoredVersion::Missing,
+        Some(None) => StoredVersion::Null,
+        Some(Some(text)) => StoredVersion::Text(text),
+    };
+    let mut version = schema_version(stored);
     if version < 2 {
         tx.execute("DELETE FROM forecast_history", [])?;
         tx.execute("DROP INDEX IF EXISTS idx_fh_model_hour", [])?;
@@ -374,11 +372,18 @@ fn migrate(conn: &mut Connection) -> Result<(), StoreError> {
     Ok(())
 }
 
+/// The stored `app_meta.forecast_history_version` row; missing row and NULL value.
+enum StoredVersion {
+    Missing,
+    Null,
+    Text(String),
+}
+
 /// Python `_migrate`'s version read: the number if the stored value is
 /// non-empty and all ASCII digits, else 1 (a missing row, a NULL value
 /// or non-numeric text all mean 1).
-fn schema_version(value: Option<Option<String>>) -> i64 {
-    let Some(text) = value.flatten() else {
+fn schema_version(stored: StoredVersion) -> i64 {
+    let StoredVersion::Text(text) = stored else {
         return 1;
     };
     if text.is_empty() || !text.bytes().all(|b| b.is_ascii_digit()) {

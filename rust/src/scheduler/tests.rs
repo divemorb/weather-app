@@ -18,11 +18,7 @@ async fn scheduled_jobs_run_refreshes_on_event_loop() {
         memory_store(),
     ));
     let scheduler = Arc::new(Scheduler::new());
-    scheduler.start_with_periods(
-        agg.clone(),
-        Duration::from_millis(50),
-        Duration::from_millis(50),
-    );
+    scheduler.start_with_periods(&agg, Duration::from_millis(50), Duration::from_millis(50));
     for _ in 0..100 {
         let bs = !fake.requests_to("/bs/current_weather").is_empty();
         let om = !fake.requests_to("/om/v1/forecast").is_empty();
@@ -49,7 +45,7 @@ async fn schedule_status_reports_next_runs() {
     let cfg = make_cfg(&fake, CfgOpts::default());
     let agg = Arc::new(make_aggregator(cfg.clone(), memory_store()));
     let scheduler = Arc::new(Scheduler::new());
-    scheduler.start(agg.clone());
+    scheduler.start(&agg);
     let status = schedule_status(Some(&scheduler), &cfg, agg.now());
     let radar = &status["jobs"]["radar"];
     let models = &status["jobs"]["models"];
@@ -103,7 +99,7 @@ async fn failing_models() -> (FakeUpstream, Payloads, Arc<Aggregator>, Arc<Sched
     ));
     agg.refresh_models().await;
     let scheduler = Arc::new(Scheduler::new());
-    scheduler.start(agg.clone());
+    scheduler.start(&agg);
     (fake, payloads, agg, scheduler)
 }
 

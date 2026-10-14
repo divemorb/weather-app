@@ -26,7 +26,7 @@ pub const HOURLY_VARS: [&str; 5] = [
 
 /// The Python `malformed_is_source_error` decorator: a payload-shape error
 /// (wrong type, missing key) becomes a `SourceError` with this wording.
-fn malformed(label: &str, exc: SourceError) -> SourceError {
+fn malformed(label: &str, exc: &SourceError) -> SourceError {
     SourceError::new(format!("{label}: malformed payload ({exc})"))
 }
 
@@ -43,7 +43,7 @@ fn section<'a>(
         Some(Value::Object(block)) => Ok(Some(block)),
         Some(other) => Err(malformed(
             label,
-            SourceError::new(format!("'{name}' is not an object: {other}")),
+            &SourceError::new(format!("'{name}' is not an object: {other}")),
         )),
     }
 }
@@ -60,16 +60,16 @@ fn parse_time_list(v: Option<&Value>, label: &str) -> Result<Vec<DateTime<Utc>>,
                 let Some(stamp) = item.as_str() else {
                     return Err(malformed(
                         label,
-                        SourceError::new(format!("time entry is not a string: {item}")),
+                        &SourceError::new(format!("time entry is not a string: {item}")),
                     ));
                 };
-                out.push(parse_iso(stamp).map_err(|e| malformed(label, SourceError::new(e)))?);
+                out.push(parse_iso(stamp).map_err(|e| malformed(label, &SourceError::new(e)))?);
             }
             Ok(out)
         }
         Some(other) => Err(malformed(
             label,
-            SourceError::new(format!("'time' is not a list: {other}")),
+            &SourceError::new(format!("'time' is not a list: {other}")),
         )),
     }
 }
@@ -89,7 +89,7 @@ fn series(
     if raw.is_null() {
         return Ok(Vec::new());
     }
-    f64_list(raw, key).map_err(|exc| malformed(label, exc))
+    f64_list(raw, key).map_err(|exc| malformed(label, &exc))
 }
 
 /// Parse a multi-model forecast payload into a `ForecastBundle`
@@ -102,7 +102,7 @@ pub fn parse_forecast(
     let label = "Open-Meteo forecast";
     let payload = payload
         .as_object()
-        .ok_or_else(|| malformed(label, SourceError::new("payload is not an object")))?;
+        .ok_or_else(|| malformed(label, &SourceError::new("payload is not an object")))?;
     if let Some(error) = payload.get("error")
         && py_truthy(error)
     {
@@ -163,7 +163,7 @@ fn member_number(key: &str, label: &str) -> Result<Option<i64>, SourceError> {
     let number = digits.parse::<i64>().map_err(|_| {
         malformed(
             label,
-            SourceError::new(format!("member number {digits} out of range")),
+            &SourceError::new(format!("member number {digits} out of range")),
         )
     })?;
     Ok(Some(number))
@@ -176,7 +176,7 @@ pub fn parse_ensemble(payload: &Value) -> Result<EnsembleData, SourceError> {
     let label = "Open-Meteo ensemble";
     let payload = payload
         .as_object()
-        .ok_or_else(|| malformed(label, SourceError::new("payload is not an object")))?;
+        .ok_or_else(|| malformed(label, &SourceError::new("payload is not an object")))?;
     if let Some(error) = payload.get("error")
         && py_truthy(error)
     {
@@ -199,7 +199,7 @@ pub fn parse_ensemble(payload: &Value) -> Result<EnsembleData, SourceError> {
             let Some(number) = member_number(key, label)? else {
                 continue;
             };
-            let list = f64_list(values, key).map_err(|exc| malformed(label, exc))?;
+            let list = f64_list(values, key).map_err(|exc| malformed(label, &exc))?;
             // `number` was parsed from digits, so it is >= 0 and the
             // subtraction cannot underflow (member00 gives index -1).
             members.insert(number - 1, list);

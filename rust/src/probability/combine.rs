@@ -29,6 +29,10 @@ fn hour_index_best_overlap(times: &[DateTime<Utc>], now: DateTime<Utc>) -> Optio
 /// [`hour_index_best_overlap`]). Returns a None probability when the cached
 /// series is stale (no step at least 30 min ahead) or has no usable
 /// members.
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "n and n_rain count ensemble members, far below 2^52"
+)]
 pub fn ensemble_vote(
     ensemble: Option<&EnsembleData>,
     threshold_mm: f64,
@@ -87,6 +91,10 @@ pub fn ensemble_vote(
 /// A missing signal (None) drops out and the remaining weights are
 /// re-normalized. Returns `(probability_pct, weights_used)`; the weights
 /// are in signal order (radar, models, ensemble).
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "signals holds at most three entries (radar, models, ensemble)"
+)]
 pub fn combine_signals(
     prob_cfg: &ProbabilityConfig,
     radar_available: bool,

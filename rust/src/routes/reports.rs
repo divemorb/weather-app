@@ -80,13 +80,13 @@ pub(crate) async fn post_report(
         &observed_at,
     ) {
         Ok(id) => id,
-        Err(err) => return store_error(err),
+        Err(err) => return store_error(&err),
     };
     // 5. every save prunes: older than the accuracy window, then all but
     //    the newest MAX_REPORTS.
     let window_cut = times::to_iso(now - TimeDelta::days(cfg.accuracy.window_days));
     if let Err(err) = store.prune_reports(&window_cut, MAX_REPORTS) {
-        return store_error(err);
+        return store_error(&err);
     }
     (
         StatusCode::CREATED,
@@ -108,7 +108,7 @@ pub(crate) async fn current_report(State(state): State<AppState>) -> Response {
     let now = state.aggregator.now();
     let row = match state.aggregator.store().newest_report(&times::to_iso(now)) {
         Ok(row) => row,
-        Err(err) => return store_error(err),
+        Err(err) => return store_error(&err),
     };
     // The newest report decides; it is current while observed within the
     // last FRESH_MINUTES minutes (both ends inclusive — `newest_report`
@@ -153,20 +153,17 @@ pub(crate) async fn delete_current(State(state): State<AppState>, headers: Heade
 fn delete_report_inner(state: &AppState, raw: &str, headers: &HeaderMap) -> Response {
     // 1. the id is validated first (Python's `Path(pattern=...)` runs
     //    before the handler): anything but `^[1-9][0-9]{0,17}$` is a 422.
-    let id = match reports::parse_report_id(raw) {
-        Some(id) => id,
-        None => {
-            return (
-                StatusCode::UNPROCESSABLE_ENTITY,
-                Json(json!({
-                    "detail": [{
-                        "loc": ["path", "report_id"],
-                        "msg": "String should match pattern '^[1-9][0-9]{0,17}$'",
-                    }]
-                })),
-            )
-                .into_response();
-        }
+    let Some(id) = reports::parse_report_id(raw) else {
+        return (
+            StatusCode::UNPROCESSABLE_ENTITY,
+            Json(json!({
+                "detail": [{
+                    "loc": ["path", "report_id"],
+                    "msg": "String should match pattern '^[1-9][0-9]{0,17}$'",
+                }]
+            })),
+        )
+            .into_response();
     };
     // 2. a foreign page may *send* a DELETE even without CORS (CSRF):
     //    refuse.
@@ -177,14 +174,14 @@ fn delete_report_inner(state: &AppState, raw: &str, headers: &HeaderMap) -> Resp
     match state.aggregator.store().delete_report(id) {
         Ok(true) => (StatusCode::OK, Json(json!({ "deleted": id }))).into_response(),
         Ok(false) => json_error(StatusCode::NOT_FOUND, "report not found"),
-        Err(err) => store_error(err),
+        Err(err) => store_error(&err),
     }
 }
 
 /// A `StoreError` on the report paths (Python: the exception escapes the
 /// endpoint and the security middleware answers a plain-text 500, as in
 /// `routes/location.rs`).
-fn store_error(err: StoreError) -> Response {
+fn store_error(err: &StoreError) -> Response {
     tracing::error!("the user report write failed: {err}");
     (
         StatusCode::INTERNAL_SERVER_ERROR,

@@ -47,10 +47,9 @@ impl std::fmt::Display for SnapshotError {
 impl std::error::Error for SnapshotError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::TargetExists(_) => None,
             Self::Sqlite(e) => Some(e),
-            Self::Integrity(_) => None,
             Self::Io(e) => Some(e),
+            Self::TargetExists(_) | Self::Integrity(_) => None,
         }
     }
 }

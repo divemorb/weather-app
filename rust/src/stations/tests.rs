@@ -23,10 +23,10 @@ fn potsdam() -> Value {
     })
 }
 
-fn now_payload(sources: Vec<Value>, source_id: Value, fallback: Option<Value>) -> Value {
+fn now_payload(sources: &[Value], source_id: &Value, fallback: Option<&Value>) -> Value {
     let mut weather = json!({"source_id": source_id});
     if let Some(fallback) = fallback {
-        weather["fallback_source_ids"] = fallback;
+        weather["fallback_source_ids"] = fallback.clone();
     }
     json!({"weather": weather, "sources": sources})
 }
@@ -53,7 +53,7 @@ fn potsdam_fallback() -> FallbackEntry {
 
 #[test]
 fn station_names_the_source_of_the_values() {
-    let payload = now_payload(vec![tempelhof(), potsdam()], json!(96160), None);
+    let payload = now_payload(&[tempelhof(), potsdam()], &json!(96160), None);
     let (station, fallback) = station_and_fallback(&payload);
     assert_eq!(station, Some(tempelhof_station()));
     assert!(fallback.is_empty());
@@ -62,7 +62,7 @@ fn station_names_the_source_of_the_values() {
 #[test]
 fn station_is_none_without_a_listed_source() {
     // a source id no listed source carries: no station, fallback ids point nowhere
-    let payload = now_payload(vec![potsdam()], json!(1), Some(json!({"cloud_cover": 7})));
+    let payload = now_payload(&[potsdam()], &json!(1), Some(&json!({"cloud_cover": 7})));
     assert_eq!(station_and_fallback(&payload), (None, BTreeMap::new()));
     // no sources key at all (older payloads and the test helpers')
     let payload = json!({"weather": {"source_id": 1}});
@@ -75,8 +75,8 @@ fn station_is_none_without_a_listed_source() {
 #[test]
 fn station_missing_fields_are_null() {
     let payload = now_payload(
-        vec![json!({"id": 96160, "station_name": "Görlitz"})],
-        json!(96160),
+        &[json!({"id": 96160, "station_name": "Görlitz"})],
+        &json!(96160),
         None,
     );
     let (station, _) = station_and_fallback(&payload);
@@ -99,7 +99,7 @@ fn fallback_is_keyed_by_the_api_field_names() {
         "wind_speed_10": 11702, "cloud_cover": 11702, "precipitation_60": 11702,
         "solar_60": 11702, "dew_point": 424242
     });
-    let payload = now_payload(vec![tempelhof(), potsdam()], json!(96160), Some(fallback));
+    let payload = now_payload(&[tempelhof(), potsdam()], &json!(96160), Some(&fallback));
     let (_, fallback) = station_and_fallback(&payload);
     assert_eq!(
         fallback,
@@ -118,9 +118,9 @@ fn fallback_is_keyed_by_the_api_field_names() {
 fn fallback_every_carried_field_maps_to_its_api_name() {
     for (bs_key, api_key) in CURRENT_FIELDS {
         let payload = now_payload(
-            vec![tempelhof(), potsdam()],
-            json!(96160),
-            Some(json!({bs_key: 11702})),
+            &[tempelhof(), potsdam()],
+            &json!(96160),
+            Some(&json!({bs_key: 11702})),
         );
         let (_, fallback) = station_and_fallback(&payload);
         assert_eq!(
@@ -134,9 +134,9 @@ fn fallback_every_carried_field_maps_to_its_api_name() {
 fn fallback_mistyped_ids_are_left_out() {
     for bad in [json!("254907"), json!(true), json!(11702.0), json!(null)] {
         let payload = now_payload(
-            vec![tempelhof(), potsdam()],
-            json!(96160),
-            Some(json!({"cloud_cover": bad})),
+            &[tempelhof(), potsdam()],
+            &json!(96160),
+            Some(&json!({"cloud_cover": bad})),
         );
         let (_, fallback) = station_and_fallback(&payload);
         assert!(fallback.is_empty(), "fallback id {bad} must be left out");
@@ -146,9 +146,9 @@ fn fallback_mistyped_ids_are_left_out() {
 #[test]
 fn fallback_entry_missing_distance_is_null() {
     let payload = now_payload(
-        vec![json!({"id": 11702, "station_name": "Potsdam"})],
-        json!(96160),
-        Some(json!({"cloud_cover": 11702})),
+        &[json!({"id": 11702, "station_name": "Potsdam"})],
+        &json!(96160),
+        Some(&json!({"cloud_cover": 11702})),
     );
     let (_, fallback) = station_and_fallback(&payload);
     assert_eq!(

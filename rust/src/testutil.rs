@@ -154,7 +154,7 @@ pub fn make_forecast_payload(
 
 /// An Open-Meteo ensemble payload; the member keys are
 /// `precipitation_member01`, …
-pub fn make_ensemble_payload(hours: &[&str], control: Vec<Value>, members: &[Vec<Value>]) -> Value {
+pub fn make_ensemble_payload(hours: &[&str], control: &[Value], members: &[Vec<Value>]) -> Value {
     let mut payload = json!({
         "latitude": 52.0,
         "longitude": 13.0,

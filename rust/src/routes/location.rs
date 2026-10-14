@@ -71,7 +71,7 @@ pub(crate) async fn post_location(
     // 4. persist and make the location effective (a move of more than ~1 km
     //    clears the old location's data first).
     if let Err(err) = state.aggregator.set_location(loc.clone()) {
-        return store_error(err);
+        return store_error(&err);
     }
     // 5. one background refresh so data appears within seconds; the runtime
     //    owns the task, nothing to hold onto.
@@ -135,7 +135,7 @@ pub(crate) async fn get_geocode(
 /// A `StoreError` on the write path (Python: the exception escapes the
 /// endpoint and the security middleware answers a plain-text 500, as on
 /// the read path).
-fn store_error(err: StoreError) -> Response {
+fn store_error(err: &StoreError) -> Response {
     tracing::error!("saving the location failed: {err}");
     (
         StatusCode::INTERNAL_SERVER_ERROR,

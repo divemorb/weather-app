@@ -66,6 +66,10 @@ pub fn deciding_reports(rows: &[ReportRow]) -> BTreeMap<String, (bool, bool)> {
 /// report confirms. A model's forecast is wet when `precip_mm >
 /// threshold_mm` (strict, as in `crate::accuracy`); the models come out in
 /// alphabetical order, like the station's table.
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "hits, misses and correct_negatives count scored hours, far below 2^52"
+)]
 pub fn score_user_reports(
     deciding: &BTreeMap<String, (bool, bool)>,
     rows: &[ScoredRow],

@@ -315,7 +315,7 @@ fn http_client_installs_ring_as_the_default_tls_provider() {
 fn ensemble_payload_names_members() {
     let payload = crate::testutil::make_ensemble_payload(
         &["2026-09-25T06:00"],
-        vec![json!(0.0)],
+        &[json!(0.0)],
         &[vec![json!(0.1)], vec![Value::Null]],
     );
     assert_eq!(payload["hourly"]["precipitation"], json!([0.0]));

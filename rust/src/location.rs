@@ -184,7 +184,7 @@ pub enum LocPart {
 }
 
 /// One entry of a 422 answer: `{"loc": [...], "msg": "..."}`.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FieldError {
     pub loc: Vec<LocPart>,
     pub msg: &'static str,
@@ -338,7 +338,7 @@ fn check_coordinate(
     Some(x)
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BodyError {
     /// 422 with these entries.
     Invalid(Vec<FieldError>),

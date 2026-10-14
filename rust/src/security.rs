@@ -17,6 +17,10 @@ base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 /// Python `host_allowed`: an IP literal, localhost, a .local name, or one of
 /// ALLOWED_HOSTS (port ignored). Also IPv6 with a zone id, like Python's
 /// `ipaddress`.
+#[expect(
+    clippy::case_sensitive_file_extension_comparisons,
+    reason = "mDNS .local names are case-sensitive, matching Python's endswith"
+)]
 pub fn host_allowed(host_header: &str, extra: &HashSet<String>) -> bool {
     let lower = host_header.trim().to_lowercase();
     let host = if let Some(rest) = lower.strip_prefix('[') {

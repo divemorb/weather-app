@@ -21,6 +21,10 @@ pub use combine::*;
 /// Location in full-grid (x, y) cell coordinates (Python
 /// `_location_full_xy`): the sub-grid origin (top, left of `bbox`) plus
 /// the fractional `location_xy` inside it.
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "radar grid cell indices, bounded by MAX_RADAR_CELLS"
+)]
 fn location_full_xy(nowcast: &RadarNowcast) -> (f64, f64) {
     let (top, left) = (nowcast.bbox.0, nowcast.bbox.1);
     (
@@ -32,6 +36,10 @@ fn location_full_xy(nowcast: &RadarNowcast) -> (f64, f64) {
 /// Distance (km) from the location to the radar cell `(cell_x, cell_y)`.
 /// The grid is a uniform ~1 km grid, so a plain Euclidean distance is
 /// accurate at this scale.
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "radar grid cell indices, bounded by MAX_RADAR_CELLS"
+)]
 pub fn cell_distance_km(nowcast: &RadarNowcast, cell_x: i64, cell_y: i64, cell_km: f64) -> f64 {
     let (loc_x, loc_y) = location_full_xy(nowcast);
     py_hypot(
@@ -172,6 +180,10 @@ pub fn model_votes(bundle: Option<&ForecastBundle>, now: DateTime<Utc>) -> Vec<M
 /// Return `(share 0..100 | None, models_with_rain, models_total)`.
 ///
 /// Models whose next-hour sum is None (no data) do not count at all.
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "n_rain and available.len() are counts of voting models, far below 2^52"
+)]
 pub fn model_rain_signal(votes: &[ModelVote], threshold_mm: f64) -> (Option<f64>, usize, usize) {
     let available: Vec<&ModelVote> = votes
         .iter()
@@ -204,6 +216,10 @@ pub fn model_rain_signal(votes: &[ModelVote], threshold_mm: f64) -> (Option<f64>
 /// Returns the same `(signal | None, n_rain, n_total)` as
 /// `model_rain_signal` (`n_rain`/`n_total` are always the equal-weight
 /// counts, for the explanation) plus `weighted_applied`.
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "n_rain and available.len() are counts of voting models, far below 2^52"
+)]
 pub fn weighted_model_signal(
     votes: &[ModelVote],
     accuracy: &BTreeMap<String, ModelAccuracy>,

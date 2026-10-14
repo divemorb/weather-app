@@ -24,7 +24,7 @@ pub const MAX_RADAR_CELLS: i64 = 250_000;
 
 /// The Python `malformed_is_source_error` decorator: a payload-shape error
 /// (wrong type, missing key) becomes a `SourceError` with this wording.
-fn malformed(label: &str, exc: SourceError) -> SourceError {
+fn malformed(label: &str, exc: &SourceError) -> SourceError {
     SourceError::new(format!("{label}: malformed payload ({exc})"))
 }
 
@@ -62,7 +62,7 @@ fn bbox_int(v: &Value) -> Result<i64, SourceError> {
     number.ok_or_else(|| {
         malformed(
             "Bright Sky radar",
-            SourceError::new(format!("bbox entry {v} is not a number")),
+            &SourceError::new(format!("bbox entry {v} is not a number")),
         )
     })
 }
@@ -74,12 +74,12 @@ fn position_num(llp: &Map<String, Value>, key: &str) -> Result<f64, SourceError>
         Some(Value::Number(n)) => n.as_f64().ok_or_else(|| {
             malformed(
                 "Bright Sky radar",
-                SourceError::new(format!("latlon_position {key} is not a number")),
+                &SourceError::new(format!("latlon_position {key} is not a number")),
             )
         }),
         _ => Err(malformed(
             "Bright Sky radar",
-            SourceError::new(format!("latlon_position {key} is not a number")),
+            &SourceError::new(format!("latlon_position {key} is not a number")),
         )),
     }
 }
@@ -95,15 +95,28 @@ fn position_num(llp: &Map<String, Value>, key: &str) -> Result<f64, SourceError>
 /// The request window is bounded upstream (`fetch_radar_payload`), so every
 /// frame that comes back is kept (oldest-first); the time-aware callers
 /// (probability layer, UI bar) select the subset within `[now, now + 1h)`.
-pub fn parse_radar(payload: &Value) -> Result<RadarNowcast, SourceError> {
-    let label = "Bright Sky radar";
+/// The checked parts of the `/radar` payload: the sub-grid box, the grid
+/// dimensions, and the requested position within the sub-grid.
+struct RadarGrid {
+    top: i64,
+    left: i64,
+    bottom: i64,
+    right: i64,
+    width: i64,
+    height: i64,
+    n_cells: i64,
+    px: f64,
+    py: f64,
+    covered: bool,
+}
 
-    let frames_raw = payload
-        .get("radar")
-        .and_then(Value::as_array)
-        .filter(|list| !list.is_empty())
-        .ok_or_else(|| SourceError::new(format!("{label}: missing/empty 'radar' list")))?;
-
+/// The `bbox` / `latlon_position` part of Python's `parse_radar`: the
+/// grid box and size, and whether the position is inside the box.
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "width/height are radar grid dimensions, bounded by MAX_RADAR_CELLS"
+)]
+fn radar_grid(payload: &Value, label: &str) -> Result<RadarGrid, SourceError> {
     let bbox = payload
         .get("bbox")
         .and_then(Value::as_array)
@@ -147,66 +160,101 @@ pub fn parse_radar(payload: &Value) -> Result<RadarNowcast, SourceError> {
     let py = position_num(llp, "y")?;
     let covered = 0.0 <= px && px < width as f64 && 0.0 <= py && py < height as f64;
 
-    let n_cells = usize::try_from(n_cells)
-        .map_err(|_| SourceError::new(format!("{label}: bad grid size {n_cells}")))?;
-    let mut frames: Vec<RadarFrame> = Vec::with_capacity(frames_raw.len());
-    for rec in frames_raw {
-        let rec = rec
-            .as_object()
-            .ok_or_else(|| malformed(label, SourceError::new("frame is not an object")))?;
-        let encoded = rec
-            .get("precipitation_5")
-            .and_then(Value::as_str)
-            .ok_or_else(|| {
-                malformed(
-                    label,
-                    SourceError::new("frame has no string 'precipitation_5'"),
-                )
-            })?;
-        let grid = decode_grid(encoded, n_cells)?;
-        let ts = rec
-            .get("timestamp")
-            .and_then(Value::as_str)
-            .ok_or_else(|| malformed(label, SourceError::new("frame has no string 'timestamp'")))?;
-        let time_utc = parse_iso(ts).map_err(|e| malformed(label, SourceError::new(e)))?;
+    Ok(RadarGrid {
+        top,
+        left,
+        bottom,
+        right,
+        width,
+        height,
+        n_cells,
+        px,
+        py,
+        covered,
+    })
+}
 
-        let mut cells: Vec<RadarCell> = Vec::new();
-        let mut max_mm = 0.0_f64;
-        for row in 0..height {
-            let y = top + row;
-            for col in 0..width {
-                // decode_grid guarantees the size; .get keeps this panic-free.
-                let index = usize::try_from(row * width + col).ok();
-                let Some(&value) = index.and_then(|i| grid.get(i)) else {
-                    return Err(SourceError::new(format!("{label}: frame size mismatch")));
-                };
-                let mm = f64::from(value) * RADAR_MM_PER_UNIT;
-                if mm > 0.0 {
-                    if mm > max_mm {
-                        max_mm = mm;
-                    }
-                    cells.push(RadarCell {
-                        x: left + col,
-                        y,
-                        mm,
-                    });
+/// One frame of Python's `parse_radar`: the decoded grid, the non-zero
+/// cells, and the maximum precipitation.
+fn parse_frame(
+    rec: &Value,
+    label: &str,
+    grid: &RadarGrid,
+    n_cells: usize,
+) -> Result<RadarFrame, SourceError> {
+    let rec = rec
+        .as_object()
+        .ok_or_else(|| malformed(label, &SourceError::new("frame is not an object")))?;
+    let encoded = rec
+        .get("precipitation_5")
+        .and_then(Value::as_str)
+        .ok_or_else(|| {
+            malformed(
+                label,
+                &SourceError::new("frame has no string 'precipitation_5'"),
+            )
+        })?;
+    let values = decode_grid(encoded, n_cells)?;
+    let ts = rec
+        .get("timestamp")
+        .and_then(Value::as_str)
+        .ok_or_else(|| malformed(label, &SourceError::new("frame has no string 'timestamp'")))?;
+    let time_utc = parse_iso(ts).map_err(|e| malformed(label, &SourceError::new(e)))?;
+
+    let mut cells: Vec<RadarCell> = Vec::new();
+    let mut max_mm = 0.0_f64;
+    for row in 0..grid.height {
+        let y = grid.top + row;
+        for col in 0..grid.width {
+            // decode_grid guarantees the size; .get keeps this panic-free.
+            let index = usize::try_from(row * grid.width + col).ok();
+            let Some(&value) = index.and_then(|i| values.get(i)) else {
+                return Err(SourceError::new(format!("{label}: frame size mismatch")));
+            };
+            let mm = f64::from(value) * RADAR_MM_PER_UNIT;
+            if mm > 0.0 {
+                if mm > max_mm {
+                    max_mm = mm;
                 }
+                cells.push(RadarCell {
+                    x: grid.left + col,
+                    y,
+                    mm,
+                });
             }
         }
-        frames.push(RadarFrame {
-            time_utc,
-            cells,
-            max_mm,
-        });
+    }
+    Ok(RadarFrame {
+        time_utc,
+        cells,
+        max_mm,
+    })
+}
+
+pub fn parse_radar(payload: &Value) -> Result<RadarNowcast, SourceError> {
+    let label = "Bright Sky radar";
+
+    let frames_raw = payload
+        .get("radar")
+        .and_then(Value::as_array)
+        .filter(|list| !list.is_empty())
+        .ok_or_else(|| SourceError::new(format!("{label}: missing/empty 'radar' list")))?;
+    let grid = radar_grid(payload, label)?;
+
+    let n_cells = usize::try_from(grid.n_cells)
+        .map_err(|_| SourceError::new(format!("{label}: bad grid size {}", grid.n_cells)))?;
+    let mut frames: Vec<RadarFrame> = Vec::with_capacity(frames_raw.len());
+    for rec in frames_raw {
+        frames.push(parse_frame(rec, label, &grid, n_cells)?);
     }
 
     Ok(RadarNowcast {
         frames,
-        covered,
-        grid_width: width,
-        grid_height: height,
-        bbox: (top, left, bottom, right),
-        location_xy: (px, py),
+        covered: grid.covered,
+        grid_width: grid.width,
+        grid_height: grid.height,
+        bbox: (grid.top, grid.left, grid.bottom, grid.right),
+        location_xy: (grid.px, grid.py),
     })
 }
 

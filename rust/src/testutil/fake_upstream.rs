@@ -9,7 +9,7 @@ use std::sync::{Arc, Mutex};
 
 use serde_json::Value;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FakeRequest {
     pub path: String,
     pub query: Vec<(String, String)>,
@@ -50,10 +50,10 @@ pub struct FakeUpstream {
 
 impl FakeUpstream {
     /// Start the server on a free port. Unknown paths answer 404.
-    pub fn start() -> FakeUpstream {
+    pub fn start() -> Self {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
         let base = format!("http://{}", listener.local_addr().expect("addr"));
-        let fake = FakeUpstream {
+        let fake = Self {
             base,
             routes: Arc::new(Mutex::new(HashMap::new())),
             log: Arc::new(Mutex::new(Vec::new())),

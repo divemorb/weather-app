@@ -14,7 +14,7 @@ use crate::upstream::{SourceError, opt_f64, py_str, py_truthy};
 
 /// A payload-shape error (wrong type, missing key) becomes a `SourceError`
 /// with this wording.
-fn malformed(label: &str, exc: SourceError) -> SourceError {
+fn malformed(label: &str, exc: &SourceError) -> SourceError {
     SourceError::new(format!("{label}: malformed payload ({exc})"))
 }
 
@@ -52,9 +52,9 @@ pub fn parse_current_weather(payload: &Value) -> Result<CurrentConditions, Sourc
         .get("weather")
         .ok_or_else(|| SourceError::new(format!("{label}: missing 'weather'")))?
         .as_object()
-        .ok_or_else(|| malformed(label, SourceError::new("'weather' is not an object")))?;
+        .ok_or_else(|| malformed(label, &SourceError::new("'weather' is not an object")))?;
     let num = |key: &str| -> Result<Option<f64>, SourceError> {
-        opt_f64(w.get(key), key).map_err(|exc| malformed(label, exc))
+        opt_f64(w.get(key), key).map_err(|exc| malformed(label, &exc))
     };
     Ok(CurrentConditions {
         timestamp_utc: w.get("timestamp").cloned().unwrap_or(Value::Null),
@@ -147,7 +147,7 @@ pub fn parse_hourly_observations(
         let mm = match opt_f64(Some(precip), "precipitation") {
             Ok(Some(mm)) => mm,
             Ok(None) => continue,
-            Err(exc) => return Err(malformed(label, exc)),
+            Err(exc) => return Err(malformed(label, &exc)),
         };
         out.push((stamp - TimeDelta::hours(1), mm));
     }
@@ -172,7 +172,7 @@ pub fn parse_station_info(payload: &Value) -> Result<Option<(String, f64)>, Sour
     let distance = |s: &Value| -> Result<f64, SourceError> {
         // Missing, null or 0 stay 0.0.
         opt_f64(s.get("distance"), "distance")
-            .map_err(|exc| malformed(label, exc))
+            .map_err(|exc| malformed(label, &exc))
             .map(|d| d.unwrap_or(0.0))
     };
     for s in &sources {

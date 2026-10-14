@@ -26,6 +26,10 @@ pub struct ModelAccuracy {
 /// at the threshold counts as dry, matching the vote). Models without
 /// samples are absent; `event_accuracy` is
 /// `(hits + correct_negatives) / n_samples`.
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "n is the number of compared samples per model, far below 2^52"
+)]
 pub fn model_accuracy(
     rows: &[(String, f64, f64)],
     threshold_mm: f64,
