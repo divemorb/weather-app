@@ -116,14 +116,14 @@
 
 .accuracy-table {
   width: 100%;
-  min-width: 560px;
+  min-width: 520px;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .accuracy-table th,
 .accuracy-table td {
-  padding: 7px 10px;
+  padding: 7px 8px;
   text-align: right;
   white-space: nowrap;
   border-bottom: 1px solid var(--border);
