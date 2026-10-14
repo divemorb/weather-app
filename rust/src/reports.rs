@@ -29,28 +29,28 @@ impl ReportKind {
     /// The kind's name in the API.
     pub fn as_str(self) -> &'static str {
         match self {
-            ReportKind::Clear => "clear",
-            ReportKind::PartlyCloudy => "partly-cloudy",
-            ReportKind::Cloudy => "cloudy",
-            ReportKind::Fog => "fog",
-            ReportKind::Rain => "rain",
-            ReportKind::Thunderstorm => "thunderstorm",
-            ReportKind::Snow => "snow",
-            ReportKind::Hail => "hail",
+            Self::Clear => "clear",
+            Self::PartlyCloudy => "partly-cloudy",
+            Self::Cloudy => "cloudy",
+            Self::Fog => "fog",
+            Self::Rain => "rain",
+            Self::Thunderstorm => "thunderstorm",
+            Self::Snow => "snow",
+            Self::Hail => "hail",
         }
     }
 
     /// One of the eight API names, or nothing.
     pub fn parse(value: &str) -> Option<Self> {
         match value {
-            "clear" => Some(ReportKind::Clear),
-            "partly-cloudy" => Some(ReportKind::PartlyCloudy),
-            "cloudy" => Some(ReportKind::Cloudy),
-            "fog" => Some(ReportKind::Fog),
-            "rain" => Some(ReportKind::Rain),
-            "thunderstorm" => Some(ReportKind::Thunderstorm),
-            "snow" => Some(ReportKind::Snow),
-            "hail" => Some(ReportKind::Hail),
+            "clear" => Some(Self::Clear),
+            "partly-cloudy" => Some(Self::PartlyCloudy),
+            "cloudy" => Some(Self::Cloudy),
+            "fog" => Some(Self::Fog),
+            "rain" => Some(Self::Rain),
+            "thunderstorm" => Some(Self::Thunderstorm),
+            "snow" => Some(Self::Snow),
+            "hail" => Some(Self::Hail),
             _ => None,
         }
     }
@@ -58,12 +58,8 @@ impl ReportKind {
     /// The kinds where what the user sees is wet.
     pub fn is_wet(self) -> bool {
         match self {
-            ReportKind::Rain | ReportKind::Thunderstorm | ReportKind::Snow | ReportKind::Hail => {
-                true
-            }
-            ReportKind::Clear | ReportKind::PartlyCloudy | ReportKind::Cloudy | ReportKind::Fog => {
-                false
-            }
+            Self::Rain | Self::Thunderstorm | Self::Snow | Self::Hail => true,
+            Self::Clear | Self::PartlyCloudy | Self::Cloudy | Self::Fog => false,
         }
     }
 }
@@ -80,18 +76,18 @@ impl Intensity {
     /// The intensity's name in the API.
     pub fn as_str(self) -> &'static str {
         match self {
-            Intensity::Light => "light",
-            Intensity::Moderate => "moderate",
-            Intensity::Heavy => "heavy",
+            Self::Light => "light",
+            Self::Moderate => "moderate",
+            Self::Heavy => "heavy",
         }
     }
 
     /// One of the three API names, or nothing.
     pub fn parse(value: &str) -> Option<Self> {
         match value {
-            "light" => Some(Intensity::Light),
-            "moderate" => Some(Intensity::Moderate),
-            "heavy" => Some(Intensity::Heavy),
+            "light" => Some(Self::Light),
+            "moderate" => Some(Self::Moderate),
+            "heavy" => Some(Self::Heavy),
             _ => None,
         }
     }
@@ -103,12 +99,12 @@ pub struct MinutesAgo(i64);
 
 impl MinutesAgo {
     /// The observation is right now (no offset).
-    const NOW: MinutesAgo = MinutesAgo(0);
+    const NOW: Self = Self(0);
 
     /// Only 0, 15 and 30 minutes are accepted.
     pub fn new(minutes: i64) -> Option<Self> {
         if minutes == 0 || minutes == 15 || minutes == 30 {
-            Some(MinutesAgo(minutes))
+            Some(Self(minutes))
         } else {
             None
         }
@@ -179,10 +175,10 @@ pub enum ReportBodyError {
 impl std::fmt::Display for ReportBodyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ReportBodyError::Invalid(errors) => {
+            Self::Invalid(errors) => {
                 write!(f, "invalid report body: {} field error(s)", errors.len())
             }
-            ReportBodyError::Unparseable => write!(f, "invalid report body: not valid UTF-8"),
+            Self::Unparseable => write!(f, "invalid report body: not valid UTF-8"),
         }
     }
 }
@@ -271,13 +267,14 @@ fn check_fields(obj: &Map<String, Value>) -> Result<ReportIn, ReportBodyError> {
             errors.push(field_error("kind", "Field required"));
             None
         }
-        Some(Value::String(s)) => match ReportKind::parse(s) {
-            Some(kind) => Some(kind),
-            None => {
+        Some(Value::String(s)) => {
+            if let Some(kind) = ReportKind::parse(s) {
+                Some(kind)
+            } else {
                 errors.push(field_error("kind", KIND_MSG));
                 None
             }
-        },
+        }
         Some(_) => {
             errors.push(field_error("kind", KIND_MSG));
             None
@@ -367,7 +364,7 @@ pub fn parse_report_id(raw: &str) -> Option<i64> {
     if bytes.is_empty() || bytes.len() > 18 {
         return None;
     }
-    if !bytes.iter().all(|b| b.is_ascii_digit()) {
+    if !bytes.iter().all(u8::is_ascii_digit) {
         return None;
     }
     if matches!(bytes.first(), Some(b'0')) {

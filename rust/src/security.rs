@@ -66,15 +66,15 @@ pub async fn guard(State(state): State<AppState>, req: Request, next: Next) -> R
         .get(header::HOST)
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
-    let mut res = if !host_allowed(host, &state.extra_hosts) {
+    let mut res = if host_allowed(host, &state.extra_hosts) {
+        next.run(req).await
+    } else {
         (
             StatusCode::BAD_REQUEST,
             [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
             "Invalid host header",
         )
             .into_response()
-    } else {
-        next.run(req).await
     };
     let h = res.headers_mut();
     h.insert(

@@ -17,7 +17,7 @@ use crate::stations::{
 };
 
 /// Freshness of one cached source (Python `Aggregator.cache_meta`).
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CacheMeta {
     pub available: bool,
     pub age_seconds: Option<i64>,
@@ -37,7 +37,7 @@ fn cache_meta(meta: Option<&CacheMeta>) -> Map<String, Value> {
     out.insert("available".into(), Value::Bool(m.available));
     out.insert(
         "age_seconds".into(),
-        m.age_seconds.map(Value::from).unwrap_or(Value::Null),
+        m.age_seconds.map_or(Value::Null, Value::from),
     );
     out.insert("stale".into(), Value::Bool(m.stale));
     out
@@ -222,15 +222,13 @@ pub fn serialize_model_accuracy(
             "mae_mm".into(),
             stats
                 .mae_mm
-                .map(|v| Value::from(py_round(v, 3)))
-                .unwrap_or(Value::Null),
+                .map_or(Value::Null, |v| Value::from(py_round(v, 3))),
         );
         entry.insert(
             "event_accuracy".into(),
             stats
                 .event_accuracy
-                .map(|v| Value::from(py_round(v, 3)))
-                .unwrap_or(Value::Null),
+                .map_or(Value::Null, |v| Value::from(py_round(v, 3))),
         );
         serialized.insert(name.clone(), Value::Object(entry));
     }

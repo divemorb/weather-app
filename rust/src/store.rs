@@ -30,9 +30,9 @@ pub enum StoreError {
 impl std::fmt::Display for StoreError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            StoreError::Sqlite(e) => write!(f, "database error: {e}"),
-            StoreError::Json(e) => write!(f, "cached payload is not valid JSON: {e}"),
-            StoreError::Io(e) => write!(f, "cannot create the database directory: {e}"),
+            Self::Sqlite(e) => write!(f, "database error: {e}"),
+            Self::Json(e) => write!(f, "cached payload is not valid JSON: {e}"),
+            Self::Io(e) => write!(f, "cannot create the database directory: {e}"),
         }
     }
 }
@@ -40,28 +40,28 @@ impl std::fmt::Display for StoreError {
 impl std::error::Error for StoreError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            StoreError::Sqlite(e) => Some(e),
-            StoreError::Json(e) => Some(e),
-            StoreError::Io(e) => Some(e),
+            Self::Sqlite(e) => Some(e),
+            Self::Json(e) => Some(e),
+            Self::Io(e) => Some(e),
         }
     }
 }
 
 impl From<rusqlite::Error> for StoreError {
     fn from(e: rusqlite::Error) -> Self {
-        StoreError::Sqlite(e)
+        Self::Sqlite(e)
     }
 }
 
 impl From<serde_json::Error> for StoreError {
     fn from(e: serde_json::Error) -> Self {
-        StoreError::Json(e)
+        Self::Json(e)
     }
 }
 
 impl From<io::Error> for StoreError {
     fn from(e: io::Error) -> Self {
-        StoreError::Io(e)
+        Self::Io(e)
     }
 }
 
@@ -77,28 +77,23 @@ pub enum Source {
 
 impl Source {
     /// In Python's `_SOURCES` order (the order of `/api/sources`).
-    pub const ALL: [Source; 4] = [
-        Source::Radar,
-        Source::Current,
-        Source::Forecast,
-        Source::Ensemble,
-    ];
+    pub const ALL: [Self; 4] = [Self::Radar, Self::Current, Self::Forecast, Self::Ensemble];
 
     /// "radar", "current", "forecast", "ensemble"
     pub fn key(self) -> &'static str {
         match self {
-            Source::Radar => "radar",
-            Source::Current => "current",
-            Source::Forecast => "forecast",
-            Source::Ensemble => "ensemble",
+            Self::Radar => "radar",
+            Self::Current => "current",
+            Self::Forecast => "forecast",
+            Self::Ensemble => "ensemble",
         }
     }
 
     /// "DWD (Bright Sky)" for Radar/Current, "Open-Meteo" for Forecast/Ensemble.
     pub fn upstream(self) -> &'static str {
         match self {
-            Source::Radar | Source::Current => "DWD (Bright Sky)",
-            Source::Forecast | Source::Ensemble => "Open-Meteo",
+            Self::Radar | Self::Current => "DWD (Bright Sky)",
+            Self::Forecast | Self::Ensemble => "Open-Meteo",
         }
     }
 }
@@ -146,7 +141,7 @@ impl Store {
     /// Open (or create) the database, applying the schema and the
     /// one-time migrations. `":memory:"` opens an in-memory database,
     /// exactly like Python's `Store(":memory:")`.
-    pub fn open(path: &str) -> Result<Store, StoreError> {
+    pub fn open(path: &str) -> Result<Self, StoreError> {
         if let Some(parent) = Path::new(path).parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -154,7 +149,7 @@ impl Store {
         conn.execute_batch(SCHEMA)?;
         conn.execute_batch(reports::SCHEMA)?;
         migrate(&mut conn)?;
-        Ok(Store {
+        Ok(Self {
             conn: Mutex::new(conn),
         })
     }

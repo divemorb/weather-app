@@ -129,8 +129,8 @@ async fn server() {
     // tasks end with the runtime, and database writes are synchronous calls
     // between the .awaits, so no half-done write survives.
     tokio::select! {
-        _ = wetter::scheduler::initial_refresh(&agg) => {},
-        _ = shutdown_requested(&mut term) => {
+        () = wetter::scheduler::initial_refresh(&agg) => {},
+        () = shutdown_requested(&mut term) => {
             tracing::info!("shutdown requested during startup");
             return;
         }

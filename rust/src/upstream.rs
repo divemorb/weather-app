@@ -8,12 +8,12 @@ use serde_json::Value;
 pub const MAX_RESPONSE_BYTES: usize = 5 * 1024 * 1024;
 
 /// A data source failed or returned an unusable payload.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SourceError(pub String);
 
 impl SourceError {
     pub fn new(msg: impl Into<String>) -> Self {
-        SourceError(msg.into())
+        Self(msg.into())
     }
 }
 

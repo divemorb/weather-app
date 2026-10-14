@@ -34,29 +34,29 @@ pub enum Job {
 }
 
 impl Job {
-    pub const ALL: [Job; 2] = [Job::Radar, Job::Models];
+    pub const ALL: [Self; 2] = [Self::Radar, Self::Models];
 
     /// "radar" / "models" (log texts, keys of /api/schedule)
     pub fn key(self) -> &'static str {
         match self {
-            Job::Radar => "radar",
-            Job::Models => "models",
+            Self::Radar => "radar",
+            Self::Models => "models",
         }
     }
 
     /// "radar_refresh" / "models_refresh" (Python's scheduler job ids)
     pub fn id(self) -> &'static str {
         match self {
-            Job::Radar => "radar_refresh",
-            Job::Models => "models_refresh",
+            Self::Radar => "radar_refresh",
+            Self::Models => "models_refresh",
         }
     }
 
     /// [Radar, Current] / [Forecast, Ensemble]
     pub fn sources(self) -> [Source; 2] {
         match self {
-            Job::Radar => [Source::Radar, Source::Current],
-            Job::Models => [Source::Forecast, Source::Ensemble],
+            Self::Radar => [Source::Radar, Source::Current],
+            Self::Models => [Source::Forecast, Source::Ensemble],
         }
     }
 }

@@ -116,9 +116,9 @@ pub fn build_24h_series(
         let values: Vec<Option<f64>> = m
             .hourly_precip_mm
             .get(offset..(offset + n).min(m.hourly_precip_mm.len()))
-            .map(|s| s.to_vec())
+            .map(<[std::option::Option<f64>]>::to_vec)
             .unwrap_or_default();
-        if values.iter().all(|v| v.is_none()) {
+        if values.iter().all(std::option::Option::is_none) {
             continue; // model with null data draws nothing -> skip
         }
         models.push(ModelHours {

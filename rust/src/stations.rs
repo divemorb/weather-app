@@ -21,7 +21,7 @@ use crate::times::parse_iso;
 /// One listed `sources` entry as the API's `station` shape (Python
 /// `parse_station`): `name` / `dwd_station_id` from `station_name` /
 /// `dwd_station_id`, the rest from `distance` / `lat` / `lon` / `height`.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Station {
     pub name: Option<String>,
     /// The number as the payload carried it (5837.0 stays a float, 5837 an
@@ -35,7 +35,7 @@ pub struct Station {
 
 /// A fallback source as the API's `fallback` shape (name + distance,
 /// Python `_fallback_entry`).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FallbackEntry {
     pub name: Option<String>,
     pub distance_m: Option<Value>,
@@ -43,7 +43,7 @@ pub struct FallbackEntry {
 
 /// One backfill station as the stored entry and the API's `stations`
 /// shape (Python `_observation_entry`): no `height_m`, plus `hours`.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ObsStation {
     pub name: Option<String>,
     pub distance_m: Option<Value>,
@@ -93,9 +93,9 @@ fn as_int_id(v: Option<&Value>) -> Option<i128> {
         return None;
     };
     if n.is_i64() {
-        n.as_i64().map(|i| i as i128)
+        n.as_i64().map(i128::from)
     } else if n.is_u64() {
-        n.as_u64().map(|u| u as i128)
+        n.as_u64().map(i128::from)
     } else {
         None
     }

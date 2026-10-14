@@ -34,12 +34,12 @@ pub enum SnapshotError {
 impl std::fmt::Display for SnapshotError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SnapshotError::TargetExists(path) => {
+            Self::TargetExists(path) => {
                 write!(f, "target file already exists: {}", path.display())
             }
-            SnapshotError::Sqlite(e) => write!(f, "sqlite: {e}"),
-            SnapshotError::Integrity(result) => write!(f, "integrity check failed: {result}"),
-            SnapshotError::Io(e) => write!(f, "i/o error: {e}"),
+            Self::Sqlite(e) => write!(f, "sqlite: {e}"),
+            Self::Integrity(result) => write!(f, "integrity check failed: {result}"),
+            Self::Io(e) => write!(f, "i/o error: {e}"),
         }
     }
 }
@@ -47,23 +47,23 @@ impl std::fmt::Display for SnapshotError {
 impl std::error::Error for SnapshotError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            SnapshotError::TargetExists(_) => None,
-            SnapshotError::Sqlite(e) => Some(e),
-            SnapshotError::Integrity(_) => None,
-            SnapshotError::Io(e) => Some(e),
+            Self::TargetExists(_) => None,
+            Self::Sqlite(e) => Some(e),
+            Self::Integrity(_) => None,
+            Self::Io(e) => Some(e),
         }
     }
 }
 
 impl From<rusqlite::Error> for SnapshotError {
     fn from(e: rusqlite::Error) -> Self {
-        SnapshotError::Sqlite(e)
+        Self::Sqlite(e)
     }
 }
 
 impl From<io::Error> for SnapshotError {
     fn from(e: io::Error) -> Self {
-        SnapshotError::Io(e)
+        Self::Io(e)
     }
 }
 
@@ -97,7 +97,7 @@ pub fn snapshot(source: &Path, target: &Path) -> Result<Stats, SnapshotError> {
     if target.exists() {
         return Err(SnapshotError::TargetExists(target.to_path_buf()));
     }
-    match vacuum_into(source, target).and_then(|_| verify(target)) {
+    match vacuum_into(source, target).and_then(|()| verify(target)) {
         Ok(stats) => Ok(stats),
         Err(err) => Err(remove_copy(target, err)),
     }

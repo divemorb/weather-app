@@ -115,7 +115,7 @@ pub(crate) async fn current_report(State(state): State<AppState>) -> Response {
     // already excludes anything after `now`).
     let fresh_until = times::to_iso(now - TimeDelta::minutes(FRESH_MINUTES));
     let report = match row {
-        Some(row) if !(row.observed_at < fresh_until) => row,
+        Some(row) if (row.observed_at >= fresh_until) => row,
         _ => {
             return (StatusCode::OK, Json(json!({ "report": null }))).into_response();
         }

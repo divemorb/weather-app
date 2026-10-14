@@ -236,8 +236,7 @@ impl OpenMeteoClient {
         if !data.is_object() || data.get("error").is_some_and(upstream::py_truthy) {
             let reason = if data.is_object() {
                 data.get("reason")
-                    .map(upstream::py_str)
-                    .unwrap_or_else(|| "None".to_string())
+                    .map_or_else(|| "None".to_string(), upstream::py_str)
             } else {
                 "bad payload".to_string()
             };

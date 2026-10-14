@@ -99,7 +99,7 @@ impl ProbabilityConfig {
 }
 
 /// Open-Meteo forecast models compared for the next 24 h.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModelsConfig {
     pub forecast: Vec<String>,
     pub ensemble_model: String,
@@ -124,7 +124,7 @@ impl Default for ModelsConfig {
 }
 
 /// Cache refresh cadence and stale thresholds.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SchedulingConfig {
     pub radar_interval_minutes: i64,
     pub models_interval_minutes: i64,
@@ -146,7 +146,7 @@ impl Default for SchedulingConfig {
 /// Per-model accuracy scoring: a rolling window of `window_days` and a
 /// minimum of `min_samples` compared hours before the accuracy is treated
 /// as reliable.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AccuracyConfig {
     pub window_days: i64,
     pub min_samples: i64,

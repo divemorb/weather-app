@@ -42,7 +42,7 @@ impl IntoResponse for ApiError {
 
 impl From<StoreError> for ApiError {
     fn from(err: StoreError) -> Self {
-        ApiError(err)
+        Self(err)
     }
 }
 

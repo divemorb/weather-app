@@ -180,7 +180,7 @@ pub fn parse_radar(payload: &Value) -> Result<RadarNowcast, SourceError> {
                 let Some(&value) = index.and_then(|i| grid.get(i)) else {
                     return Err(SourceError::new(format!("{label}: frame size mismatch")));
                 };
-                let mm = value as f64 * RADAR_MM_PER_UNIT;
+                let mm = f64::from(value) * RADAR_MM_PER_UNIT;
                 if mm > 0.0 {
                     if mm > max_mm {
                         max_mm = mm;

@@ -179,7 +179,7 @@ enum Monotonic {
 impl Monotonic {
     fn now(&self) -> f64 {
         match self {
-            Monotonic::System => start_instant().elapsed().as_secs_f64(),
+            Self::System => start_instant().elapsed().as_secs_f64(),
             #[cfg(test)]
             Monotonic::Fixed(v) => *v,
         }
@@ -205,7 +205,7 @@ enum ThrottleSleep {
 impl ThrottleSleep {
     async fn sleep(&self, wait: f64) {
         match self {
-            ThrottleSleep::Tokio => {
+            Self::Tokio => {
                 tokio::time::sleep(wait_duration(wait)).await;
             }
             #[cfg(test)]

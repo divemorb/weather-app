@@ -22,24 +22,24 @@ pub fn to_iso(t: DateTime<Utc>) -> String {
 
 /// The app's clock: the real time, or a fixed instant when `WETTER_FAKE_NOW`
 /// is set.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Clock {
     fixed: Option<DateTime<Utc>>,
 }
 
 impl Clock {
     pub fn system() -> Self {
-        Clock { fixed: None }
+        Self { fixed: None }
     }
 
     pub fn fixed(t: DateTime<Utc>) -> Self {
-        Clock { fixed: Some(t) }
+        Self { fixed: Some(t) }
     }
 
     pub fn from_env(env: &dyn Fn(&str) -> Option<String>) -> Result<Self, String> {
         match env("WETTER_FAKE_NOW").filter(|v| !v.is_empty()) {
-            Some(v) => parse_iso(&v).map(Clock::fixed),
-            None => Ok(Clock::system()),
+            Some(v) => parse_iso(&v).map(Self::fixed),
+            None => Ok(Self::system()),
         }
     }
 

@@ -173,11 +173,11 @@ impl LocationIn {
 }
 
 /// 422 `{"detail": [{"loc": ["body", "timezone"], "msg": "unknown timezone"}]}`.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct UnknownTimezone;
 
 /// One part of a 422 `loc`: a name (`"body"`, `"latitude"`) or a position.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LocPart {
     Name(&'static str),
     Pos(usize),
@@ -349,10 +349,10 @@ pub enum BodyError {
 impl std::fmt::Display for BodyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            BodyError::Invalid(errors) => {
+            Self::Invalid(errors) => {
                 write!(f, "invalid request body: {} field error(s)", errors.len())
             }
-            BodyError::Unparseable => write!(f, "invalid request body: not valid UTF-8"),
+            Self::Unparseable => write!(f, "invalid request body: not valid UTF-8"),
         }
     }
 }

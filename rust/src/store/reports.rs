@@ -11,7 +11,7 @@ use super::{Store, StoreError};
 use crate::reports::{Intensity, ReportKind};
 
 /// The `user_reports` part of the Python `_SCHEMA`, verbatim.
-pub const SCHEMA: &str = r#"
+pub const SCHEMA: &str = r"
 CREATE TABLE IF NOT EXISTS user_reports (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     kind        TEXT NOT NULL,
@@ -19,11 +19,11 @@ CREATE TABLE IF NOT EXISTS user_reports (
     confirms    INTEGER NOT NULL DEFAULT 0,
     observed_at TEXT NOT NULL
 );
-"#;
+";
 
 /// One row of `user_reports` (what the table holds, passed through to the
 /// API).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StoredReport {
     pub id: i64,
     pub kind: String,
@@ -34,7 +34,7 @@ pub struct StoredReport {
 
 /// One report for the accuracy comparison (Python `Store.report_rows`'s
 /// `(id, kind, confirms, observed_at)`).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReportRow {
     pub id: i64,
     pub kind: String,
