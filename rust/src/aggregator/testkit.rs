@@ -87,10 +87,10 @@ pub fn current_payload() -> Value {
 /// with null data is skipped" path.
 pub fn forecast_payload() -> Value {
     let m15: Vec<String> = (0..4)
-        .map(|i| times::to_iso(now() + TimeDelta::minutes(15 + 15 * i as i64)))
+        .map(|i| times::to_iso(now() + TimeDelta::minutes(15 + 15 * i64::from(i))))
         .collect();
     let h72: Vec<String> = (0..72)
-        .map(|i| times::to_iso(now() + TimeDelta::hours(i as i64)))
+        .map(|i| times::to_iso(now() + TimeDelta::hours(i64::from(i))))
         .collect();
     let mut icon_d2 = vec![0.0; 72];
     *icon_d2.get_mut(1).expect("hourly axis has 72 entries") = 0.4;
@@ -122,7 +122,7 @@ pub fn forecast_payload() -> Value {
 /// (13:00, covering 12:00-13:00) is the next hour.
 pub fn ensemble_payload() -> Value {
     let h4: Vec<String> = (0..4)
-        .map(|i| times::to_iso(now() + TimeDelta::hours(1 + i as i64)))
+        .map(|i| times::to_iso(now() + TimeDelta::hours(1 + i64::from(i))))
         .collect();
     json!({
         "hourly": {

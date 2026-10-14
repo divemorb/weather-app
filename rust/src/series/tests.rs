@@ -67,7 +67,7 @@ fn test_24h_series_empty_bundle() {
 fn test_24h_series_starts_at_now_and_labels_by_hour_start() {
     // axis stamped 11:00..34:00, now = 10:20
     let now = at(2025, 1, 1, 10, 20);
-    let vals: Vec<Option<f64>> = (0..24).map(|i| Some(10.0 + i as f64)).collect();
+    let vals: Vec<Option<f64>> = (0..24).map(|i| Some(10.0 + f64::from(i))).collect();
     let start = at(2025, 1, 1, 11, 0);
     let bundle = ForecastBundle {
         models: vec![

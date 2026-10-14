@@ -48,14 +48,14 @@ fn reference_cases_match_python() {
             let got = py_fmt_0f(x);
             if got != want {
                 mismatches += 1;
-                note(&mut first, "f0", x, got.to_string(), want.to_string());
+                note(&mut first, "f0", x, got.clone(), want.to_owned());
             }
         }
         let want = c["g"].as_str().expect("g is a string");
         let got = py_fmt_g(x);
         if got != want {
             mismatches += 1;
-            note(&mut first, "g", x, got.to_string(), want.to_string());
+            note(&mut first, "g", x, got.clone(), want.to_owned());
         }
     }
     assert_eq!(mismatches, 0, "first mismatches: {first:?}");
@@ -93,12 +93,12 @@ fn py_fmt_g_scientific_small() {
 
 #[test]
 fn py_fmt_g_scientific_large() {
-    assert_eq!(py_fmt_g(1234567.0), "1.23457e+06");
+    assert_eq!(py_fmt_g(1_234_567.0), "1.23457e+06");
 }
 
 #[test]
 fn py_fmt_0f_rounds_to_35() {
-    assert_eq!(py_fmt_0f(34.69387755102041), "35");
+    assert_eq!(py_fmt_0f(34.693_877_551_020_41), "35");
 }
 
 #[test]
@@ -197,7 +197,7 @@ fn py_repr_reference_values() {
         (0.1 + 0.2, "0.30000000000000004"),
         (1e16, "1e+16"),
         (1e15, "1000000000000000.0"),
-        (123456789012345678.0, "1.2345678901234568e+17"),
+        (123_456_789_012_345_678.0, "1.2345678901234568e+17"),
         (1e-5, "1e-05"),
         (0.0001, "0.0001"),
         (-0.0, "-0.0"),

@@ -1,7 +1,7 @@
 use super::*;
 
 fn extra_hosts() -> HashSet<String> {
-    ["pi.fritz.box"].into_iter().map(String::from).collect()
+    std::iter::once("pi.fritz.box").map(String::from).collect()
 }
 
 #[test]

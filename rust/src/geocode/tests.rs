@@ -40,13 +40,13 @@ fn parse_nominatim_real_shaped_sample() {
             GeocodeResult {
                 label: "Thomass-Eck, 1, Marienplatz, …, München, Bayern, 80331, Deutschland"
                     .to_string(),
-                latitude: 48.1374990,
-                longitude: 11.5755020,
+                latitude: 48.137_499_0,
+                longitude: 11.575_502_0,
             },
             GeocodeResult {
                 label: "Marienplatz, München, Bayern, Deutschland".to_string(),
-                latitude: 48.1386200,
-                longitude: 11.5765400,
+                latitude: 48.138_620_0,
+                longitude: 11.576_540_0,
             },
         ]
     );

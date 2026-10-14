@@ -138,8 +138,8 @@ fn parse_forecast_missing_model_key_gives_empty() {
     // Request a model that has no suffixed keys in the payload.
     let bundle = parse_forecast(&forecast_payload(), &["gfs_seamless".into()]).unwrap();
     let m = bundle.by_name("gfs_seamless").unwrap();
-    assert!(m.hourly_precip_mm.is_empty());
-    assert!(m.min15_precip_mm.is_empty());
+    assert_eq!(m.hourly_precip_mm, []);
+    assert_eq!(m.min15_precip_mm, []);
 }
 
 #[test]
@@ -230,7 +230,7 @@ fn parse_ensemble_zero_members() {
     let payload = crate::testutil::make_ensemble_payload(&HOURS, &nums(&[0.0, 0.0]), &[]);
     let data = parse_ensemble(&payload).unwrap();
     assert_eq!(data.n_members(), 0);
-    assert!(data.member_precip_mm.is_empty());
+    assert_eq!(data.member_precip_mm, &[] as &[Vec<Option<f64>>]);
 }
 
 #[test]
@@ -255,9 +255,9 @@ fn parse_ensemble_wrong_type_raises_source_error() {
 fn parse_ensemble_missing_hourly_gives_empty() {
     // a missing section is empty
     let data = parse_ensemble(&json!({"latitude": 52.0, "longitude": 13.0})).unwrap();
-    assert!(data.hourly_time.is_empty());
-    assert!(data.control_precip_mm.is_empty());
-    assert!(data.member_precip_mm.is_empty());
+    assert_eq!(data.hourly_time, &[] as &[chrono::DateTime<chrono::Utc>]);
+    assert_eq!(data.control_precip_mm, []);
+    assert_eq!(data.member_precip_mm, &[] as &[Vec<Option<f64>>]);
 }
 
 #[test]

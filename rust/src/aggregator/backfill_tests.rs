@@ -238,7 +238,7 @@ async fn moving_clears_the_stations_the_same_place_keeps_them() {
     agg.set_location(loc(52.001, 13.001)).unwrap(); // make_cfg: 52.0/13.0
     assert_eq!(
         agg.store().get_meta(OBSERVATION_STATIONS_KEY).unwrap(),
-        Some(stored.clone()),
+        Some(stored),
         "a near move keeps the stored stations"
     );
 

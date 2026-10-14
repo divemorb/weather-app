@@ -195,7 +195,7 @@ fn clear_location_data_removes_every_report() {
         )
         .unwrap();
     store.clear_location_data().unwrap();
-    assert!(ids(&store).is_empty());
+    assert_eq!(ids(&store), &[] as &[i64]);
     assert_eq!(store.newest_report("2025-01-02T00:00:00Z").unwrap(), None);
 }
 
@@ -235,13 +235,7 @@ fn report_rows_lists_every_report_in_id_order() {
             },
         ]
     );
-    assert!(
-        Store::open(":memory:")
-            .unwrap()
-            .report_rows()
-            .unwrap()
-            .is_empty()
-    );
+    assert_eq!(Store::open(":memory:").unwrap().report_rows().unwrap(), []);
 }
 
 #[test]
@@ -298,10 +292,5 @@ fn scored_forecasts_returns_the_scored_rows_labelled_by_hour() {
             rows[2].clone(),
         ]
     );
-    assert!(
-        store
-            .scored_forecasts("2025-01-02T00:00:00Z")
-            .unwrap()
-            .is_empty()
-    );
+    assert_eq!(store.scored_forecasts("2025-01-02T00:00:00Z").unwrap(), []);
 }

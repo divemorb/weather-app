@@ -116,7 +116,7 @@ fn startup_adopts_cfg_location_into_db() {
     let (_dir, store) = fresh_store();
     let cfg = make_cfg();
     let got = resolve_startup_location(&store, &cfg).unwrap();
-    assert_eq!(got, cfg.location.clone());
+    assert_eq!(got, cfg.location);
     assert_eq!(
         location_from_json(store.get_meta(LOCATION_KEY).unwrap().as_deref()),
         cfg.location

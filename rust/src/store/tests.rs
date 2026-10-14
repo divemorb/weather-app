@@ -220,7 +220,7 @@ fn migrates_old_db_once() {
     // --- first connect on the new code: deletes old rows, records v3 ---
     {
         let store = Store::open(&db).unwrap();
-        assert!(rows(&store).is_empty());
+        assert_eq!(rows(&store), []);
         assert_eq!(
             store
                 .get_meta("forecast_history_version")
@@ -313,7 +313,10 @@ fn clear_location_data_wipes_cache_and_history_only() {
 
     assert!(store.get_cache(Source::Radar, now).unwrap().is_none());
     assert!(store.get_cache(Source::Current, now).unwrap().is_none());
-    assert!(rows(&store).is_empty());
+    assert_eq!(
+        rows(&store),
+        &[] as &[(String, String, String, String, f64, Option<f64>)]
+    );
     // the stored location itself must survive a location change
     assert_eq!(
         store.get_meta("location").unwrap().as_deref(),

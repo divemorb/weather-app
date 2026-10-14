@@ -22,7 +22,7 @@ fn validate(text: &str) -> Result<LocationIn, BodyError> {
 fn locs(err: BodyError) -> Vec<Vec<LocPart>> {
     match err {
         BodyError::Invalid(errors) => errors.into_iter().map(|e| e.loc).collect(),
-        other => panic!("expected Invalid, got {other:?}"),
+        other @ BodyError::Unparseable => panic!("expected Invalid, got {other:?}"),
     }
 }
 
@@ -214,7 +214,7 @@ fn validate_all_fields_bad_in_order() {
 
 #[test]
 fn validate_not_an_object() {
-    for text in [r#"null"#, r#""x""#, "5", "[1, 2]"] {
+    for text in [r"null", r#""x""#, "5", "[1, 2]"] {
         assert_eq!(locs(validate(text).unwrap_err()), vec![body_loc()]);
     }
 }

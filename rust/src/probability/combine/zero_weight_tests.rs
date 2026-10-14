@@ -18,13 +18,13 @@ fn combine_all_weights_zero_uses_equal_weights() {
     let cfg = prob_cfg(0.0, 0.0, 0.0);
     let (prob, weights) = combine_signals(&cfg, true, Some(true), Some(30.0), Some(0.0));
     // (100 + 30 + 0) / 3
-    assert_eq!(prob, 43.33333333333333);
+    assert_eq!(prob, 43.333_333_333_333_33);
     assert_eq!(
         weights,
         vec![
-            ("radar".to_string(), 0.3333333333333333),
-            ("models".to_string(), 0.3333333333333333),
-            ("ensemble".to_string(), 0.3333333333333333),
+            ("radar".to_string(), 0.333_333_333_333_333_3),
+            ("models".to_string(), 0.333_333_333_333_333_3),
+            ("ensemble".to_string(), 0.333_333_333_333_333_3),
         ]
     );
 }
@@ -46,9 +46,9 @@ fn combine_negative_weight_sum_uses_equal_weights() {
     assert_eq!(
         weights,
         vec![
-            ("radar".to_string(), 0.3333333333333333),
-            ("models".to_string(), 0.3333333333333333),
-            ("ensemble".to_string(), 0.3333333333333333),
+            ("radar".to_string(), 0.333_333_333_333_333_3),
+            ("models".to_string(), 0.333_333_333_333_333_3),
+            ("ensemble".to_string(), 0.333_333_333_333_333_3),
         ]
     );
 }

@@ -32,9 +32,9 @@ fn black_hole() -> String {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
     std::thread::spawn(move || {
-        let mut open = Vec::new();
+        // leak each accepted connection (held open, never answers)
         for stream in listener.incoming() {
-            open.push(stream);
+            std::mem::forget(stream);
         }
     });
     base

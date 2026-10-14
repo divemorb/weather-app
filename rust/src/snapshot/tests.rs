@@ -155,7 +155,7 @@ fn snapshot_of_empty_db_reports_none() {
     assert_eq!(stats.with_observation, 0);
     assert_eq!(stats.history_from, None);
     assert_eq!(stats.history_to, None);
-    assert!(stats.cached_sources.is_empty());
+    assert_eq!(stats.cached_sources, &[] as &[String]);
     assert_eq!(
         report(&stats),
         r"  integrity:        ok

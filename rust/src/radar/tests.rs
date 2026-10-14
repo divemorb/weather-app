@@ -190,7 +190,7 @@ fn decode_grid_matches_python_cases() {
     ))
     .unwrap();
     let cases = cases["cases"].as_array().unwrap();
-    assert!(!cases.is_empty());
+    assert_ne!(cases.as_slice(), &[] as &[Value]);
     for case in cases {
         let name = case["name"].as_str().unwrap();
         let encoded = case["encoded"].as_str().unwrap();
@@ -203,12 +203,12 @@ fn decode_grid_matches_python_cases() {
                 let result = &case["result"];
                 let grid =
                     decode_grid(encoded, n_cells).unwrap_or_else(|e| panic!("case {name:?}: {e}"));
-                let sum: u64 = grid.iter().map(|v| *v as u64).sum();
+                let sum: u64 = grid.iter().map(|v| u64::from(*v)).sum();
                 // sum of index * value modulo 1_000_000_007, computed with u64
                 let weighted: u64 = grid
                     .iter()
                     .enumerate()
-                    .map(|(i, v)| (i as u64) * (*v as u64))
+                    .map(|(i, v)| (i as u64) * u64::from(*v))
                     .sum::<u64>()
                     % 1_000_000_007;
                 assert_eq!(

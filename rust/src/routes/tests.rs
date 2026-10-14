@@ -143,5 +143,5 @@ async fn unchanged_static_file_answers_304() {
         headers.get("cache-control").and_then(|v| v.to_str().ok()),
         Some("no-cache")
     );
-    assert!(body.is_empty());
+    assert_eq!(body, "");
 }

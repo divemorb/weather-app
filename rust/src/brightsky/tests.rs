@@ -151,24 +151,22 @@ fn parse_hourly_observations_unknown_source_and_bad_timestamp() {
         ])),
         None,
     );
-    assert!(
-        parse_hourly_observations(&payload, now_weather())
-            .unwrap()
-            .is_empty()
+    assert_eq!(
+        parse_hourly_observations(&payload, now_weather()).unwrap(),
+        []
     );
 }
 
 #[test]
 fn parse_hourly_observations_empty_payload() {
-    assert!(
-        parse_hourly_observations(&json!({}), now_weather())
-            .unwrap()
-            .is_empty()
+    assert_eq!(
+        parse_hourly_observations(&json!({}), now_weather()).unwrap(),
+        []
     );
-    assert!(
+    assert_eq!(
         parse_hourly_observations(&json!({"weather": null, "sources": null}), now_weather())
-            .unwrap()
-            .is_empty()
+            .unwrap(),
+        []
     );
 }
 

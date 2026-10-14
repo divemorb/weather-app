@@ -119,7 +119,7 @@ async fn matching_etag_is_304_with_empty_body() {
         Some(etag.as_str())
     );
     assert!(!headers.contains_key(header::CONTENT_TYPE));
-    assert!(body.is_empty());
+    assert_eq!(body, "");
 }
 
 #[tokio::test]
@@ -137,5 +137,5 @@ async fn etag_list_match_is_304() {
     let list = format!("\"x\", {etag}");
     let (status, _headers, body) = call(&files, "GET", "/app.js", Some(list.as_str())).await;
     assert_eq!(status, StatusCode::NOT_MODIFIED);
-    assert!(body.is_empty());
+    assert_eq!(body, "");
 }

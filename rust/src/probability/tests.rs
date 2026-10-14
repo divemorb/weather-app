@@ -284,7 +284,7 @@ fn model_votes_per_model() {
 
 #[test]
 fn model_votes_none_bundle() {
-    assert!(model_votes(None, now()).is_empty());
+    assert_eq!(model_votes(None, now()), []);
 }
 
 #[test]

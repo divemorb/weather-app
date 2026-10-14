@@ -1,5 +1,7 @@
 use super::*;
+use base64::Engine as _;
 use serde_json::json;
+use std::io::Read as _;
 
 #[test]
 fn py_truthy_null_is_false() {
@@ -120,8 +122,6 @@ fn radar_payload_encodes_grids() {
     assert_eq!(payload["latlon_position"], json!({"x": 2.0, "y": 2.0}));
 
     // The encoded grid decodes back to the same uint16 bytes.
-    use base64::Engine as _;
-    use std::io::Read as _;
     let encoded = payload["radar"][0]["precipitation_5"].as_str().unwrap();
     let raw = base64::engine::general_purpose::STANDARD
         .decode(encoded.as_bytes())

@@ -176,7 +176,7 @@ async fn aggregator_without_location_makes_no_fetch_calls() {
     agg.refresh_radar().await;
     agg.refresh_models().await;
 
-    assert!(fake.requests().is_empty());
+    assert_eq!(fake.requests(), []);
     assert!(
         agg.store()
             .get_cache(Source::Radar, testkit::now())

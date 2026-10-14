@@ -199,7 +199,7 @@ fn a_not_json_body_is_refused_at_its_error_position() {
 fn an_empty_body_or_a_wrong_content_type_is_field_required() {
     let expected = json!({"detail": [{"loc": ["body"], "msg": "Field required"}]});
     for content_type in [None, Some("text/plain"), Some("application/xml")] {
-        let result = parse_report_body(content_type, r#"{"kind": "rain"}"#.as_bytes());
+        let result = parse_report_body(content_type, br#"{"kind": "rain"}"#);
         assert!(
             matches!(&result, Err(ReportBodyError::Invalid(errors)) if errors_json(errors) == expected),
             "content type {content_type:?}"
@@ -213,13 +213,10 @@ fn an_empty_body_or_a_wrong_content_type_is_field_required() {
     let report = parsed(r#"{"kind": "rain"}"#);
     let with_params = parse_report_body(
         Some("application/json; charset=UTF-8"),
-        r#"{"kind": "rain"}"#.as_bytes(),
+        br#"{"kind": "rain"}"#,
     );
     assert_eq!(with_params, Ok(report.clone()));
-    let vendor = parse_report_body(
-        Some("application/vnd.api+json"),
-        r#"{"kind": "rain"}"#.as_bytes(),
-    );
+    let vendor = parse_report_body(Some("application/vnd.api+json"), br#"{"kind": "rain"}"#);
     assert_eq!(vendor, Ok(report));
 }
 
@@ -384,10 +381,10 @@ fn the_id_must_be_plain_digits() {
     assert_eq!(parse_report_id("1"), Some(1));
     assert_eq!(
         parse_report_id("123456789012345678"),
-        Some(123456789012345678)
+        Some(123_456_789_012_345_678)
     );
     assert_eq!(
         parse_report_id("999999999999999999"),
-        Some(999999999999999999)
+        Some(999_999_999_999_999_999)
     );
 }

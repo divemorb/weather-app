@@ -97,7 +97,7 @@ fn station_missing_fields_are_null() {
 fn fallback_is_keyed_by_the_api_field_names() {
     let fallback = json!({
         "wind_speed_10": 11702, "cloud_cover": 11702, "precipitation_60": 11702,
-        "solar_60": 11702, "dew_point": 424242
+        "solar_60": 11702, "dew_point": 424_242
     });
     let payload = now_payload(&[tempelhof(), potsdam()], &json!(96160), Some(&fallback));
     let (_, fallback) = station_and_fallback(&payload);
@@ -186,7 +186,7 @@ fn record(ts: &str, sid: i64, precip: Option<f64>) -> Value {
 
 fn friedrichshain() -> Value {
     json!({
-        "id": 312070, "station_name": "Berlin-Friedrichshain/Spree",
+        "id": 312_070, "station_name": "Berlin-Friedrichshain/Spree",
         "observation_type": "historical", "distance": 1860.0, "lat": 52.51,
         "lon": 13.427, "height": 34.91, "dwd_station_id": "17473"
     })
@@ -227,16 +227,16 @@ fn later() -> DateTime<Utc> {
 /// `later()`), one unknown source.
 fn mixed_payload() -> Value {
     let records = [
-        record("09:00", 312070, Some(0.0)),
-        record("10:00", 312070, Some(0.5)),
-        record("11:00", 312070, None),
+        record("09:00", 312_070, Some(0.0)),
+        record("10:00", 312_070, Some(0.5)),
+        record("11:00", 312_070, None),
         record("12:00", 6150, Some(0.2)),
         record("13:00", 6150, Some(0.0)),
         record("14:00", 6150, Some(1.1)),
         record("14:00", 2382, Some(9.9)),
         record("15:00", 777, Some(0.3)),
         record("16:00", 777, Some(0.0)),
-        record("12:00", 424242, Some(0.4)),
+        record("12:00", 424_242, Some(0.4)),
     ];
     json!({
         "weather": records,
@@ -285,14 +285,14 @@ fn observation_stations_count_the_kept_records_nearest_first() {
 #[test]
 fn observation_stations_empty_without_any_kept_record() {
     let none = json!({"weather": [record("12:00", 2382, Some(1.0))], "sources": [alex_mosmix()]});
-    assert!(observation_stations(&none, later()).is_empty());
+    assert_eq!(observation_stations(&none, later()), []);
     for payload in [
         Value::Null,
         json!({"weather": []}),
         json!({"sources": [tempelhof_cur()]}),
         json!({}),
     ] {
-        assert!(observation_stations(&payload, later()).is_empty());
+        assert_eq!(observation_stations(&payload, later()), []);
     }
 }
 
@@ -345,8 +345,8 @@ fn stations_roundtrip_through_the_stored_value() {
     let stations = observation_stations(&mixed_payload(), later());
     let stored = stations_to_json(&stations);
     assert_eq!(stations_from_json(Some(&stored)), stations);
-    assert!(stations_from_json(Some("[]")).is_empty());
-    assert!(stations_from_json(None).is_empty());
+    assert_eq!(stations_from_json(Some("[]")), []);
+    assert_eq!(stations_from_json(None), []);
 }
 
 #[test]

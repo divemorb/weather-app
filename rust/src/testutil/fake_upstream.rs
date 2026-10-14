@@ -149,7 +149,7 @@ fn oversize(stream: &mut TcpStream, bytes: usize, declare: bool) -> std::io::Res
         stream,
         "HTTP/1.0 200 OK\r\nContent-Type: application/json\r\n{length}\r\n"
     )?;
-    let chunk = [b'0'; 65536];
+    let chunk = vec![b'0'; 65536];
     let mut sent = 0;
     while sent < bytes {
         stream.write_all(&chunk)?;

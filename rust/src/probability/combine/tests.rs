@@ -36,7 +36,9 @@ fn approx(actual: f64, expected: f64) -> bool {
 /// the series of member `i` (index 0 = 12:00).
 fn ensemble(members: Vec<Vec<Option<f64>>>) -> EnsembleData {
     EnsembleData {
-        hourly_time: (0..4).map(|i| now() + TimeDelta::hours(i as i64)).collect(),
+        hourly_time: (0..4)
+            .map(|i| now() + TimeDelta::hours(i64::from(i)))
+            .collect(),
         control_precip_mm: Vec::new(),
         member_precip_mm: members,
     }
@@ -347,7 +349,7 @@ fn combine_models_only() {
 fn combine_no_signals_is_zero() {
     let (prob, weights) = combine_signals(&PROB, false, None, None, None);
     assert_eq!(prob, 0.0);
-    assert!(weights.is_empty());
+    assert_eq!(weights, []);
 }
 
 #[test]

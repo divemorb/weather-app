@@ -116,7 +116,7 @@ fn get_rain_probability_no_data_at_all() {
 
     let prob = agg.get_rain_probability().unwrap();
     assert_eq!(prob.probability_pct, 0.0);
-    assert!(prob.weights_used.is_empty());
+    assert_eq!(prob.weights_used, []);
     assert!(prob.explanation.contains("No data"));
 }
 

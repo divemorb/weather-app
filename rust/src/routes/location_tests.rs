@@ -219,7 +219,7 @@ async fn post_location_nan_is_422_not_500() {
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     let parsed = body_json(&body);
     let detail = parsed["detail"].as_array().unwrap();
-    assert!(!detail.is_empty());
+    assert_ne!(detail, &[] as &[Value]);
     assert_eq!(detail[0]["loc"][0], Value::String("body".to_string()));
     // the rejected input (NaN) must not be echoed back
     assert!(!body.contains("NaN"));
@@ -382,5 +382,5 @@ async fn get_geocode_query_too_short_is_422() {
         body_json(&body)["detail"][0]["loc"],
         serde_json::json!(["query", "q"])
     );
-    assert!(fake.requests_to("/nom/search").is_empty());
+    assert_eq!(fake.requests_to("/nom/search"), []);
 }
