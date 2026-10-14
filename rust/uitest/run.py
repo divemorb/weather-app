@@ -42,6 +42,7 @@ import fnmatch
 import importlib.util
 import pathlib
 import re
+import socket
 import subprocess
 import sys
 import tempfile
@@ -74,6 +75,7 @@ from expect import (  # noqa: E402
 from fakeup import FakeUpstream  # noqa: E402
 import report_ui  # noqa: E402
 from scenarios import SCENARIOS  # noqa: E402
+import workers  # noqa: E402
 
 PROBE = (HERE / "probe.js").read_text()
 ALLOWED_EXT = {".html", ".js", ".css"}
@@ -693,7 +695,27 @@ class Results:
         self.problems.setdefault(name, []).extend(problems)
 
 
+def _free_in_range(base: int) -> int | None:
+    """The first free port in ``base .. base + PORT_SPAN - 1`` (a socket
+    bind test, as in ``contract.free_port``), or None if the range is full."""
+    for port in range(base, base + workers.PORT_SPAN):
+        try:
+            with socket.socket() as s:
+                s.bind(("127.0.0.1", port))
+            return port
+        except OSError:
+            continue
+    return None
+
+
 def start_app(sc: dict, args, tmp: pathlib.Path, static: pathlib.Path | None = None):
+    """Start the app on a free port. In the main process the port comes from
+    free_port() (nothing else is running); in a worker (T3) it is the first
+    free port in the worker's fixed range 20000 + 100*k .. +100*k + 99, found
+    by probing the range with a socket bind (the app exits fast when its port
+    is busy, so a busy port would look like a crash); two workers must never
+    pick the same port (their ranges are disjoint), and the rest of the range
+    is only tried if the probed port turns out busy anyway."""
     fake = FakeUpstream(sc["routes"])
     db = tmp / "weather.db"
     if sc.get("seed"):
@@ -702,17 +724,45 @@ def start_app(sc: dict, args, tmp: pathlib.Path, static: pathlib.Path | None = N
            "WETTER_FAKE_NOW": sc["now"], **sc["env"]}
     if static is not None:
         env["STATIC_DIR"] = str(static)
-    port = contract.free_port()
-    ns = types.SimpleNamespace(backend="rust", binary=args.binary, log=args.log)
-    proc = contract.start_backend(ns, port, env)
-    error = contract.wait_ready(port, proc)
+    port, proc, error = None, None, None
+    if getattr(args, "port_base", None) is None:
+        port = contract.free_port()
+        ns = types.SimpleNamespace(backend="rust", binary=args.binary, log=args.log)
+        proc = contract.start_backend(ns, port, env)
+        error = contract.wait_ready(port, proc)
+    else:
+        # the probed port first (the socket bind just found it free); the rest
+        # of the range only as a fallback in case it turns out busy anyway
+        probed = _free_in_range(args.port_base)
+        ports = ([probed] if probed is not None else []) + [
+            p for p in range(args.port_base, args.port_base + workers.PORT_SPAN) if p != probed]
+        for p in ports:
+            ns = types.SimpleNamespace(backend="rust", binary=args.binary, log=args.log)
+            proc = contract.start_backend(ns, p, env)
+            error = contract.wait_ready(p, proc, timeout=10)
+            if not error:
+                port = p
+                break
+            contract.stop_backend(proc)
+            proc = None
+            if "not ready" in error:  # the port is busy: try the next one
+                error = None
+            else:  # the app crashed: retrying another port won't help
+                break
+        if port is None and proc is None and error is None:
+            error = f"no free app port in {args.port_base}..{args.port_base + workers.PORT_SPAN - 1}"
     return fake, proc, port, error
 
 
-def run_scenario(name: str, browsers: dict, args, res: Results):
+def run_scenario(name: str, browsers: dict, args, res: Results, checks: list[str] | None = None):
+    """One scenario. ``checks`` (T3, the per-scene sky split): the check names
+    this job runs (the rest of the scenario's checks are left to other jobs);
+    None: all of the scenario's checks, as before."""
     sc = next(s for s in SCENARIOS if s["name"] == BACKEND.get(name, name))
+    base_names = {lang: (checks if checks is not None else check_names(name, lang))
+                  for lang in SCENARIO_LANGS.get(name, ["en", "de"])}
     langs = [lang for lang in SCENARIO_LANGS.get(name, ["en", "de"])
-             if lang in browsers and any(args.selected(f"{name}/{lang}/{c}") for c in check_names(name, lang))]
+             if lang in browsers and any(args.selected(f"{name}/{lang}/{c}") for c in base_names[lang])]
     if not langs:
         return
     with tempfile.TemporaryDirectory(prefix="uitest-") as tmp:
@@ -724,13 +774,13 @@ def run_scenario(name: str, browsers: dict, args, res: Results):
         try:
             if error:
                 for lang in langs:
-                    for c in check_names(name, lang):
+                    for c in base_names[lang]:
                         res.add(f"{name}/{lang}/{c}", [f"app did not start: {error}"])
                 return
             base = f"http://127.0.0.1:{port}"
             for lang in langs:
                 prefix = f"{name}/{lang}/"
-                names = [c for c in check_names(name, lang) if args.selected(prefix + c)]
+                names = [c for c in base_names[lang] if args.selected(prefix + c)]
 
                 def add(check, problems, prefix=prefix, names=names):
                     if check in names:
@@ -746,6 +796,102 @@ def run_scenario(name: str, browsers: dict, args, res: Results):
         finally:
             contract.stop_backend(proc)
             fake.stop()
+
+
+# --- T3: the jobs (one per scenario, sky one per scene) and the workers ---
+
+
+def _sky_scene_of(check: str) -> str | None:
+    """The scene of a sky check (``motion-<scene>``, ``still-<scene>``,
+    ``glass-<scene>``, ``contrast-<scene>-<theme>``), or None for the common ones."""
+    for prefix in ("motion-", "still-", "glass-", "contrast-"):
+        if check.startswith(prefix):
+            rest = check[len(prefix):]
+            if prefix == "contrast-":  # contrast-<scene>-<theme>
+                rest = rest.rsplit("-", 1)[0]
+            return rest
+    return None
+
+
+def sky_job_names() -> list[list[str]]:
+    """The sky's checks, one list per job: first the common ones (the
+    ``scene-*`` cases, ``sky-layer`` and ``layout-*``), then the checks of
+    each scene, so that no single job is the long pole of the whole run.
+    ``console`` and ``requests`` aggregate over the pages of every job, so
+    they are kept in all of them (the merge takes the union, as in the serial
+    run: an error on a per-scene page still fails them)."""
+    names = check_names("sky", "en")
+    common = [c for c in names if c in ("sky-layer",) or c.startswith(("scene-", "layout-"))]
+    jobs = [common]
+    for scene in SCENES:
+        jobs.append([c for c in names if _sky_scene_of(c) == scene])
+    for job in jobs:  # the per-page aggregations, in every job
+        job += ["console", "requests"]
+    return jobs
+
+
+def build_jobs(args, scenarios: list[str], langs: list[str]) -> tuple[list[dict], list[list[str]]]:
+    """The jobs to run, longest first, and the check names each job is
+    responsible for (a job that dies reports its checks as failed)."""
+    jobs: list[tuple[int, dict, list[str]]] = []
+    for name in scenarios:
+        if name != "sky":
+            jobs.append((workers.JOB_RANK.get(name, 9), {"scenarios": [name], "only": None},
+                         [f"{name}/{lang}/{c}" for lang in SCENARIO_LANGS.get(name, ["en", "de"])
+                          if lang in langs for c in check_names(name, lang)]))
+            continue
+        for subset in sky_job_names():
+            jobs.append((workers.JOB_RANK["sky"], {"scenarios": ["sky"], "only": subset},
+                         [f"sky/en/{c}" for c in subset]))
+    jobs.sort(key=lambda t: t[0])
+    return [j for _, j, _ in jobs], [names for _, _, names in jobs]
+
+
+def run_job(args, job: dict) -> dict[str, list[str]]:
+    """One job in a worker process (its own app, fake upstream and Chromium,
+    as ``run_scenario`` does per scenario today): ``{"scenarios": [...],
+    "only": [check names] or None}``; returns the problems, keyed by the
+    checks' full names."""
+    res = Results()
+    want_langs = args.lang or list(LOCALES)
+    needed = set()
+    for name in job["scenarios"]:  # only the languages this job's scenarios use
+        for lang in SCENARIO_LANGS.get(name, ["en", "de"]):
+            if lang in want_langs:
+                needed.add(lang)
+    browsers = {}
+    try:
+        for lang in want_langs:
+            if lang in needed:
+                browsers[lang] = Browser(lang=LOCALES[lang])
+        for name in job["scenarios"]:
+            run_scenario(name, browsers, args, res, checks=job.get("only"))
+    finally:
+        for b in browsers.values():
+            b.close()
+    return res.problems
+
+
+def worker_main() -> int:
+    """``--worker``: read the jobs from stdin (one JSON per line) and print
+    one RESULT line per job, in the order the jobs were given."""
+    args = parse_args()
+    args.selected = lambda name: not args.only or any(fnmatch.fnmatch(name, p) for p in args.only)
+    args.port_base = workers.PORT_BASE + workers.PORT_SPAN * args.worker_index
+    args.log = (open(f"{args.backend_log}.{args.worker_index}", "a") if args.backend_log
+                else subprocess.DEVNULL)
+    try:
+        for line in sys.stdin:
+            line = line.strip()
+            if not line:
+                continue
+            job = json.loads(line)
+            print(workers.RESULT_PREFIX + json.dumps({"idx": job["idx"], "problems": run_job(args, job)}),
+                  flush=True)
+    finally:
+        if args.log is not subprocess.DEVNULL:
+            args.log.close()
+    return 0
 
 
 def run_pages(name, sc, browser, base, lang, names, add, args):
@@ -1821,7 +1967,7 @@ def sandbox_refusal(args, scenarios, langs) -> str | None:
             "Single checks: --only 'live/en/glance-*' (with --scenario); all check names: --list.")
 
 
-def main():
+def parse_args(argv: list[str] | None = None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--binary", default="/target/debug/wetter", help="the Rust binary")
     ap.add_argument("--scenario", nargs="*", choices=UI_SCENARIOS, help="only these scenarios")
@@ -1838,35 +1984,17 @@ def main():
                     help="serve this folder instead of app/static (planted faults: faults.py)")
     ap.add_argument("--list", action="store_true", help="list the checks and exit")
     ap.add_argument("--backend-log", default=None, help="file for the app's output (default: discard)")
-    args = ap.parse_args()
-    scenarios = args.scenario or UI_SCENARIOS
-    langs = args.lang or list(LOCALES)
-    args.selected = lambda name: not args.only or any(fnmatch.fnmatch(name, p) for p in args.only)
-    if args.list:
-        print("\n".join(n for n in all_names(scenarios, langs) if args.selected(n)))
-        return 0
-    refused = sandbox_refusal(args, scenarios, langs)
-    if refused:
-        print(refused, file=sys.stderr)
-        return 2
-    args.log = open(args.backend_log, "a") if args.backend_log else subprocess.DEVNULL
-    if args.shots:
-        pathlib.Path(args.shots).mkdir(parents=True, exist_ok=True)
+    ap.add_argument("--workers", type=int, default=0,
+                    help="the number of worker processes for the scenarios (T3; default: min(6, the CPUs "
+                         "available), never more than 8; 1: one after another, as before)")
+    ap.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)  # the worker processes
+    ap.add_argument("--worker-index", type=int, default=0, help=argparse.SUPPRESS)
+    return ap.parse_args(argv)
 
-    res = Results()
-    check_static(res, args.static or STATIC)
-    if not args.no_unit:
-        run_unit(res, args.selected)
-    browsers = {}
-    try:
-        for lang in langs:
-            browsers[lang] = Browser(lang=LOCALES[lang])
-        for name in scenarios:
-            run_scenario(name, browsers, args, res)
-    finally:
-        for b in browsers.values():
-            b.close()
 
+def report(res: Results, args, scenarios: list[str], langs: list[str]) -> int:
+    """The PASS/FAIL lines and the summary, in the order of all_names(): the
+    same output as before the workers (T3), whatever ran the checks."""
     passed = failed = required_failed = 0
     expected = [n for n in all_names(scenarios, langs)
                 if args.selected(n) and not (args.no_unit and n.startswith("unit/"))]
@@ -1887,6 +2015,45 @@ def main():
             print(f"     {p}")
     print(f"uitest: {passed} passed, {failed} failed, {required_failed} of them required")
     return 1 if required_failed else 0
+
+
+def main() -> int:
+    args = parse_args()
+    if args.worker:  # a worker process: the jobs come in on stdin
+        return worker_main()
+    scenarios = args.scenario or UI_SCENARIOS
+    langs = args.lang or list(LOCALES)
+    args.selected = lambda name: not args.only or any(fnmatch.fnmatch(name, p) for p in args.only)
+    if args.list:
+        print("\n".join(n for n in all_names(scenarios, langs) if args.selected(n)))
+        return 0
+    refused = sandbox_refusal(args, scenarios, langs)
+    if refused:
+        print(refused, file=sys.stderr)
+        return 2
+    args.workers = args.workers if args.workers > 0 else workers.default_workers()
+    if args.shots:
+        pathlib.Path(args.shots).mkdir(parents=True, exist_ok=True)
+
+    res = Results()
+    check_static(res, args.static or STATIC)
+    if not args.no_unit:
+        run_unit(res, args.selected)
+    if args.workers == 1:
+        args.log = open(args.backend_log, "a") if args.backend_log else subprocess.DEVNULL
+        try:
+            browsers = {lang: Browser(lang=LOCALES[lang]) for lang in langs}
+            for name in scenarios:
+                run_scenario(name, browsers, args, res)
+        finally:
+            for b in browsers.values():
+                b.close()
+    else:
+        jobs, job_checks = build_jobs(args, scenarios, langs)
+        problems = workers.run_jobs(args, jobs, job_checks)
+        for name, ps in problems.items():
+            res.add(name, ps)
+    return report(res, args, scenarios, langs)
 
 
 if __name__ == "__main__":
