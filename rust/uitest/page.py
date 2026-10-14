@@ -1,11 +1,12 @@
 """The page under test (headless Chromium via cdp): the probe, the frozen clock,
-and the small text helpers."""
+the run's context (View and Run), and the small text helpers."""
 
 from __future__ import annotations
 
 import math
 import pathlib
 import re
+from dataclasses import dataclass, field
 
 from expect import (LOCALES, MAP_BEARING_TOLERANCE, MAP_MARKS, MAP_RADIUS_KM, OBS_STATIONS,
                     TZ)
@@ -160,29 +161,39 @@ CLOCK = """(() => {
 })();"""
 
 
+@dataclass
+class View:
+    """The view's settings (one argument instead of five): the page's size, the
+    theme, the motion, and the view query ("" the default big view: the content
+    checks; "?detailed" the details page, P2, phone test 2026-10-12; "?kiosk"
+    the locked wall display)."""
+    width: int = 1280
+    height: int = 900
+    scheme: str = "light"
+    reduced: bool = False
+    query: str = ""
+
+
 class UIPage:
-    def __init__(self, browser, base, sc_now, lang, width=1280, height=900, scheme="light",
-                 reduced=False, query="", fakes=None):
-        """query: "" (the default big view: the content checks), "?detailed" (P2, phone test
-        2026-10-12: the details page, only the Details card, open) or "?kiosk"."""
+    def __init__(self, browser, base, sc_now, lang, view: View | None = None, fakes=None):
+        view = view or View()
         self.lang, self.locale, self.base = lang, LOCALES[lang], base
         self.p = browser.new_page()
-        mobile = width < 600
+        mobile = view.width < 600
         self.p.send("Emulation.setLocaleOverride", {"locale": self.locale})
         self.p.send("Emulation.setTimezoneOverride", {"timezoneId": "UTC"})
         self.p.send("Emulation.setDeviceMetricsOverride",
-                    {"width": width, "height": height, "deviceScaleFactor": 1, "mobile": mobile})
+                    {"width": view.width, "height": view.height, "deviceScaleFactor": 1, "mobile": mobile})
         if mobile:
             self.p.send("Emulation.setTouchEmulationEnabled", {"enabled": True})
         self.p.send("Emulation.setEmulatedMedia", {"features": [
-            {"name": "prefers-color-scheme", "value": scheme},
-            {"name": "prefers-reduced-motion", "value": "reduce" if reduced else "no-preference"}]})
+            {"name": "prefers-color-scheme", "value": view.scheme},
+            {"name": "prefers-reduced-motion", "value": "reduce" if view.reduced else "no-preference"}]})
         self.p.send("Page.addScriptToEvaluateOnNewDocument", {"source": CLOCK % sc_now})
         if fakes:
             self.p.fake(fakes)
-        self.p.goto(base + "/" + query)
+        self.p.goto(base + "/" + view.query)
         self.settle()
-
     def settle(self):
         self.p.eval(PROBE)
         self.p.eval("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))")
@@ -248,4 +259,37 @@ class UIPage:
 
     def close(self):
         self.p.close()
+
+
+
+@dataclass
+class Run:
+    """One scenario run's context: where the page runs, which checks are run,
+    and how their problems are recorded (one argument instead of seven)."""
+    name: str
+    sc: dict
+    browser: object
+    base: str
+    lang: str
+    names: list
+    add: callable
+    args: object
+    errors: list = field(default_factory=list)  # the pages' console errors, in order
+    requests: list = field(default_factory=list)  # the pages' requests, in order
+    icons: dict = field(default_factory=dict)  # theme -> the theme toggle's visible icons
+
+    def page(self, now=None, fakes=None, **view) -> UIPage:
+        """A page at the scenario's "now" (or the given time) with the given view."""
+        return UIPage(self.browser, self.base, now or self.sc["now"], self.lang, View(**view), fakes)
+
+    def done(self, pg: UIPage):
+        pg.p.pump()
+        self.errors.extend(pg.p.errors)
+        self.requests.extend(pg.p.requests)
+        pg.close()
+
+    def shot(self, pg: UIPage, variant: str, full: bool = True):
+        if self.args.shots:
+            pg.p.screenshot(str(pathlib.Path(self.args.shots) / f"{self.name}-{self.lang}-{variant}.png"),
+                            full_page=full)
 

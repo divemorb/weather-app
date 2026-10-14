@@ -7,26 +7,26 @@ import time
 
 from expect import (MODEL_LABELS, REPORT_FIT, REPORT_INTENSITY, REPORT_SAVE_S, REPORT_SCENE_KIND,
                     REPORT_SKY_CASES, REPORT_TEXT, SCENE_LABEL)
-from page import UIPage, has, norm
+from page import Run, UIPage, View, has, norm
 from report_ui import (FIT, HIDE_FRONT, LANG_I, OPEN_CLEAR, _api, _iso, back_contrast,
                        clear_fresh, closed_problems, current, kind_scene, line_problems,
                        open_back, open_label_problems, picker_problems, sel, settle_turn,
                        shows_problems, state, visible, wait)
 
-def run(name, sc, browser, base, lang, names, add, done, shot):
-    i = LANG_I[lang]
-    now = sc["now"]
-    page = lambda **kw: UIPage(browser, base, now, lang, **kw)  # noqa: E731
-    clear_fresh(base)
+def run(run: Run):
+    i = LANG_I[run.lang]
+    now = run.sc["now"]
+    page = lambda **kw: UIPage(run.browser, run.base, now, run.lang, View(**kw))  # noqa: E731
+    clear_fresh(run.base)
 
     # A: desktop (the big view): closed, open, the picker
     pg = page()
     s = state(pg)
-    add("report-closed", closed_problems(s))
+    run.add("report-closed", closed_problems(s))
     opens = [e for e in pg.ui("report-open") if e["visible"]]
-    add("report-open", ([] if s.get("openLive") == 1 and len(opens) == 1 else
-                        [f"{len(opens)} visible [data-test=report-open] ({s.get('openCount')} in the host), expected 1"])
-        + open_label_problems(pg, opens, lang))
+    run.add("report-open", ([] if s.get("openLive") == 1 and len(opens) == 1 else
+                            [f"{len(opens)} visible [data-test=report-open] ({s.get('openCount')} in the host), expected 1"])
+        + open_label_problems(pg, opens, run.lang))
     before = s.get("rect")
     problems = open_back(pg)
     s = state(pg)
@@ -35,26 +35,26 @@ def run(name, sc, browser, base, lang, names, add, done, shot):
             problems.append(f"the focus is on {s['focus']!r}, not inside the back")
         if before and any(abs(a - b) > 1 for a, b in zip(before[2:], s["rect"][2:])):
             problems.append(f"the tile changed its size: {before[2:]} -> {s['rect'][2:]}")
-    add("report-flip", problems)
-    if "report-picker" in names:
-        add("report-picker", picker_problems(pg, lang) if not problems else ["the back did not open"])
-    if "report-shows" in names:
-        add("report-shows", shows_problems(pg, lang, s.get("scene")) if not problems else ["the back did not open"])
-    if "report-buttons" in names:
-        add("report-buttons", pg.js("__ui.controls()"))
-    shot(pg, "report-back")
+    run.add("report-flip", problems)
+    if "report-picker" in run.names:
+        run.add("report-picker", picker_problems(pg, run.lang) if not problems else ["the back did not open"])
+    if "report-shows" in run.names:
+        run.add("report-shows", shows_problems(pg, run.lang, s.get("scene")) if not problems else ["the back did not open"])
+    if "report-buttons" in run.names:
+        run.add("report-buttons", pg.js("__ui.controls()"))
+    run.shot(pg, "report-back")
     # close with the button: the front again, the focus back on ↻, nothing saved
-    if "report-close" in names:
+    if "report-close" in run.names:
         problems = pg.click(selector=sel("report-close"))
         problems += (wait(pg, lambda s: not s.get("backLive") and s.get("frontLive"), 1.5, "the front")
                      or settle_turn(pg))
         s = state(pg)
         if not problems and s["focus"] != "report-open":
             problems.append(f"the focus is on {s['focus']!r}, expected report-open")
-        if current(base):
+        if current(run.base):
             problems.append("closing saved a report")
-        add("report-close", problems)
-    if "report-escape" in names:
+        run.add("report-close", problems)
+    if "report-escape" in run.names:
         problems = open_back(pg)
         if not problems:
             pg.p.send("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Escape", "code": "Escape",
@@ -62,19 +62,19 @@ def run(name, sc, browser, base, lang, names, add, done, shot):
             pg.p.send("Input.dispatchKeyEvent", {"type": "keyUp", "key": "Escape", "code": "Escape",
                                                  "windowsVirtualKeyCode": 27})
             problems = wait(pg, lambda s: not s.get("backLive") and s.get("frontLive"), 1.5, "Escape to close")
-        add("report-escape", problems + (["Escape saved a report"] if current(base) else []))
-    done(pg)
+        run.add("report-escape", problems + (["Escape saved a report"] if current(run.base) else []))
+    run.done(pg)
 
     for theme in ("light", "dark"):
-        if f"report-contrast-{theme}" in names:
+        if f"report-contrast-{theme}" in run.names:
             pg = page(scheme=theme)
-            add(f"report-contrast-{theme}", back_contrast(pg))
-            done(pg)
+            run.add(f"report-contrast-{theme}", back_contrast(pg))
+            run.done(pg)
 
     # the back fits the host everywhere, the host keeps its size, the big view doesn't scroll
     clear = []
     for variant, (w, h, query) in REPORT_FIT.items():
-        if f"report-fit-{variant}" not in names:
+        if f"report-fit-{variant}" not in run.names:
             continue
         pg = page(width=w, height=h, query=query)
         pg.js("document.querySelector('[data-report-host]').scrollIntoView({block: 'center'})")
@@ -89,19 +89,19 @@ def run(name, sc, browser, base, lang, names, add, done, shot):
                 problems.append(f"the tile changed its size: {before['rect'][2:]} -> {after['rect'][2:]}")
             if query == "" and w >= 1000 and after["sh"] > after["ih"] + 1:
                 problems.append(f"the big view scrolls with the back open ({after['sh']} > {after['ih']} px)")
-        add(f"report-fit-{variant}", problems)
-        shot(pg, f"report-fit-{variant}", full=False)
-        done(pg)
-    if "report-open-clear" in names:
-        add("report-open-clear", clear)
+        run.add(f"report-fit-{variant}", problems)
+        run.shot(pg, f"report-fit-{variant}", full=False)
+        run.done(pg)
+    if "report-open-clear" in run.names:
+        run.add("report-open-clear", clear)
 
-    if "report-locked" in names:
+    if "report-locked" in run.names:
         pg = page(width=1280, height=800, query="?kiosk")
         n = len(visible(pg, "report-open"))
-        add("report-locked", [f"{n} visible [data-test=report-open] on the locked wall display"] if n else [])
-        done(pg)
+        run.add("report-locked", [f"{n} visible [data-test=report-open] on the locked wall display"] if n else [])
+        run.done(pg)
 
-    if "report-motion" in names:
+    if "report-motion" in run.names:
         for check, reduced in (("report-motion", False), ("report-still", True)):
             pg = page(reduced=reduced)
             running = pg.js("""(() => { const h = document.querySelector('[data-report-host]');
@@ -110,38 +110,47 @@ def run(name, sc, browser, base, lang, names, add, done, shot):
                   && a.effect && a.effect.target && (h === a.effect.target || h.contains(a.effect.target)))
                   .map((a) => a.animationName || a.transitionProperty || 'animation'); })()""")
             if reduced:
-                add(check, [f"the turn animates with prefers-reduced-motion: {running}"] if running else [])
+                run.add(check, [f"the turn animates with prefers-reduced-motion: {running}"] if running else [])
             else:
-                add(check, [] if running else ["no animation or transition runs in the tile when it turns"])
-            done(pg)
+                run.add(check, [] if running else ["no animation or transition runs in the tile when it turns"])
+            run.done(pg)
 
     # B: saving (W1b)
-    if "report-save" in names:
-        run_save(pg_factory=page, base=base, now=now, lang=lang, names=names, add=add, done=done, shot=shot)
+    if "report-save" in run.names:
+        run_save(run)
 
     # C: the sky follows a fresh report (W2), with faked answers
-    if "sky-report-none" in names:
-        run_sky(browser, base, now, lang, names, add, done)
+    if "sky-report-none" in run.names:
+        run_sky(run)
 
     # D: Details (W3)
-    if "details-reports" in names:
+    if "details-reports" in run.names:
         pg = page(query="?detailed")
         pg.js("__ui.openDetails()")
         pg.settle()
-        add("details-reports", details_problems(pg, lang, base))
-        shot(pg, "report-details")
-        done(pg)
+        run.add("details-reports", details_problems(pg, run.lang, run.base))
+        run.shot(pg, "report-details")
+        run.done(pg)
         pg = page(width=360, height=740, query="?detailed")
         pg.js("__ui.openDetails()")
         pg.settle()
         info = pg.js("__ui.page()")
-        add("details-reports-fit", ([] if info["sw"] <= 361 else [f"page is {info['sw']} px wide at 360 px"])
-            + [f"at 360 px: {p}" for p in pg.js('__ui.sticksOut("details")')])
-        done(pg)
-    clear_fresh(base)
+        run.add("details-reports-fit", ([] if info["sw"] <= 361 else [f"page is {info['sw']} px wide at 360 px"])
+                + [f"at 360 px: {p}" for p in pg.js('__ui.sticksOut("details")')])
+        run.done(pg)
+    clear_fresh(run.base)
 
 
-def run_save(pg_factory, base, now, lang, names, add, done, shot):
+def run_save(run: Run):
+    base = run.base
+    now = run.sc["now"]
+    lang = run.lang
+    names = run.names
+    add = run.add
+    done = run.done
+    shot = run.shot
+    pg_factory = run.page
+
     def saved_and_back(pg, want: dict) -> list[str]:
         end = time.monotonic() + REPORT_SAVE_S
         got = None
@@ -271,7 +280,14 @@ def run_save(pg_factory, base, now, lang, names, add, done, shot):
     done(pg)
 
 
-def run_sky(browser, base, now, lang, names, add, done):
+def run_sky(run: Run):
+    browser = run.browser
+    base = run.base
+    now = run.sc["now"]
+    lang = run.lang
+    names = run.names
+    add = run.add
+    done = run.done
     i = LANG_I[lang]
     for case, (fields, clock, scene) in REPORT_SKY_CASES.items():
         if f"sky-report-{case}" not in names:

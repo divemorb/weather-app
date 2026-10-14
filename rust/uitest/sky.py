@@ -10,7 +10,7 @@ import urllib.request
 from expect import (CONTRAST_VIEWS, GLASS_DELTA, GLASS_MIN_RATIO, GLASS_SCENES, GLASS_GAP_S,
                     GLASS_VIEW, MOTION_GAP_S, MOTION_MIN, REASON_CASES, REASON_STATION,
                     REASON_TEXT, SCENE_CASES, SCENE_LABEL, SCENE_SOURCE, SCENES)
-from page import UIPage, expect_hidden, expect_text
+from page import Run, UIPage, expect_hidden, expect_text
 from page_checks import contrast_problems
 
 # --- the sky (A3): faked /api/now icon and radar per scene ---------------------------------
@@ -93,40 +93,40 @@ def motion_problems(pg: UIPage, scene: str, moving: bool) -> list[str]:
     return []
 
 
-def run_sky(browser, base, sc, lang, names, add, done, shot, args):
+def run_sky(run: Run):
     """The sky's checks; the work of a check not in `names` (--only) is skipped."""
-    now_body = _get_json(base + "/api/now")
-    radar_body = _get_json(base + "/api/radar/next-hour")
+    now_body = _get_json(run.base + "/api/now")
+    radar_body = _get_json(run.base + "/api/radar/next-hour")
     for case, (icon, radar, want) in SCENE_CASES.items():
-        if f"scene-{case}" not in names and not (case == "cloudy" and "sky-layer" in names):
+        if f"scene-{case}" not in run.names and not (case == "cloudy" and "sky-layer" in run.names):
             continue
-        pg = UIPage(browser, base, sc["now"], lang, fakes=scene_fakes(case, now_body, radar_body))
+        pg = run.page(fakes=scene_fakes(case, now_body, radar_body))
         got = scene_of(pg)
-        add(f"scene-{case}", [] if got == want else
-            [f"<html data-scene={got!r}> with icon {icon!r} and radar {radar!r}, expected {want!r}"])
+        run.add(f"scene-{case}", [] if got == want else
+                [f"<html data-scene={got!r}> with icon {icon!r} and radar {radar!r}, expected {want!r}"])
         if case == "cloudy":
-            add("sky-layer", sky_layer_problems(pg))
-        done(pg)
+            run.add("sky-layer", sky_layer_problems(pg))
+        run.done(pg)
     for scene in SCENES:
         fakes = scene_fakes(SCENE_SOURCE[scene], now_body, radar_body)
-        if scene != "none" and f"motion-{scene}" in names:
-            pg = UIPage(browser, base, sc["now"], lang, fakes=fakes)
-            add(f"motion-{scene}", motion_problems(pg, scene, moving=True))
-            done(pg)
-        if f"still-{scene}" in names:
-            pg = UIPage(browser, base, sc["now"], lang, reduced=True, fakes=fakes)
-            add(f"still-{scene}", motion_problems(pg, scene, moving=False))
-            done(pg)
-        if scene in GLASS_SCENES and f"glass-{scene}" in names:
-            add(f"glass-{scene}", [p for theme in ("light", "dark")
-                                   for p in glass_problems(browser, base, sc, lang, scene, theme, fakes)])
+        if scene != "none" and f"motion-{scene}" in run.names:
+            pg = run.page(fakes=fakes)
+            run.add(f"motion-{scene}", motion_problems(pg, scene, moving=True))
+            run.done(pg)
+        if f"still-{scene}" in run.names:
+            pg = run.page(reduced=True, fakes=fakes)
+            run.add(f"still-{scene}", motion_problems(pg, scene, moving=False))
+            run.done(pg)
+        if scene in GLASS_SCENES and f"glass-{scene}" in run.names:
+            run.add(f"glass-{scene}", [p for theme in ("light", "dark")
+                                       for p in glass_problems(run, scene, theme, fakes)])
         for theme in ("light", "dark"):
-            if f"contrast-{scene}-{theme}" not in names:
+            if f"contrast-{scene}-{theme}" not in run.names:
                 continue
             problems = []
             for w, h, query in CONTRAST_VIEWS:
                 view = f"{w}x{h}{' ' + query if query else ''}"
-                pg = UIPage(browser, base, sc["now"], lang, width=w, height=h, scheme=theme, query=query, fakes=fakes)
+                pg = run.page(width=w, height=h, scheme=theme, query=query, fakes=fakes)
                 got = scene_of(pg)
                 if got != scene:
                     problems.append(f"{view}: data-scene={got!r}, expected {scene!r}")
@@ -134,21 +134,21 @@ def run_sky(browser, base, sc, lang, names, add, done, shot, args):
                 if w >= 1280:  # frames for the review (the sleep is only there so
                     # consecutive --shots frames differ; without --shots it is pure waste)
                     for i in range(3):
-                        shot(pg, f"scene-{scene}-{theme}-{view.replace(' ', '-')}-{i}", full=False)
-                        if args.shots:
+                        run.shot(pg, f"scene-{scene}-{theme}-{view.replace(' ', '-')}-{i}", full=False)
+                        if run.args.shots:
                             time.sleep(0.4)
-                done(pg)
-            add(f"contrast-{scene}-{theme}", problems)
+                run.done(pg)
+            run.add(f"contrast-{scene}-{theme}", problems)
 
 
-def glass_problems(browser, base, sc, lang, scene, theme, fakes) -> list[str]:
+def glass_problems(run: Run, scene: str, theme: str, fakes: dict) -> list[str]:
     """The default view at GLASS_VIEW, text made transparent: the moving sky changes
     the pixels inside the tiles at least GLASS_MIN_RATIO as much as outside them.
     The pair is seeked, not waited for: all animations paused, first frame at
     GLASS_BASE_MS, the second GLASS_GAP_S later."""
     w, h = GLASS_VIEW
     GLASS_BASE_MS = 3000
-    pg = UIPage(browser, base, sc["now"], lang, width=w, height=h, scheme=theme, query="", fakes=fakes)
+    pg = run.page(width=w, height=h, scheme=theme, fakes=fakes)
     try:
         got = scene_of(pg)
         if got != scene:
@@ -192,16 +192,16 @@ def reason_text(case: str, lang: str) -> str | None:
                                           station=SCENE_LABEL[icon][i] if icon in SCENE_LABEL else "")
 
 
-def run_reasons(browser, base, sc, lang, add):
+def run_reasons(run: Run):
     """[data-test=sky-reason]: what the sky shows and which source decided it (REASON_CASES)."""
-    now_body = _get_json(base + "/api/now")
-    radar_body = _get_json(base + "/api/radar/next-hour")
+    now_body = _get_json(run.base + "/api/now")
+    radar_body = _get_json(run.base + "/api/radar/next-hour")
     for case, (src, form, listed) in REASON_CASES.items():
-        pg = UIPage(browser, base, sc["now"], lang, fakes=scene_fakes(src, now_body, radar_body, station=listed))
-        want = reason_text(case, lang)
+        pg = run.page(fakes=scene_fakes(src, now_body, radar_body, station=listed))
+        want = reason_text(case, run.lang)
         problems = expect_hidden(pg, "sky-reason") if want is None else expect_text(pg, "sky-reason", want)
         got = scene_of(pg)
         if got != SCENE_CASES[src][2]:
             problems.append(f"data-scene={got!r}, expected {SCENE_CASES[src][2]!r}")
-        add(f"reason-{case}", problems)
+        run.add(f"reason-{case}", problems)
         pg.close()

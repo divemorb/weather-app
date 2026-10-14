@@ -3,8 +3,8 @@ view query, the phone view, the detailed-only page, and the now fallback marks."
 
 from __future__ import annotations
 
-from expect import VIEW_DESKTOP, VIEW_LABEL, VIEW_PHONE
-from page import UIPage, expect_hidden, has, norm, visible_one
+from expect import NOW_STATION, VIEW_DESKTOP, VIEW_LABEL, VIEW_PHONE
+from page import Run, UIPage, expect_hidden, expect_tokens, has, norm, visible_one
 from page_checks import details_open_problems
 
 
@@ -12,12 +12,21 @@ def view_of(pg: UIPage) -> str | None:
     return pg.js("document.documentElement.getAttribute('data-view')")
 
 
-def run_views(browser, base, sc, lang, add):
+def page_fallback(run: Run):
+    """The fallback scenario: the place and the now values, with their fallback marks."""
+    pg = run.page()
+    run.add("now-station", expect_tokens(pg, "now-station", NOW_STATION[run.lang]))
+    run.add("now-fallback", now_fallback_problems(pg))
+    run.shot(pg, "desktop-light")
+    run.done(pg)
+
+
+def run_views(run: Run):
     """The big view (the former kiosk look) by default; [data-test=view-toggle] switches to
     the detailed view and back, remembered per device; ?detailed and ?kiosk force a view
     (?kiosk is the locked wall display: no view or location button)."""
     w, h = VIEW_DESKTOP
-    pg = UIPage(browser, base, sc["now"], lang, width=w, height=h, query="")
+    pg = run.page(width=w, height=h)
     problems = [] if view_of(pg) == "big" else [f'<html data-view={view_of(pg)!r}>, expected "big" by default']
     problems += [f"default view: {p}" for hook in ("view-toggle", "location-button", "rain-answer", "now-temp")
                  for p in visible_one(pg, hook)[1]]
@@ -26,7 +35,7 @@ def run_views(browser, base, sc, lang, add):
     info = pg.js("__ui.page()")
     if info["sh"] > h + 1 or info["sw"] > w + 1:
         problems.append(f"default view at {w}x{h}: the page is {info['sw']}x{info['sh']} px, it must fit one screen")
-    add("view-default", problems)
+    run.add("view-default", problems)
     problems = []
     for step, want in (("first click", "detailed"), ("after reload", "detailed"), ("second click", "big"),
                        ("after reload", "big")):
@@ -40,37 +49,37 @@ def run_views(browser, base, sc, lang, add):
         details = any(e["visible"] for e in pg.ui("details"))
         if details != (want == "detailed"):
             problems.append(f"{step}: [data-test=details] {'visible' if details else 'hidden'} in the {want} view")
-    add("view-toggle", problems)
+    run.add("view-toggle", problems)
     pg.close()
-    pg = UIPage(browser, base, sc["now"], lang, width=w, height=h, query="?detailed")
+    pg = run.page(width=w, height=h, query="?detailed")
     problems = [] if view_of(pg) == "detailed" else [f"?detailed: data-view={view_of(pg)!r}, expected 'detailed'"]
     pg.close()
-    pg = UIPage(browser, base, sc["now"], lang, width=w, height=h, query="")
+    pg = run.page(width=w, height=h)
     problems += pg.click("view-toggle")  # stores the detailed view; ?kiosk must still be big
-    pg.p.goto(base + "/?kiosk")
+    pg.p.goto(run.base + "/?kiosk")
     pg.settle()
     if view_of(pg) != "big":
         problems.append(f"?kiosk after choosing the detailed view: data-view={view_of(pg)!r}, expected 'big'")
     for hook in ("view-toggle", "location-button"):
         problems += [f"?kiosk: {p}" for p in expect_hidden(pg, hook)]
-    add("view-query", problems)
+    run.add("view-query", problems)
     pg.close()
     w, h = VIEW_PHONE
-    pg = UIPage(browser, base, sc["now"], lang, width=w, height=h, query="")
+    pg = run.page(width=w, height=h)
     problems = [] if view_of(pg) == "big" else [f"phone: data-view={view_of(pg)!r}, expected 'big'"]
     problems += [f"phone: {p}" for hook in ("view-toggle", "rain-answer", "rain-probability", "now-temp")
                  for p in visible_one(pg, hook)[1]]
     info = pg.js("__ui.page()")
     if info["sw"] > w + 1:
         problems.append(f"phone: the page is {info['sw']} px wide at {w} px: {pg.js('__ui.overflowing()')}")
-    add("view-phone", problems)
+    run.add("view-phone", problems)
     pg.close()
     problems = []
     for w, h in (VIEW_DESKTOP, (360, 740)):
-        pg = UIPage(browser, base, sc["now"], lang, width=w, height=h, query="?detailed")
-        problems += [f"{w}x{h}: {p}" for p in details_only_problems(pg, lang, w)]
+        pg = run.page(width=w, height=h, query="?detailed")
+        problems += [f"{w}x{h}: {p}" for p in details_only_problems(pg, run.lang, w)]
         pg.close()
-    add("view-details-only", problems)
+    run.add("view-details-only", problems)
 
 
 def details_only_problems(pg: UIPage, lang: str, w: int) -> list[str]:

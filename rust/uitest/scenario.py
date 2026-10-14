@@ -19,14 +19,14 @@ import report_run  # noqa: E402
 import report_ui  # noqa: E402
 from fakeup import FakeUpstream  # noqa: E402
 from names import BACKEND, SCENARIO_LANGS, check_names  # noqa: E402
-from page import UIPage, expect_hidden, expect_text, expect_tokens, visible_one  # noqa: E402
+from page import Run, UIPage, expect_hidden, expect_text, expect_tokens, visible_one  # noqa: E402
 from page_checks import (check_chart, check_common_a, check_details, check_glance, check_kiosk,  # noqa: E402
-                         check_now, check_radar, contrast_problems, theme_icon_problems,
-                         theme_problems)
+                         check_now, check_radar, contrast_problems, page_unconfigured,
+                         theme_icon_problems, theme_problems)
 from big import kiosk_chart_problems, kiosk_fill_problems, kiosk_room_problems, run_big  # noqa: E402
 from flows import refresh_config_retry, refresh_render_error, run_wizard, theme_toggle  # noqa: E402
 from sky import run_reasons, run_sky  # noqa: E402
-from views import now_fallback_problems, run_views  # noqa: E402
+from views import page_fallback, run_views  # noqa: E402
 
 STATIC = HERE.parent.parent / "app" / "static"  # the app's static files (the default static dir)
 PORT_BASE = 20000  # worker k may use the app ports 20000 + 100*k .. +100*k + 99
@@ -142,7 +142,7 @@ def run_scenario(name: str, browsers: dict, args, res: Results, checks: list[str
                         res.add(prefix + check, problems)
 
                 try:
-                    run_pages(name, sc, browsers[lang], base, lang, names, add, args)
+                    run_pages(Run(name, sc, browsers[lang], base, lang, names, add, args))
                 except Exception as exc:  # noqa: BLE001 - report it, go on with the next language
                     add("console", [f"harness error: {exc!r}"])
                     for c in names:
@@ -154,160 +154,160 @@ def run_scenario(name: str, browsers: dict, args, res: Results, checks: list[str
 
 
 
-def run_pages(name, sc, browser, base, lang, names, add, args):
-    exp = SCENARIO.get(name, {})
-    errors, requests = [], []
-    icons = {}  # theme -> the theme toggle's visible icons
-    shots = args.shots
+def run_pages(run: Run):
+    PAGES[run.name](run)
+    page_content(run)
+    page_phone_360(run)
+    if run.name == "unconfigured":
+        page_unconfigured_dark(run)
+    page_kiosk_and_common(run)
 
-    def done(pg: UIPage):
-        pg.p.pump()
-        errors.extend(pg.p.errors)
-        requests.extend(pg.p.requests)
-        pg.close()
 
-    def shot(pg, variant, full=True):
-        if shots:
-            pg.p.screenshot(str(pathlib.Path(shots) / f"{name}-{lang}-{variant}.png"), full_page=full)
-
-    if name == "wizard":
-        run_wizard(browser, base, sc, lang, add, done, shot)
-    elif name == "fallback":
-        pg = UIPage(browser, base, sc["now"], lang)
-        add("now-station", expect_tokens(pg, "now-station", NOW_STATION[lang]))
-        add("now-fallback", now_fallback_problems(pg))
-        shot(pg, "desktop-light")
-        done(pg)
-    elif name == "sky":
-        run_sky(browser, base, sc, lang, names, add, done, shot, args)
-    elif name in ("report", "report-glance"):
-        report_run.run(name, sc, browser, base, lang, names, add, done, shot)
-    elif name == "unconfigured":
-        pg = UIPage(browser, base, sc["now"], lang)
-        info = pg.js("__ui.page()")
-        add("lang", [] if info["lang"] == lang else [f'<html lang="{info["lang"]}">, expected "{lang}"'])
-        problems = [p for hook in ("setup", "setup-search", "setup-lat", "setup-lon", "setup-tz", "setup-save")
-                    for p in visible_one(pg, hook)[1]]
-        add("setup-visible", problems + expect_hidden(pg, "rain-answer"))
-        add("theme-light", theme_problems(info, "light"))
-        icons["light"] = pg.js('__ui.icons("theme-toggle")')
-        add("contrast-light", contrast_problems(pg))
-        add("buttons", pg.js("__ui.controls()"))
-        shot(pg, "desktop-light")
-        done(pg)
+def page_content(run: Run):
+    """A: desktop, light; the content checks, then the details opened (live, rain,
+    errors and accuracy; the other scenarios have their own page above)."""
+    if run.name not in ("live", "rain", "errors", "accuracy"):
+        return
+    exp = SCENARIO.get(run.name, {})
+    pg = run.page()
+    if run.name == "accuracy":
+        run.add("location", expect_tokens(pg, "location", exp["location"]))
+        run.add("location-detail", expect_tokens(pg, "location-detail", exp["location_detail"]))
+        run.add("rain-probability", expect_tokens(pg, "rain-probability", [exp["probability"][run.lang]]))
     else:
-        # A: desktop, light; content checks, then the details opened
-        pg = UIPage(browser, base, sc["now"], lang)
-        if name == "accuracy":
-            add("location", expect_tokens(pg, "location", exp["location"]))
-            add("location-detail", expect_tokens(pg, "location-detail", exp["location_detail"]))
-            add("rain-probability", expect_tokens(pg, "rain-probability", [exp["probability"][lang]]))
-        else:
-            check_common_a(pg, name, exp, add)
-            icons["light"] = pg.js('__ui.icons("theme-toggle")')
-            check_glance(pg, exp, add)
-            if exp["radar"] is None:
-                add("radar-unavailable", visible_one(pg, "radar-unavailable")[1]
+        check_common_a(pg, run.name, exp, run.add)
+        run.icons["light"] = pg.js('__ui.icons("theme-toggle")')
+        check_glance(pg, exp, run.add)
+        if exp["radar"] is None:
+            run.add("radar-unavailable", visible_one(pg, "radar-unavailable")[1]
                     + [f"{n} rendered [data-test=radar-step] without radar" for n in
                        [sum(e["rendered"] for e in pg.ui("radar-step"))] if n])
-            else:
-                check_radar(pg, exp, add)
-            if exp["now"]:
-                check_now(pg, add)
-                add("now-station", expect_tokens(pg, "now-station", NOW_STATION[lang]))
-                add("now-fallback", [f"{n} visible [data-test=now-fallback]: no value fell back here"
+        else:
+            check_radar(pg, exp, run.add)
+        if exp["now"]:
+            check_now(pg, run.add)
+            run.add("now-station", expect_tokens(pg, "now-station", NOW_STATION[run.lang]))
+            run.add("now-fallback", [f"{n} visible [data-test=now-fallback]: no value fell back here"
                                      for n in [sum(e["visible"] for e in pg.ui("now-fallback"))] if n])
-            else:
-                add("now-unavailable", expect_text(pg, "now-unavailable", FIXED["now.unavailable"][lang])
+        else:
+            run.add("now-unavailable", expect_text(pg, "now-unavailable", FIXED["now.unavailable"][run.lang])
                     + expect_hidden(pg, "now-temp"))
-                add("now-station", expect_hidden(pg, "now-station"))
-            check_chart(pg, exp, add)
-        shot(pg, "desktop-light")
-        done(pg)
-        # A2: the details page (?detailed), light
-        pg = UIPage(browser, base, sc["now"], lang, query="?detailed")
-        check_details(pg, name, exp, names, add)
-        if "details-reports-none" in names:
-            add("details-reports-none", report_run.none_problems(pg, lang))
-        add("details-contrast", [f"light: {p}" for p in contrast_problems(pg)])
-        shot(pg, "desktop-details")
-        done(pg)
-        pg = UIPage(browser, base, sc["now"], lang, scheme="dark", query="?detailed")
+            run.add("now-station", expect_hidden(pg, "now-station"))
+        check_chart(pg, exp, run.add)
+    run.shot(pg, "desktop-light")
+    run.done(pg)
+    # A2: the details page (?detailed), light
+    pg = run.page(query="?detailed")
+    check_details(pg, run.name, exp, run.names, run.add)
+    if "details-reports-none" in run.names:
+        run.add("details-reports-none", report_run.none_problems(pg, run.lang))
+    run.add("details-contrast", [f"light: {p}" for p in contrast_problems(pg)])
+    run.shot(pg, "desktop-details")
+    run.done(pg)
+    pg = run.page(scheme="dark", query="?detailed")
+    pg.js("__ui.openDetails()")
+    pg.settle()
+    run.add("details-contrast", [f"dark: {p}" for p in contrast_problems(pg)])
+    run.done(pg)
+    if run.name == "accuracy":
+        return
+    # B: desktop, dark
+    pg = run.page(scheme="dark")
+    run.add("theme-dark", theme_problems(pg.js("__ui.page()"), "dark"))
+    run.icons["dark"] = pg.js('__ui.icons("theme-toggle")')
+    run.add("contrast-dark", contrast_problems(pg))
+    run.shot(pg, "desktop-dark")
+    run.done(pg)
+
+
+# one function per scenario (each next to the checks it uses); run_pages
+# dispatches on this table, then runs the parts shared by the scenarios
+PAGES = {
+    "wizard": run_wizard,
+    "fallback": page_fallback,
+    "sky": run_sky,
+    "report": report_run.run,
+    "report-glance": report_run.run,
+    "unconfigured": page_unconfigured,
+    "live": page_content,
+    "rain": page_content,
+    "errors": page_content,
+    "accuracy": page_content,
+}
+
+
+def page_phone_360(run: Run):
+    """C: phone, 360 px: the big view, then the details page (opened)."""
+    if run.name not in ("live", "rain", "errors", "unconfigured", "accuracy"):
+        return
+    for query in ("", "?detailed"):
+        pg = run.page(width=360, height=740, query=query)
         pg.js("__ui.openDetails()")
         pg.settle()
-        add("details-contrast", [f"dark: {p}" for p in contrast_problems(pg)])
-        done(pg)
-        if name == "accuracy":
-            pass
-        else:
-            # B: desktop, dark
-            pg = UIPage(browser, base, sc["now"], lang, scheme="dark")
-            add("theme-dark", theme_problems(pg.js("__ui.page()"), "dark"))
-            icons["dark"] = pg.js('__ui.icons("theme-toggle")')
-            add("contrast-dark", contrast_problems(pg))
-            shot(pg, "desktop-dark")
-            done(pg)
-    if name in ("live", "rain", "errors", "unconfigured", "accuracy"):
-        # C: phone, 360 px: the big view, then the details page (opened)
-        for query in ("", "?detailed"):
-            pg = UIPage(browser, base, sc["now"], lang, width=360, height=740, query=query)
-            pg.js("__ui.openDetails()")
-            pg.settle()
-            info = pg.js("__ui.page()")
-            where = "the details page" if query else "the big view"
-            add("overflow-360", [] if info["sw"] <= 361 and info["iw"] <= 361 else
+        info = pg.js("__ui.page()")
+        where = "the details page" if query else "the big view"
+        run.add("overflow-360", [] if info["sw"] <= 361 and info["iw"] <= 361 else
                 [f"{where}: page is {info['sw']} px wide at 360 px (horizontal scrolling): {pg.js('__ui.overflowing()')}"])
-            if query:
-                add("details-fit", [f"at 360 px: {p}" for p in pg.js('__ui.sticksOut("details")')])
-            shot(pg, f"phone-360{'-details' if query else ''}")
-            done(pg)
-    if name == "unconfigured":
-        pg = UIPage(browser, base, sc["now"], lang, scheme="dark")
-        add("theme-dark", theme_problems(pg.js("__ui.page()"), "dark"))
-        icons["dark"] = pg.js('__ui.icons("theme-toggle")')
-        add("contrast-dark", contrast_problems(pg))
-        done(pg)
-    if "theme-icon" in names:
-        add("theme-icon", theme_icon_problems(icons))
-    if name in ("live", "rain"):
+        if query:
+            run.add("details-fit", [f"at 360 px: {p}" for p in pg.js('__ui.sticksOut("details")')])
+        run.shot(pg, f"phone-360{'-details' if query else ''}")
+        run.done(pg)
+
+
+def page_unconfigured_dark(run: Run):
+    """The unconfigured scenario's dark part (B: desktop, dark)."""
+    pg = run.page(scheme="dark")
+    run.add("theme-dark", theme_problems(pg.js("__ui.page()"), "dark"))
+    run.icons["dark"] = pg.js('__ui.icons("theme-toggle")')
+    run.add("contrast-dark", contrast_problems(pg))
+    run.done(pg)
+
+
+def page_kiosk_and_common(run: Run):
+    """The checks shared by the scenarios: the theme toggle's icon, the kiosk view
+    (live and rain), the toggle and the reasons flows, the views, the big view's
+    labels, the tile layout per width, the refresh failures and the reduced motion."""
+    if "theme-icon" in run.names:
+        run.add("theme-icon", theme_icon_problems(run.icons))
+    if run.name in ("live", "rain"):
         for size in KIOSK_SIZES:
-            pg = UIPage(browser, base, sc["now"], lang, width=size[0], height=size[1], query="?kiosk")
-            check_kiosk(pg, exp, size, add)
-            if f"kiosk-chart-{size[0]}x{size[1]}" in names:
-                add(f"kiosk-chart-{size[0]}x{size[1]}", kiosk_chart_problems(pg, size))
-            add(f"kiosk-fill-{size[0]}x{size[1]}", kiosk_fill_problems(pg, exp, size))
-            add(f"kiosk-room-{size[0]}x{size[1]}", kiosk_room_problems(pg, size))
-            shot(pg, f"kiosk-{size[0]}x{size[1]}", full=False)
-            done(pg)
-    if "theme-toggle" in names:
-        add("theme-toggle", theme_toggle(browser, base, sc, lang, done))
-    if any(n.startswith("reason-") for n in names):
-        run_reasons(browser, base, sc, lang, add)
-    if "view-default" in names:
-        run_views(browser, base, sc, lang, add)
-    if "big-labels" in names:
-        run_big(browser, base, sc, lang, names, add)
+            pg = run.page(width=size[0], height=size[1], query="?kiosk")
+            check_kiosk(pg, SCENARIO.get(run.name, {}), size, run.add)
+            if f"kiosk-chart-{size[0]}x{size[1]}" in run.names:
+                run.add(f"kiosk-chart-{size[0]}x{size[1]}", kiosk_chart_problems(pg, size))
+            run.add(f"kiosk-fill-{size[0]}x{size[1]}", kiosk_fill_problems(pg, SCENARIO.get(run.name, {}), size))
+            run.add(f"kiosk-room-{size[0]}x{size[1]}", kiosk_room_problems(pg, size))
+            run.shot(pg, f"kiosk-{size[0]}x{size[1]}", full=False)
+            run.done(pg)
+    if "theme-toggle" in run.names:
+        run.add("theme-toggle", theme_toggle(run))
+    if any(n.startswith("reason-") for n in run.names):
+        run_reasons(run)
+    if "view-default" in run.names:
+        run_views(run)
+    if "big-labels" in run.names:
+        run_big(run)
     for w in LAYOUT_COLUMNS:
-        if f"layout-{w}" in names:
-            pg = UIPage(browser, base, sc["now"], lang, width=w, height=740 if w < 600 else 900)
-            add(f"layout-{w}", layout_problems(pg, w))
-            shot(pg, f"layout-{w}")
-            done(pg)
-    if "refresh-render-error" in names:
-        add("refresh-render-error", refresh_render_error(browser, base, sc, lang))
-    if "refresh-config-retry" in names:
-        add("refresh-config-retry", refresh_config_retry(browser, base, sc, lang))
-    if "reduced-motion" in names:
-        pg = UIPage(browser, base, sc["now"], lang, reduced=True)
+        if f"layout-{w}" in run.names:
+            pg = run.page(width=w, height=740 if w < 600 else 900)
+            run.add(f"layout-{w}", layout_problems(pg, w))
+            run.shot(pg, f"layout-{w}")
+            run.done(pg)
+    if "refresh-render-error" in run.names:
+        run.add("refresh-render-error", refresh_render_error(run))
+    if "refresh-config-retry" in run.names:
+        run.add("refresh-config-retry", refresh_config_retry(run))
+    if "reduced-motion" in run.names:
+        pg = run.page(reduced=True)
         time.sleep(0.3)
         running = pg.js("__ui.animations()")
-        add("reduced-motion", [f"animations still running with prefers-reduced-motion: {running}"] if running else [])
-        done(pg)
+        run.add("reduced-motion", [f"animations still running with prefers-reduced-motion: {running}"] if running else [])
+        run.done(pg)
 
-    own = base + "/"
-    foreign = sorted({u for u in requests if not (u.startswith(own) or u.startswith("data:"))})
-    add("requests", [f"request outside the app: {u}" for u in foreign])
-    add("console", list(dict.fromkeys(errors))[:8])
+    own = run.base + "/"
+    foreign = sorted({u for u in run.requests if not (u.startswith(own) or u.startswith("data:"))})
+    run.add("requests", [f"request outside the app: {u}" for u in foreign])
+    run.add("console", list(dict.fromkeys(run.errors))[:8])
 
 
 def layout_problems(pg: UIPage, w: int) -> list[str]:

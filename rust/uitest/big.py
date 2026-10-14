@@ -11,7 +11,7 @@ from expect import (BIG_HEADLINE_FILL, BIG_HEADLINE_LEAD, BIG_HEADLINE_LINES, BI
                     KIOSK_CHART_MIN_W, KIOSK_DRY_CHART_MAX, KIOSK_FILL, KIOSK_FONT_SHARE,
                     KIOSK_RADAR_SHARE, KIOSK_REASON_SHARE, KIOSK_ROOM_FILL, KIOSK_ROOM_TOP,
                     TRACK_CONTRAST, VIEW_DESKTOP, VIEW_LABEL)
-from page import UIPage, norm, visible_one
+from page import Run, UIPage, norm, visible_one
 
 def kiosk_chart_problems(pg: UIPage, size) -> list[str]:
     """The chart fills its share of the kiosk screen instead of a short strip."""
@@ -238,38 +238,37 @@ def track_problems(pg: UIPage, theme: str, rain: bool = False) -> list[str]:
     return []
 
 
-def run_big(browser, base, sc, lang, names, add):
+def run_big(run: Run):
     """The review of V2: the big view (the default) on a desktop and on a phone."""
     problems = []
     for size, where in ((VIEW_DESKTOP, "desktop"), (BIG_PHONE, "phone")):
-        pg = UIPage(browser, base, sc["now"], lang, width=size[0], height=size[1], query="")
+        pg = run.page(width=size[0], height=size[1])
         problems += big_label_problems(pg, f"{where} {size[0]}x{size[1]}")
         pg.close()
     hp = []
     for size in BIG_HEADLINE_SIZES:
-        pg = UIPage(browser, base, sc["now"], lang, width=size[0], height=size[1], query="")
+        pg = run.page(width=size[0], height=size[1])
         hp += headline_problems(pg, size)
         pg.close()
-    add("big-headline", hp)
+    run.add("big-headline", hp)
     order = []
     for size in BIG_HIERARCHY_SIZES:
-        pg = UIPage(browser, base, sc["now"], lang, width=size[0], height=size[1], query="")
+        pg = run.page(width=size[0], height=size[1])
         order += hierarchy_problems(pg, size)
         pg.close()
-    add("big-hierarchy", order)
-    if "rain-tracks" in names:
+    run.add("big-hierarchy", order)
+    if "rain-tracks" in run.names:
         tracks = []
         for theme in ("light", "dark"):
-            pg = UIPage(browser, base, sc["now"], lang, width=VIEW_DESKTOP[0], height=VIEW_DESKTOP[1],
-                        scheme=theme, reduced=True, query="")
+            pg = run.page(width=VIEW_DESKTOP[0], height=VIEW_DESKTOP[1], scheme=theme, reduced=True)
             tracks += track_problems(pg, theme, rain=True)
             pg.close()
-        add("rain-tracks", tracks)
-    add("big-labels", problems)
-    if "view-label" in names:
+        run.add("rain-tracks", tracks)
+    run.add("big-labels", problems)
+    if "view-label" in run.names:
         problems = []
         for size in (VIEW_DESKTOP, BIG_PHONE):
-            pg = UIPage(browser, base, sc["now"], lang, width=size[0], height=size[1], query="")
+            pg = run.page(width=size[0], height=size[1])
             for step, view in (("first load", "big"), ("after a click", "detailed")):
                 if step != "first load":
                     problems += pg.click("view-toggle")
@@ -277,7 +276,7 @@ def run_big(browser, base, sc, lang, names, add):
                 problems += [f"{size[0]} px, {step}: {x}" for x in p]
                 if not el:
                     continue
-                want = VIEW_LABEL[view][lang]
+                want = VIEW_LABEL[view][run.lang]
                 if norm(el["text"]) != want:
                     problems.append(f"{size[0]} px, {view} view: the view button shows {el['text']!r}, expected "
                                     f"the text {want!r} (where a click goes; an icon alone read as 'pause')")
@@ -291,15 +290,14 @@ def run_big(browser, base, sc, lang, names, add):
             if info["sw"] > size[0] + 1:
                 problems.append(f"{size[0]} px: the page is {info['sw']} px wide: {pg.js('__ui.overflowing()')}")
             pg.close()
-        add("view-label", problems)
-    if "big-tracks" in names:
+        run.add("view-label", problems)
+    if "big-tracks" in run.names:
         problems = []
         for theme in ("light", "dark"):
-            pg = UIPage(browser, base, sc["now"], lang, width=VIEW_DESKTOP[0], height=VIEW_DESKTOP[1],
-                        scheme=theme, reduced=True, query="")
+            pg = run.page(width=VIEW_DESKTOP[0], height=VIEW_DESKTOP[1], scheme=theme, reduced=True)
             problems += track_problems(pg, theme)
             pg.close()
-        add("big-tracks", problems)
+        run.add("big-tracks", problems)
 
 
 def kiosk_fill_problems(pg: UIPage, exp: dict, size) -> list[str]:

@@ -12,8 +12,26 @@ import time
 from expect import (ACCURACY_HEAD, ANSWER, ATTRIBUTION_LINKS, CONTRAST_MOMENTS, CONTRAST_PCT,
                     FIXED, KIOSK_MIN_FONT, MODEL_LABELS, NOW, RADAR_CAPTION, SOURCE_KIND, SOURCES,
                     WEIGHTS, WHEN)
-from page import (UIPage, expect_hidden, expect_text, expect_tokens, fmt_mm, has, norm,
+from page import (Run, UIPage, expect_hidden, expect_text, expect_tokens, fmt_mm, has, norm,
                   observation_station_problems, station_map_problems, visible_one)
+
+
+def page_unconfigured(run: Run):
+    """The unconfigured scenario: the setup form on the big view (A, light)."""
+    pg = run.page()
+    info = pg.js("__ui.page()")
+    run.add("lang", [] if info["lang"] == run.lang else
+            [f'<html lang="{info["lang"]}">, expected "{run.lang}"'])
+    problems = [p for hook in ("setup", "setup-search", "setup-lat", "setup-lon", "setup-tz", "setup-save")
+                for p in visible_one(pg, hook)[1]]
+    run.add("setup-visible", problems + expect_hidden(pg, "rain-answer"))
+    run.add("theme-light", theme_problems(info, "light"))
+    run.icons["light"] = pg.js('__ui.icons("theme-toggle")')
+    run.add("contrast-light", contrast_problems(pg))
+    run.add("buttons", pg.js("__ui.controls()"))
+    run.shot(pg, "desktop-light")
+    run.done(pg)
+
 
 # --- checks on one loaded page -------------------------------------------------
 

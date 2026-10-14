@@ -8,7 +8,7 @@ import time
 
 from expect import (CONFIG_RETRY_S, WIZARD_DETAIL, WIZARD_LABEL, WIZARD_RESULTS,
                     WIZARD_SELECTED)
-from page import UIPage, expect_hidden, expect_tokens, visible_one
+from page import Run, UIPage, expect_hidden, expect_tokens, visible_one
 from page_checks import theme_problems
 
 def _page_errors(pg: UIPage) -> list[str]:
@@ -16,11 +16,11 @@ def _page_errors(pg: UIPage) -> list[str]:
     return [e for e in pg.p.errors if e.startswith("exception:")]
 
 
-def refresh_render_error(browser, base, sc, lang) -> list[str]:
+def refresh_render_error(run: Run) -> list[str]:
     """Malformed data that today's renderers can't draw: the radar steps and an
     accuracy row are null. The other parts must still render, nothing may
     throw uncaught, and the next page reload must still be scheduled."""
-    pg = UIPage(browser, base, sc["now"], lang, fakes={
+    pg = run.page(fakes={
         "/api/radar/next-hour": [(200, '{"available": true, "steps": [null]}')],
         "/api/model-accuracy": [(200, '{"models": {"icon_d2": null}}')]})
     time.sleep(1.5)  # the countdowns tick once a second
@@ -38,10 +38,10 @@ def refresh_render_error(browser, base, sc, lang) -> list[str]:
     return problems
 
 
-def refresh_config_retry(browser, base, sc, lang) -> list[str]:
+def refresh_config_retry(run: Run) -> list[str]:
     """/api/config fails once at startup (503): the page must try again by
     itself and show the place and the forecast within CONFIG_RETRY_S."""
-    pg = UIPage(browser, base, sc["now"], lang, fakes={"/api/config": [(503, '{"detail": "unavailable"}')]})
+    pg = run.page(fakes={"/api/config": [(503, '{"detail": "unavailable"}')]})
     end = time.monotonic() + CONFIG_RETRY_S
     loc = ""
     while time.monotonic() < end:
@@ -60,8 +60,8 @@ def refresh_config_retry(browser, base, sc, lang) -> list[str]:
     return problems
 
 
-def theme_toggle(browser, base, sc, lang, done) -> list[str]:
-    pg = UIPage(browser, base, sc["now"], lang, scheme="dark")
+def theme_toggle(run: Run) -> list[str]:
+    pg = run.page(scheme="dark")
     problems = theme_problems(pg.js("__ui.page()"), "dark")
     for step, want in (("first click", "light"), ("after reload", "light"), ("second click", "dark")):
         if step == "after reload":
@@ -71,7 +71,7 @@ def theme_toggle(browser, base, sc, lang, done) -> list[str]:
         lum = pg.js("__ui.page()")["bodyLum"] or 0
         if (want == "light") != (lum > 0.6):
             problems.append(f"system theme dark, {step}: expected the {want} theme, background luminance {lum:.2f}")
-    done(pg)
+    run.done(pg)
     return problems
 
 
@@ -92,8 +92,8 @@ def lines_problems(pg: UIPage, hook: str, want: list[str]) -> list[str]:
     return problems
 
 
-def run_wizard(browser, base, sc, lang, add, done, shot):
-    pg = UIPage(browser, base, sc["now"], lang)
+def run_wizard(run: Run):
+    pg = run.page()
     problems = []
     for hook, text in (("setup-lat", "91"), ("setup-lon", "13.4"), ("setup-tz", "Europe/Berlin")):
         problems += pg.type_into(hook, text)
@@ -104,14 +104,14 @@ def run_wizard(browser, base, sc, lang, add, done, shot):
         problems.append(f"latitude 91: [data-test=setup-status] shows {el['text']!r}, expected the -90..90 range")
     if any("/api/location" in u for u in pg.p.requests):
         problems.append("latitude 91 was sent to /api/location; the page must reject it first")
-    if el and lang == "de" and re.search(r"\blatitude\b", el["text"], re.I):
+    if el and run.lang == "de" and re.search(r"\blatitude\b", el["text"], re.I):
         problems.append(f"German page, English message: {el['text']!r}")
-    add("validation", problems)
-    shot(pg, "setup-validation")
-    done(pg)
-    if lang != "en":
+    run.add("validation", problems)
+    run.shot(pg, "setup-validation")
+    run.done(pg)
+    if run.lang != "en":
         return
-    pg = UIPage(browser, base, sc["now"], lang)
+    pg = run.page()
     problems = pg.type_into("setup-search", "Alexanderplatz Berlin") + pg.click("setup-search-button")
     results = [e for e in pg.ui("setup-result") if e["visible"]]
     if len(results) < 3:
@@ -122,14 +122,14 @@ def run_wizard(browser, base, sc, lang, add, done, shot):
         lon = (pg.ui("setup-lon") or [{}])[0].get("value") or ""
         if not (lat.startswith("52.52") and lon.startswith("13.41")):
             problems.append(f"after picking the first result: latitude {lat!r}, longitude {lon!r}, expected 52.52…, 13.41…")
-    add("search", problems)
+    run.add("search", problems)
     # P1: each result is the two-line label; the status sentence joins the lines with ", "
     problems = lines_problems(pg, "setup-result", WIZARD_RESULTS)
     status = (pg.ui("setup-status") or [{}])[0].get("text") or ""
     raw = pg.js("document.querySelector('[data-test=\\'setup-status\\']')?.textContent || ''")
     if WIZARD_SELECTED not in status or "\n" in raw:
         problems.append(f"after picking: [data-test=setup-status] {raw!r}, expected {WIZARD_SELECTED!r} in one line")
-    add("search-lines", problems)
+    run.add("search-lines", problems)
     problems = pg.type_into("setup-tz", "Europe/Berlin") + pg.click("setup-save")
     end = time.monotonic() + 20
     while time.monotonic() < end and not any(e["visible"] for e in pg.ui("rain-answer")):
@@ -137,24 +137,24 @@ def run_wizard(browser, base, sc, lang, add, done, shot):
         pg.p.pump()
     problems += visible_one(pg, "rain-answer")[1] + expect_hidden(pg, "setup")
     problems += expect_tokens(pg, "location", ["Alexanderplatz"])
-    add("save", problems)
-    shot(pg, "after-save")
+    run.add("save", problems)
+    run.shot(pg, "after-save")
     # the saved label is long: at 360 px it shows in full (wrapped, not cut off), coordinates below
-    phone = UIPage(browser, base, sc["now"], lang, width=360, height=740)
+    phone = run.page(width=360, height=740)
     problems = expect_tokens(phone, "location", WIZARD_LABEL) + phone.js('__ui.clipped("location")')
     problems += expect_tokens(phone, "location-detail", WIZARD_DETAIL)
     info = phone.js("__ui.page()")
     if info["sw"] > 361:
         problems.append(f"page is {info['sw']} px wide at 360 px: {phone.js('__ui.overflowing()')}")
-    add("location-long", problems)
+    run.add("location-long", problems)
     problems = [f"at 360 px: {p}" for p in lines_problems(phone, "location", ["\n".join(WIZARD_LABEL)])]
     problems += [f"at 1280 px: {p}" for p in lines_problems(pg, "location", ["\n".join(WIZARD_LABEL)])]
-    add("location-lines", problems)
-    shot(phone, "after-save-phone-360")
-    done(phone)
+    run.add("location-lines", problems)
+    run.shot(phone, "after-save-phone-360")
+    run.done(phone)
     problems = pg.click("location-button")
     problems += visible_one(pg, "setup")[1] + visible_one(pg, "setup-cancel")[1]
     if not problems:
         problems += pg.click("setup-cancel") + expect_hidden(pg, "setup") + visible_one(pg, "rain-answer")[1]
-    add("change", problems)
-    done(pg)
+    run.add("change", problems)
+    run.done(pg)
