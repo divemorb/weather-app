@@ -65,6 +65,8 @@ All sources are free and need no account or key. Open-Meteo and Bright Sky are f
 
 ## Requirements
 
+The numbered, complete list (all features, with the source of each decision) is [`REQUIREMENTS.md`](REQUIREMENTS.md); the ones below are the original scope.
+
 ### Data handling
 
 - The upstream services are **never called per page load.** A scheduler refreshes a local cache; the page reads only the cache. A refresh also runs at startup and right after a location change.
