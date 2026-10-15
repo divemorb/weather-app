@@ -1,6 +1,6 @@
 {
  "now": "2026-09-30T10:27:10Z",
- "python_memory_kb": 64624,
+ "python_memory_kb": 64108,
  "upstream": [],
  "cases": {
   "healthz": {
@@ -315,8 +315,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "80b7f7c8e2fe9913357b3ba4ffa9ce4543b6c01207a21f1366e7e307148b29da",
-   "length": 1313
+   "sha256": "69eabf24ad66919c26d831f6c5c573854d7a0bb53a6f97fbecfd5d054aa58f53",
+   "length": 1392
   },
   "static/app.js": {
    "status": 200,
@@ -329,8 +329,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "98acbded049e60679327d4d83991d6ac7e8b5fc6e24e349cbafd655239bb3e90",
-   "length": 10768
+   "sha256": "bd46d61c172185a1b3229ac66676343663d2e2030e294464ef7e650276ff4021",
+   "length": 10573
   },
   "static/chart.css": {
    "status": 200,
@@ -357,8 +357,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "204d5bab4446649dd451ef47c3d23b6fe6f95bb51fd7ae01b5046fd97118becf",
-   "length": 7103
+   "sha256": "9f1ea9026d4f33feab754f04eeed77965cf291835bb250374b326f3d2cf2d014",
+   "length": 7052
   },
   "static/details.css": {
    "status": 200,
@@ -371,8 +371,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "584f9e800383cf15f58449f0fe07c3d2bb6a75a935713cfb81a39fdbe8fe978d",
-   "length": 5278
+   "sha256": "468e0cbefefa61e646382ee36ad3d1aa15936f69c1f2f13c6f619b0a10698d17",
+   "length": 5273
   },
   "static/details.js": {
    "status": 200,
@@ -385,8 +385,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "361e61574d607f441d511574029162a340308a4baa31e83d7a897c5035b77e4b",
-   "length": 13420
+   "sha256": "dd7b258ef6dc32d33483c1a1c607383fe66b76f457514e7642ef04a9b6f5b8e0",
+   "length": 13211
   },
   "static/format.js": {
    "status": 200,
@@ -399,8 +399,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "cce7028b3a41f31e19eb4462153512fb5b8dadc4115263ce42e2417d71effbbe",
-   "length": 16532
+   "sha256": "5140a4f442419cbce9f41559f89776e0b505297ecd0f2952c25bb08505dd22dd",
+   "length": 16378
   },
   "static/glance.js": {
    "status": 200,
@@ -413,8 +413,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "c937877b6faaf98e0ecb81e7539a7dcbb105bdd661670859d6c20ec67439df5a",
-   "length": 7070
+   "sha256": "84bc830e642ababc8e6817096a8e8451da2130d3faf792a02aed14043b67802c",
+   "length": 7197
   },
   "static/i18n.js": {
    "status": 200,
@@ -427,8 +427,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "1b5a05d1d42d32df93d3e5c3d470795626a6f841b11a45f9d42c400ffbc058be",
-   "length": 16245
+   "sha256": "930c5b82ba9b39db01097f0e266c4cf50f1c4a4b4eb311f747168b93ab0b311a",
+   "length": 16281
   },
   "static/kiosk.css": {
    "status": 200,
@@ -441,8 +441,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "5ba27154a2e330f17d616d4e5966883c4583ce99911b029bfb4aa6cc9baa06a9",
-   "length": 9521
+   "sha256": "49aa8b071ab242c5ff6e32f1385fac92a50f8fbe7628764b96ea35304603f99b",
+   "length": 9242
   },
   "static/now.js": {
    "status": 200,
@@ -469,8 +469,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "38b88041e90856a5c2a4608cb6fcd72d4d580d8cc28a14d09a73bef6cf16be4e",
-   "length": 7831
+   "sha256": "08107c99cf44ff493739ceb276a8d035bd86e3232dd48bd4575e05bf14906e1d",
+   "length": 8145
   },
   "static/stationmap.js": {
    "status": 200,
@@ -483,8 +483,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "db31cff70c67d939c9901f7af63da453375b322e359d49372594c88ed9a767b8",
-   "length": 6762
+   "sha256": "8af19a62669ed4f40761a8b9fa58dce1302da719eb4abb64d6fc32c3b089ed83",
+   "length": 6883
   },
   "static/style.css": {
    "status": 200,
@@ -497,8 +497,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "b129d4e67a986f03a42b58ab828020fbae2d9721193af22c3c0f6f3da239ee73",
-   "length": 12961
+   "sha256": "ff6f84b71aeb4abf8de2a81679c62e65bb1cb78f93a47fa7e927bfc1ef40e2f4",
+   "length": 12943
   },
   "static/app.js-revalidate": {
    "status": 304,
