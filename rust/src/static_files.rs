@@ -7,13 +7,15 @@ use axum::http::header::{self, HeaderMap};
 use axum::http::{Method, StatusCode, Uri};
 use axum::response::{IntoResponse, Response};
 
+/// One static file read from disk: its body, content type, and ETag.
 pub struct StaticFile {
     pub body: Bytes,
     pub content_type: &'static str,
     pub etag: String,
 }
 
-/// Starlette's content types for the files in app/static.
+/// The content type for a static file name (html, js, css; anything else
+/// octet-stream).
 pub fn content_type(name: &str) -> &'static str {
     match name.rsplit_once('.').map(|(_, ext)| ext) {
         Some("html") => "text/html; charset=utf-8",

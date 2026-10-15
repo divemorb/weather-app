@@ -1,11 +1,7 @@
-//! Scheduler-driven cache refreshes (Python `app/aggregator.py`).
-//!
-//! The decisions (radar vote, model votes, ensemble share, weighted
-//! combination) are pure functions in `crate::probability`; this module
-//! only moves data: the scheduler fetches upstream payloads into the
-//! SQLite cache, and `cache_meta` / `source_status` report freshness.
-//! A failing source never breaks the app — the last good cache is served
-//! (with its age) and the error is recorded for `/api/sources`.
+//! Scheduler-driven cache refreshes: the scheduler fetches upstream payloads
+//! into the SQLite cache; the decisions are pure functions in `crate::probability`.
+//! A failing source never breaks the app: the last good cache is served with
+//! its age, and the error is recorded for `/api/sources`.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::{Mutex, RwLock};
@@ -26,7 +22,7 @@ use crate::store::{Source, Store, StoreError};
 use crate::times::{Clock, to_iso};
 use crate::upstream::SourceError;
 
-/// The two scheduled refresh jobs (Python's job ids and log names).
+/// The two scheduled refresh jobs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Job {
     Radar,
@@ -34,6 +30,7 @@ pub enum Job {
 }
 
 impl Job {
+    /// Both jobs, in refresh order.
     pub const ALL: [Self; 2] = [Self::Radar, Self::Models];
 
     /// "radar" / "models" (log texts, keys of /api/schedule)
@@ -44,7 +41,7 @@ impl Job {
         }
     }
 
-    /// "radar_refresh" / "models_refresh" (Python's scheduler job ids)
+    /// The scheduler job id: "radar_refresh" / "models_refresh".
     pub fn id(self) -> &'static str {
         match self {
             Self::Radar => "radar_refresh",
@@ -75,6 +72,7 @@ pub struct Aggregator {
 }
 
 impl Aggregator {
+    /// Build the aggregator from the loaded config and store.
     pub fn new(
         cfg: AppConfig,
         store: Store,
@@ -118,14 +116,17 @@ impl Aggregator {
             .unwrap_or_else(std::sync::PoisonError::into_inner) = clock;
     }
 
+    /// The SQLite cache (read model, `/api/sources`).
     pub fn store(&self) -> &Store {
         &self.store
     }
 
+    /// The Bright Sky client.
     pub fn brightsky(&self) -> &BrightSkyClient {
         &self.brightsky
     }
 
+    /// The Open-Meteo client.
     pub fn openmeteo(&self) -> &OpenMeteoClient {
         &self.openmeteo
     }
@@ -175,9 +176,8 @@ impl Aggregator {
         }
     }
 
-    /// Store the payload and drop the last error, or record the error and
-    /// keep the stale cache. A `StoreError` from `put_cache` is an internal
-    /// Whether the last models refresh failed for the forecast or the ensemble.
+    /// Whether the last models refresh failed for the forecast or the
+    /// ensemble.
     pub fn models_failed(&self) -> bool {
         let errors = self
             .last_error
@@ -186,6 +186,8 @@ impl Aggregator {
         errors.contains_key(&Source::Forecast) || errors.contains_key(&Source::Ensemble)
     }
 
+    /// Store the payload and drop the last error, or record the error and
+    /// keep the stale cache. A `StoreError` from `put_cache` is an internal
     /// failure: it is logged and the refresh goes on.
     fn store_fetched(&self, source: Source, fetched: Result<Value, SourceError>) {
         let key = source.key();
@@ -314,7 +316,7 @@ impl Aggregator {
             }
         }
         // Remember which stations the observations came from; the value is
-        // canonical JSON, byte-identical to the Python backend's.
+        // canonical JSON, byte-identical across backends.
         let station_list = stations::observation_stations(&payload, now);
         if let Err(err) = self.store.set_meta(
             stations::OBSERVATION_STATIONS_KEY,
@@ -335,6 +337,8 @@ impl Aggregator {
         clippy::cast_precision_loss,
         reason = "stale minutes from config times 60, far below 2^52"
     )]
+    /// `available` / `age_seconds` / `stale` for one source. `age_seconds`
+    /// is None when the source has never been fetched.
     pub fn cache_meta(&self, source: Source) -> Result<CacheMeta, StoreError> {
         let cfg = self.cfg();
         let age = self

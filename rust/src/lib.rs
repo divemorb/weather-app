@@ -1,4 +1,5 @@
-//! Rust port of the weather app backend (axum); the Python app is the spec.
+//! Weather app backend (axum): configuration, upstream clients, the SQLite
+//! cache, and the JSON API the page talks to.
 
 pub mod accuracy;
 pub mod aggregator;

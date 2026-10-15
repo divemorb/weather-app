@@ -11,16 +11,16 @@ use serde_json::json;
 
 use crate::routes::AppState;
 
+/// The Content-Security-Policy header sent on every response.
 pub const CSP: &str = "default-src 'self'; img-src 'self' data:; object-src 'none'; \
 base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 
-/// Python `host_allowed`: an IP literal, localhost, a .local name, or one of
-/// ALLOWED_HOSTS (port ignored). Also IPv6 with a zone id, like Python's
-/// `ipaddress`.
 #[expect(
     clippy::case_sensitive_file_extension_comparisons,
     reason = "mDNS .local names are case-sensitive, matching Python's endswith"
 )]
+/// An IP literal, localhost, a .local name, or one of ALLOWED_HOSTS (port
+/// ignored). Also IPv6 with a zone id.
 pub fn host_allowed(host_header: &str, extra: &HashSet<String>) -> bool {
     let lower = host_header.trim().to_lowercase();
     let host = if let Some(rest) = lower.strip_prefix('[') {
@@ -48,7 +48,8 @@ pub fn host_allowed(host_header: &str, extra: &HashSet<String>) -> bool {
     host == "localhost" || host.ends_with(".local") || extra.contains(&host)
 }
 
-/// Python `ALLOWED_HOSTS` parsing.
+/// Parse `ALLOWED_HOSTS`: comma-separated, trimmed, lowercased, empties
+/// dropped.
 pub fn parse_allowed_hosts(raw: &str) -> HashSet<String> {
     raw.split(',')
         .map(str::trim)
@@ -62,8 +63,8 @@ pub fn json_error(status: StatusCode, detail: &str) -> Response {
     (status, Json(json!({"detail": detail}))).into_response()
 }
 
-/// Python `add_security_headers`: the Host check first, then the security
-/// headers and `Cache-Control: no-cache` on every response.
+/// The Host check first, then the security headers and `Cache-Control:
+/// no-cache` on every response.
 pub async fn guard(State(state): State<AppState>, req: Request, next: Next) -> Response {
     let host = req
         .headers()

@@ -1,6 +1,5 @@
 //! Signal 3 (ensemble vote), the linear combination of the three signals
-//! and the human-readable explanation (Python `app/probability.py`, from
-//! `_hour_index_best_overlap` to the end).
+//! and the human-readable explanation.
 
 use chrono::{DateTime, TimeDelta, Utc};
 
@@ -23,16 +22,16 @@ fn hour_index_best_overlap(times: &[DateTime<Utc>], now: DateTime<Utc>) -> Optio
     times.iter().position(|t| *t >= limit)
 }
 
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "n and n_rain count ensemble members, far below 2^52"
+)]
 /// Share of ensemble members with > `threshold_mm` in the next hour
 /// (`[now, now + 1 h)`). The ensemble has hourly data only, so it uses the
 /// hourly step that overlaps the next 60 minutes the most (see
 /// [`hour_index_best_overlap`]). Returns a None probability when the cached
 /// series is stale (no step at least 30 min ahead) or has no usable
 /// members.
-#[expect(
-    clippy::cast_precision_loss,
-    reason = "n and n_rain count ensemble members, far below 2^52"
-)]
 pub fn ensemble_vote(
     ensemble: Option<&EnsembleData>,
     threshold_mm: f64,
@@ -86,15 +85,15 @@ pub fn ensemble_vote(
     }
 }
 
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "signals holds at most three entries (radar, models, ensemble)"
+)]
 /// Combine the available signals into a 0..100 % probability.
 ///
 /// A missing signal (None) drops out and the remaining weights are
 /// re-normalized. Returns `(probability_pct, weights_used)`; the weights
 /// are in signal order (radar, models, ensemble).
-#[expect(
-    clippy::cast_precision_loss,
-    reason = "signals holds at most three entries (radar, models, ensemble)"
-)]
 pub fn combine_signals(
     prob_cfg: &ProbabilityConfig,
     radar_available: bool,
@@ -144,7 +143,7 @@ pub fn combine_signals(
         .zip(weights.iter())
         .map(|((k, _), w)| (k.to_string(), w / total))
         .collect();
-    // Normalized weight times the signal, with Python's compensated sum.
+    // Normalized weight times the signal, accumulated with a compensated sum.
     let prob = py_sum(
         signals
             .iter()

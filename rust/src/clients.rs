@@ -3,16 +3,10 @@
 //!
 //! The clients fetch *raw* JSON payloads only (what gets cached); the pure
 //! parsers live in `crate::brightsky` and `crate::openmeteo`. Every failure
-//! — network, HTTP status, response-size cap, a non-object body, the API
-//! `error` flag, a missing location — is a [`SourceError`], so a failing
-//! source never breaks the app.
-//!
-//! Both clients are `Sync` (the aggregator shares them behind an `Arc` and
-//! changes the location at runtime through `set_location`), and none calls
-//! `Utc::now()` — time-dependent requests (the radar window) take the time
-//! as a parameter. Query values are formatted like Python's `str()`
-//! (`pyfmt::py_repr` for floats) so the queries match the Python backend
-//! byte for byte.
+//! is a [`SourceError`], so a failing source never breaks the app. Both
+//! are `Sync`, never call `Utc::now()` (time-dependent requests take the
+//! time as a parameter), and format query values with `pyfmt` so requests
+//! are byte-identical to the reference app.
 
 use std::sync::{Arc, Mutex, PoisonError};
 

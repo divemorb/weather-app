@@ -1,14 +1,13 @@
 //! `wetter snapshot PATH`: a consistent copy of the live database for the
-//! Raspberry Pi deployment. The distroless image has no shell and no
-//! Python, so the backup script runs
-//! `podman exec weather-app-rust /app/wetter snapshot /data/.snapshot.db`
-//! while the server keeps running in the same container; the copy must be
-//! consistent although the server may be writing.
+//! Raspberry Pi deployment. The distroless image has no shell, so the
+//! backup runs the binary inside the container:
+//! `podman exec weather-app-rust /app/wetter snapshot /data/.snapshot.db`,
+//! while the server keeps running; the copy must be consistent although
+//! the server may be writing.
 //!
 //! The copy is made with SQLite's `VACUUM INTO` on a *read-only*
-//! connection to the live database: one read transaction, so the copy
-//! contains no other connections' uncommitted writes, a missing database
-//! is an error (not a new empty file), and the server keeps running.
+//! connection: one read transaction, so the copy contains no uncommitted
+//! writes and a missing database is an error (not a new empty file).
 
 use std::io;
 use std::path::{Path, PathBuf};

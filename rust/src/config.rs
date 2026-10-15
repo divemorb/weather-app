@@ -1,5 +1,4 @@
-//! Application configuration: `weather.yaml` plus environment overrides
-//! (Python `app/config.py`).
+//! Application configuration: `weather.yaml` plus environment overrides.
 //!
 //! Environment variables take precedence over the YAML file. All timestamps
 //! are UTC; `location.timezone` is a *display* timezone only (consumed by
@@ -85,8 +84,8 @@ impl ProbabilityConfig {
             ("models", self.weight_models),
             ("ensemble", self.weight_ensemble),
         ];
-        // A compensated sum (like Python's `sum`), not plain left-to-right
-        // addition: for 0.1 + 0.2 + 0.3 it is exactly 0.6.
+        // A compensated sum, not plain left-to-right addition: for
+        // 0.1 + 0.2 + 0.3 it is exactly 0.6.
         let total = pyfmt::py_sum(w.iter().map(|(_, v)| *v));
         if total <= 0.0 {
             return Err("at least one probability source weight must be > 0".to_string());
@@ -217,8 +216,8 @@ fn load_yaml(path: &Path) -> Result<Value, String> {
     }
 }
 
-/// Python truthiness of a YAML document: `null`, `false`, `0`, `0.0`, `""`
-/// and `[]` (and `{}`) are falsy.
+/// Truthiness of a YAML document: `null`, `false`, `0`, `0.0`, `""` and
+/// `[]` (and `{}`) are falsy.
 fn is_falsy(v: &Value) -> bool {
     match v {
         Value::Null => true,
@@ -280,8 +279,7 @@ fn load_location(raw: &Value, env: Env) -> Result<Option<LocationConfig>, String
 
 /// Load configuration from YAML, with environment overrides. The file is
 /// `path`, else `WEATHER_CONFIG`, else `/app/weather.yaml` (the image puts
-/// the file there; the Python repo-root default does not apply in the
-/// image). A missing file counts as `{}` (all defaults).
+/// the file there). A missing file counts as `{}` (all defaults).
 pub fn load_config(path: Option<&Path>, env: Env) -> Result<AppConfig, String> {
     let path = path
         .map(PathBuf::from)

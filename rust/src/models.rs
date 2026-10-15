@@ -1,5 +1,5 @@
 //! Normalized data models shared by the parsers, the logic and the
-//! serializers (Python `app/models.py`).
+//! serializers.
 
 use chrono::{DateTime, Utc};
 use serde_json::Value;
@@ -71,12 +71,14 @@ pub struct ModelSeries {
     pub hourly_cloud_cover_pct: Vec<Option<f64>>,
 }
 
+/// The multi-model forecast: one series per requested model.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ForecastBundle {
     pub models: Vec<ModelSeries>,
 }
 
 impl ForecastBundle {
+    /// The series for `name`, or `None` when not in the payload.
     pub fn by_name(&self, name: &str) -> Option<&ModelSeries> {
         self.models.iter().find(|m| m.name == name)
     }
@@ -91,6 +93,7 @@ pub struct EnsembleData {
 }
 
 impl EnsembleData {
+    /// The number of ensemble members (the control run is not one).
     pub fn n_members(&self) -> usize {
         self.member_precip_mm.len()
     }
@@ -112,7 +115,7 @@ pub struct EnsembleVote {
 }
 
 /// Combined next-hour rain probability + human-readable derivation.
-/// `weights_used` keeps Python's key order (radar, models, ensemble).
+/// `weights_used` is in source order (radar, models, ensemble).
 #[derive(Clone, Debug, PartialEq)]
 pub struct RainProbability {
     pub probability_pct: f64,

@@ -1,5 +1,4 @@
-//! The read model: page-load queries over the SQLite cache (Python
-//! `app/aggregator.py`).
+//! The read model: page-load queries over the SQLite cache.
 //!
 //! These methods read only the database, so they are plain synchronous
 //! methods. A `StoreError` is the one error that propagates (the routes

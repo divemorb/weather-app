@@ -1,12 +1,11 @@
-//! Scheduler wiring: the refresh cadence for the cache (Python
-//! `app/scheduler.py`).
+//! Scheduler wiring: the refresh cadence for the cache.
 //!
 //! Radar (Bright Sky) every N minutes (default 5), models (Open-Meteo)
 //! every M minutes (default 60) — never on page load. One `tokio::spawn`ed
 //! loop per job: the refresh runs inside the loop, so a slow run delays the
-//! next tick instead of overlapping it (Python's `max_instances=1` and
-//! `coalesce=True`). A failing source never breaks the app: the aggregator
-//! keeps the stale cache and records the last error.
+//! next tick instead of overlapping it (one instance, coalesced ticks). A
+//! failing source never breaks the app: the aggregator keeps the stale
+//! cache and records the last error.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -32,6 +31,7 @@ pub struct Scheduler {
 }
 
 impl Scheduler {
+    /// A scheduler with no next run times yet.
     pub fn new() -> Self {
         Self::default()
     }
@@ -103,6 +103,7 @@ impl Scheduler {
         });
     }
 
+    /// Record the next run of `job` (the UI countdown reads it back).
     pub fn set_next_run(&self, job: Job, t: DateTime<Utc>) {
         self.next_runs
             .lock()
@@ -167,7 +168,7 @@ fn interval(minutes: i64) -> Duration {
         })
 }
 
-/// Python `schedule_status`: next run per job for the UI countdown.
+/// The schedule status: next run per job for the UI countdown.
 /// `server_time_utc` lets the browser correct for its own clock offset;
 /// `next_run_utc` is null while the scheduler isn't running (a job added
 /// before `start()` has no next run time yet).
@@ -199,9 +200,9 @@ pub fn schedule_status(
     })
 }
 
-/// Python `initial_refresh`: warm the cache once at startup (radar and
-/// models at the same time). A slow or failing source can't delay startup:
-/// each refresh handles its own errors.
+/// Warm the cache once at startup (radar and models at the same time). A
+/// slow or failing source can't delay startup: each refresh handles its own
+/// errors.
 pub async fn initial_refresh(agg: &Aggregator) {
     tokio::join!(agg.refresh_radar(), agg.refresh_models());
 }

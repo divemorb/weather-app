@@ -1,6 +1,5 @@
-//! Shared upstream plumbing (Python `app/upstream.py`). Upstream data is
-//! untrusted: a wrong type or a missing key becomes a `SourceError`, never
-//! a panic.
+//! Shared upstream plumbing. Upstream data is untrusted: a wrong type or a
+//! missing key becomes a `SourceError`, never a panic.
 
 use serde_json::Value;
 
@@ -12,6 +11,7 @@ pub const MAX_RESPONSE_BYTES: usize = 5 * 1024 * 1024;
 pub struct SourceError(pub String);
 
 impl SourceError {
+    /// Create the error from a message.
     pub fn new(msg: impl Into<String>) -> Self {
         Self(msg.into())
     }
@@ -30,8 +30,8 @@ impl std::error::Error for SourceError {}
 pub const USER_AGENT: &str = "WetterLocal/1.0 (self-hosted home weather app)";
 
 /// The HTTP client for upstream requests: TLS via the ring provider,
-/// total timeout, our User-Agent, and no redirects (httpx doesn't follow
-/// them, so a 3xx is an error).
+/// total timeout, our User-Agent, and no redirects (a 3xx is an error,
+/// matching the reference client's behaviour).
 pub fn http_client(timeout_seconds: f64) -> Result<reqwest::Client, String> {
     // reqwest's "rustls-no-provider" feature ships rustls without a
     // default crypto provider, and reqwest panics when a client is built
@@ -55,8 +55,8 @@ pub fn http_client(timeout_seconds: f64) -> Result<reqwest::Client, String> {
         .map_err(|e| format!("cannot build the HTTP client: {e}"))
 }
 
-/// Python `stream_json_capped`: GET `url` with `params` and parse the JSON
-/// body, aborting above `MAX_RESPONSE_BYTES` (declared or streamed).
+/// GET `url` with `params` and parse the JSON body, aborting above
+/// `MAX_RESPONSE_BYTES` (declared or streamed).
 pub async fn fetch_json_capped(
     client: &reqwest::Client,
     url: &str,
@@ -96,7 +96,7 @@ pub async fn fetch_json_capped(
         .map_err(|e| SourceError::new(format!("response is not valid JSON: {e}")))
 }
 
-/// Python truthiness of a JSON value (`if payload.get("error"):`).
+/// Truthiness of a JSON value: how the upstream `error` flag is read.
 pub fn py_truthy(v: &Value) -> bool {
     match v {
         Value::Null => false,
@@ -108,8 +108,8 @@ pub fn py_truthy(v: &Value) -> bool {
     }
 }
 
-/// Python `float(v) if v is not None else None` on a payload value: a JSON
-/// number, or None for a missing/null value; anything else is malformed.
+/// A payload value as an optional number: a JSON number, `None` for a
+/// missing/null value; anything else is malformed.
 pub fn opt_f64(v: Option<&Value>, what: &str) -> Result<Option<f64>, SourceError> {
     match v {
         None | Some(Value::Null) => Ok(None),
@@ -123,8 +123,7 @@ pub fn opt_f64(v: Option<&Value>, what: &str) -> Result<Option<f64>, SourceError
     }
 }
 
-/// Python `[None if v is None else float(v) for v in raw]`: a JSON list of
-/// numbers and nulls.
+/// A JSON list of numbers and nulls, element-wise through `opt_f64`.
 pub fn f64_list(v: &Value, what: &str) -> Result<Vec<Option<f64>>, SourceError> {
     let items = v
         .as_array()
@@ -132,7 +131,8 @@ pub fn f64_list(v: &Value, what: &str) -> Result<Vec<Option<f64>>, SourceError> 
     items.iter().map(|item| opt_f64(Some(item), what)).collect()
 }
 
-/// Python `str(value)` for the few places that print an upstream value.
+/// How an upstream value is printed in error messages (null -> "None",
+/// booleans -> "True"/"False", strings as-is).
 pub fn py_str(v: &Value) -> String {
     match v {
         Value::Null => "None".to_string(),

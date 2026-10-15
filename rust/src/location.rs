@@ -1,9 +1,7 @@
-//! Runtime location state (Python `app/location.py`): the home location is
-//! stored in the database (`app_meta` key `"location"`) and can be changed
-//! from the browser. On startup the stored value wins; a configured
-//! location is only *adopted* (written to the database) when nothing is
-//! stored yet. This module also decodes and validates the request body of
-//! `POST /api/location`.
+//! The home location, stored in the database (`app_meta` key `"location"`) and
+//! changed from the browser. On startup the stored value wins; a configured one
+//! is only adopted when nothing is stored yet. Also decodes and validates the
+//! request body of `POST /api/location`.
 
 use axum::http::{HeaderMap, header};
 use serde_json::{Value, json};
@@ -141,18 +139,22 @@ pub struct LocationIn {
 }
 
 impl LocationIn {
+    /// The validated latitude.
     pub fn latitude(&self) -> f64 {
         self.latitude
     }
 
+    /// The validated longitude.
     pub fn longitude(&self) -> f64 {
         self.longitude
     }
 
+    /// The validated timezone (exists and is 1..=64 chars).
     pub fn timezone(&self) -> &str {
         &self.timezone
     }
 
+    /// The optional display label (missing means empty).
     pub fn label(&self) -> &str {
         &self.label
     }
@@ -222,7 +224,7 @@ pub fn validate_location_body(
     };
 
     let mut errors: Vec<FieldError> = Vec::new();
-    // The field order (latitude, longitude, timezone, label) is Python's.
+    // The field order (latitude, longitude, timezone, label) is the API's.
     let latitude = check_coordinate(obj.get("latitude"), -90.0, 90.0, "latitude", &mut errors);
     let longitude = check_coordinate(
         obj.get("longitude"),
@@ -338,6 +340,7 @@ fn check_coordinate(
     Some(x)
 }
 
+/// A rejected `POST /api/location` body, and how it is answered.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BodyError {
     /// 422 with these entries.

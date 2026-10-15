@@ -1,9 +1,9 @@
-//! `POST /api/location` and `GET /api/geocode` (Python `app/main.py`):
-//! the setup-wizard write and the address search.
+//! `POST /api/location` and `GET /api/geocode`: the setup-wizard write and
+//! the address search.
 //!
-//! The checks run in Python's order: the body must be valid JSON in the
-//! wizard shape first (pydantic runs before the handler, i.e. before the
-//! origin check), then the same-origin check (CSRF), then the timezone.
+//! The checks run in a fixed order: the body must be valid JSON in the
+//! wizard shape first (it is validated before the origin check), then the
+//! same-origin check (CSRF), then the timezone.
 //! A `StoreError` becomes the unhandled-exception answer (a plain-text
 //! 500); a failed address lookup is a 502, never a 500.
 
@@ -29,8 +29,8 @@ pub(crate) async fn post_location(
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
-    // 1. validate the body first (Python's pydantic runs before the
-    //    handler): an invalid body is a 422 even for a foreign origin.
+    // 1. validate the body first (body validation runs before the origin
+    //    check): an invalid body is a 422 even for a foreign origin.
     let content_type = headers
         .get(header::CONTENT_TYPE)
         .and_then(|value| value.to_str().ok());
@@ -97,8 +97,8 @@ pub(crate) async fn post_location(
 /// `GET /api/geocode`: address search for the setup wizard (Nominatim).
 ///
 /// The typed text goes to OpenStreetMap Nominatim *from the app's server*.
-/// `q` is the **last** `q` value of the raw query pairs (Python's `Query`
-/// takes the last of a repeated parameter); fewer than 3 or more than 200
+/// `q` is the **last** `q` value of the raw query pairs (a repeated
+/// parameter yields its last value); fewer than 3 or more than 200
 /// characters is a 422. A failed lookup is a 502, never a 500.
 pub(crate) async fn get_geocode(
     State(state): State<AppState>,
@@ -132,9 +132,9 @@ pub(crate) async fn get_geocode(
     }
 }
 
-/// A `StoreError` on the write path (Python: the exception escapes the
-/// endpoint and the security middleware answers a plain-text 500, as on
-/// the read path).
+/// A `StoreError` on the write path (the exception escapes the endpoint
+/// and the security middleware answers a plain-text 500, as on the read
+/// path).
 fn store_error(err: &StoreError) -> Response {
     tracing::error!("saving the location failed: {err}");
     (

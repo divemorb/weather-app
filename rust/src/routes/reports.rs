@@ -1,13 +1,12 @@
 //! `POST /api/reports`, `GET /api/reports/current` and
-//! `DELETE /api/reports/{id}` (Python `app/main.py`): the user reports what
-//! the sky really looks like — or confirms the page when it is right.
+//! `DELETE /api/reports/{id}`: the user reports what the sky really looks
+//! like — or confirms the page when it is right.
 //!
-//! The checks run in Python's order: the body (or the path id) is validated
-//! first (pydantic runs before the handler, i.e. before the origin check),
-//! then the same-origin check (CSRF), then (POST only) a location must be
-//! configured. The *server's* clock sets the observation time. A
-//! `StoreError` becomes the unhandled-exception answer (a plain-text 500,
-//! as in `routes/location.rs`).
+//! The checks run in a fixed order: the body (or the path id) is validated
+//! before the origin check, then the same-origin check (CSRF), then
+//! (POST only) a location must be configured. The *server's* clock sets
+//! the observation time. A `StoreError` becomes the unhandled-exception
+//! answer (a plain-text 500, as in `routes/location.rs`).
 
 use axum::Json;
 use axum::body::Bytes;
@@ -26,9 +25,9 @@ use crate::times;
 use super::AppState;
 
 /// A report is *fresh* (the current one) while observed within these
-/// minutes (Python `reports.FRESH_MINUTES`), both ends inclusive.
+/// minutes, both ends inclusive.
 const FRESH_MINUTES: i64 = 30;
-/// At most this many reports are kept (Python `reports.MAX_REPORTS`).
+/// At most this many reports are kept.
 const MAX_REPORTS: i64 = 500;
 
 /// `POST /api/reports`: store what the sky really looks like.
@@ -37,8 +36,8 @@ pub(crate) async fn post_report(
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
-    // 1. validate the body first (Python's pydantic runs before the
-    //    handler): an invalid body is a 422 even for a foreign origin.
+    // 1. validate the body first (body validation runs before the origin
+    //    check): an invalid body is a 422 even for a foreign origin.
     let content_type = headers
         .get(header::CONTENT_TYPE)
         .and_then(|value| value.to_str().ok());
@@ -69,7 +68,7 @@ pub(crate) async fn post_report(
         return json_error(StatusCode::CONFLICT, "no location configured");
     }
     // 4. the server's clock sets the observation time (one `now` for both
-    //    the new row and the prune, as in Python's `save_report`).
+    //    the new row and the prune).
     let now = state.aggregator.now();
     let observed_at = times::to_iso(now - TimeDelta::minutes(report_in.minutes_ago().minutes()));
     let store = state.aggregator.store();
@@ -144,15 +143,15 @@ pub(crate) async fn delete_report(
     delete_report_inner(&state, &raw, &headers)
 }
 
-/// `DELETE /api/reports/current`: Python answers this from the id route
-/// (`"current"` fails the id pattern), so it is the id's 422.
+/// `DELETE /api/reports/current`: answered by the id route (`"current"`
+/// fails the id pattern), so it is the id's 422.
 pub(crate) async fn delete_current(State(state): State<AppState>, headers: HeaderMap) -> Response {
     delete_report_inner(&state, "current", &headers)
 }
 
 fn delete_report_inner(state: &AppState, raw: &str, headers: &HeaderMap) -> Response {
-    // 1. the id is validated first (Python's `Path(pattern=...)` runs
-    //    before the handler): anything but `^[1-9][0-9]{0,17}$` is a 422.
+    // 1. the id is validated first (before the origin check): anything
+    //    but `^[1-9][0-9]{0,17}$` is a 422.
     let Some(id) = reports::parse_report_id(raw) else {
         return (
             StatusCode::UNPROCESSABLE_ENTITY,
@@ -178,8 +177,8 @@ fn delete_report_inner(state: &AppState, raw: &str, headers: &HeaderMap) -> Resp
     }
 }
 
-/// A `StoreError` on the report paths (Python: the exception escapes the
-/// endpoint and the security middleware answers a plain-text 500, as in
+/// A `StoreError` on the report paths (the exception escapes the endpoint
+/// and the security middleware answers a plain-text 500, as in
 /// `routes/location.rs`).
 fn store_error(err: &StoreError) -> Response {
     tracing::error!("the user report write failed: {err}");

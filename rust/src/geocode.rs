@@ -1,16 +1,11 @@
-//! Address search via OpenStreetMap Nominatim (Python `app/geocode.py`).
+//! Address search via OpenStreetMap Nominatim: the setup wizard resolves a
+//! typed address or place to coordinates. Upstream data is untrusted: a
+//! non-list payload is a [`SourceError`], and entries with missing,
+//! non-numeric or non-finite coordinates are skipped.
 //!
-//! The user types an address or place into the setup wizard; this module
-//! resolves it to coordinates. Upstream data is untrusted: a non-list
-//! payload is a [`SourceError`], and entries with missing, non-numeric or
-//! non-finite coordinates are skipped.
-//!
-//! Nominatim usage policy: at most one request per second. [`Geocoder`]
-//! therefore spaces requests by [`MIN_REQUEST_SPACING`]: the throttle lock
-//! is held across the wait *and* the request, so two concurrent searches
-//! are serialized and each still waits for the spacing. Results are cached
-//! per lower-cased query (cleared before a new entry once full) — good
-//! enough for a single-user app.
+//! Nominatim allows at most one request per second, so [`Geocoder`]
+//! spaces requests by [`MIN_REQUEST_SPACING`] (the lock is held across the
+//! wait *and* the request) and caches results per lower-cased query.
 
 use std::collections::HashMap;
 #[cfg(test)]
@@ -74,11 +69,11 @@ pub fn parse_nominatim(payload: &Value) -> Result<Vec<GeocodeResult>, SourceErro
     Ok(out)
 }
 
-/// The address parts that may form the second label line, in priority order
-/// (phone test P1: the city is the first present of these).
+/// The address parts that may form the city line, in priority order (the
+/// city is the first present of these).
 const CITY_PARTS: [&str; 5] = ["city", "town", "village", "municipality", "hamlet"];
 
-/// The two-line place label (phone test P1, 2026-10-12), German order.
+/// The two-line place label, German order.
 ///
 /// Line 1: `road` + `" " + house_number` when there is a number; without a
 /// road, the entry's `name` (a number without a road is dropped). If the

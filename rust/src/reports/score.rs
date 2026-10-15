@@ -1,5 +1,5 @@
 //! The models against the user reports: the `user_reports` block of
-//! `GET /api/model-accuracy` (Python `app/reports.py`, section P2).
+//! `GET /api/model-accuracy`.
 //!
 //! Per UTC hour the newest user report decides (wet when its kind is one of
 //! the four wet kinds); the station's scored rows of the same window are
@@ -16,16 +16,16 @@ use crate::pyfmt::py_round;
 use crate::store::{ReportRow, ScoredRow, Store, StoreError};
 use crate::times::to_iso;
 
-/// The hour a report belongs to (Python `hour_of`): `observed_at` cut to
-/// the hour, the `valid_from` format.
+/// The hour a report belongs to: `observed_at` cut to the hour, the
+/// `valid_from` format.
 pub fn hour_of(observed_at: &str) -> String {
     let prefix = observed_at.get(0..13).unwrap_or(observed_at);
     format!("{prefix}:00:00Z")
 }
 
-/// Per hour, the newest report's `(wet, confirms)` (Python
-/// `deciding_reports`). `rows` are the store's report rows; the newest
-/// report of an hour (`observed_at`, then id) decides it.
+/// Per hour, the newest report's `(wet, confirms)`. `rows` are the store's
+/// report rows; the newest report of an hour (`observed_at`, then id)
+/// decides it.
 pub fn deciding_reports(rows: &[ReportRow]) -> BTreeMap<String, (bool, bool)> {
     // hour -> (observed_at, id, kind, confirms) of the newest report so far
     let mut newest: BTreeMap<String, (String, i64, String, bool)> = BTreeMap::new();
@@ -58,7 +58,11 @@ pub fn deciding_reports(rows: &[ReportRow]) -> BTreeMap<String, (bool, bool)> {
         .collect()
 }
 
-/// Score the models against the user reports (Python `score_user_reports`).
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "hits, misses and correct_negatives count scored hours, far below 2^52"
+)]
+/// Score the models against the user reports.
 ///
 /// `deciding` is [`deciding_reports`]; `rows` are the station's scored rows
 /// (the window, `observed_mm IS NOT NULL`). Only report hours with at least
@@ -66,10 +70,6 @@ pub fn deciding_reports(rows: &[ReportRow]) -> BTreeMap<String, (bool, bool)> {
 /// report confirms. A model's forecast is wet when `precip_mm >
 /// threshold_mm` (strict, as in `crate::accuracy`); the models come out in
 /// alphabetical order, like the station's table.
-#[expect(
-    clippy::cast_precision_loss,
-    reason = "hits, misses and correct_negatives count scored hours, far below 2^52"
-)]
 pub fn score_user_reports(
     deciding: &BTreeMap<String, (bool, bool)>,
     rows: &[ScoredRow],
@@ -114,7 +114,7 @@ pub fn score_user_reports(
         }
         let n = hits + misses + false_alarms + correct_negatives;
         // Every model in `pairs` has at least one row, so `n > 0` and the
-        // division is defined; the guard mirrors Python's `if n else None`.
+        // division is defined; the guard still yields `None` for `n == 0`.
         let event_accuracy = if n > 0 {
             Some(py_round((hits + correct_negatives) as f64 / n as f64, 3))
         } else {
@@ -139,9 +139,9 @@ pub fn score_user_reports(
     })
 }
 
-/// The `user_reports` block of `GET /api/model-accuracy` (Python
-/// `user_report_accuracy`): the same scored rows the station uses (the
-/// window from `now`), paired with the newest user report of each hour.
+/// The `user_reports` block of `GET /api/model-accuracy`: the same scored
+/// rows the station uses (the window from `now`), paired with the newest
+/// user report of each hour.
 pub fn user_report_accuracy(
     store: &Store,
     window_days: i64,
@@ -179,7 +179,7 @@ mod tests {
     fn hour_of_cuts_to_the_hour() {
         assert_eq!(hour_of("2026-09-30T10:59:59Z"), "2026-09-30T10:00:00Z");
         assert_eq!(hour_of("2026-09-30T10:00:00Z"), "2026-09-30T10:00:00Z");
-        // A mangled stamp keeps Python's behaviour (`[:13]` of the whole).
+        // A mangled stamp keeps only its first 13 characters.
         assert_eq!(hour_of("abc"), "abc:00:00Z");
     }
 
@@ -283,7 +283,7 @@ mod tests {
 
     #[test]
     fn event_accuracy_rounds_like_python() {
-        // 2 of 3 right: 0.666… rounds to 0.667 (Python's round(x, 3)).
+        // 2 of 3 right: 0.666… rounds to 0.667 at 3 decimal places.
         let deciding = deciding_reports(&[
             report(1, "rain", true, "2026-09-30T10:00:00Z"),
             report(2, "clear", false, "2026-09-30T11:00:00Z"),

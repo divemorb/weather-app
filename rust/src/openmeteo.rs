@@ -1,6 +1,4 @@
-//! Open-Meteo parsers: multi-model forecast + ensemble (Python
-//! `app/openmeteo_client.py`: `HOURLY_VARS`, `_parse_time_list`, `_series`,
-//! `parse_forecast`, `parse_ensemble`).
+//! Open-Meteo parsers: multi-model forecast + ensemble.
 //!
 //! Pure functions: raw upstream JSON in, normalized data out. Upstream data
 //! is untrusted, so a wrong type or a missing key becomes a `SourceError`
@@ -14,8 +12,8 @@ use crate::models::{EnsembleData, ForecastBundle, ModelSeries};
 use crate::times::parse_iso;
 use crate::upstream::{SourceError, f64_list, py_str, py_truthy};
 
-/// Variables requested hourly per model (Python `HOURLY_VARS`), mapped in
-/// order onto `ModelSeries`'s hourly fields.
+/// Variables requested hourly per model, mapped in order onto
+/// `ModelSeries`'s hourly fields.
 pub const HOURLY_VARS: [&str; 5] = [
     "precipitation",
     "temperature_2m",
@@ -24,15 +22,14 @@ pub const HOURLY_VARS: [&str; 5] = [
     "cloud_cover",
 ];
 
-/// The Python `malformed_is_source_error` decorator: a payload-shape error
-/// (wrong type, missing key) becomes a `SourceError` with this wording.
+/// A payload-shape error (wrong type, missing key) becomes a `SourceError`
+/// with this wording.
 fn malformed(label: &str, exc: &SourceError) -> SourceError {
     SourceError::new(format!("{label}: malformed payload ({exc})"))
 }
 
-/// Python `payload.get(section, {})` — a missing section is empty, but a
-/// section that is *present* yet not an object (including `null`) is a
-/// `SourceError`: Python crashes on `.get` and the decorator wraps it.
+/// A missing section is empty, but a section that is *present* yet not an
+/// object (including `null`) is a `SourceError`.
 fn section<'a>(
     payload: &'a Map<String, Value>,
     name: &str,
@@ -48,9 +45,9 @@ fn section<'a>(
     }
 }
 
-/// Python `_parse_time_list`: a missing `time` key gives an empty list; a
-/// present one must be a list of ISO timestamp strings, each through
-/// `parse_iso`. Anything else is a `SourceError`.
+/// A missing `time` key gives an empty list; a present one must be a list
+/// of ISO timestamp strings, each through `parse_iso`. Anything else is a
+/// `SourceError`.
 fn parse_time_list(v: Option<&Value>, label: &str) -> Result<Vec<DateTime<Utc>>, SourceError> {
     match v {
         None => Ok(Vec::new()),
@@ -74,9 +71,8 @@ fn parse_time_list(v: Option<&Value>, label: &str) -> Result<Vec<DateTime<Utc>>,
     }
 }
 
-/// Python `_series`: a variable list, tolerating missing keys / null values
-/// (both give an empty list); anything present must be a list of numbers and
-/// nulls.
+/// A variable list, tolerating missing keys / null values (both give an
+/// empty list); anything present must be a list of numbers and nulls.
 fn series(
     payload: &Map<String, Value>,
     section_name: &str,
@@ -92,9 +88,8 @@ fn series(
     f64_list(raw, key).map_err(|exc| malformed(label, &exc))
 }
 
-/// Parse a multi-model forecast payload into a `ForecastBundle`
-/// (Python `parse_forecast`). Units are Open-Meteo's: precipitation mm,
-/// temperature °C, wind km/h, cloud cover %.
+/// Parse a multi-model forecast payload into a `ForecastBundle`. Units are
+/// Open-Meteo's: precipitation mm, temperature °C, wind km/h, cloud cover %.
 pub fn parse_forecast(
     payload: &Value,
     model_names: &[String],
@@ -146,10 +141,10 @@ pub fn parse_forecast(
     Ok(ForecastBundle { models })
 }
 
-/// The Python regex `precipitation_member(\d+)$` applied with `search`:
-/// the last `precipitation_member` occurrence in the key, followed by one or
-/// more digits that run to the end of the key. `Ok(None)` when the key is
-/// not a member key; an overflowing member number is a `SourceError`.
+/// The member number of a key: the last `precipitation_member` occurrence,
+/// followed by one or more digits that run to the end of the key (upstream
+/// names members `precipitation_member00`, `-01`, ...). `Ok(None)` when the
+/// key is not a member key; an overflowing member number is a `SourceError`.
 fn member_number(key: &str, label: &str) -> Result<Option<i64>, SourceError> {
     let Some(pos) = key.rfind("precipitation_member") else {
         return Ok(None);
@@ -169,9 +164,9 @@ fn member_number(key: &str, label: &str) -> Result<Option<i64>, SourceError> {
     Ok(Some(number))
 }
 
-/// Parse an ensemble payload into `EnsembleData` (Python `parse_ensemble`).
-/// Members are extracted from the `precipitation_memberNN` keys and ordered
-/// by member number; the control run is `precipitation`.
+/// Parse an ensemble payload into `EnsembleData`. Members are extracted
+/// from the `precipitation_memberNN` keys and ordered by member number; the
+/// control run is `precipitation`.
 pub fn parse_ensemble(payload: &Value) -> Result<EnsembleData, SourceError> {
     let label = "Open-Meteo ensemble";
     let payload = payload
@@ -191,8 +186,7 @@ pub fn parse_ensemble(payload: &Value) -> Result<EnsembleData, SourceError> {
     let times = parse_time_list(hourly.and_then(|s| s.get("time")), label)?;
     let control = series(payload, "hourly", "precipitation", label)?;
 
-    // member number -> values. BTreeMap: `insert` replaces like the Python
-    // dict, and iteration is in key order.
+    // member number -> values; iteration is in member order.
     let mut members: BTreeMap<i64, Vec<Option<f64>>> = BTreeMap::new();
     if let Some(hourly) = hourly {
         for (key, values) in hourly {

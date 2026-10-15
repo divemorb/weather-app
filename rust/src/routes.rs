@@ -9,16 +9,18 @@ use axum::routing::{MethodRouter, any};
 use axum::{Json, Router};
 use serde_json::{Value, json};
 
+/// Shared state handed to every route handler.
 #[derive(Clone)]
 pub struct AppState {
     pub extra_hosts: Arc<HashSet<String>>,
     pub static_files: Arc<HashMap<String, crate::static_files::StaticFile>>,
     pub aggregator: Arc<crate::aggregator::Aggregator>,
-    /// None when no scheduler runs (tests; Python: no `app.state.scheduler`).
+    /// None when no scheduler runs (tests).
     pub scheduler: Option<Arc<crate::scheduler::Scheduler>>,
     pub geocoder: Arc<crate::geocode::Geocoder>,
 }
 
+/// Build the router with all API routes and the security middleware.
 pub fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/healthz", get_only(healthz))
@@ -58,9 +60,9 @@ pub fn build_router(state: AppState) -> Router {
         .with_state(state)
 }
 
-/// A GET route whose other methods get Python's JSON 405. Built from
+/// A GET route whose other methods get the plain JSON 405. Built from
 /// `any(...)` because axum adds an `Allow` header to its own 405s (the
-/// Python app sends none), and `any` routes skip that.
+/// API sends none), and `any` routes skip that.
 pub fn get_only<H, T>(handler: H) -> MethodRouter<AppState>
 where
     H: Handler<T, AppState>,
@@ -69,7 +71,7 @@ where
     any(method_not_allowed).get(handler)
 }
 
-/// A POST route whose other methods get Python's JSON 405.
+/// A POST route whose other methods get the plain JSON 405.
 pub fn post_only<H, T>(handler: H) -> MethodRouter<AppState>
 where
     H: Handler<T, AppState>,

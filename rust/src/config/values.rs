@@ -1,5 +1,5 @@
-//! Value helpers for configuration loading: they reproduce Python's
-//! `float()`, `int()`, the `_env*` functions and `raw.get(key, {}) or {}`.
+//! Value helpers for configuration loading: environment lookups and YAML
+//! sections, with the type rules the config values accept.
 
 use serde_json::Value;
 

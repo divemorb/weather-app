@@ -1,16 +1,15 @@
-//! The `user_reports` table: what the user says the sky really looks like
-//! (Python `app/store.py`, `user_reports` methods).
+//! The `user_reports` table: what the user says the sky really looks like.
 //!
 //! `confirms` is stored as 0/1 and `intensity` is NULL when not given
-//! (only rain has one), exactly like the Python app, so both backends write
-//! the same rows.
+//! (only rain has one), exactly like the other backend, so both backends
+//! write the same rows.
 
 use rusqlite::{OptionalExtension, params};
 
 use super::{Store, StoreError};
 use crate::reports::{Intensity, ReportKind};
 
-/// The `user_reports` part of the Python `_SCHEMA`, verbatim.
+/// The `user_reports` part of the schema, verbatim.
 pub const SCHEMA: &str = r"
 CREATE TABLE IF NOT EXISTS user_reports (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -32,7 +31,7 @@ pub struct StoredReport {
     pub observed_at: String,
 }
 
-/// One report for the accuracy comparison (Python `Store.report_rows`'s
+/// One report for the accuracy comparison (the `report_rows` shape:
 /// `(id, kind, confirms, observed_at)`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReportRow {
@@ -42,8 +41,8 @@ pub struct ReportRow {
     pub observed_at: String,
 }
 
-/// One scored forecast row for the accuracy comparison (Python
-/// `Store.scored_forecasts`'s `(model, valid_from, precip_mm)`).
+/// One scored forecast row for the accuracy comparison (the
+/// `scored_forecasts` shape: `(model, valid_from, precip_mm)`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct ScoredRow {
     pub model: String,
@@ -52,7 +51,7 @@ pub struct ScoredRow {
 }
 
 impl Store {
-    /// Save a user report and return its new id (Python `add_report`).
+    /// Save a user report and return its new id.
     ///
     /// `intensity` is NULL when not given (only rain has one); `confirms`
     /// is stored as 0/1.
@@ -77,16 +76,15 @@ impl Store {
         Ok(conn.last_insert_rowid())
     }
 
-    /// Delete one report; `true` when the row existed (Python
-    /// `delete_report`).
+    /// Delete one report; `true` when the row existed.
     pub fn delete_report(&self, report_id: i64) -> Result<bool, StoreError> {
         let conn = self.lock_conn();
         let deleted = conn.execute("DELETE FROM user_reports WHERE id = ?", params![report_id])?;
         Ok(deleted > 0)
     }
 
-    /// The newest report observed at or before `until` (Python
-    /// `newest_report`); `None` when there is none. Newest = highest
+    /// The newest report observed at or before `until`; `None` when there
+    /// is none. Newest = highest
     /// `observed_at`, then id. (A report after `until` exists only if the
     /// clock jumped back; it must not hide the current one.)
     pub fn newest_report(&self, until: &str) -> Result<Option<StoredReport>, StoreError> {
@@ -111,8 +109,7 @@ impl Store {
     }
 
     /// Drop reports observed before `older_than`, then all but the newest
-    /// `keep` (`observed_at`, then id). Runs on every save (Python
-    /// `prune_reports`).
+    /// `keep` (`observed_at`, then id). Runs on every save.
     pub fn prune_reports(&self, older_than: &str, keep: i64) -> Result<(), StoreError> {
         let conn = self.lock_conn();
         conn.execute(
@@ -127,9 +124,8 @@ impl Store {
         Ok(())
     }
 
-    /// All reports as `(id, kind, confirms, observed_at)` in id order
-    /// (Python `report_rows`); the accuracy comparison picks the newest per
-    /// hour itself.
+    /// All reports as `(id, kind, confirms, observed_at)` in id order; the
+    /// accuracy comparison picks the newest per hour itself.
     pub fn report_rows(&self) -> Result<Vec<ReportRow>, StoreError> {
         let conn = self.lock_conn();
         let mut stmt =
@@ -147,9 +143,9 @@ impl Store {
         Ok(rows)
     }
 
-    /// The station's scored rows as `(model, valid_from, precip_mm)`
-    /// (Python `scored_forecasts`): the same rows as `compared_forecasts`
-    /// (`observed_mm IS NOT NULL`, hour started at or after `since`),
+    /// The station's scored rows as `(model, valid_from, precip_mm)`: the
+    /// same rows as `compared_forecasts` (`observed_mm IS NOT NULL`, hour
+    /// started at or after `since`),
     /// labelled by hour so the user-report comparison can pair each with the
     /// user's report of that hour.
     pub fn scored_forecasts(&self, since: &str) -> Result<Vec<ScoredRow>, StoreError> {

@@ -1,5 +1,5 @@
-//! SQLite persistence: cached source payloads + forecast history (Python
-//! `app/store.py`). The cache tables hold the *raw* upstream JSON for each
+//! SQLite persistence: cached source payloads + forecast history. The
+//! cache tables hold the *raw* upstream JSON for each
 //! source so the app can serve page loads instantly and show per-source
 //! data age. The history tables support the optional accuracy extension
 //! (stored forecasts compared against later observations).
@@ -16,7 +16,7 @@ use serde_json::Value;
 use crate::series::HistoryRow;
 use crate::times;
 
-/// A database problem (Python lets these exceptions propagate).
+/// A database problem (the caller decides the HTTP answer).
 #[derive(Debug)]
 pub enum StoreError {
     Sqlite(rusqlite::Error),
@@ -64,7 +64,7 @@ impl From<io::Error> for StoreError {
     }
 }
 
-/// The four cached upstream sources (Python's string keys). The database
+/// The four cached upstream sources (their string keys). The database
 /// column `source_cache.source` holds `key()`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Source {
@@ -75,7 +75,7 @@ pub enum Source {
 }
 
 impl Source {
-    /// In Python's `_SOURCES` order (the order of `/api/sources`).
+    /// The four sources, in the order of `/api/sources`.
     pub const ALL: [Self; 4] = [Self::Radar, Self::Current, Self::Forecast, Self::Ensemble];
 
     /// "radar", "current", "forecast", "ensemble"
@@ -100,8 +100,8 @@ impl Source {
 /// Current schema version (tracked in `app_meta`).
 pub const SCHEMA_VERSION: &str = "3";
 
-/// Python `_SCHEMA`, verbatim. The unique index on (model, valid_from) is
-/// deliberately *not* here: `_migrate` creates it after the one-time
+/// The schema DDL. The unique index on (model, valid_from) is
+/// deliberately *not* here: `migrate` creates it after the one-time
 /// cleanup of old rows.
 const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS source_cache (
@@ -130,14 +130,14 @@ CREATE TABLE IF NOT EXISTS app_meta (
 );
 "#;
 
+/// The store: the SQLite connection behind a mutex.
 pub struct Store {
     conn: Mutex<Connection>,
 }
 
 impl Store {
     /// Open (or create) the database, applying the schema and the
-    /// one-time migrations. `":memory:"` opens an in-memory database,
-    /// exactly like Python's `Store(":memory:")`.
+    /// one-time migrations. `":memory:"` opens an in-memory database.
     pub fn open(path: &str) -> Result<Self, StoreError> {
         if let Some(parent) = Path::new(path).parent() {
             std::fs::create_dir_all(parent)?;
@@ -157,7 +157,7 @@ impl Store {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 
-    /// Test-only access to the connection (Python tests read `store._db`).
+    /// Test-only access to the connection.
     #[cfg(test)]
     pub fn lock_for_tests(&self) -> MutexGuard<'_, Connection> {
         self.lock_conn()
@@ -174,6 +174,7 @@ impl Store {
         Ok(value.flatten())
     }
 
+    /// Store `value` under `key` (an existing row is updated in place).
     pub fn set_meta(&self, key: &str, value: &str) -> Result<(), StoreError> {
         let conn = self.lock_conn();
         conn.execute(
@@ -236,8 +237,8 @@ impl Store {
             return Ok(None);
         };
         let payload: Value = serde_json::from_str(&payload)?;
-        // Python falls back to "now" when fetched_at doesn't parse, i.e.
-        // age 0; a clock skew would give a negative age, clamped the same way.
+        // A `fetched_at` that doesn't parse falls back to "now", i.e. age
+        // 0; a clock skew would give a negative age, clamped the same way.
         let age = match times::parse_iso(&fetched_at) {
             Ok(fetched) => (now - fetched).as_seconds_f64(),
             Err(_) => 0.0,
@@ -379,7 +380,7 @@ enum StoredVersion {
     Text(String),
 }
 
-/// Python `_migrate`'s version read: the number if the stored value is
+/// The version read in [`migrate`]: the number if the stored value is
 /// non-empty and all ASCII digits, else 1 (a missing row, a NULL value
 /// or non-numeric text all mean 1).
 fn schema_version(stored: StoredVersion) -> i64 {

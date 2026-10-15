@@ -164,6 +164,8 @@ pub struct ReportFieldError {
     pub msg: &'static str,
 }
 
+/// A report-body failure: a 422 with per-field entries, or a 400 when the
+/// body is not valid UTF-8.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ReportBodyError {
     /// 422 with these entries.
@@ -246,7 +248,7 @@ pub fn parse_report_body(
     };
     let Some(obj) = value.as_object() else {
         // JSON `null` counts as a missing body; any other non-object is
-        // refused (Python's messages).
+        // refused.
         let msg = if value.is_null() {
             "Field required"
         } else {
@@ -257,8 +259,8 @@ pub fn parse_report_body(
     check_fields(obj)
 }
 
-/// The field checks, in Python's order: kind, intensity, minutes_ago,
-/// confirms, then the unknown fields.
+/// The field checks, in order: kind, intensity, minutes_ago, confirms,
+/// then the unknown fields.
 fn check_fields(obj: &Map<String, Value>) -> Result<ReportIn, ReportBodyError> {
     let mut errors: Vec<ReportFieldError> = Vec::new();
 
@@ -287,8 +289,8 @@ fn check_fields(obj: &Map<String, Value>) -> Result<ReportIn, ReportBodyError> {
         Some(Value::String(s)) => match Intensity::parse(s) {
             Some(parsed) => {
                 // A valid intensity is only allowed with a valid kind of
-                // `rain`; when the kind is missing or invalid, Python's
-                // validator sees no kind then.
+                // `rain`; when the kind is missing or invalid, this check
+                // sees no kind then.
                 if kind != Some(ReportKind::Rain) {
                     errors.push(field_error(
                         "intensity",
@@ -356,9 +358,8 @@ const KIND_MSG: &str = "Input should be 'clear', 'partly-cloudy', 'cloudy', 'fog
 'thunderstorm', 'snow' or 'hail'";
 const INTENSITY_MSG: &str = "Input should be 'light', 'moderate' or 'heavy'";
 
-/// `^[1-9][0-9]{0,17}$` (Python's `Path(pattern=...)`), by hand: 1 to 18
-/// ASCII digits, the first not `0` (anything else is a 422: `+5`, `05`,
-/// ` 5`, 19 digits).
+/// `^[1-9][0-9]{0,17}$`, by hand: 1 to 18 ASCII digits, the first not `0`
+/// (anything else is a 422: `+5`, `05`, ` 5`, 19 digits).
 pub fn parse_report_id(raw: &str) -> Option<i64> {
     let bytes = raw.as_bytes();
     if bytes.is_empty() || bytes.len() > 18 {

@@ -1,7 +1,6 @@
-//! Test helpers for the aggregator (the Rust version of
-//! `tests/aggregator_support.py`): the fixed instant, the payload builders,
-//! the canned-upstream wiring and the aggregator builder. Compiled only
-//! under `#[cfg(test)]`, so it may expect.
+//! Test helpers for the aggregator: the fixed instant, the payload
+//! builders, the canned-upstream wiring and the aggregator builder.
+//! Compiled only under `#[cfg(test)]`, so it may expect.
 
 use chrono::{DateTime, TimeDelta, Utc};
 use serde_json::{Value, json};
@@ -17,7 +16,8 @@ use crate::times;
 /// Re-exported so tests can write `use super::testkit::*;` only.
 pub use crate::testutil::fake_upstream::{FakeResponse, FakeUpstream};
 
-/// Python `NOW` in `tests/aggregator_support.py`.
+/// The fixed test instant as an ISO string (the aggregator's clock starts
+/// here).
 pub const NOW: &str = "2025-01-01T12:00:00Z";
 
 /// The fixed test instant (the aggregator's clock starts here).
@@ -134,7 +134,7 @@ pub fn ensemble_payload() -> Value {
     })
 }
 
-/// The four (or five) cached payloads (Python `make_payloads`).
+/// The four (or five) cached payloads a test may serve.
 pub struct Payloads {
     pub current: Option<Value>,
     pub radar: Option<Value>,
@@ -143,7 +143,7 @@ pub struct Payloads {
     pub weather: Option<Value>,
 }
 
-/// All four cache payloads (same as Python's `all_payloads` fixture).
+/// All four cache payloads (the full standard setup).
 pub fn make_payloads() -> Payloads {
     Payloads {
         current: Some(current_payload()),
@@ -203,7 +203,7 @@ pub fn serve(fake: &FakeUpstream, payloads: &Payloads, errors: &[Source]) {
     }
 }
 
-/// The options Python `make_cfg` takes.
+/// The options `make_cfg` takes.
 pub struct CfgOpts {
     pub stale_radar: i64,
     pub stale_models: i64,
@@ -229,8 +229,8 @@ impl Default for CfgOpts {
     }
 }
 
-/// Python `make_cfg`: the app defaults plus the fixed test values and the
-/// fake upstream's URLs.
+/// The app defaults plus the fixed test values and the fake upstream's
+/// URLs.
 pub fn make_cfg(fake: &FakeUpstream, opts: CfgOpts) -> AppConfig {
     let mut cfg = crate::config::load_config(None, &|_| None).expect("the defaults load");
     let base = fake.base.clone();
@@ -277,7 +277,7 @@ pub fn make_aggregator(cfg: AppConfig, store: Store) -> super::Aggregator {
     super::Aggregator::new(cfg, store, brightsky, openmeteo, times::Clock::fixed(now()))
 }
 
-/// Python's in-memory test store.
+/// A fresh in-memory store.
 pub fn memory_store() -> Store {
     Store::open(":memory:").expect("the in-memory store opens")
 }

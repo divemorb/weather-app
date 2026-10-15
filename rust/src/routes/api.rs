@@ -1,8 +1,8 @@
-//! The GET API endpoints (Python `app/main.py`, `api_config` … `api_schedule`).
+//! The GET API endpoints: `api_config` through `api_schedule`.
 //!
 //! Every handler is thin: read from the aggregator (the read model in
 //! `crate::aggregator::read`), hand the result to the matching serializer.
-//! A `StoreError` becomes Python's unhandled-exception answer: a 500 with
+//! A `StoreError` becomes the unhandled-exception answer: a 500 with
 //! the plain-text body "Internal Server Error" (the security guard adds the
 //! security headers, as to every response).
 
@@ -24,7 +24,7 @@ use crate::store::{Source, StoreError};
 
 use super::AppState;
 
-/// A database problem on the read path (Python: the exception escapes the
+/// A database problem on the read path (the exception escapes the
 /// endpoint and the security-header middleware answers a 500).
 pub(crate) struct ApiError(StoreError);
 

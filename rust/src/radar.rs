@@ -1,5 +1,4 @@
-//! Bright Sky radar frame decoding and the `/radar` parser (Python
-//! `app/brightsky_client.py`: `_decode_grid`, `parse_radar`).
+//! Bright Sky radar frame decoding and the `/radar` parser.
 //!
 //! Pure functions: raw upstream JSON in, normalized data out. Upstream data
 //! is untrusted, so a wrong type or a missing key becomes a `SourceError`
@@ -22,15 +21,15 @@ pub const RADAR_MM_PER_UNIT: f64 = 0.01;
 /// Max radar sub-grid size in cells; the real grid is only a few hundred.
 pub const MAX_RADAR_CELLS: i64 = 250_000;
 
-/// The Python `malformed_is_source_error` decorator: a payload-shape error
-/// (wrong type, missing key) becomes a `SourceError` with this wording.
+/// A payload-shape error (wrong type, missing key) becomes a `SourceError`
+/// with this wording.
 fn malformed(label: &str, exc: &SourceError) -> SourceError {
     SourceError::new(format!("{label}: malformed payload ({exc})"))
 }
 
-/// Python `_decode_grid`: base64 (characters outside the alphabet are
-/// skipped, like `base64.b64decode`), then zlib, capped at the expected
-/// size so a malicious frame can't expand in memory (zip bomb).
+/// Decode a radar frame: base64 (characters outside the alphabet are
+/// skipped), then zlib, capped at the expected size so a malicious frame
+/// can't expand in memory (zip bomb).
 pub fn decode_grid(encoded: &str, n_cells: usize) -> Result<Vec<u16>, SourceError> {
     let cleaned: Vec<u8> = encoded
         .bytes()
@@ -55,8 +54,8 @@ pub fn decode_grid(encoded: &str, n_cells: usize) -> Result<Vec<u16>, SourceErro
     Ok(pairs.iter().map(|p| u16::from_le_bytes(*p)).collect())
 }
 
-/// Python `int(v)` for a bbox entry: a JSON integer, or a float truncated
-/// toward zero; anything else is a malformed payload.
+/// A bbox entry as an integer: a JSON integer, or a float truncated toward
+/// zero; anything else is a malformed payload.
 fn bbox_int(v: &Value) -> Result<i64, SourceError> {
     let number = v.as_i64().or_else(|| v.as_f64().and_then(f64_to_i64));
     number.ok_or_else(|| {
@@ -84,19 +83,8 @@ fn position_num(llp: &Map<String, Value>, key: &str) -> Result<f64, SourceError>
     }
 }
 
-/// Parse a `/radar` payload into a `RadarNowcast` (Python `parse_radar`).
-///
-/// The response covers a sub-grid around the location with `bbox` =
-/// (top, left, bottom, right) in full-grid cell coordinates and
-/// `latlon_position` = (x, y) of the requested position within the
-/// sub-grid. Grid cells are ~1 km. Raw values are 0.01 mm units, converted
-/// to millimetres here.
-///
-/// The request window is bounded upstream (`fetch_radar_payload`), so every
-/// frame that comes back is kept (oldest-first); the time-aware callers
-/// (probability layer, UI bar) select the subset within `[now, now + 1h)`.
-/// The checked parts of the `/radar` payload: the sub-grid box, the grid
-/// dimensions, and the requested position within the sub-grid.
+/// The checked parts of the `/radar` payload: the sub-grid box and size,
+/// the requested position within it, and whether the position is covered.
 struct RadarGrid {
     top: i64,
     left: i64,
@@ -110,8 +98,8 @@ struct RadarGrid {
     covered: bool,
 }
 
-/// The `bbox` / `latlon_position` part of Python's `parse_radar`: the
-/// grid box and size, and whether the position is inside the box.
+/// The `bbox` / `latlon_position` part of the payload: the grid box and
+/// size, and whether the position is inside the box.
 #[expect(
     clippy::cast_precision_loss,
     reason = "width/height are radar grid dimensions, bounded by MAX_RADAR_CELLS"
@@ -174,8 +162,8 @@ fn radar_grid(payload: &Value, label: &str) -> Result<RadarGrid, SourceError> {
     })
 }
 
-/// One frame of Python's `parse_radar`: the decoded grid, the non-zero
-/// cells, and the maximum precipitation.
+/// One frame: the decoded grid, the non-zero cells, and the maximum
+/// precipitation.
 fn parse_frame(
     rec: &Value,
     label: &str,
@@ -231,6 +219,14 @@ fn parse_frame(
     })
 }
 
+/// Parse a `/radar` payload into a `RadarNowcast`: the frames (oldest-first)
+/// and the sub-grid around the location.
+///
+/// `bbox` is (top, left, bottom, right) in full-grid cell coordinates;
+/// `latlon_position` is (x, y) within the sub-grid (cells ~1 km). Raw values
+/// are 0.01 mm units, converted here. The request window is bounded
+/// upstream, so every frame is kept; the time-aware callers (probability
+/// layer, UI bar) select `[now, now + 1h)`.
 pub fn parse_radar(payload: &Value) -> Result<RadarNowcast, SourceError> {
     let label = "Bright Sky radar";
 

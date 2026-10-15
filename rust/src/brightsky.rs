@@ -1,4 +1,4 @@
-//! Bright Sky (DWD) client parsers (Python `app/brightsky_client.py`).
+//! Bright Sky (DWD) client parsers.
 //!
 //! Pure functions: raw upstream JSON in, normalized data out. Upstream data
 //! is untrusted, so a wrong type or a missing key becomes a `SourceError`
@@ -20,7 +20,6 @@ fn malformed(label: &str, exc: &SourceError) -> SourceError {
 
 /// The weather icons Bright Sky documents for `/current_weather` (day/night
 /// and wind are already folded in); the page picks its animated sky from it.
-/// (Python `WEATHER_ICONS`.)
 pub const WEATHER_ICONS: [&str; 12] = [
     "clear-day",
     "clear-night",

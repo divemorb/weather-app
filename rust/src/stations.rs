@@ -1,15 +1,13 @@
-//! The weather stations behind the data (Python `app/stations.py`).
+//! The weather stations behind the data.
 //!
 //! Pure parsers that name the observation stations in Bright Sky payloads:
 //! the station a `/current_weather` payload's values come from
-//! (`weather.source_id`) and, per value, the station Bright Sky took it
-//! from instead (`weather.fallback_source_ids`) — for `GET /api/now`; and
-//! the stations the `/weather` backfill's observations came from — for
-//! `GET /api/model-accuracy`.
+//! (`weather.source_id`) and, per value, the station taken from instead
+//! (`weather.fallback_source_ids`) for `GET /api/now`, plus the stations
+//! the `/weather` backfill's observations came from (`GET /api/model-accuracy`).
 //!
-//! Payloads are untrusted: entries may miss keys or carry them mistyped
-//! (and older Bright Sky payloads have no `sources` key at all). A missing
-//! (or mistyped) key is `None` (null in JSON) — never an error, never a panic.
+//! Payloads are untrusted (entries may miss keys, carry them mistyped, or
+//! have no `sources` at all): a missing key is `None`; no error, no panic.
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -18,8 +16,8 @@ use serde_json::{Map, Value, json};
 
 use crate::times::parse_iso;
 
-/// One listed `sources` entry as the API's `station` shape (Python
-/// `parse_station`): `name` / `dwd_station_id` from `station_name` /
+/// One listed `sources` entry as the API's `station` shape:
+/// `name` / `dwd_station_id` from `station_name` /
 /// `dwd_station_id`, the rest from `distance` / `lat` / `lon` / `height`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Station {
@@ -33,8 +31,7 @@ pub struct Station {
     pub dwd_station_id: Option<String>,
 }
 
-/// A fallback source as the API's `fallback` shape (name + distance,
-/// Python `_fallback_entry`).
+/// A fallback source as the API's `fallback` shape (name + distance).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FallbackEntry {
     pub name: Option<String>,
@@ -42,7 +39,7 @@ pub struct FallbackEntry {
 }
 
 /// One backfill station as the stored entry and the API's `stations`
-/// shape (Python `_observation_entry`): no `height_m`, plus `hours`.
+/// shape: no `height_m`, plus `hours`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ObsStation {
     pub name: Option<String>,
@@ -53,9 +50,9 @@ pub struct ObsStation {
     pub hours: u64,
 }
 
-/// Bright Sky field -> the `/api/now` field it becomes (Python
-/// `CURRENT_FIELDS`); fields the API doesn't carry are absent, so a
-/// fallback for them is left out of the response.
+/// Bright Sky field -> the `/api/now` field it becomes; fields the API
+/// doesn't carry are absent, so a fallback for them is left out of the
+/// response.
 pub const CURRENT_FIELDS: [(&str, &str); 12] = [
     ("temperature", "temperature_c"),
     ("wind_speed_10", "wind_speed_ms"),
@@ -72,22 +69,21 @@ pub const CURRENT_FIELDS: [(&str, &str); 12] = [
 ];
 
 /// The `app_meta` key holding the observation stations of the last
-/// successful backfill, as canonical JSON (Python `OBSERVATION_STATIONS_KEY`).
+/// successful backfill, as canonical JSON.
 pub const OBSERVATION_STATIONS_KEY: &str = "observation_stations";
 
-/// A JSON string or None (Python `_as_str`).
+/// A JSON string or None.
 fn as_str(v: Option<&Value>) -> Option<String> {
     v.and_then(Value::as_str).map(str::to_string)
 }
 
-/// A JSON number (int or float; a bool is not one) or None (Python
-/// `_as_number`), kept as the payload carried it (an int stays an int).
+/// A JSON number (int or float; a bool is not one) or None, kept as the
+/// payload carried it (an int stays an int).
 fn as_number(v: Option<&Value>) -> Option<Value> {
     v.filter(|v| v.is_number()).cloned()
 }
 
-/// A JSON integer (a bool is not one, nor is a float) as `i128` (Python
-/// `_is_id`).
+/// A JSON integer (a bool is not one, nor is a float) as `i128`.
 fn as_int_id(v: Option<&Value>) -> Option<i128> {
     let Value::Number(n) = v? else {
         return None;
@@ -101,8 +97,8 @@ fn as_int_id(v: Option<&Value>) -> Option<i128> {
     }
 }
 
-/// One listed `sources` entry as the API's `station` shape (Python
-/// `parse_station`); a missing (or mistyped) key is None.
+/// One listed `sources` entry as the API's `station` shape; a missing
+/// (or mistyped) key is None.
 pub fn parse_station(source: &Value) -> Station {
     let obj = source.as_object();
     Station {
@@ -115,13 +111,13 @@ pub fn parse_station(source: &Value) -> Station {
     }
 }
 
-/// The `station` and `fallback` of a raw `/current_weather` payload
-/// (Python `station_and_fallback`): `station` is the listed source whose
-/// `id` equals `weather.source_id` (None when no such source is listed);
-/// `fallback` maps, for each value the API carries, the API's field name
-/// to the listed source Bright Sky took it from instead
-/// (`weather.fallback_source_ids`, see [`CURRENT_FIELDS`]); unlisted ids
-/// are left out (empty when nothing fell back).
+/// The `station` and `fallback` of a raw `/current_weather` payload:
+/// `station` is the listed source whose `id` equals `weather.source_id`
+/// (None when no such source is listed); `fallback` maps, for each value
+/// the API carries, the API's field name to the listed source Bright Sky
+/// took it from instead (`weather.fallback_source_ids`, see
+/// [`CURRENT_FIELDS`]); unlisted ids are left out (empty when nothing
+/// fell back).
 pub fn station_and_fallback(payload: &Value) -> (Option<Station>, BTreeMap<String, FallbackEntry>) {
     let Some(obj) = payload.as_object() else {
         return (None, BTreeMap::new());
@@ -132,9 +128,8 @@ pub fn station_and_fallback(payload: &Value) -> (Option<Station>, BTreeMap<Strin
         .and_then(Value::as_array)
         .map(|list| list.iter().filter(|s| s.is_object()).collect())
         .unwrap_or_default();
-    // Python `{s["id"]: s for s in sources if _is_id(s.get("id"))}`: only
-    // sources with an integer id are listed, a duplicate id keeps one entry
-    // (later wins).
+    // Only sources with an integer id are listed, a duplicate id keeps one
+    // entry (later wins).
     let mut by_id: HashMap<i128, &Value> = HashMap::new();
     for s in &sources {
         let Some(key) = s.as_object().and_then(|o| as_int_id(o.get("id"))) else {
@@ -177,7 +172,7 @@ pub fn station_and_fallback(payload: &Value) -> (Option<Station>, BTreeMap<Strin
 
 /// The `id` of a `sources` entry or a `weather` record as a lookup key:
 /// the id's JSON text, so a missing id matches a missing `source_id`
-/// exactly as in Python (`None == None`).
+/// exactly as a null matches a null.
 fn id_key(v: Option<&Value>) -> String {
     v.unwrap_or(&Value::Null).to_string()
 }
@@ -194,8 +189,7 @@ fn observation_entry(source: &Value, hours: u64) -> ObsStation {
     }
 }
 
-/// The stations a `/weather` payload's observations came from (Python
-/// `observation_stations`).
+/// The stations a `/weather` payload's observations came from.
 ///
 /// Counts the records exactly as `parse_hourly_observations` keeps them
 /// (known source, `observation_type != "forecast"`, precipitation not null,
@@ -206,9 +200,9 @@ pub fn observation_stations(payload: &Value, now: DateTime<Utc>) -> Vec<ObsStati
     let Some(obj) = payload.as_object() else {
         return Vec::new();
     };
-    // Python's `by_id` is an insertion-ordered dict in which later entries
-    // win (a duplicate id keeps its first position): `order` holds the
-    // distinct id keys in first-seen order, `by_id` the winning entry.
+    // A duplicate id keeps its first position but its latest entry:
+    // `order` holds the distinct id keys in first-seen order, `by_id` the
+    // winning entry.
     let mut order: Vec<String> = Vec::new();
     let mut by_id: HashMap<String, &Value> = HashMap::new();
     for s in obj
@@ -243,7 +237,7 @@ pub fn observation_stations(payload: &Value, now: DateTime<Utc>) -> Vec<ObsStati
         if source.get("observation_type").and_then(Value::as_str) == Some("forecast") {
             continue;
         }
-        // Python checks `is None` only: a mistyped precipitation still
+        // Only a null precipitation is skipped: a mistyped value still
         // counts (unlike `parse_hourly_observations`, which errors there).
         if rec.get("precipitation").is_none_or(Value::is_null) {
             continue;
@@ -265,8 +259,8 @@ pub fn observation_stations(payload: &Value, now: DateTime<Utc>) -> Vec<ObsStati
             entries.push(observation_entry(source, h));
         }
     }
-    // Python: sorted by (distance missing, distance or 0.0, name or "");
-    // the stable sort keeps payload order for full ties.
+    // Sorted by (distance missing, distance or 0.0, name or ""); the
+    // stable sort keeps payload order for full ties.
     entries.sort_by(|a, b| {
         let key = |e: &ObsStation| {
             (
@@ -296,16 +290,16 @@ pub fn observation_entry_json(e: &ObsStation) -> Value {
     })
 }
 
-/// The canonical JSON stored under [`OBSERVATION_STATIONS_KEY`] (Python
-/// `stations_to_json`): sorted keys, compact separators, raw UTF-8 — the
-/// Python backend writes the same bytes.
+/// The canonical JSON stored under [`OBSERVATION_STATIONS_KEY`]: sorted
+/// keys, compact separators, raw UTF-8 — the same bytes the other backend
+/// writes.
 pub fn stations_to_json(stations: &[ObsStation]) -> String {
     let list: Vec<Value> = stations.iter().map(observation_entry_json).collect();
     Value::Array(list).to_string()
 }
 
-/// One stored entry: the six keys with their types (Python
-/// `_stored_entry_ok`; a missing key is null, extra keys are ignored).
+/// One stored entry: the six keys with their types (a missing key is
+/// null, extra keys are ignored).
 fn stored_entry_ok(e: &Map<String, Value>) -> bool {
     if e.get("name")
         .is_some_and(|v| !v.is_null() && !v.is_string())
@@ -329,7 +323,7 @@ fn stored_entry_ok(e: &Map<String, Value>) -> bool {
     }
 }
 
-/// The stored value back to a list, or `[]` (Python `stations_from_json`).
+/// The stored value back to a list, or `[]` when it is unreadable.
 ///
 /// A JSON list of stored entries (name / dwd_station_id: string or null;
 /// distance_m / lat / lon: number or null; hours: non-negative integer);

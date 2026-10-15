@@ -1,5 +1,4 @@
-//! Pure serializers that turn aggregator results into API-ready JSON
-//! (Python `app/api_serializers.py`).
+//! Pure serializers that turn aggregator results into API-ready JSON.
 //!
 //! All timestamps are UTC ISO-8601 (`...Z`); the frontend converts to the
 //! configured display timezone.
@@ -16,7 +15,7 @@ use crate::stations::{
     FallbackEntry, ObsStation, Station, fallback_entry_json, observation_entry_json, station_json,
 };
 
-/// Freshness of one cached source (Python `Aggregator.cache_meta`).
+/// Freshness of one cached source.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CacheMeta {
     pub available: bool,
@@ -24,8 +23,8 @@ pub struct CacheMeta {
     pub stale: bool,
 }
 
-/// Python `_cache_meta`: normalize an optional cache meta into the response
-/// fields. Without a cached source at all the result is
+/// Normalize an optional cache meta into the response fields. Without a
+/// cached source at all the result is
 /// `{"available": false, "age_seconds": null, "stale": false}`.
 fn cache_meta(meta: Option<&CacheMeta>) -> Map<String, Value> {
     let m = meta.unwrap_or(&CacheMeta {
@@ -55,8 +54,8 @@ pub fn serialize_now(
     station: Option<&Station>,
     fallback: &BTreeMap<String, FallbackEntry>,
 ) -> Value {
-    // Python returns the fixed "no cached observation" shape and ignores
-    // `meta` when there are no conditions.
+    // The fixed "no cached observation" shape is returned, ignoring
+    // `meta`, when there are no conditions.
     let Some(conditions) = conditions else {
         return json!({
             "available": false,
