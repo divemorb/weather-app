@@ -1,6 +1,6 @@
-"""The B phase of the report run: saving (W1b) - the report-save checks, the
-sky after the save, the undo, the intensity choices, confirming, a failing
-save and a fresh report from elsewhere (report_save)."""
+"""Saving in the report run: the report-save checks, the sky after the save,
+the undo, the intensity choices, confirming, a failing save and a fresh
+report from elsewhere (report_save)."""
 from __future__ import annotations
 
 import json
@@ -37,7 +37,7 @@ def saved_and_back(pg, base: str, want: dict) -> list[str]:
 
 
 def save_fog(run: Run, pg) -> dict | None:
-    """B1: save a fog report from 15 min ago: the saved fields, the front's
+    """Save a fog report from 15 min ago: the saved fields, the front's
     report line (report-save), the sky after the save (sky-after-save)."""
     problems = open_back(pg)
     problems = problems or pg.click(selector=sel("report-when", minutes="15"))
@@ -55,7 +55,7 @@ def save_fog(run: Run, pg) -> dict | None:
 
 
 def sky_after_save(run: Run, pg, rep) -> None:
-    """B2: after the save, the sky follows the fresh report (data-scene and
+    """After the save, the sky follows the fresh report (data-scene and
     sky-reason)."""
     lang, now = run.lang, run.sc["now"]
     problems = []
@@ -75,7 +75,7 @@ def sky_after_save(run: Run, pg, rep) -> None:
 
 
 def undo_report(run: Run, pg, rep) -> None:
-    """B3: undo the just saved report: nothing on the API, the front's
+    """Undo the just saved report: nothing on the API, the front's
     report line gone (report-undo)."""
     problems = [] if rep else ["nothing saved (see report-save)"]
     if rep:
@@ -94,7 +94,7 @@ def undo_report(run: Run, pg, rep) -> None:
 
 
 def save_intensity(run: Run, check: str, button: tuple[str, dict], want: str | None) -> None:
-    """B4: the intensity choices (report-intensity) and a save with it, or
+    """The intensity choices (report-intensity) and a save with it, or
     skipping it (report-skip: no intensity on the report)."""
     lang, now = run.lang, run.sc["now"]
     clear_fresh(run.base)
@@ -125,7 +125,7 @@ def save_intensity(run: Run, check: str, button: tuple[str, dict], want: str | N
 
 
 def save_confirm(run: Run) -> None:
-    """B5: "That's right" confirms what the page shows (report-confirm)."""
+    """Confirming ("that's right") saves what the page shows (report-confirm)."""
     lang, now = run.lang, run.sc["now"]
     clear_fresh(run.base)
     pg = run.page()
@@ -145,7 +145,7 @@ def save_confirm(run: Run) -> None:
 
 
 def save_error(run: Run) -> None:
-    """B6: a failing save (a faked 500): the error message, the back stays,
+    """A failing save (a faked 500): the error message, the back stays,
     nothing on the front (report-error)."""
     lang = run.lang
     pg = run.page(fakes={"/api/reports": [(500, json.dumps({"detail": "boom"}))] * 4})
@@ -164,7 +164,7 @@ def save_error(run: Run) -> None:
 
 
 def save_fresh(run: Run) -> None:
-    """B7: a fresh report from earlier (another device): the front shows it
+    """A fresh report from earlier (another device): the front shows it
     on load (report-line-fresh)."""
     rep = {"id": 77, "kind": "snow", "intensity": None, "confirms": False, "observed_at": _iso(run.sc["now"], -10)}
     pg = run.page(fakes={"/api/reports/current": [(200, json.dumps({"report": rep}))] * 8})
@@ -173,7 +173,7 @@ def save_fresh(run: Run) -> None:
 
 
 def run_save(run: Run):
-    """B: saving (W1b): fog, the sky after the save, undo, the intensity
+    """Saving: fog, the sky after the save, undo, the intensity
     choices, confirming, a failing save, a fresh report from elsewhere."""
     clear_fresh(run.base)
     pg = run.page()

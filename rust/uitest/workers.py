@@ -1,19 +1,12 @@
-"""Parallel UI runs: one worker process per job (T3).
+"""Parallel UI runs: one worker process per job.
 
-The scenarios run in worker processes instead of one after another: one job
-per scenario, except ``sky``, which is split into one job per scene (the
-``scene-*`` cases and ``sky-layer`` go to the first sky job) so that the
-longest scenario is not the long pole. Each worker is a subprocess of
-``run.py`` itself (``--worker``), with its own app, its own fake upstream
-and its own Chromium per language, exactly as ``run_scenario`` does per
-scenario today.
-
-Worker k owns the app ports ``20000 + 100*k .. 20000 + 100*k + 99`` (a fixed
-range per worker: two workers never pick the same port; on a busy port the
-next one in the range is tried). The worker reads one job per line from
-stdin (JSON, with an ``idx`` naming the job) and prints one line per job,
-``UITEST-RESULT <json>`` (``{"idx": ..., "problems": {name: [problems...]}}``)
-to stdout; everything else (tracebacks) goes to stderr.
+One job per scenario, except ``sky`` (one job per scene), so no scenario is
+the long pole; each worker is a ``run.py --worker`` subprocess with its own
+app, fake upstream and Chromium per language. Worker k owns the app ports
+``20000 + 100*k .. 20000 + 100*k + 99`` (disjoint ranges: two workers never
+pick the same port; on a busy port the next in the range is tried). Jobs
+arrive on stdin as one JSON line each (with an ``idx``); per job the worker
+prints ``UITEST-RESULT <json>`` to stdout, everything else to stderr.
 """
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
 //! Tests for the report body and id (the rows of the spec's "what is
-//! refused" table, the defaults, and Python's id pattern).
+//! refused" table, the defaults, and the id pattern of the reference app).
 
 use super::*;
 use serde_json::json;
@@ -177,8 +177,8 @@ fn the_msgs_match_python() {
 
 #[test]
 fn field_errors_come_before_the_extra_fields() {
-    // Python reports the field errors in the model's order, then the unknown
-    // fields; the extras follow the map's (sorted) order here.
+    // The reference app reports the field errors in the model's order, then
+    // the unknown fields; the extras follow the map's (sorted) order here.
     assert_eq!(
         locs(r#"{"zeta": 1, "kind": "sunny", "alpha": 2}"#),
         vec![

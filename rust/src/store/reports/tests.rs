@@ -1,4 +1,4 @@
-//! Tests for the user_reports store methods (R1b).
+//! Tests for the user_reports store methods.
 //!
 //! Uses a real SQLite database on disk (a ``tempdir``), as the store's own
 //! tests do, so the schema applied in ``Store::open`` is what runs.
@@ -15,7 +15,7 @@ fn fresh_store() -> (tempfile::TempDir, Store) {
 }
 
 /// All user_reports rows in id order, as `(kind, intensity, confirms,
-/// observed_at)` (the SQL of the Python `test_stored_rows`).
+/// observed_at)` (the SQL of the reference app's `test_stored_rows`).
 fn rows(store: &Store) -> Vec<(String, Option<String>, i64, String)> {
     let conn = store.lock_conn();
     let mut stmt = conn

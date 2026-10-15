@@ -56,7 +56,7 @@ fn opt_f64_numbers() {
 
 #[test]
 fn opt_f64_rejects_strings_and_bools() {
-    // Python's float() would accept these; we do not.
+    // The reference app accepted these as numbers; we do not.
     assert!(opt_f64(Some(&json!("1.5")), "x").is_err());
     assert!(opt_f64(Some(&json!(true)), "x").is_err());
 }

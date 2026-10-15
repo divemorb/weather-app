@@ -4,7 +4,7 @@ const PYFMT_FIXTURE: &str = include_str!("../../contract/fixtures/pyfmt_cases.js
 const SUM_FIXTURE: &str = include_str!("../../contract/fixtures/py_cases/sum.json");
 const HYPOT_FIXTURE: &str = include_str!("../../contract/fixtures/py_cases/hypot.json");
 
-/// The `cases` array of a Python-reference fixture.
+/// The `cases` array of a reference fixture.
 fn fixture_cases(json: &str) -> Vec<serde_json::Value> {
     let data: serde_json::Value = serde_json::from_str(json).unwrap();
     data["cases"]
@@ -15,7 +15,7 @@ fn fixture_cases(json: &str) -> Vec<serde_json::Value> {
 
 #[test]
 fn reference_cases_match_python() {
-    // Reference values produced by Python 3.14's round/format for 3036 inputs.
+    // The reference round/format values for 3036 inputs (the contract fixture).
     let cases = fixture_cases(PYFMT_FIXTURE);
     let mut mismatches = 0;
     let mut first: Vec<String> = Vec::new();
@@ -119,8 +119,8 @@ fn py_fmt_0f_125_halves_even() {
 
 #[test]
 fn py_sum_reference_matches_python() {
-    // Reference values produced by Python 3.12's builtin sum() for 3011
-    // lists; `values` and `sum` are f64 bit patterns.
+    // The reference sum values for 3011 lists (the contract fixture);
+    // `values` and `sum` are f64 bit patterns.
     let cases = fixture_cases(SUM_FIXTURE);
     let mut mismatches = 0;
     let mut first: Vec<String> = Vec::new();
@@ -145,7 +145,7 @@ fn py_sum_reference_matches_python() {
 
 #[test]
 fn py_hypot_reference_matches_python() {
-    // Reference values produced by Python 3.12's math.hypot for 4006 pairs;
+    // The reference hypot values for 4006 pairs (the contract fixture);
     // `dx`, `dy` and `hypot` are f64 bit patterns.
     let cases = fixture_cases(HYPOT_FIXTURE);
     let mut mismatches = 0;
@@ -167,8 +167,8 @@ fn py_hypot_reference_matches_python() {
 
 #[test]
 fn py_sum_01_02_03_is_exactly_06() {
-    // Python's sum([0.1, 0.2, 0.3]) is exactly 0.6; plain addition gives
-    // 0.6000000000000001.
+    // The reference sum of [0.1, 0.2, 0.3] is exactly 0.6; plain addition
+    // gives 0.6000000000000001.
     assert_eq!(py_sum([0.1, 0.2, 0.3]), 0.6);
 }
 
@@ -196,7 +196,7 @@ fn f64_to_i64() {
 
 #[test]
 fn py_repr_reference_values() {
-    // Reference values produced by Python 3.12's repr() for floats.
+    // The reference repr values for floats (the contract fixture).
     let cases: [(f64, &str); 14] = [
         (52.52, "52.52"),
         (1.0, "1.0"),

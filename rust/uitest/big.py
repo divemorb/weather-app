@@ -1,5 +1,5 @@
 """The kiosk view and the big view: the chart filling its share, the cards filled,
-the labels and the headline (the review of V2)."""
+the labels and the headline."""
 
 from __future__ import annotations
 
@@ -78,10 +78,9 @@ KIOSK_CARDS_JS = """(() => {
 
 
 def kiosk_room_problems(pg: UIPage, size) -> list[str]:
-    """The review of V2 (the user): in the big view the glance's and Now's content start at
-    the top of their cards and take the room (no empty band above them, V2 centred them);
-    Now's text keeps at least the glance's distance from the card's left border; the "why"
-    line is read from across the room too."""
+    """In the big view the glance's and Now's content start at the top of their cards
+    and take the room (no empty band above them); Now's text keeps at least the glance's
+    distance from the card's left border; the "why" line is read from across the room too."""
     w, h = size
     cards, problems = pg.js(KIOSK_CARDS_JS), []
     for card, share in KIOSK_ROOM_FILL.items():
@@ -131,6 +130,7 @@ def big_label_problems(pg: UIPage, where: str) -> list[str]:
 
 
 def headline_lines(pg: UIPage) -> int:
+    """The number of rendered lines the rain-answer headline takes on the page."""
     return pg.js("""(() => {
         const el = document.querySelector('[data-test="rain-answer"]');
         const range = document.createRange();
@@ -239,7 +239,7 @@ def track_problems(pg: UIPage, theme: str, rain: bool = False) -> list[str]:
 
 
 def run_big(run: Run):
-    """The review of V2: the big view (the default) on a desktop and on a phone."""
+    """The big view (the default) on a desktop and on a phone."""
     problems = []
     for size, where in ((VIEW_DESKTOP, "desktop"), (BIG_PHONE, "phone")):
         pg = run.page(width=size[0], height=size[1])
@@ -301,7 +301,7 @@ def run_big(run: Run):
 
 
 def kiosk_fill_problems(pg: UIPage, exp: dict, size) -> list[str]:
-    """W9d: the wall tablet is read from across the room. The cards' content fills
+    """The wall tablet is read from across the room. The cards' content fills
     them (larger type, no large empty bands); on a dry day the chart card is just
     its line and Now takes the space."""
     w, h = size

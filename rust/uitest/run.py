@@ -1,36 +1,12 @@
 #!/usr/bin/env python3
-#!/usr/bin/env python3
 """UI contract: the web page in headless Chromium against the Rust app.
 
-Per scenario (the contract suite's: recorded Berlin data, fake upstream,
-frozen server clock) the Rust app is started; headless Chromium loads the
-page in English (en-US) and German (de-DE), with the browser clock frozen
-at the scenario's "now" (it runs on from there) and the browser in UTC, so
-times must be shown in the location's time zone. The checks read what the
-page shows through stable ``data-test`` hooks: content, not layout (see
-``qwen/web/00_brief.md``, "UI contract"). Generic checks: no console errors
-or CSP violations, same-origin requests only, contrast (WCAG AA, measured
-on the rendered pixels) in both themes, no horizontal overflow at 360 px
-(and nothing sticking out of the Details card), the tile columns per width,
-the kiosk view without scrolling and its cards filled, control sizes, reduced
-motion, the size budget, and that bad data or a failed /api/config doesn't
-stop the page (faked responses, see ``cdp.Page.fake``). The ``sky``
-scenario fakes the weather icon and the radar per scene (``SCENE_CASES``). The JS unit
-tests (``unit/*.test.mjs``, ``node --test``) are checks too.
-
-    # in the sandbox, after `cargo build`:
-    python3 rust/uitest/run.py --binary /target/debug/wetter
-    # only some checks must pass (the others are reported only; ! excludes):
-    python3 rust/uitest/run.py --binary /target/debug/wetter --require 'unit/*' '*/console' '!*/view-*'
-    # faster while working on one part:
-    python3 rust/uitest/run.py --binary /target/debug/wetter --scenario rain --lang de
-    # list the checks / save screenshots for a review:
-    python3 rust/uitest/run.py --list
-    python3 rust/uitest/run.py --binary /target/debug/wetter --shots /tmp/shots
-
-Check names are ``scenario/lang/check`` (``rain/de/now-wind``), plus
-``budget``, ``static-files`` and ``unit/<file>``. Stdlib only; needs
-``chromium`` and ``node`` (both in the sandbox image).
+Per scenario the Rust app starts; headless Chromium loads the page in English
+and German with the clock frozen at the scenario's "now" and the browser in
+UTC. Checks read what the page shows through data-test hooks: content, not
+layout. Generic checks: no console errors or CSP violations, same-origin
+requests only, WCAG AA contrast in both themes, no overflow at 360 px, the
+size budget, and bad data not stopping the page (cdp.Page.fake).
 """
 from __future__ import annotations
 
@@ -75,6 +51,8 @@ ALLOWED_EXT = {".html", ".js", ".css"}
 # --- unit tests, static files -------------------------------------------------
 
 def run_unit(res: Results, selected):
+    """The JS unit tests (node --test per file); a failing test records the
+    file's "not ok" and detail lines under its check name."""
     for path in unit_files():
         if not selected(f"unit/{path.name}"):
             continue
@@ -90,6 +68,7 @@ def run_unit(res: Results, selected):
 
 
 def check_static(res: Results, static: pathlib.Path):
+    """app/static: within the size budget, one flat directory of .html/.js/.css."""
     files = sorted(static.iterdir())
     total = sum(p.stat().st_size for p in files if p.is_file())
     res.add("budget", [] if total <= BUDGET_BYTES else
@@ -128,6 +107,7 @@ def sandbox_refusal(args, scenarios, langs) -> str | None:
 
 
 def parse_args(argv: list[str] | None = None):
+    """The command line; main adds args.selected (the --only filter) afterwards."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--binary", default="/target/debug/wetter", help="the Rust binary")
     ap.add_argument("--scenario", nargs="*", choices=UI_SCENARIOS, help="only these scenarios")
@@ -153,8 +133,8 @@ def parse_args(argv: list[str] | None = None):
 
 
 def report(res: Results, args, scenarios: list[str], langs: list[str]) -> int:
-    """The PASS/FAIL lines and the summary, in the order of all_names(): the
-    same output as before the workers (T3), whatever ran the checks."""
+    """The PASS/FAIL lines and the summary, in the order of all_names():
+    identical no matter which process ran the checks."""
     passed = failed = required_failed = 0
     expected = [n for n in all_names(scenarios, langs)
                 if args.selected(n) and not (args.no_unit and n.startswith("unit/"))]
@@ -178,6 +158,7 @@ def report(res: Results, args, scenarios: list[str], langs: list[str]) -> int:
 
 
 def main() -> int:
+    """Run the checks (workers or serial) and report; exit 1 iff a required check failed."""
     args = parse_args()
     if args.worker:  # a worker process: the jobs come in on stdin
         return worker_main()

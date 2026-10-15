@@ -55,6 +55,7 @@ def check_common_a(pg: UIPage, sc: str, exp: dict, add):
 
 
 def theme_problems(info, theme) -> list[str]:
+    """Problems if the page background isn't opaque or matches the theme's luminance."""
     if not info["bodyBgOpaque"]:
         return ["no opaque background colour on body/html (set one per theme)"]
     lum = info["bodyLum"]
@@ -121,6 +122,7 @@ def contrast_problems(pg) -> list[str]:
 
 
 def check_glance(pg: UIPage, exp: dict, add):
+    """The glance card: the rain answer, when, and the probability (or its placeholder)."""
     lang = pg.lang
     add("rain-answer", expect_text(pg, "rain-answer", ANSWER[exp["answer"]][lang]))
     if exp["when"]:
@@ -145,6 +147,7 @@ def check_glance(pg: UIPage, exp: dict, add):
 
 
 def check_radar(pg: UIPage, exp: dict, add):
+    """The radar card: the steps, the labels, the caption, and the max or the dry sentence."""
     lang = pg.lang
     steps = [e for e in pg.ui("radar-step") if e["visible"]]
     n = len(exp["radar"])
@@ -200,11 +203,13 @@ def _epoch(iso: str) -> int:
 
 
 def check_now(pg: UIPage, add):
+    """The Now card: every value shows its expected token in the page's language."""
     for hook, tokens in NOW.items():
         add(hook, expect_tokens(pg, hook, tokens[pg.lang]))
 
 
 def check_chart(pg: UIPage, exp: dict, add):
+    """The 24-hour chart: the SVG, the series, the legend, the axis labels, and the unit."""
     lang = pg.lang
     if exp["chart"] == "unavailable":
         add("chart-unavailable", expect_text(pg, "chart-unavailable", FIXED["chart.unavailable"][lang])
@@ -267,7 +272,7 @@ DETAILS_OPEN = """(() => {
 
 
 def details_open_problems(pg: UIPage) -> list[str]:
-    """P2: the details page shows the Details card open, not collapsible (no visible
+    """The details page shows the Details card open, not collapsible (no visible
     <summary>), under a plain "Details" heading, right under the top bar."""
     det, problems = visible_one(pg, "details")
     d = pg.js(DETAILS_OPEN)
@@ -334,6 +339,7 @@ def check_details(pg: UIPage, sc: str, exp: dict, names: list[str], add):
 
 
 def accuracy_problems(pg, exp) -> list[str]:
+    """The accuracy table: one row per model, best accuracy first, with the expected tokens."""
     lang = pg.lang
     rows = [e for e in pg.ui("accuracy-row") if e["visible"]]
     if exp.get("accuracy") is None:
@@ -361,6 +367,8 @@ def accuracy_problems(pg, exp) -> list[str]:
 
 
 def check_kiosk(pg: UIPage, exp: dict, size, add_kiosk):
+    """The kiosk view: everything fits the screen, the key content is visible, the fonts
+    are large enough, and the details card stays out."""
     w, h = size
     info = pg.js("__ui.page()")
     problems = []

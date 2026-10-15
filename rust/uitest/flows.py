@@ -61,6 +61,7 @@ def refresh_config_retry(run: Run) -> list[str]:
 
 
 def theme_toggle(run: Run) -> list[str]:
+    """The theme toggle: a click flips light/dark and the choice survives a reload."""
     pg = run.page(scheme="dark")
     problems = theme_problems(pg.js("__ui.page()"), "dark")
     for step, want in (("first click", "light"), ("after reload", "light"), ("second click", "dark")):
@@ -77,7 +78,7 @@ def theme_toggle(run: Run) -> list[str]:
 
 def lines_problems(pg: UIPage, hook: str, want: list[str]) -> list[str]:
     """The visible [data-test=hook] elements show want's texts, one rendered line per
-    "\\n" (P1: the place label is two lines, white-space: pre-line)."""
+    "\\n" (the place label is two lines, white-space: pre-line)."""
     got = pg.js(f"""[...document.querySelectorAll('[data-test="{hook}"]')].filter((e) => e.checkVisibility())
       .map((e) => {{ const r = document.createRange(); r.selectNodeContents(e);
         const tops = new Set([...r.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top)));
@@ -93,6 +94,7 @@ def lines_problems(pg: UIPage, hook: str, want: list[str]) -> list[str]:
 
 
 def run_wizard(run: Run):
+    """The wizard: setup validation, the location search, saving, and changing it."""
     pg = run.page()
     problems = []
     for hook, text in (("setup-lat", "91"), ("setup-lon", "13.4"), ("setup-tz", "Europe/Berlin")):
@@ -123,7 +125,7 @@ def run_wizard(run: Run):
         if not (lat.startswith("52.52") and lon.startswith("13.41")):
             problems.append(f"after picking the first result: latitude {lat!r}, longitude {lon!r}, expected 52.52…, 13.41…")
     run.add("search", problems)
-    # P1: each result is the two-line label; the status sentence joins the lines with ", "
+    # each result is the two-line label; the status sentence joins the lines with ", "
     problems = lines_problems(pg, "setup-result", WIZARD_RESULTS)
     status = (pg.ui("setup-status") or [{}])[0].get("text") or ""
     raw = pg.js("document.querySelector('[data-test=\\'setup-status\\']')?.textContent || ''")

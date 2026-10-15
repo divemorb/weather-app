@@ -1,17 +1,12 @@
-"""UI checks for the user reports (report steps W1-W3, 2026-10-07).
+"""UI checks for the user reports.
 
-The tile with ``data-report-host`` (today Now) turns over: its ``report-open``
-button shows the back (``report-back``) with the picker; a tap saves the
-report (``POST /api/reports``) and turns the tile back, whose front then
-shows ``report-line`` with ``report-undo``. The sky follows a fresh report
+The tile with ``data-report-host`` turns over: its ``report-open`` button shows
+the back (``report-back``) with the picker; a tap saves the report
+(``POST /api/reports``) and turns the tile back, whose front then shows
+``report-line`` with ``report-undo``. The sky follows a fresh report
 (``GET /api/reports/current``) and the "why" line names it; Details scores
-the models against the reports (``user_reports`` of /api/model-accuracy).
-
-Nothing here names ``#now``: the host is found by its attribute, and the
-``report-glance`` UI scenario runs the same checks with the attribute moved
-to the glance (a patched copy of app/static), so another tile can host the
-picker after the user's acceptance test. The run (``report_run.run``) is
-called from scenario.run_pages.
+the models against the reports. Nothing here names ``#now``: the host is found
+by its attribute, and the ``report-glance`` scenario moves it to the glance.
 """
 from __future__ import annotations
 
@@ -30,7 +25,7 @@ from page_checks import contrast_problems
 
 LANG_I = {"en": 0, "de": 1}
 
-# W1a: the flip and the picker; W1b: saving; W2: the sky; W3: Details.
+# the flip and the picker; saving; the sky; Details.
 FLIP = (["report-open", "report-closed", "report-flip", "report-picker", "report-shows", "report-close",
          "report-escape", "report-locked", "report-motion", "report-still", "report-buttons",
          "report-contrast-light", "report-contrast-dark", "report-open-clear"] + [f"report-fit-{v}" for v in REPORT_FIT])
@@ -43,6 +38,7 @@ GLANCE_HOST = ["report-open", "report-closed", "report-flip", "report-fit-big-12
 
 
 def check_names(scenario: str, lang: str) -> list[str]:
+    """The checks a report scenario runs (report and report-glance)."""
     if scenario == "report":
         return ["console", "requests"] + FLIP + SAVE + SKY + DETAILS
     if scenario == "report-glance":
@@ -73,6 +69,7 @@ def _api(base: str, method: str, path: str):
 
 
 def current(base: str):
+    """The currently saved report (GET /api/reports/current), or None."""
     status, body = _api(base, "GET", "/api/reports/current")
     return body.get("report") if status == 200 and isinstance(body, dict) else None
 
@@ -157,6 +154,7 @@ FIT = """(() => {
 
 
 def state(pg) -> dict:
+    """The host's live state (front/back parts, focus, size, scene) from the page."""
     return pg.js(STATE)
 
 
@@ -201,6 +199,7 @@ def back_contrast(pg) -> list[str]:
 
 
 def wait(pg, cond, seconds, what) -> list[str]:
+    """Wait for a state condition (at most seconds); the problem if it never holds."""
     end = time.monotonic() + seconds
     s = state(pg)
     while not cond(s) and time.monotonic() < end:
@@ -213,6 +212,7 @@ def wait(pg, cond, seconds, what) -> list[str]:
 
 
 def closed_problems(s: dict) -> list[str]:
+    """Problems if the host's back is not properly closed (hidden, front live)."""
     if "error" in s:
         return [s["error"]]
     out = []
@@ -228,11 +228,13 @@ def closed_problems(s: dict) -> list[str]:
 
 
 def sel(hook: str, **data) -> str:
+    """A CSS selector for a report element by data-test, plus optional data- attributes."""
     extra = "".join(f'[data-{k}="{v}"]' for k, v in data.items())
     return f'[data-report-host] [data-test="{hook}"]{extra}'
 
 
 def visible(pg, hook) -> list[dict]:
+    """The visible [data-test=hook] elements on the page."""
     return [e for e in pg.ui(hook) if e["visible"]]
 
 
@@ -265,7 +267,7 @@ def kind_scene(report: dict, at_iso: str) -> str:
     return kind
 
 
-# P3: the closed host's report button (icon + word) lies over none of the host's texts
+# the closed host's report button (icon + word) lies over none of the host's texts
 OPEN_CLEAR = """(() => {
   const out = [];
   for (const h of document.querySelectorAll('[data-report-host]')) {
@@ -294,7 +296,7 @@ OPEN_CLEAR = """(() => {
 
 
 def open_label_problems(pg, opens, lang) -> list[str]:
-    """P3: a pencil (inline SVG) and a visible word, the word is the accessible name
+    """A pencil (inline SVG) and a visible word, the word is the accessible name
     (WCAG 2.5.3), the touch target at least 44x44 px."""
     want = REPORT_TEXT["open"][lang]
     out = []
@@ -312,6 +314,7 @@ def open_label_problems(pg, opens, lang) -> list[str]:
 
 
 def picker_problems(pg, lang) -> list[str]:
+    """The back's picker: the title, the kind buttons, the when chips, and the close."""
     i = LANG_I[lang]
     out = []
     title = visible(pg, "report-title")
@@ -353,6 +356,7 @@ def picker_problems(pg, lang) -> list[str]:
 
 
 def shows_problems(pg, lang, scene) -> list[str]:
+    """The back's "shows" line, the aria-current kind, and the confirm button."""
     i = LANG_I[lang]
     out = []
     shows = visible(pg, "report-shows")

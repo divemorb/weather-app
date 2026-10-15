@@ -26,8 +26,8 @@ pub fn encode_grid(rows: &[Vec<u16>]) -> String {
         .encode(enc.finish().expect("writing to a Vec cannot fail"))
 }
 
-/// A `/current_weather` payload; `weather` is merged over the default record
-/// (Python `w.update(weather)`).
+/// A `/current_weather` payload; the keys of `weather` are merged over the
+/// default record, overriding its values.
 pub fn make_current_payload(weather: Option<Value>) -> Value {
     let mut w: Map<String, Value> = json!({
         "source_id": 96160,

@@ -1,5 +1,5 @@
-"""The sky (A3): faked /api/now icon and radar per scene, the sky layer, the
-motion, the glass effect and the "why" line."""
+"""The sky: faked /api/now icon and radar per scene, the sky layer, the motion,
+the glass effect and the "why" line."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from expect import (CONTRAST_VIEWS, GLASS_DELTA, GLASS_MIN_RATIO, GLASS_SCENES, 
 from page import Run, UIPage, expect_hidden, expect_text
 from page_checks import contrast_problems
 
-# --- the sky (A3): faked /api/now icon and radar per scene ---------------------------------
+# --- the sky: faked /api/now icon and radar per scene ------------------------------------
 
 def _get_json(url: str):
     import urllib.request
@@ -45,6 +45,7 @@ def scene_fakes(case: str, now_body: dict, radar_body: dict, station: bool = Tru
 
 
 def scene_of(pg: UIPage) -> str | None:
+    """The scene the page is showing (html[data-scene]), or None if unset."""
     return pg.js("document.documentElement.getAttribute('data-scene')")
 
 
@@ -182,6 +183,7 @@ def glass_problems(run: Run, scene: str, theme: str, fakes: dict) -> list[str]:
 
 
 def reason_text(case: str, lang: str) -> str | None:
+    """The "why" line for a REASON_CASES entry in a language; None when no line is shown."""
     src, form, _ = REASON_CASES[case]
     if form is None:
         return None

@@ -9,6 +9,7 @@ from page_checks import details_open_problems
 
 
 def view_of(pg: UIPage) -> str | None:
+    """The view the page is showing (html[data-view]), or None if unset."""
     return pg.js("document.documentElement.getAttribute('data-view')")
 
 
@@ -83,9 +84,9 @@ def run_views(run: Run):
 
 
 def details_only_problems(pg: UIPage, lang: str, w: int) -> list[str]:
-    """P2 (phone test, 2026-10-12): the detailed view is the details page: the Details
-    card open; no place, glance, Now (so no report turn) or 24 hours; the top bar keeps
-    its buttons, the view button leads back to the big view."""
+    """The detailed view is the details page: the Details card open; no place,
+    glance, Now (so no report turn) or 24 hours; the top bar keeps its
+    buttons, the view button leads back to the big view."""
     shown = pg.js("""Object.fromEntries(['glance', 'now', 'chart-card', 'location', 'location-detail']
       .map((id) => [id, !!document.getElementById(id)?.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })]))""")
     problems = [f"#{k} is visible on the details page" for k, v in shown.items() if v]

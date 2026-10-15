@@ -15,8 +15,8 @@ from report_ui import (FIT, LANG_I, OPEN_CLEAR, _api, _iso, back_contrast,
                        picker_problems, sel, settle_turn, shows_problems, state, visible, wait)
 
 def run(run: Run):
-    """The phases of the report scenario, in order: A the desktop (the big
-    view), then B saving, C the sky after a fresh report, D Details."""
+    """The report scenario, in order: the desktop (the big view), saving, the sky after a
+    fresh report, and Details scoring the reports."""
     clear_fresh(run.base)
     pg = desktop_checks(run)
     close_checks(run, pg)
@@ -33,8 +33,8 @@ def run(run: Run):
 
 
 def desktop_checks(run: Run) -> UIPage:
-    """A1: the big view: closed, open, the flip, the picker, the buttons.
-    The back is left open on the page (A2 closes it there)."""
+    """The big view: closed, open, the flip, the picker, the buttons.
+    The back is left open on the page (the close check closes it there)."""
     pg = run.page()
     s = state(pg)
     run.add("report-closed", closed_problems(s))
@@ -62,7 +62,7 @@ def desktop_checks(run: Run) -> UIPage:
 
 
 def close_checks(run: Run, pg: UIPage):
-    """A2: closing the back (the button, then Escape): the front again, the
+    """Closing the back (the button, then Escape): the front again, the
     focus back on the open button, nothing saved."""
     if "report-close" in run.names:
         problems = pg.click(selector=sel("report-close"))
@@ -87,7 +87,7 @@ def close_checks(run: Run, pg: UIPage):
 
 
 def contrast_checks(run: Run):
-    """A3: the back's contrast, light and dark."""
+    """The back's contrast, light and dark."""
     for theme in ("light", "dark"):
         if f"report-contrast-{theme}" in run.names:
             pg = run.page(scheme=theme)
@@ -96,7 +96,7 @@ def contrast_checks(run: Run):
 
 
 def fit_checks(run: Run):
-    """A4: the back fits the host everywhere, the host keeps its size, the
+    """The back fits the host everywhere, the host keeps its size, the
     big view doesn't scroll; the open button clears the fresh badge."""
     clear = []
     for variant, (w, h, query) in REPORT_FIT.items():
@@ -123,7 +123,7 @@ def fit_checks(run: Run):
 
 
 def locked_motion_checks(run: Run):
-    """A5: the locked wall display shows the open button; the turn animates
+    """The locked wall display shows the open button; the turn animates
     (report-motion), but not with prefers-reduced-motion (report-still)."""
     if "report-locked" in run.names:
         pg = run.page(width=1280, height=800, query="?kiosk")
@@ -199,7 +199,7 @@ def sky_none(run: Run) -> None:
 
 
 def run_sky(run: Run):
-    """C: the sky follows a fresh report (W2), with faked answers; and the
+    """The sky follows a fresh report, with faked answers; and the
     sky without one (sky-report-none)."""
     for case, (fields, clock, scene) in REPORT_SKY_CASES.items():
         if f"sky-report-{case}" not in run.names:
@@ -209,6 +209,8 @@ def run_sky(run: Run):
 
 
 def details_problems(pg, lang, base) -> list[str]:
+    """The Details' report-scoring section: the title, the summary, the note, and the
+    per-model rows in best hit-rate order, matching the API's user_reports."""
     i = LANG_I[lang]
     status, body = _api(base, "GET", "/api/model-accuracy")
     ur = (body or {}).get("user_reports") if status == 200 else None

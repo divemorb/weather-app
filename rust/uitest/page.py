@@ -16,6 +16,7 @@ PROBE = (pathlib.Path(__file__).resolve().parent / "probe.js").read_text()
 # --- small helpers ------------------------------------------------------------
 
 def norm(s: str | None) -> str:
+    """Whitespace collapsed to single spaces (incl. non-breaking ones) and stripped."""
     return re.sub(r"\s+", " ", re.sub(r"[   ]", " ", s or "")).strip()
 
 
@@ -34,6 +35,7 @@ def has(text: str, token: str) -> bool:
 
 
 def one(items: list[dict], hook: str) -> tuple[dict | None, list[str]]:
+    """The single [data-test=hook] element, or None plus the problems (none or several)."""
     if not items:
         return None, [f"no element [data-test={hook}]"]
     if len(items) > 1:
@@ -42,6 +44,7 @@ def one(items: list[dict], hook: str) -> tuple[dict | None, list[str]]:
 
 
 def visible_one(page, hook) -> tuple[dict | None, list[str]]:
+    """The single visible [data-test=hook] element, or None plus the problems."""
     el, problems = one(page.ui(hook), hook)
     if el and not el["visible"]:
         return None, [f"[data-test={hook}] is not visible"]
@@ -49,6 +52,7 @@ def visible_one(page, hook) -> tuple[dict | None, list[str]]:
 
 
 def expect_text(page, hook, want: str) -> list[str]:
+    """Problems if [data-test=hook] is not visible or shows different text than want."""
     el, problems = visible_one(page, hook)
     if el and norm(el["text"]) != norm(want):
         problems.append(f"[data-test={hook}] shows {el['text']!r}, expected {norm(want)!r}")
@@ -56,6 +60,7 @@ def expect_text(page, hook, want: str) -> list[str]:
 
 
 def expect_tokens(page, hook, tokens: list[str]) -> list[str]:
+    """Problems if any token is missing from the visible [data-test=hook] element."""
     el, problems = visible_one(page, hook)
     if el:
         missing = [t for t in tokens if not has(el["text"], t)]
@@ -65,11 +70,13 @@ def expect_tokens(page, hook, tokens: list[str]) -> list[str]:
 
 
 def expect_hidden(page, hook) -> list[str]:
+    """Problems if any [data-test=hook] element is visible (all of them should be hidden)."""
     shown = [e for e in page.ui(hook) if e["visible"]]
     return [f"[data-test={hook}] is visible ({shown[0]['text'][:60]!r}), expected hidden or absent"] if shown else []
 
 
 def fmt_mm(v: float, lang: str, digits: int = 1) -> str:
+    """A millimetre value in the language's number format, with the unit (e.g. '1,2 mm')."""
     s = f"{v:.{digits}f}"
     return (s.replace(".", ",") if lang == "de" else s) + " mm"
 
@@ -77,6 +84,8 @@ def fmt_mm(v: float, lang: str, digits: int = 1) -> str:
 # --- the observation stations (the station list and the schematic map) -----------------
 
 def observation_station_problems(pg: UIPage) -> list[str]:
+    """The station list: one row per OBS_STATIONS station, nearest first, with its name,
+    distance and hours."""
     rows = [e for e in pg.ui("observation-station") if e["visible"]]
     if len(rows) != len(OBS_STATIONS):
         return [f"{len(rows)} visible [data-test=observation-station], expected {len(OBS_STATIONS)} (nearest first)"]
@@ -165,7 +174,7 @@ CLOCK = """(() => {
 class View:
     """The view's settings (one argument instead of five): the page's size, the
     theme, the motion, and the view query ("" the default big view: the content
-    checks; "?detailed" the details page, P2, phone test 2026-10-12; "?kiosk"
+    checks; "?detailed" the details page; "?kiosk"
     the locked wall display)."""
     width: int = 1280
     height: int = 900
@@ -175,6 +184,7 @@ class View:
 
 
 class UIPage:
+    """The page under test: one tab with the frozen clock, the locale, the view and faked API answers."""
     def __init__(self, browser, base, sc_now, lang, view: View | None = None, fakes=None):
         view = view or View()
         self.lang, self.locale, self.base = lang, LOCALES[lang], base

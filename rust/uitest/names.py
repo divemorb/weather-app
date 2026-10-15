@@ -32,11 +32,12 @@ SKY = (["sky-layer"] + [f"scene-{c}" for c in SCENE_CASES] + [f"motion-{s}" for 
        + [f"glass-{s}" for s in GLASS_SCENES])
 REASON = [f"reason-{c}" for c in REASON_CASES]
 VIEW = ["view-default", "view-toggle", "view-query", "view-phone", "view-details-only"]
-BIG = ["big-labels", "big-headline", "big-hierarchy"]  # the review of V2: the big view (also on a phone)
+BIG = ["big-labels", "big-headline", "big-hierarchy"]  # the big view (also on a phone)
 KIOSK_ROOM = [f"kiosk-room-{w}x{h}" for w, h in KIOSK_SIZES]
 
 
 def check_names(scenario: str, lang: str) -> list[str]:
+    """The checks a scenario runs in a language, in order (what --list prints per name)."""
     if scenario in ("live", "rain"):
         names = (COMMON + GLANCE + RADAR + NOW_CHECKS + CHART + DETAILS + KIOSK + KIOSK_FILL_CHECKS + STATIONS
                  + BIG + KIOSK_ROOM)
@@ -77,6 +78,7 @@ BACKEND = {"sky": "live", "report-glance": "report"}
 
 
 def all_names(scenarios, langs) -> list[str]:
+    """Every check name across the given scenarios and languages, plus the budget and unit checks."""
     names = ["budget", "static-files"] + [f"unit/{p.name}" for p in unit_files()]
     for sc in scenarios:
         for lang in SCENARIO_LANGS.get(sc, ["en", "de"]):
@@ -86,4 +88,5 @@ def all_names(scenarios, langs) -> list[str]:
 
 
 def unit_files() -> list[pathlib.Path]:
+    """The unit-test .mjs files (unit/ and unit/more/)."""
     return sorted((HERE / "unit").glob("*.test.mjs")) + sorted((HERE / "unit" / "more").glob("*.test.mjs"))

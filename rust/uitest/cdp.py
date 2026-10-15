@@ -30,10 +30,13 @@ CHROMIUM_FLAGS = [
 
 
 class CDPError(RuntimeError):
+    """A protocol error: the browser gave no reply in time, or answered with an error."""
     pass
 
 
 class Browser:
+    """A headless Chromium driven over CDP; each page lives in its own context (fresh storage)."""
+
     def __init__(self, lang: str = "en-US", binary: str = "chromium"):
         self.profile = tempfile.mkdtemp(prefix="uitest-chromium-")
         to_child_r, self._to_child = os.pipe()

@@ -281,7 +281,7 @@ async fn delete_report_bad_id_422() {
 
 #[tokio::test]
 async fn delete_current_is_the_id_422() {
-    // Python answers DELETE /api/reports/current from the id route.
+    // The reference app answers DELETE /api/reports/current from the id route.
     let state = state_with_location();
     let (status, _headers, body) = call(state, "DELETE", "/api/reports/current", None, &[]).await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);

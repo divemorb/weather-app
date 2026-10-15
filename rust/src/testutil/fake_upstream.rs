@@ -9,6 +9,8 @@ use std::sync::{Arc, Mutex};
 
 use serde_json::Value;
 
+/// One request the fake upstream saw: the path, the decoded query pairs and
+/// the User-Agent.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FakeRequest {
     pub path: String,
@@ -27,6 +29,8 @@ impl FakeRequest {
     }
 }
 
+/// A canned answer: a JSON body, a status code, an exact body, or an
+/// oversized body (declared or close-delimited).
 #[derive(Clone, Debug)]
 pub enum FakeResponse {
     /// 200 with this JSON body.
@@ -40,6 +44,8 @@ pub enum FakeResponse {
     Oversize { bytes: usize, declare: bool },
 }
 
+/// The fake upstream server itself: canned answers per path, and a log of
+/// every request.
 #[derive(Clone)]
 pub struct FakeUpstream {
     /// `http://127.0.0.1:<port>`

@@ -43,6 +43,8 @@ SCENARIOS = contract.SCENARIOS
 # --- one scenario ---------------------------------------------------------------
 
 class Results:
+    """The run's check results: check name -> its problem lines (none: pass)."""
+
     def __init__(self):
         self.problems: dict[str, list[str]] = {}
 
@@ -65,8 +67,8 @@ def _free_in_range(base: int) -> int | None:
 
 def start_app(sc: dict, args, tmp: pathlib.Path, static: pathlib.Path | None = None):
     """Start the app on a free port. In the main process the port comes from
-    free_port() (nothing else is running); in a worker (T3) it is the first
-    free port in the worker's fixed range 20000 + 100*k .. +100*k + 99, found
+    free_port() (nothing else is running); in a worker it is the first free
+    port in the worker's fixed range 20000 + 100*k .. +100*k + 99, found
     by probing the range with a socket bind (the app exits fast when its port
     is busy, so a busy port would look like a crash); two workers must never
     pick the same port (their ranges are disjoint), and the rest of the range
@@ -110,9 +112,8 @@ def start_app(sc: dict, args, tmp: pathlib.Path, static: pathlib.Path | None = N
 
 
 def run_scenario(name: str, browsers: dict, args, res: Results, checks: list[str] | None = None):
-    """One scenario. ``checks`` (T3, the per-scene sky split): the check names
-    this job runs (the rest of the scenario's checks are left to other jobs);
-    None: all of the scenario's checks, as before."""
+    """One scenario. ``checks``: the check names this job runs (the rest of
+    the scenario's checks are left to other jobs); None: all of them."""
     sc = next(s for s in SCENARIOS if s["name"] == BACKEND.get(name, name))
     base_names = {lang: (checks if checks is not None else check_names(name, lang))
                   for lang in SCENARIO_LANGS.get(name, ["en", "de"])}
@@ -155,6 +156,8 @@ def run_scenario(name: str, browsers: dict, args, res: Results, checks: list[str
 
 
 def run_pages(run: Run):
+    """The scenario's page function, then the checks the scenarios share
+    (content, the phone at 360 px, the kiosk and the common ones)."""
     PAGES[run.name](run)
     page_content(run)
     page_phone_360(run)
@@ -196,7 +199,7 @@ def page_content(run: Run):
         check_chart(pg, exp, run.add)
     run.shot(pg, "desktop-light")
     run.done(pg)
-    # A2: the details page (?detailed), light
+    # the details page (?detailed), light
     pg = run.page(query="?detailed")
     check_details(pg, run.name, exp, run.names, run.add)
     if "details-reports-none" in run.names:
@@ -311,9 +314,10 @@ def page_kiosk_and_common(run: Run):
 
 
 def layout_problems(pg: UIPage, w: int) -> list[str]:
-    """The big view's tiles at a page width (P2: the detailed view is the details page, so
-    the tile grid is the big view's): glance, Now and the chart visible, the glance first
-    (top left), no tile overlapping another, no horizontal scrolling."""
+    """The big view's tiles at a page width (the detailed view is the details
+    page, so the tile grid is the big view's): glance, Now and the chart
+    visible, the glance first (top left), no tile overlapping another, no
+    horizontal scrolling."""
     t = pg.js("__ui.tiles()")
     if not t:
         return ["no main#dashboard"]

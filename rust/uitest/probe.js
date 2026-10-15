@@ -1,12 +1,8 @@
-// Injected by rust/uitest/run.py after each page load (Runtime.evaluate: the
-// page's CSP doesn't apply to it). Read-only helpers for the UI checks;
-// window.__ui is the harness's, the page never sees it before it is loaded.
+// Injected by rust/uitest/run.py after each page load (Runtime.evaluate: the page's CSP doesn't apply to it); read-only helpers for the UI checks, window.__ui is the harness's, the page never sees it.
 (() => {
   if (window.__ui) return;
   const norm = (s) => (s || "").replace(/[   ]/g, " ").replace(/\s+/g, " ").trim();
   const all = (hook) => [...document.querySelectorAll(`[data-test="${hook}"]`)];
-  // The shown text: like textContent, but without display:none parts and with a
-  // space around block-level children (table cells, flex/grid items, divs).
   function textOf(root) {
     let out = "";
     (function walk(n) {
@@ -60,8 +56,6 @@
     return [d[0], d[1], d[2], d[3] / 255];
   }
   const mix = (top, bottom) => [0, 1, 2].map((i) => top[i] * top[3] + bottom[i] * (1 - top[3]));
-  // Effective background behind an element: its own and its ancestors' colours,
-  // composited. null when a background image (gradient) is in the way.
   function background(el) {
     const layers = [];
     let opaque = false;
@@ -99,7 +93,6 @@
     };
   }
 
-  // Elements that stick out on the right (for the overflow message).
   function overflowing() {
     const out = [];
     for (const el of document.body.querySelectorAll("*")) {
@@ -113,7 +106,6 @@
     return out.slice(-6);
   }
 
-  // Visible controls smaller than 24x24 px or without an accessible name.
   function controls() {
     const out = [];
     for (const el of document.querySelectorAll("button, summary, [role='button'], input[type='button']")) {
@@ -134,11 +126,9 @@
     for (const d of document.querySelectorAll("details")) d.open = true;
   }
 
-  // The visible icons (<svg>) inside a hook, by class (or the start of the markup).
   const icons = (hook) => all(hook).flatMap((b) => [...b.querySelectorAll("svg")].filter(visible)
     .map((s) => s.getAttribute("class") || s.innerHTML.slice(0, 60)));
 
-  // A hook's text colour as sRGB, with its HSL saturation (0 = grey).
   function textColor(hook) {
     const el = all(hook)[0];
     const c = el && rgba(getComputedStyle(el).color);
@@ -149,9 +139,7 @@
     return { hex: hex(c.slice(0, 3)), sat };
   }
 
-  // Where a hook's text is cut off: the element or an ancestor that clips
-  // (overflow other than visible) and whose content is larger than its box,
-  // e.g. text-overflow: ellipsis or a line clamp. [] when all of it shows.
+  // Where a hook's text is cut off: the element or ancestor that clips (overflow not visible, content larger than its box); [] when all of it shows.
   function clipped(hook) {
     const out = [];
     for (const el of all(hook)) {
@@ -169,9 +157,7 @@
     return out;
   }
 
-  // Visible elements inside a hook that reach past its content box on the
-  // right (into its padding or beyond it). What a scroll container inside
-  // the hook clips doesn't count: a table that scrolls in its own box fits.
+  // Visible elements inside a hook that reach past its content box on the right (into its padding or beyond it); a scroll container inside the hook doesn't count.
   function sticksOut(hook) {
     const out = [];
     for (const root of all(hook)) {
@@ -193,7 +179,6 @@
     return out.slice(0, 6);
   }
 
-  // A closed <details> hook: the space above and below its <summary>, in px.
   function summaryGaps(hook) {
     const d = all(hook)[0];
     const sum = d && d.querySelector(":scope > summary");
@@ -202,10 +187,6 @@
     return { above: b.top - a.top, below: a.bottom - b.bottom };
   }
 
-  // --- sky and tiles (sky steps A2/A3) ---
-
-  // The tiles: the visible children of main#dashboard, in DOM order. Columns: the
-  // tracks of its CSS grid (a block layout is one column).
   function tiles() {
     const main = document.getElementById("dashboard");
     if (!main) return null;
@@ -220,7 +201,6 @@
     return { grid, columns: grid ? tracks.length : 1, tracks, x: r.x, w: r.width, right: r.right, list };
   }
 
-  // The sky layer: [data-test=sky] and what sits on top of it at each tile's centre.
   function sky() {
     const els = all("sky");
     const scene = document.documentElement.getAttribute("data-scene");
@@ -237,7 +217,6 @@
       vw: document.documentElement.clientWidth, vh: document.documentElement.clientHeight, covered };
   }
 
-  // Hide every element that is not the sky, inside it or around it (for the motion screenshots).
   function onlySky(on) {
     const el = all("sky")[0];
     for (const n of document.body.querySelectorAll("*")) {
@@ -248,10 +227,7 @@
     return !!el;
   }
 
-  // Make all text transparent (its line boxes and everything behind them stay), so a
-  // screenshot shows what each text is drawn on.
-  // Element styles through the CSSOM, which the page's CSP allows (a <style> element it
-  // doesn't); the old values are put back afterwards.
+  // Make all text transparent (its line boxes and everything behind them stay) so a screenshot shows what each text is drawn on; through the CSSOM, which the page's CSP allows (a <style> element it doesn't); the old values are put back afterwards.
   let hidden = [];
   function hideText(on) {
     if (!on) {
@@ -259,7 +235,6 @@
         if (value) el.style.setProperty(prop, value, prio);
         else el.style.removeProperty(prop);
       };
-      // the colours first, applied while transitions are still off, so none fades back in
       hidden.filter((h) => h[1] !== "transition").forEach(restore);
       for (const [el] of hidden) getComputedStyle(el).color;
       hidden.filter((h) => h[1] === "transition").forEach(restore);
@@ -283,8 +258,6 @@
     }
   }
 
-  // The texts the pixel contrast check samples (WCAG AA: 4.5:1, or 3:1 from 24 px or
-  // 18.66 px bold): their colour, the opacity of their ancestors and their line boxes.
   function textItems() {
     const items = [];
     const seen = new Set();
@@ -326,9 +299,6 @@
     return g.getImageData(0, 0, bmp.width, bmp.height);
   }
 
-  // Per text item: the contrast of its colour against the screenshot's pixels behind
-  // it (text hidden), at the given percentile of the worst pixels; rects are in
-  // screenshot pixels (CSS px, scale 1), offset by dy.
   async function pixelContrast(b64, items, dy, pct) {
     const img = await decode(b64);
     const out = [];
@@ -357,7 +327,6 @@
     return out;
   }
 
-  // The share of pixels that differ between two screenshots of the same size.
   async function diff(a, b) {
     const [p, q] = await Promise.all([decode(a), decode(b)]);
     if (p.width !== q.width || p.height !== q.height) return 1;
@@ -368,8 +337,6 @@
     return n / (p.width * p.height);
   }
 
-  // The share of pixels that change visibly (by at least `delta` of 255 in a channel)
-  // between two screenshots, inside the given rects (CSS px, scale 1) and outside them.
   async function diffIn(a, b, rects, delta) {
     const [p, q] = await Promise.all([decode(a), decode(b)]);
     if (p.width !== q.width || p.height !== q.height) return null;
@@ -386,7 +353,6 @@
     return { inside: inN ? inC / inN : 0, outside: outN ? outC / outN : 0 };
   }
 
-  // The median colour [r, g, b] of each rect (CSS px, scale 1) in a screenshot.
   async function medianIn(b64, rects) {
     const img = await decode(b64);
     return rects.map((r) => {
@@ -404,11 +370,7 @@
     });
   }
 
-  // Pause every animation and seek it to `phase` (0..1) of its own cycle:
-  // currentTime = delay + (phase + n) * duration, n the smallest >= 0 that keeps
-  // it >= 0 (CSS uses negative delays, e.g. -17 s). Skips animations without a
-  // finite positive duration. Leaves them paused: only for pages closed right
-  // after (the contrast check).
+  // Pause every animation and seek it to phase (0..1) of its own cycle: currentTime = delay + (phase + n) * duration, n the smallest >= 0 that keeps it >= 0 (CSS uses negative delays); skips non-finite durations; leaves them paused.
   function seekCycle(phase) {
     for (const a of document.getAnimations()) {
       const e = a.effect;
@@ -422,9 +384,7 @@
     }
   }
 
-  // Pause every animation and seek it to the given absolute time in milliseconds
-  // (the glass check: two frames GLASS_GAP_S apart without waiting for them).
-  // Leaves them paused: only for pages closed right after.
+  // Pause every animation and seek it to the given absolute time in milliseconds (the glass check: two frames GLASS_GAP_S apart without waiting); leaves them paused.
   function seekTime(ms) {
     for (const a of document.getAnimations()) {
       a.pause();
