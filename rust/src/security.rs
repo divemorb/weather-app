@@ -17,7 +17,7 @@ base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 
 #[expect(
     clippy::case_sensitive_file_extension_comparisons,
-    reason = "mDNS .local names are case-sensitive, matching Python's endswith"
+    reason = "the host is lowercased first, so the suffix test is case-insensitive"
 )]
 /// An IP literal, localhost, a .local name, or one of ALLOWED_HOSTS (port
 /// ignored). Also IPv6 with a zone id.
