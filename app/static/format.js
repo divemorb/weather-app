@@ -1,30 +1,28 @@
 /* format.js — pure formatting helpers.
  *
- * No DOM, no navigator, no Date.now(): the locale (the browser's
- * navigator.language) and the location's time zone (from /api/config)
- * are parameters. The contract is rust/uitest/unit/format.test.mjs.
- * Intl puts non-breaking spaces into some outputs ("75 %", "12:50 PM");
- * that is fine — the tests compare with ordinary spaces.
- */
+ * No DOM, no navigator, no Date.now(): the locale and the location's
+ * time zone are parameters. The contract is
+ * rust/uitest/unit/format.test.mjs. Intl puts non-breaking spaces into
+ * some outputs ("75 %", "12:50 PM"); the tests compare ordinary spaces. */
 
 import { t } from "./i18n.js";
 
-export const DASH = "—"; // every missing value
+// every missing value
+export const DASH = "—";
 
-/* The page reload's timing: the page re-fetches at the latest every
- * PAGE_REFRESH_MS, sooner PAGE_RELOAD_AFTER_REFRESH_MS after a scheduled
- * backend refresh; a failed /api/config at startup is retried every
- * CONFIG_RETRY_MS. Exported so details.js and app.js share one source
- * and the unit tests can pin the values. */
+/* Page reload timing, shared by details.js and app.js (the unit tests
+ * pin these). */
+// the latest re-fetch interval
 export const PAGE_REFRESH_MS = 60_000;
+// after a scheduled backend refresh
 export const PAGE_RELOAD_AFTER_REFRESH_MS = 10_000;
+// a failed /api/config at startup
 export const CONFIG_RETRY_MS = 10_000;
 
 /* The delay until the next page reload, in ms: at most `refreshMs`,
- * sooner right after a scheduled backend refresh — `reloadAfterRefreshMs`
- * after the job's next_run_utc, the soonest job winning. Jobs that are
- * missing, not objects, or carry no parsable next_run_utc are skipped.
- * Pure (unit-tested in rust/uitest/unit/more/refresh-w9b.test.mjs). */
+ * sooner `reloadAfterRefreshMs` after a scheduled backend refresh (the
+ * soonest job's next_run_utc winning; unparseable jobs skipped). Pure
+ * (unit-tested in rust/uitest/unit/more/refresh-w9b.test.mjs). */
 export function nextLoadDelay(jobs, serverNowMs, refreshMs, reloadAfterRefreshMs) {
   let delay = refreshMs;
   if (!jobs || typeof jobs !== "object") return delay;
@@ -36,10 +34,12 @@ export function nextLoadDelay(jobs, serverNowMs, refreshMs, reloadAfterRefreshMs
   return delay;
 }
 
+// true for a finite number (the guard before every Intl call)
 function validNumber(v) {
   return typeof v === "number" && Number.isFinite(v);
 }
 
+// the DASH on missing or unformattable input is the module's contract
 function formatNumber(value, locale, options) {
   if (!validNumber(value)) return DASH;
   try {
@@ -124,8 +124,7 @@ export function locationText(location) {
 }
 
 /* The muted line under the place: the time zone, and — when the place
- * shows a label — the coordinates before it:
- * "52.522, 13.414 · Europe/Berlin". Empty without a location. */
+ * shows a label — the coordinates before it; "" without a location. */
 export function locationDetail(location) {
   if (!location) return "";
   const parts = [];
@@ -155,10 +154,9 @@ export function stationOffsetKm(from, to) {
 }
 
 /* The map's marks: one per DWD station id — Now's station and an
- * observation station with the same id are one mark, and the Now's
- * station's coordinates win (it is the freshest). Returns
- * { id, name, lat, lon, distance_m, isNow } in first-seen order
- * (Now's station first, then the observation stations' API order). */
+ * observation station with the same id are one mark (Now's coordinates
+ * win, it is the freshest). Returns { id, name, lat, lon, distance_m,
+ * isNow } in first-seen order (Now's station first). */
 export function stationMarks(station, stations) {
   const marks = new Map();
   const add = (s, isNow) => {
@@ -195,9 +193,8 @@ export function modelLabel(name) {
 
 const CONDITIONS = new Set(["dry", "fog", "rain", "sleet", "snow", "hail", "thunderstorm"]);
 
-/* The key for the condition text (t(lang, "cond." + key)): a dry sky is
- * decided from the cloud cover, the six wet conditions map to
- * themselves, anything else (and null) -> null. */
+/* The key for the condition text (t(lang, "cond." + key)): a dry sky
+ * from the cloud cover, the six wet conditions to themselves, else -> null. */
 export function conditionKey(condition, cloudPct) {
   if (typeof condition !== "string" || !CONDITIONS.has(condition)) return null;
   if (condition !== "dry") return condition;
@@ -271,6 +268,7 @@ export function rainAnswer(rain, radar, lang, locale, tz) {
 
 const SCALE_STEPS = [0.2, 0.5, 1, 2, 5, 10, 20, 50, 100];
 
+// the ticks from 0 to `n`, in `step` increments (rounded to 0.1)
 function makeScale(step, n) {
   const ticks = [];
   for (let i = 0; i <= n; i++) ticks.push(Number((i * step).toFixed(1)));
@@ -335,24 +333,24 @@ export function sortAccuracy(models) {
   });
 }
 
-/* The page's sky (steps A3, B1): which scene to show, as the name the page
+/* The page's sky: which scene to show, as the name the page
  * sets on <html data-scene> — one of Bright Sky's twelve weather icons
  * (the /api/now icon), "heavy-rain" (the radar rains hard right now),
- * "rain" (the radar rains right now), or "none" (nothing to show).
- *
- * The radar at the location decides about precipitation right now: rain in
- * its first five-minute step overrides a dry icon (heavy at >= 0.2 mm); a
- * dry radar (first step 0 mm) turns the station's rain, sleet, snow or hail
- * into cloudy (rule B, the user's decision 2026-10-04). A thunderstorm
- * stays, and so does every icon while the radar is unavailable; only the
- * first step counts (rain later is not rain now). Malformed answers never
- * throw — they just count as no data. */
+ * "rain" (the radar rains right now), or "none" (nothing to show). The
+ * radar at the location decides about precipitation right now: rain in
+ * its first five-minute step overrides a dry icon (heavy at >= 0.2 mm);
+ * a dry radar (first step 0 mm) turns the station's rain, sleet, snow or
+ * hail into cloudy (rule B). A thunderstorm stays, and so does every icon
+ * while the radar is unavailable; only the first step counts (rain later
+ * is not rain now). Malformed answers never throw — they count as no data. */
 export const SKY_ICONS = ["clear-day", "clear-night", "partly-cloudy-day", "partly-cloudy-night",
   "cloudy", "fog", "wind", "rain", "sleet", "snow", "hail", "thunderstorm"];
 /* Kept while the radar rains (it can't tell snow from rain); see rule B above. */
 const STAYS_ICONS = new Set(["sleet", "snow", "hail", "thunderstorm"]);
-export const HEAVY_RAIN_MM = 0.2; // per five-minute step: about 2.4 mm/h
+// per five-minute step: about 2.4 mm/h
+export const HEAVY_RAIN_MM = 0.2;
 
+// the valid /api/now icon, or null (malformed answers count as no data)
 function nowIcon(now) {
   if (!now || typeof now !== "object" || Array.isArray(now)) return null;
   const c = now.conditions;
@@ -360,6 +358,7 @@ function nowIcon(now) {
   return typeof icon === "string" && SKY_ICONS.includes(icon) ? icon : null;
 }
 
+// the first step's mm (rain right now), or null when unavailable
 function firstStepMm(radar) {
   if (!radar || typeof radar !== "object" || Array.isArray(radar)) return null;
   if (radar.available !== true || !Array.isArray(radar.steps)) return null;
@@ -369,11 +368,10 @@ function firstStepMm(radar) {
   return typeof mm === "number" && Number.isFinite(mm) ? mm : null;
 }
 
-/* The scene plus what decided it (the "why" line under the glance, step
- * B1): source "station" (the /api/now icon decided), "radar" (the radar at
- * the location overrode the icon, either way), or "none" (nothing to show);
- * stationIcon: the valid /api/now icon or null; radarDry: the radar is
- * available and its first step is 0 mm. */
+/* The scene plus what decided it (the "why" line under the glance):
+ * source "station" (the /api/now icon decided), "radar" (the radar
+ * overrode the icon, either way), or "none"; stationIcon: the valid
+ * /api/now icon or null; radarDry: the radar is available, first step 0 mm. */
 export function sceneReason(now, radar) {
   const mm = firstStepMm(radar);
   const icon = nowIcon(now);
@@ -395,6 +393,7 @@ export function sceneReason(now, radar) {
   return { scene: "none", source: "none", stationIcon: null, radarDry };
 }
 
+// the scene name only (sceneReason without the "why" parts)
 export function scene(now, radar) {
   return sceneReason(now, radar).scene;
 }

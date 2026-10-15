@@ -1,15 +1,12 @@
-/* reportdetails.js — the models against your reports (step W3).
+/* reportdetails.js — the models against your reports.
  *
  * The section the Details card renders right after the station's accuracy
- * table, from the ``user_reports`` block of /api/model-accuracy:
- *   - "Against your reports" (report.acc-title) as the title,
- *   - without scored reports: the "no reports yet" line (acc-none),
- *   - otherwise: the hours/confirmed line (acc-summary), a table like the
- *     station's — one row per model (best hit rate first, same columns
- *     without the mae), and the note (acc-note) explaining what counts.
- *
- * Pure DOM builder: the data comes in as arguments, so the renderer and
- * the section can fail independently like the other Details sections.
+ * table, from the ``user_reports`` block of /api/model-accuracy: without
+ * scored reports it shows the "no reports yet" line (acc-none), otherwise
+ * the hours/confirmed line (acc-summary), a table like the station's (one
+ * row per model, best hit rate first, same columns without the mae) and
+ * the note (acc-note) explaining what counts. Pure DOM builder: the data
+ * comes in as arguments, so it fails independently of the other sections.
  */
 import { t } from "./i18n.js";
 import { accuracyRows } from "./accuracyrows.js";
@@ -31,6 +28,7 @@ function reportsDiv(title) {
   return div;
 }
 
+// the "against your reports" section (the user_reports block)
 export function reportsSection(accuracy, lang, locale) {
   const sec = reportsDiv(t(lang, "report.acc-title"));
   const ur = userReports(accuracy);

@@ -1,4 +1,4 @@
-/* report.css — the "Not right?" flip tile (W1a: the picker).
+/* report.css — the "Not right?" flip tile and its picker.
  *
  * The host (data-report-host) gets position: relative; the back covers its
  * whole box (inset: 0), so the tile never changes its size while it turns.
@@ -18,7 +18,7 @@
   top: 10px;
   right: 10px;
   z-index: 2;
-  /* P3: a pencil + the word, grown to its content (never icon-only). */
+  /* A pencil + the word, grown to its content (never icon-only). */
   width: auto;
   min-width: 44px;
   min-height: 44px;

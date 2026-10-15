@@ -5,6 +5,7 @@
  * same. i18n.js merges REPORT_STRINGS into STRINGS.
  */
 
+// the report strings; i18n.js merges them into STRINGS
 export const REPORT_STRINGS = {
   en: {
     "report.acc-none": "No reports yet. Use “Not right?” to tell the page what the weather really is.",

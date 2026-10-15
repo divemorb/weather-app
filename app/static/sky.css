@@ -1,21 +1,12 @@
-/* sky.css — the animated sky (step A3b).
- *
- * One fixed layer ([data-test=sky], the first child of <body>) paints
- * the current weather behind the tiles, like a weather app's backdrop.
- * app.js names the scene on <html data-scene> (format.js scene(), from
- * the /api/now icon and the radar); this sheet shows the scene's
- * gradient and its moving parts — sun, moon, stars, clouds, fog, wind
- * streaks, rain, snow, hail, lightning. sky.js fills the particle
- * containers (stars, streaks, drops, flakes, hailstones).
- *
- * body is transparent, so the fixed layer (z-index -1) shows between
- * html's background and the tiles; html keeps the opaque page colour
- * (the theme checks read the background from body up to html). The
- * header and the footer sit directly on the sky, so they keep a card
- * background and their text always reads.
- *
- * All motion lives under prefers-reduced-motion: no-preference; with
- * reduced motion every scene is a still picture (the base positions).
+/* sky.css — the animated sky: one fixed layer ([data-test=sky], the
+ * first child of <body>) paints the current weather behind the tiles —
+ * app.js names the scene on <html data-scene> (format.js scene()) and
+ * sky.js fills the particle containers. body is transparent, so the
+ * layer (z-index -1) shows between html's opaque page colour (theme
+ * checks read the background from body up to html) and the tiles; the
+ * header and footer sit on the sky and keep a card background so their
+ * text reads. All motion is under prefers-reduced-motion: no-preference
+ * (reduced motion: a still picture, the base positions).
  */
 
 body { background: transparent; }

@@ -1,16 +1,12 @@
-/* chart.js — the 24 h multi-model precipitation chart, drawn as inline
- * SVG (no external libraries, no canvas).
+/* chart.js — the 24 h multi-model precipitation chart, inline SVG
+ * (no external libraries, no canvas).
  *
  * Without any model data it shows the "unavailable" line, a completely
- * dry forecast the "dry" line, and otherwise one line per model plus the
- * legend. The y axis comes from niceScale() (format.js) with mm/h as its
- * unit; the hour labels and all amounts use the browser's language and
- * the location's time zone. A model's line breaks at null values.
- *
- * The SVG's viewBox matches the container's pixel size, so the 12 px
- * axis labels stay 12 px on every screen. The module stays free of DOM
- * access at the top level, so the pure helpers can be unit-tested with
- * node.
+ * dry forecast the "dry" line, otherwise one line per model plus the
+ * legend. The y axis comes from niceScale() (format.js) with mm/h; the
+ * hour labels and amounts use the browser's language and the location's
+ * time zone. A model's line breaks at null values. The viewBox matches
+ * the container's pixel size, so the 12 px axis labels stay 12 px.
  */
 import { fmtNumber, fmtTime, modelLabel, niceScale } from "./format.js";
 import { t } from "./i18n.js";
@@ -46,6 +42,7 @@ export function chartData(data) {
   return { hours, models };
 }
 
+// an SVG element with the given tag and attributes
 function svgEl(tag, attrs) {
   const el = document.createElementNS(NS, tag);
   for (const k in attrs) el.setAttribute(k, attrs[k]);
@@ -92,6 +89,7 @@ export function renderChart(els, data, lang, locale, tz) {
   if (!kiosk) buildLegend(els.legend, d.models);
 }
 
+// the chart's <svg>: the axes, the grid and one line per model
 function buildSvg(body, { hours, models }, maxV, lang, locale, tz) {
   const kiosk = document.documentElement.classList.contains("kiosk");
   /* Kiosk: the height is the container's own measured height (the legend

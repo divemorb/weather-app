@@ -1,4 +1,4 @@
-/* fit.js — F4: the big view's headline on a narrow screen: at most two
+/* fit.js — the big view's headline on a narrow screen: at most two
  * lines, as large as the text allows.
  *
  * Only the big view (html.kiosk) below 760 px: the size is fitted to the
@@ -22,6 +22,7 @@ function lines(el) {
   return new Set([...range.getClientRects()].filter((r) => r.width > 0).map((r) => Math.round(r.bottom))).size;
 }
 
+// fits the headline to the text (narrow kiosk), else removes the inline size
 export function fitHeadline(el) {
   if (!el) return;
   if (!document.documentElement.classList.contains("kiosk") || !NARROW.matches) {

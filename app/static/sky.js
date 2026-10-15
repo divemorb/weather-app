@@ -1,19 +1,20 @@
-/* sky.js — the animated sky's particles (step A3b).
+/* sky.js — the animated sky's particles.
  *
  * The sky layer ([data-test=sky], index.html) shows the scene named on
  * <html data-scene> (app.js, from format.js scene()). The static parts
- * (sun, moon, clouds, fog, lightning) are in the markup; the many
- * small parts — stars, wind streaks, raindrops, snowflakes, hailstones
- * — are generated here once at startup, with a fixed count and random
- * positions and timings. sky.css animates them, but only while the
- * user has not asked for reduced motion; everything stays inside the
- * fixed sky layer, behind the tiles.
+ * (sun, moon, clouds, fog, lightning) are in the markup; the many small
+ * parts — stars, wind streaks, raindrops, snowflakes, hailstones — are
+ * generated here once at startup, with a fixed count and random positions
+ * and timings. sky.css animates them, but only while the user has not
+ * asked for reduced motion; everything stays inside the fixed sky layer.
  */
 
+// a random number in [min, max)
 function rand(min, max) {
   return min + Math.random() * (max - min);
 }
 
+// `count` new spans in the container, each set up by make(el, i)
 function scatter(container, count, make) {
   for (let i = 0; i < count; i++) {
     const el = document.createElement("span");
@@ -22,6 +23,7 @@ function scatter(container, count, make) {
   }
 }
 
+// generates the particles into their containers, once at startup
 export function initSky() {
   const stars = document.getElementById("sky-stars");
   if (!stars) return;

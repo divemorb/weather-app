@@ -25,13 +25,14 @@ try {
 
 const button = document.getElementById("view-toggle");
 
+// the view on <html data-view>, the kiosk class and the button's word
 function setView(view) {
   root.dataset.view = view;
   root.classList.toggle("kiosk", view === "big");
-  // The visible text is the accessible name (F3, WCAG 2.5.3): it says where
+  // The visible text is the accessible name (WCAG 2.5.3): it says where
   // a click goes, "Details" / "Big view" (de "Details" / "Große Ansicht").
   button.textContent = t(lang, view === "big" ? "view.to-detailed" : "view.to-big");
-  /* F4: switching views changes the headline's width (and the kiosk
+  /* Switching views changes the headline's width (and the kiosk
    * class), so refit the big view's text-fitted size (or remove it). */
   fitHeadline(document.getElementById("rain-answer"));
 }

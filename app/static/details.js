@@ -1,26 +1,12 @@
 /* details.js — the Details card and the page reload.
  *
- * One <details data-test="details"> (closed on load) after the forecast;
- * its body is filled from four endpoints, fetched by app.js on every
- * refresh:
- *   - the signals (radar, models, ensemble) and the weights in use,
- *     from /api/rain-probability (without data: a dash),
- *   - the refresh countdowns (radar, models, next page reload) from
- *     /api/schedule, ticking once a second,
- *   - the data sources with their age and errors, from /api/sources,
- *   - the model accuracy table, from /api/model-accuracy (rows with
- *     enough data first, best hit rate first; below the sample minimum
- *     greyed; the table explains itself in the note under it),
- *   - the models against the user's own reports (the user_reports block
- *     of the same endpoint; step W3, reportdetails.js).
- *
- * Each section renders on its own: one bad endpoint never clears the
- * card or stops the other sections (the new body is only swapped in once
- * it has been built). The page reload lives here too, but not inside the
- * body: app.js calls scheduleFrom() after every refresh, after all the
- * renderers, so the next reload (10 s after the next scheduled backend
- * refresh, at the latest every 60 s) is scheduled whatever failed. The
- * onReload callback (one refresh) is set by app.js.
+ * The open <section data-test="details"> after the forecast; its body is
+ * filled from four endpoints, fetched by app.js on every refresh:
+ * /api/rain-probability (signals and weights), /api/schedule (the refresh
+ * countdowns), /api/sources (the data sources with their age and errors),
+ * /api/model-accuracy (the station's accuracy table plus the models
+ * against the user's reports, via reportdetails.js). Each section renders
+ * on its own: one bad endpoint never clears the card or stops the other.
  */
 import {
   DASH, PAGE_RELOAD_AFTER_REFRESH_MS, PAGE_REFRESH_MS, fmtAge, fmtCountdown, fmtMm,
@@ -50,6 +36,7 @@ let valueEls = null; // the three countdown value spans
 
 /* ---- the schedule and the reload ---- */
 
+// the /api/schedule answer (the server-time offset and the jobs), or null
 function applySchedule(s) {
   if (!s || typeof s !== "object" || !s.jobs || typeof s.jobs !== "object") {
     schedule = null;
@@ -60,6 +47,7 @@ function applySchedule(s) {
   schedule = { offsetMs: isNaN(offsetMs) ? 0 : offsetMs, jobs: s.jobs };
 }
 
+// the server's current time in ms (the stored offset applied)
 function serverNow() {
   return Date.now() + (schedule && Number.isFinite(schedule.offsetMs) ? schedule.offsetMs : 0);
 }
@@ -123,6 +111,7 @@ function tick() {
 
 /* ---- wiring (called once from app.js) ---- */
 
+// fills the title, keeps the reload callback, starts the countdown tick
 export function initDetails(l, loc, opts) {
   lang = l || "en";
   locale = loc || "en-US";
@@ -180,6 +169,7 @@ export function renderDetails(data) {
 
 /* ---- small builders ---- */
 
+// a <div class="details-section"> with its <h3> title
 function section(title) {
   const div = document.createElement("div");
   div.className = "details-section";
@@ -189,6 +179,7 @@ function section(title) {
   return div;
 }
 
+// a <p class="detail-line"> with the given data-test hook
 function line(hook) {
   const p = document.createElement("p");
   p.className = "detail-line";
@@ -196,6 +187,7 @@ function line(hook) {
   return p;
 }
 
+// the parts into the line, "·" between them
 function fillLine(p, parts) {
   for (let i = 0; i < parts.length; i++) {
     if (i) {
@@ -208,6 +200,7 @@ function fillLine(p, parts) {
   }
 }
 
+// the signals and weights section (from /api/rain-probability)
 function signalsSection(rain) {
   const sec = section(t(lang, "details.signals-weights"));
   const weightsLine = line("details-weights");
@@ -241,6 +234,7 @@ function signalsSection(rain) {
   return sec;
 }
 
+// the refresh countdowns section (radar, models, the next page reload)
 function refreshSection() {
   const sec = section(t(lang, "details.refresh"));
   const grid = document.createElement("div");
@@ -322,6 +316,7 @@ function sourcesSection(sources) {
   return sec;
 }
 
+// the station's accuracy table section (from /api/model-accuracy)
 function accuracySection(accuracy) {
   const sec = section(t(lang, "details.accuracy"));
   const models = accuracy && accuracy.models && typeof accuracy.models === "object"

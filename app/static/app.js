@@ -2,17 +2,15 @@
  *
  * Sets the language (<html lang>, the aria-labels, the footer) and the
  * theme, then reads /api/config: unconfigured -> the wizard in "first"
- * mode; configured -> the glance, the Now section, the chart and the
- * details. A failed /api/config at startup is retried every 10 s (the
- * place line says the app can't be reached meanwhile). A refresh
- * re-fetches all the data endpoints; each endpoint fails on its own and
- * each page part renders on its own (an exception is caught and logged
- * with console.warn, the part keeps its old content or its unavailable
- * state), and the next page reload is scheduled whatever failed
- * (details.js: 10 s after a backend refresh, at the latest every 60 s,
- * via the onReload callback). Nothing throws uncaught.
+ * mode; configured -> the glance, Now, the chart and the details. A
+ * failed /api/config at startup is retried every 10 s. A refresh
+ * re-fetches all the data endpoints; each endpoint and each page part
+ * fails and renders on its own; the next page reload is scheduled
+ * whatever failed. Nothing throws uncaught.
  */
-import "./view.js"; // the view (big/detailed) and the <html> classes, before anything reads them
+
+// the view (big/detailed) and the <html> classes, before anything reads them
+import "./view.js";
 import { pickLang, t } from "./i18n.js";
 import { getJSON } from "./api.js";
 import { CONFIG_RETRY_MS, locationText, locationDetail, scene } from "./format.js";
@@ -58,6 +56,7 @@ try {
   stored = value === "light" || value === "dark" ? value : null;
 } catch { /* storage can be blocked */ }
 
+// the theme: the stored choice wins, else the system preference
 function applyTheme() {
   document.documentElement.dataset.theme = stored || (mq.matches ? "dark" : "light");
 }
@@ -65,19 +64,20 @@ applyTheme();
 mq.addEventListener("change", applyTheme);
 
 /* ---- the sky: one fixed layer behind the tiles. The scene name goes on
- * <html data-scene>. A fresh user report decides it (reportSky, W2);
+ * <html data-scene>. A fresh user report decides it (reportSky);
  * without one, scene() (format.js) maps the Now observation and the
  * radar's first step. It starts "none" (plain background) and follows
  * every refresh; the particles are built once by initSky(). ---- */
 initSky();
 let skyNow = null;
 let skyRadar = null;
+// the scene on <html data-scene>: a fresh report, else scene()
 function setSkyScene() {
-  const rep = reportSky(); // a fresh report decides the sky (W2)
+  const rep = reportSky(); // a fresh report decides the sky
   document.documentElement.dataset.scene = rep ? rep.scene : scene(skyNow, skyRadar);
 }
 setSkyScene();
-/* W2 — a save or an undo (report.js dispatches "report-changed") turns the
+/* A save or an undo (report.js dispatches "report-changed") turns the
  * sky and the "why" line to the fresh report at once, no reload. */
 document.addEventListener("report-changed", () => {
   renderPart("sky", setSkyScene);
@@ -165,13 +165,13 @@ async function refresh() {
   }
   if (data.now != null) skyNow = data.now;
   if (data.radar != null) skyRadar = data.radar;
-  /* The current report first (W2): the sky and the "why" line follow it.
+  /* The current report first: the sky and the "why" line follow it.
    * reportCurrent is synchronous without a refetch, so the sky below sees it. */
   renderPart("report-current", () => reportCurrent(data.report && data.report.report));
   renderPart("sky", setSkyScene); // its own part: a bad answer must not stop the others
   renderPart("report", reportScene); // the open back names the scene the page shows
   renderPart("glance", () => renderGlance(data.rain, data.radar, lang, locale, tz, cfg && cfg.radar_radius_km));
-  /* The sky's "why" line: the report's text when fresh (W2), else the same
+  /* The sky's "why" line: the report's text when fresh, else the same
    * part as the glance, so one failed endpoint never stops the other. */
   const repSky = reportSky();
   renderPart("sky-reason", () => renderSkyReason(data.now, data.radar, lang, locale, repSky ? repSky.text : null));

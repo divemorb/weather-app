@@ -1,17 +1,14 @@
 /* reportkind.js — the user's weather reports and the page's scenes.
  *
- * Pure module: no DOM, no navigator.
- *
- *   KINDS                        the eight kinds, in the picker's order
- *   kindScene(kind, intensity, day)  the scene a report shows (null for
- *                                    an unknown kind)
- *   sceneKind(scene)              what "That's right" reports for the scene
- *                                 the page shows: {kind, intensity}, or
- *                                 null (no such kind)
- *   isDay(lat, lon, date)         the sun is up: its centre above
- *                                 -0.833 degrees, for a JS Date
+ * Pure module: no DOM, no navigator. KINDS is the eight kinds in the
+ * picker's order; kindScene(kind, intensity, day) is the scene a report
+ * shows (null for an unknown kind); sceneKind(scene) is what "That's
+ * right" reports for the scene the page shows, {kind, intensity} or null;
+ * isDay(lat, lon, date) is the sun up: its centre above -0.833 degrees,
+ * for a JS Date.
  */
 
+// the eight kinds, in the picker's order
 export const KINDS = [
   "clear", "partly-cloudy", "cloudy", "fog",
   "rain", "thunderstorm", "snow", "hail",
@@ -51,6 +48,7 @@ export function sceneKind(scene) {
   return entry ? { kind: entry[0], intensity: entry[1] } : null;
 }
 
+// degrees into [0, 360)
 function normDeg(x) {
   x %= 360;
   return x < 0 ? x + 360 : x;

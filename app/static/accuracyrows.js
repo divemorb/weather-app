@@ -3,11 +3,10 @@
  * The station's accuracy table (details.js) and the models-against-your-
  * reports table (reportdetails.js) share one row per model: the same
  * columns — model, samples, hits, misses, false alarms, hit rate — the
- * same order (best hit rate first, the rows without enough data last)
- * and the same cell rendering (a dash for a missing value). This module
- * is the identical <tbody> of both; the heads stay with the callers
- * (the reports' table has no mae column) and so do the rows' data-test
- * names and the greying, which only the station's table has.
+ * same order (best hit rate first, rows without enough data last) and the
+ * same cell rendering (a dash for a missing value). This module is the
+ * identical <tbody> of both; the heads, the rows' data-test names and the
+ * greying (station's table only) stay with the callers.
  */
 import { DASH, fmtPercent, modelLabel, sortAccuracy } from "./format.js";
 

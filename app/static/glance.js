@@ -28,10 +28,11 @@ const els = {
 /* Minimum strip scale in mm, so small amounts still get a visible fill. */
 const RADAR_MAX_MM = 1.0;
 
+// the rain answer, the probability, the radar strip and the "why" line
 export function renderGlance(rain, radar, lang, locale, tz, radiusKm) {
   const a = rainAnswer(rain, radar, lang, locale, tz);
   els.answer.textContent = a.headline;
-  /* F4: the big view on a narrow screen fits the size to the text
+  /* The big view on a narrow screen fits the size to the text
    * (at most two lines, as large as fits); elsewhere it removes the
    * inline size so the CSS decides. */
   fitHeadline(els.answer);
@@ -54,9 +55,9 @@ export function renderGlance(rain, radar, lang, locale, tz, radiusKm) {
   renderRadar(radar, lang, locale, tz, radiusKm, a.detail);
 }
 
-/* The "why" line under the rain answer (step B1): what the sky shows and
+/* The "why" line under the rain answer: what the sky shows and
  * which source decided it. A fresh user report decides it (reportText,
- * W2: report.js' "sky" / "sky-confirmed"); without one, sceneReason.
+ * report.js' "sky" / "sky-confirmed"); without one, sceneReason.
  * Hidden when the source is "none" (nothing to show). {km} like the Now
  * card's station line; station names are untrusted API text: textContent
  * only. */
@@ -96,6 +97,7 @@ export function renderSkyReason(now, radar, lang, locale, reportText) {
   els.reason.hidden = false;
 }
 
+// the five-minute radar strip and its caption (or the unavailable line)
 function renderRadar(radar, lang, locale, tz, radiusKm, detail) {
   const steps = radar && Array.isArray(radar.steps) ? radar.steps : [];
   /* A step that is not an object with a parsable start_utc makes the

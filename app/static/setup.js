@@ -4,10 +4,9 @@
  * data-test="setup"> markup and remembers the callback for a saved
  * location; openSetup("first"|"change") shows the wizard (first hides
  * <main>). Every text lives in i18n.js, so index.html stays
- * language-neutral.
- *
- * No <form> on purpose: the CSP is form-action 'none', so all buttons
- * are type="button" and Enter in the search field triggers the search.
+ * language-neutral. No <form> on purpose: the CSP is form-action 'none',
+ * so all buttons are type="button" and Enter in the search field
+ * triggers the search.
  */
 import { t } from "./i18n.js";
 import { ApiError, getJSON, postJSON } from "./api.js";
@@ -41,11 +40,13 @@ let onSaved = () => {};
 let mode = "first"; // "first" = no location yet, "change" = opened via the button
 let pickedLabel = ""; // display label of the picked search result
 
+// the wizard's status line (with the error state)
 function status(text, isError) {
   els.status.textContent = text || "";
   els.status.classList.toggle("error", !!isError);
 }
 
+// the browser's time zone ("" when unknown)
 function browserTimezone() {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
@@ -67,6 +68,7 @@ export function openSetup(m) {
   els.search.focus();
 }
 
+// hides the wizard and clears the status
 function closeSetup() {
   els.section.hidden = true;
   status("");
@@ -113,6 +115,7 @@ function clearResults() {
   els.results.innerHTML = "";
 }
 
+// the search: validates the text, geocodes it, renders the results
 async function doSearch() {
   const text = els.search.value.trim();
   if (text.length < 3) {
@@ -130,6 +133,7 @@ async function doSearch() {
   }
 }
 
+// fills the coordinates and the label from the picked result
 function pickResult(r, btn) {
   els.lat.value = r.latitude;
   els.lon.value = r.longitude;
@@ -143,6 +147,7 @@ function pickResult(r, btn) {
   status(t(lang, "setup.status.selected", { label: r.label.replace(/\n/g, ", ") }));
 }
 
+// the result buttons (or the "no match" status)
 function renderResults(results) {
   if (results.length === 0) {
     status(t(lang, "setup.status.no-match"), true);

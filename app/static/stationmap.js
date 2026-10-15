@@ -12,6 +12,7 @@ import { t } from "./i18n.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
+// an SVG element with the given tag and attributes
 function svgEl(tag, attrs) {
   const el = document.createElementNS(SVG_NS, tag);
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
@@ -22,6 +23,7 @@ function svgEl(tag, attrs) {
  * 56 px (the last one when the map's scale is too small for all of them). */
 const SCALE_KM = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100];
 
+// the first scale step that draws at 56 px or more (the last, else)
 function scaleBarKm(scale) {
   for (const km of SCALE_KM) if (km * scale >= 56) return km;
   return SCALE_KM[SCALE_KM.length - 1];

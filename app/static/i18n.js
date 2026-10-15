@@ -9,6 +9,7 @@
 
 import { REPORT_STRINGS } from "./i18n-report.js";
 
+// the page's strings (en and de); the report strings merge in below
 export const STRINGS = {
   en: {
     "answer.nodata": "No forecast data yet",
@@ -86,12 +87,12 @@ export const STRINGS = {
     "location.unreachable": "Can't reach the app, retrying…",
     "location.aria": "Change location",
     "theme.aria": "Toggle dark mode",
-    // The view button's visible text (F3): where a click goes, per view.
+    // The view button's visible text: where a click goes, per view.
     "view.to-detailed": "Details",
     "view.to-big": "Big view",
     "answer.loading": "Loading…",
     "glance.prob-label": "chance of rain in the next 60 min",
-    // The "why" line under the glance (step B1): what the sky shows and
+    // The "why" line under the glance: what the sky shows and
     // which source decided it. {km} like the Now card's station line.
     "sky.station": "Sky: {scene}, reported by station {name} ({km} away)",
     "sky.nearest": "Sky: {scene}, reported by the nearest weather station",
@@ -220,12 +221,12 @@ export const STRINGS = {
     "location.unreachable": "App nicht erreichbar, neuer Versuch …",
     "location.aria": "Ort ändern",
     "theme.aria": "Farbschema umschalten",
-    // Der sichtbare Text des Ansichtsknopfs (F3): wo ein Klick hingeht.
+    // Der sichtbare Text des Ansichtsknopfs: wo ein Klick hingeht.
     "view.to-detailed": "Details",
     "view.to-big": "Große Ansicht",
     "answer.loading": "Lade…",
     "glance.prob-label": "Regenwahrscheinlichkeit in der nächsten Stunde",
-    // Die „Warum"-Zeile unter dem Glance (Schritt B1): was der Himmel
+    // Die „Warum"-Zeile unter dem Glance: was der Himmel
     // zeigt und welche Quelle es entschieden hat. {km} wie die
     // Stationszeile der Now-Karte.
     "sky.station": "Himmel: {scene}, gemeldet von Station {name} ({km} entfernt)",

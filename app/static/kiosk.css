@@ -1,16 +1,12 @@
 /* The big view: the one-screen wall display, read from across the room.
- * view.js sets the .kiosk class on <html> for the big view (the default;
- * ?kiosk adds .locked and hides the view and location buttons) and
- * chart.js keys its layout on it.
- *
- * One screen, no scrolling, at 1280x800 and 1920x1080: the glance on the
- * left, Now and the 24 h chart stacked on the right. On a dry (or
- * data-less) day the chart card is just its status line: Now takes the
- * freed height, in two wider columns (the rules key on the status line
- * being visible, :has()). The Details card leaves the big view; on a
- * phone (below 760 px) the cards stack in one column and the page may
- * scroll. The page reload keeps running (details.js schedules it, and a
- * hidden <details> does not stop its timers).
+ * view.js sets .kiosk on <html> for the big view (the default; ?kiosk adds
+ * .locked and hides the view and location buttons); chart.js keys its
+ * layout on the class. One screen, no scrolling, at 1280x800 and
+ * 1920x1080: the glance left, Now and the 24 h chart stacked right. On a
+ * dry (or data-less) day the chart card is just its status line: Now
+ * takes the freed height (the rules key on the status line via :has()).
+ * The Details card leaves the big view; below 760 px the cards stack in
+ * one column and may scroll.
  */
 
 html.kiosk { overflow: hidden; } /* no scrollbars; the content must fit */
@@ -32,7 +28,7 @@ html.kiosk.locked [data-test="view-toggle"] { display: none; }
 html.kiosk .place { font-size: 20px; }
 html.kiosk .place-detail { font-size: 13px; }
 html.kiosk .actions .btn { width: 40px; height: 40px; }
-/* The view button's text says where a click goes (F3): it keeps one line. */
+/* The view button's text says where a click goes: it keeps one line. */
 html.kiosk #view-toggle { width: auto; min-width: 40px; }
 
 /* ---- the two columns --------------------------------------------------- */
@@ -57,8 +53,8 @@ html.kiosk #dashboard:has([data-test="chart-unavailable"]:not([hidden])) {
 
 html.kiosk .card + .card { margin-top: 0; }
 
-/* The cards fill their grid cell and start their content at the top (the
- * V2 review: no empty band above the data); the type and spacing are sized
+/* The cards fill their grid cell and start their content at the top (no
+ * empty band above the data); the type and spacing are sized
  * to take the room that is left. */
 html.kiosk #dashboard .card {
   min-width: 0;
@@ -71,13 +67,13 @@ html.kiosk #dashboard .card {
 html.kiosk .glance { grid-column: 1; grid-row: 1 / 3; padding: 2.5vh 26px; }
 html.kiosk .now { grid-column: 2; grid-row: 1; padding: 2.5vh 26px; }
 html.kiosk #chart-card { grid-column: 2; grid-row: 2; padding: 14px 22px; }
-/* P3: the wider pencil + word button (~98x44) would lie over the host's
+/* The wider pencil + word button (~98x44) would lie over the host's
  * headline at 360 px; the host's top padding clears it. Found by the
  * attribute, never by an id (same specificity as the .glance padding, so
  * this must stay after it). */
 html.kiosk .card[data-report-host] { padding-top: 62px; }
-/* The <details> also carries .card; the id keeps this rule above the
- * flex rule for the cards above (equal specificity, later wins). */
+/* The details card also carries .card; the id + attribute selector beats
+ * the flex rule for the cards above (higher specificity). */
 html.kiosk #dashboard [data-test="details"] { display: none; }
 
 /* ---- the glance (left column) ------------------------------------------
@@ -85,11 +81,11 @@ html.kiosk #dashboard [data-test="details"] { display: none; }
  * 1920x1080 (the TV) fill the same card with the same proportions. */
 
 html.kiosk .glance-answer { font-size: 6.2vh; line-height: 1.15; overflow-wrap: break-word; }
-/* F5: the radar line comes first, so it stays at least as large as the
+/* The radar line comes first, so it stays at least as large as the
  * "why" line under it (both read from across the room at the same size). */
 html.kiosk .glance-when { margin-top: 1.4vh; font-size: 2.5vh; }
 /* The "why" line says which source decided the sky; it is read from across
- * the room too (the V2 review: at least 2.5 % of the screen height). */
+ * the room too (at least 2.5 % of the screen height). */
 html.kiosk .glance-reason { font-size: 2.5vh; }
 html.kiosk .glance-prob { margin-top: 2.6vh; }
 html.kiosk .glance-prob-value { font-size: 13vh; }
@@ -103,7 +99,7 @@ html.kiosk .radar-labels { height: 2.2vh; margin-top: 0.8vh; font-size: 2vh; }
 html.kiosk .radar-caption { margin-top: 1.2vh; font-size: 2vh; }
 html.kiosk .radar-unavailable { font-size: 2.2vh; }
 
-/* W4c: in the big view the radar caption (and the other muted lines) sit on
+/* In the big view the radar caption (and the other muted lines) sit on
  * the glass; on a rainy sky that glass is #505e6e, where the theme's muted
  * #c3cad2 is 4.0:1 (needs 4.5:1). A lighter muted colour restores it. */
 html.kiosk[data-theme="dark"] { --muted: #dfe4ea; }
@@ -131,7 +127,7 @@ html.kiosk #dashboard:has([data-test="chart-dry"]:not([hidden])) .now-grid,
 html.kiosk #dashboard:has([data-test="chart-unavailable"]:not([hidden])) .now-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   /* vh, not px: on a dry day Now takes the chart's height, so the spacing
-   * must grow with the screen to fill the taller card (the V2 review). */
+   * must grow with the screen to fill the taller card. */
   gap: 2.2vh 2.6vh;
   margin-top: 2.6vh;
 }
@@ -184,13 +180,13 @@ html.kiosk .attr { margin-top: 0; font-size: 12px; }
    * phone would get the short wide fallback. */
   html.kiosk #chart-card .chart-body.has-chart { min-height: 300px; }
 
-  /* The V2 review: at 390x844 the 6.2 vh headline (52 px) wrapped to 4-6
+  /* At 390x844 the 6.2 vh headline (52 px) wrapped to 4-6
    * lines; 24 px is the largest size that keeps it to 3 lines at the card's
    * ~308 px text width (German "rain likely" measured: 3 lines at 24 px,
    * 4 at 28 px), and the checks require at least 24 px. */
   html.kiosk .glance-answer { font-size: 24px; }
 
-  /* F5: the fitted headline drops to 20 px for the longest German text at
+  /* The fitted headline drops to 20 px for the longest German text at
    * 360 px, so the radar line and the "why" line get a fixed size that
    * leaves it the lead (1.25x at 16 px). */
   html.kiosk .glance-when, html.kiosk .glance-reason { font-size: 16px; }

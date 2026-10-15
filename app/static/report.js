@@ -1,14 +1,12 @@
-/* report.js — the "Not right?" flip tile: the picker (W1a), saving (W1b)
- * (a kind tap POSTs /api/reports; rain first asks for its intensity; a
- * failure keeps the back open with its message; the front's line carries
- * the undo) and W2: the sky and its "why" line follow the fresh report.
- * The host is found by its data-report-host attribute (never by an id). */
+/* report.js — the "Not right?" flip tile: the picker, saving (a kind tap
+ * POSTs /api/reports; rain first asks for its intensity; a failure keeps
+ * the back open with its message; the front's line carries the undo), and
+ * the sky and its "why" line follow the fresh report. The host is found by its data-report-host attribute (never by an id). */
 import { KINDS, kindScene, sceneKind } from "./reportkind.js";
 import { t } from "./i18n.js";
 import { fmtTime } from "./format.js";
 import { getJSON, postJSON, deleteJSON } from "./api.js";
 
-/* The back and its parts (build() fills them, once per host). */
 let host = null, back = null, backInner = null, openBtn = null, closeBtn = null;
 let showsEl = null, confirmBtn = null, kindBtns = [], whenBtns = [];
 let kindsEl = null, intensityEl = null, errorEl = null;
@@ -54,10 +52,11 @@ const KIND_ICON = {
     + '<rect x="11.5" y="20.4" width="2" height="2" rx="0.5" fill="currentColor" stroke="none"/>'
     + '<rect x="15.4" y="19.4" width="2" height="2" rx="0.5" fill="currentColor" stroke="none"/>',
 };
-/* P3 (phone test, 2026-10-12): a slanted pencil, tip at the bottom left. */
+/* A slanted pencil, tip at the bottom left. */
 const OPEN_ICON = '<path d="M4 20l1-4L16 5l3 3L8 19z"/>' + '<path d="M14 7l3 3"/>';
 const CLOSE_ICON = '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>';
 
+// a button with the given class, data-test hook, label and icon (aria-label when both)
 function makeBtn(cls, hook, label, icon, extra) {
   const b = document.createElement("button");
   b.type = "button";
@@ -69,6 +68,7 @@ function makeBtn(cls, hook, label, icon, extra) {
   return b;
 }
 
+// builds the back (its parts) once, per host
 function build() {
   /* The visible word is the accessible name (WCAG 2.5.3); the SVG is aria-hidden. */
   openBtn = makeBtn("report-open-btn", "report-open", null, OPEN_ICON);
@@ -147,8 +147,7 @@ function build() {
   errorEl.setAttribute("role", "alert");
   errorEl.hidden = true;
 
-  /* The front's line for the current fresh report. The pill holds the
-   * line (it must read exactly the sentence) and, beside it, the undo. */
+  /* The front's line for the current fresh report: the pill holds the sentence exactly and, beside it, the undo. */
   lineWrap = document.createElement("div");
   lineWrap.className = "report-line";
   lineWrap.hidden = true;
@@ -178,8 +177,7 @@ function build() {
   host.append(openBtn, lineWrap, back);
 }
 
-/* The back's texts follow the current scene (what the page shows, the
- * matching kind, a fresh "now" chip); opening starts on the kinds. */
+/* The back's texts follow the current scene (what the page shows, the matching kind, a fresh "now" chip); opening starts on the kinds. */
 function syncBack() {
   const scene = document.documentElement.dataset.scene;
   showsEl.textContent = t(lang, "report.shows", { scene: t(lang, "sky.scene." + scene) });
@@ -190,11 +188,12 @@ function syncBack() {
   for (const w of whenBtns) w.setAttribute("aria-pressed", w.dataset.minutes === "0" ? "true" : "false");
 }
 
+// the host's front parts: everything but the back (the inert list)
 function frontParts() {
   return [...host.querySelectorAll("[data-test]")].filter((el) => el !== back && !back.contains(el));
 }
 
-/* W1b — saving. The time chip the user pressed: the report's minutes_ago. */
+/* Saving. The time chip the user pressed: the report's minutes_ago. */
 function selectedMinutes() {
   const m = whenBtns.find((w) => w.getAttribute("aria-pressed") === "true");
   return Number(m ? m.dataset.minutes : 0);
@@ -207,12 +206,14 @@ function onKind(kind) {
   else save({ kind: kind, intensity: null, minutes: selectedMinutes(), confirms: false });
 }
 
+// the intensity step: the intensities instead of the kinds
 function showIntensity() {
   kindsEl.hidden = true;
   intensityEl.hidden = false;
   for (const b of kindBtns) b.removeAttribute("aria-current");
 }
 
+// the kinds step: the kinds instead of the intensities (marks the scene's kind)
 function showKinds() {
   intensityEl.hidden = true;
   kindsEl.hidden = false;
@@ -223,8 +224,7 @@ function showKinds() {
   }
 }
 
-/* Save at once: POST with the pressed chip's minutes_ago; the server's
- * clock sets the observed_at (the client sends no times). */
+/* Save at once: POST with the pressed chip's minutes_ago; the server's clock sets the observed_at (the client sends no times). */
 async function save({ kind, intensity, minutes, confirms }) {
   if (saving) return;
   saving = true;
@@ -245,16 +245,17 @@ async function save({ kind, intensity, minutes, confirms }) {
   }
 }
 
+// shows the failed-save message on the back
 function showError() {
   errorEl.hidden = false;
   errorEl.textContent = t(lang, "report.failed");
 }
+// hides the failed-save message
 function hideError() {
   errorEl.hidden = true;
 }
 
-/* The front's line for the current fresh report: the scene's word
- * (kindScene) and the server's observed_at in the user's zone. */
+/* The front's line: the scene's word (kindScene) and the server's observed_at in the user's zone. */
 function renderLine() {
   if (!lineEl) return;
   const rep = currentReport;
@@ -272,8 +273,7 @@ function renderLine() {
 }
 
 /* The sun up at the location when the report was observed (only clear and
- * partly cloudy depend on it). isDay takes the real instant: the longitude
- * places the sun, so no zone shift (a shifted clock was 1-2 h off). */
+ * partly cloudy depend on it); the real instant, so no zone shift. */
 function isDayAt(observedIso) {
   const d = new Date(observedIso);
   if (isNaN(d.getTime())) return false;
@@ -304,8 +304,7 @@ async function undo() {
   }
 }
 
-/* The current fresh report (app.js passes the refresh's answer; the
- * re-read after an undo fetches it itself). A failure counts as none. */
+/* The current fresh report (app.js passes the refresh's answer, the re-read after an undo fetches it itself); a failure counts as none. */
 export async function reportCurrent(report, refetch) {
   if (refetch) {
     try {
@@ -320,6 +319,7 @@ export async function reportCurrent(report, refetch) {
   renderLine();
 }
 
+// turns the tile to the back: front inert, close button focused
 function open() {
   if (isOpen) return;
   isOpen = true;
@@ -331,6 +331,7 @@ function open() {
   closeBtn.focus();
 }
 
+// turns the tile to the front: back inert, open button focused
 function close() {
   if (!isOpen) return;
   isOpen = false;
@@ -344,9 +345,8 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && isOpen) close();
 });
 
-/* W2 — the sky follows a fresh report: its scene (kindScene, day/night for
- * clear and partly cloudy) and the "why" line's text (the "sky" /
- * "sky-confirmed" string), or both null without a report. */
+/* The sky follows a fresh report: its scene (kindScene) and the "why" line's
+ * text (the "sky" / "sky-confirmed" string), or both null without a report. */
 export function reportSky() {
   const rep = currentReport;
   if (!rep || !rep.kind || !rep.observed_at) return null;
@@ -370,6 +370,7 @@ export function setReportEnv(locale_, tz_, location_) {
   renderLine();
 }
 
+// wires the host (data-report-host) once the language is known
 export function initReport(l) {
   lang = l;
   host = document.querySelector("[data-report-host]");
@@ -393,8 +394,7 @@ export function initReport(l) {
   });
 }
 
-/* app.js calls after every setSkyScene: the open back keeps naming the
- * scene the page shows (W2: the sky follows a fresh report). */
+/* app.js calls after every setSkyScene: the open back keeps naming the scene the page shows. */
 export function reportScene() {
   if (host && isOpen) syncBack();
 }

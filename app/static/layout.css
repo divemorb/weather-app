@@ -1,13 +1,11 @@
-/* layout.css — the tiles flow with the screen (step A2).
+/* layout.css — the tiles flow with the screen.
  *
  * main#dashboard is a CSS grid: one column on a phone. In the detailed
- * view only the Details card is visible (W4b), so it takes the full width
- * of .wrap; the other tiles stay hidden. Wide screens use their width
- * instead of one narrow column.
- *
- * The kiosk view keeps its own layout (kiosk.css lays out html.kiosk
- * .wrap and #dashboard on its own), so every rule here is scoped to
- * html:not(.kiosk).
+ * view only the Details card is visible, so it takes the full width of
+ * .wrap; the other tiles stay hidden. Wide screens use their width
+ * instead of one narrow column. The kiosk view keeps its own layout
+ * (kiosk.css lays out html.kiosk .wrap and #dashboard on its own), so
+ * every rule here is scoped to html:not(.kiosk).
  */
 
 html:not(.kiosk) main#dashboard {
@@ -21,7 +19,7 @@ html:not(.kiosk) main#dashboard {
  * 22 px from 720 px, as the old margins). */
 html:not(.kiosk) main#dashboard .card + .card { margin-top: 0; }
 
-/* The detailed view is the details page (W4b): the place line and the
+/* The detailed view is the details page: the place line and the
  * glance, Now and chart tiles show only in the big view. */
 html[data-view="detailed"] #location,
 html[data-view="detailed"] #location-detail,
@@ -33,7 +31,7 @@ html[data-view="detailed"] #chart-card { display: none; }
   html:not(.kiosk) main#dashboard { gap: 22px; }
 }
 
-/* V2: the data tiles are glass — the moving sky shows through them in
+/* The data tiles are glass — the moving sky shows through them in
  * every view (big, detailed and the locked wall display). The wizard
  * card, the header and the footer keep their opaque card background.
  * No blur: it would smear the sky and cost the glass check. */

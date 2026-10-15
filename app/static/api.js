@@ -14,6 +14,7 @@ export class ApiError extends Error {
   }
 }
 
+// the parsed body; a non-2xx throws ApiError (the API's error body as detail)
 async function json(res, path) {
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new ApiError(path, res.status, data && data.detail);

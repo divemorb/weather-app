@@ -8,7 +8,7 @@
  */
 
 /* The card's padding lives around the title and body (the h2 was the old
- * summary; the card is a plain section now, W4b). */
+ * summary; the card is a plain section now). */
 .details { padding: 16px 22px 22px; }
 
 .details-title {
