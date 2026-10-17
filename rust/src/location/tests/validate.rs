@@ -14,30 +14,6 @@ fn body(pairs: &[(&str, Value)]) -> String {
     format!("{{{parts}}}")
 }
 
-/// The fields of `LocationIn` are private; the tests read them through
-/// these accessors.
-impl LocationIn {
-    /// The validated latitude.
-    pub fn latitude(&self) -> f64 {
-        self.latitude
-    }
-
-    /// The validated longitude.
-    pub fn longitude(&self) -> f64 {
-        self.longitude
-    }
-
-    /// The validated timezone (exists and is 1..=64 chars).
-    pub fn timezone(&self) -> &str {
-        &self.timezone
-    }
-
-    /// The optional display label (missing means empty).
-    pub fn label(&self) -> &str {
-        &self.label
-    }
-}
-
 fn validate(text: &str) -> Result<LocationIn, BodyError> {
     validate_location_body(Some(JSON_CT), text.as_bytes())
 }
@@ -61,9 +37,9 @@ fn body_loc() -> Vec<LocPart> {
 #[test]
 fn validate_valid_v() {
     let in_ = validate(V).unwrap();
-    assert_eq!((in_.latitude(), in_.longitude()), (52.52, 13.405));
-    assert_eq!(in_.timezone(), "Europe/Berlin");
-    assert_eq!(in_.label(), "Berlin");
+    assert_eq!((in_.latitude, in_.longitude), (52.52, 13.405));
+    assert_eq!(in_.timezone, "Europe/Berlin");
+    assert_eq!(in_.label, "Berlin");
 }
 
 #[test]
@@ -74,7 +50,7 @@ fn validate_coordinate_bounds_included() {
         ("timezone", json!("UTC")),
     ]);
     let in_ = validate(&text).unwrap();
-    assert_eq!((in_.latitude(), in_.longitude()), (90.0, -180.0));
+    assert_eq!((in_.latitude, in_.longitude), (90.0, -180.0));
 }
 
 #[test]
@@ -112,7 +88,7 @@ fn validate_latitude_numeric_strings() {
             ("timezone", json!("UTC")),
         ]);
         let in_ = validate(&text).unwrap();
-        assert_eq!(in_.latitude(), expected, "raw: {raw}");
+        assert_eq!(in_.latitude, expected, "raw: {raw}");
     }
 }
 
@@ -143,7 +119,7 @@ fn validate_booleans_are_numbers() {
         ("timezone", json!("UTC")),
     ]);
     let in_ = validate(&text).unwrap();
-    assert_eq!((in_.latitude(), in_.longitude()), (1.0, 0.0));
+    assert_eq!((in_.latitude, in_.longitude), (1.0, 0.0));
 }
 
 #[test]
@@ -188,7 +164,7 @@ fn validate_label_length_limit() {
         ("label", json!("ü".repeat(200))),
     ]);
     let in_ = validate(&ok).unwrap();
-    assert_eq!(in_.label().chars().count(), 200);
+    assert_eq!(in_.label.chars().count(), 200);
     let bad = body(&[
         ("latitude", json!(52.5)),
         ("longitude", json!(13.4)),
@@ -206,7 +182,7 @@ fn validate_missing_label_defaults_empty() {
         ("timezone", json!("UTC")),
     ]);
     let in_ = validate(&text).unwrap();
-    assert_eq!(in_.label(), "");
+    assert_eq!(in_.label, "");
 }
 
 #[test]
@@ -271,7 +247,7 @@ fn validate_json_error_positions() {
 fn validate_duplicate_keys_last_wins() {
     let text = r#"{"latitude": 1, "latitude": 2, "longitude": 1, "timezone": "UTC"}"#;
     let in_ = validate(text).unwrap();
-    assert_eq!((in_.latitude(), in_.longitude()), (2.0, 1.0));
+    assert_eq!((in_.latitude, in_.longitude), (2.0, 1.0));
 }
 
 #[test]
@@ -294,7 +270,7 @@ fn validate_json_content_type_variants() {
         "application/vnd.api+json",
     ] {
         let in_ = validate_location_body(Some(content_type), V.as_bytes()).unwrap();
-        assert_eq!(in_.latitude(), 52.52, "content type: {content_type}");
+        assert_eq!(in_.latitude, 52.52, "content type: {content_type}");
     }
 }
 
@@ -312,8 +288,8 @@ fn validate_invalid_utf8_is_unparseable() {
 fn validate_utf8_bom_is_stripped() {
     let text = "\u{feff}{\"latitude\": 1, \"longitude\": 1, \"timezone\": \"UTC\"}";
     let in_ = validate(text).unwrap();
-    assert_eq!((in_.latitude(), in_.longitude()), (1.0, 1.0));
-    assert_eq!(in_.label(), "");
+    assert_eq!((in_.latitude, in_.longitude), (1.0, 1.0));
+    assert_eq!(in_.label, "");
 }
 
 /// Build a `LocationIn` the only way there is: through the validation.
