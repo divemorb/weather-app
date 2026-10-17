@@ -363,23 +363,6 @@ export function initReport(l) {
   lang = l;
   host = document.querySelector("[data-report-host]");
   if (host) build();
-  /* The attribute may move to another card while the page runs: rebind. */
-  new MutationObserver(() => {
-    const h = document.querySelector("[data-report-host]");
-    if (h === host) return;
-    if (host && openBtn) {
-      openBtn.remove();
-      back.remove();
-      if (lineWrap) lineWrap.remove();
-      isOpen = false;
-    }
-    host = h;
-    if (host) build();
-  }).observe(document.documentElement, {
-    subtree: true,
-    attributes: true,
-    attributeFilter: ["data-report-host"],
-  });
 }
 
 /* app.js calls after every setSkyScene: the open back keeps naming the scene the page shows. */
