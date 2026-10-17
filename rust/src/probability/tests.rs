@@ -20,7 +20,6 @@ const PROB: ProbabilityConfig = ProbabilityConfig {
 const RADAR: RadarConfig = RadarConfig {
     radius_km: 5.0,
     grid_size_km: 1.0,
-    step_minutes: 5,
 };
 
 /// Equal within a relative tolerance of 1e-6 (1e-12 absolute when `expected` is 0).

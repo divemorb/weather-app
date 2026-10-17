@@ -18,7 +18,6 @@ radar:
   radius_km: 1.0
   # Radar grid is 1 km^2 with 5-minute steps; the nowcast extends ~2 h ahead.
   grid_size_km: 1.0
-  step_minutes: 5
 
 probability:
   # Weights for the combined next-hour rain probability (any positive

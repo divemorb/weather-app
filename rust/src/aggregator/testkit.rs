@@ -238,7 +238,6 @@ pub fn make_cfg(fake: &FakeUpstream, opts: CfgOpts) -> AppConfig {
     cfg.radar = RadarConfig {
         radius_km: 5.0,
         grid_size_km: 1.0,
-        step_minutes: 5,
     };
     cfg.probability = ProbabilityConfig {
         weight_radar: 0.5,

@@ -78,6 +78,18 @@ fn missing_file_uses_builtin_defaults() {
 }
 
 #[test]
+fn removed_radar_keys_still_load() {
+    // An old config with the removed `step_minutes` key must still load:
+    // the parser ignores keys it does not read.
+    let dir = tempfile::tempdir().unwrap();
+    let yaml = base_yaml() + "radar:\n  step_minutes: 5\n";
+    let path = make_config(dir.path(), &yaml);
+    let cfg = load(Some(&path), &env_lookup(&[])).unwrap();
+    assert_eq!(cfg.radar.radius_km, 5.0);
+    assert_eq!(cfg.radar.grid_size_km, 1.0);
+}
+
+#[test]
 fn env_overrides_yaml() {
     let dir = tempfile::tempdir().unwrap();
     let path = make_config(dir.path(), &base_yaml());
@@ -290,7 +302,6 @@ fn config_defaults_match_python_dataclasses() {
         RadarConfig {
             radius_km: 5.0,
             grid_size_km: 1.0,
-            step_minutes: 5,
         }
     );
     assert_eq!(

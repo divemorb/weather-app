@@ -139,26 +139,6 @@ pub struct LocationIn {
 }
 
 impl LocationIn {
-    /// The validated latitude.
-    pub fn latitude(&self) -> f64 {
-        self.latitude
-    }
-
-    /// The validated longitude.
-    pub fn longitude(&self) -> f64 {
-        self.longitude
-    }
-
-    /// The validated timezone (exists and is 1..=64 chars).
-    pub fn timezone(&self) -> &str {
-        &self.timezone
-    }
-
-    /// The optional display label (missing means empty).
-    pub fn label(&self) -> &str {
-        &self.label
-    }
-
     /// Second stage, after the same-origin check: the timezone must exist,
     /// and the coordinates are rounded to 3 decimals.
     pub fn into_location(self) -> Result<LocationConfig, UnknownTimezone> {

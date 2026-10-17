@@ -32,7 +32,6 @@ pub struct LocationConfig {
 pub struct RadarConfig {
     pub radius_km: f64,
     pub grid_size_km: f64,
-    pub step_minutes: i64,
 }
 
 impl Default for RadarConfig {
@@ -40,7 +39,6 @@ impl Default for RadarConfig {
         Self {
             radius_km: 5.0,
             grid_size_km: 1.0,
-            step_minutes: 5,
         }
     }
 }
@@ -293,7 +291,6 @@ pub fn load_config(path: Option<&Path>, env: Env) -> Result<AppConfig, String> {
     let radar = RadarConfig {
         radius_km: env_f64(env, "RADAR_RADIUS_KM", get_f64(rad, "radius_km", 5.0)?)?,
         grid_size_km: get_f64(rad, "grid_size_km", 1.0)?,
-        step_minutes: get_i64(rad, "step_minutes", 5)?,
     };
 
     let prob = section(&raw, "probability")?;

@@ -14,6 +14,30 @@ fn body(pairs: &[(&str, Value)]) -> String {
     format!("{{{parts}}}")
 }
 
+/// The fields of `LocationIn` are private; the tests read them through
+/// these accessors.
+impl LocationIn {
+    /// The validated latitude.
+    pub fn latitude(&self) -> f64 {
+        self.latitude
+    }
+
+    /// The validated longitude.
+    pub fn longitude(&self) -> f64 {
+        self.longitude
+    }
+
+    /// The validated timezone (exists and is 1..=64 chars).
+    pub fn timezone(&self) -> &str {
+        &self.timezone
+    }
+
+    /// The optional display label (missing means empty).
+    pub fn label(&self) -> &str {
+        &self.label
+    }
+}
+
 fn validate(text: &str) -> Result<LocationIn, BodyError> {
     validate_location_body(Some(JSON_CT), text.as_bytes())
 }

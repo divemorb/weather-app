@@ -20,7 +20,7 @@ fn run(db: &std::path::Path, args: &[&str]) -> Output {
 fn snapshot_command() {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("weather.db");
-    wetter::store::Store::open(db.to_str().unwrap()).unwrap();
+    wetter::Store::open(db.to_str().unwrap()).unwrap();
     let target = dir.path().join("copy.db");
     let out = run(&db, &["snapshot", target.to_str().unwrap()]);
     assert_eq!(out.status.code(), Some(0));

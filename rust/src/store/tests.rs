@@ -8,6 +8,9 @@ use super::*;
 use rusqlite::OptionalExtension;
 use serde_json::json;
 
+/// Current schema version (tracked in `app_meta`).
+const SCHEMA_VERSION: &str = "3";
+
 /// One `forecast_history` row.
 fn row(model: &str, issued_at: &str, valid_from: &str, precip_mm: f64) -> HistoryRow {
     HistoryRow {

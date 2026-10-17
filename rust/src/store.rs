@@ -97,9 +97,6 @@ impl Source {
     }
 }
 
-/// Current schema version (tracked in `app_meta`).
-pub const SCHEMA_VERSION: &str = "3";
-
 /// The schema DDL. The unique index on (model, valid_from) is
 /// deliberately *not* here: `migrate` creates it after the one-time
 /// cleanup of old rows.

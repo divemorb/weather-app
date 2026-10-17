@@ -79,6 +79,7 @@ pub struct ForecastBundle {
 
 impl ForecastBundle {
     /// The series for `name`, or `None` when not in the payload.
+    #[cfg(test)]
     pub fn by_name(&self, name: &str) -> Option<&ModelSeries> {
         self.models.iter().find(|m| m.name == name)
     }
