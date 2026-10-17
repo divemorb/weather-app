@@ -361,3 +361,14 @@ REPORT_MIN_BUTTON = 44  # px: the kind and intensity buttons are touch targets (
 # P2: the detailed view has no Now tile any more (the details page), so the big view only.
 REPORT_FIT = {"big-1280x800": (1280, 800, ""), "big-1920x1080": (1920, 1080, ""), "phone-360": (360, 740, "")}
 REPORT_SAVE_S = 3.0  # after a tap: saved and the tile turned back within this time
+
+# --- the texts without a data-test hook of their own, checked word for word ---
+NOW_TITLE = {"en": "Now", "de": "Jetzt"}
+NOW_LABELS = {
+    "en": ["Feels like", "Wind", "Gusts", "Humidity", "Pressure", "Dew point", "Clouds", "Rain last hour"],
+    "de": ["Gefühlt", "Wind", "Böen", "Luftfeuchte", "Luftdruck", "Taupunkt", "Bewölkung", "Regen letzte Stunde"],
+}
+RADAR_UNAVAILABLE = {"en": "Radar: not available", "de": "Radar: nicht verfügbar"}
+NOW_FALLBACK = {"en": "from {name}", "de": "von {name}"}
+NOW_FALLBACK_NAME = "Potsdam"  # the fallback scenario's station (the cloud cover's value)
+SETUP_SAVE = {"en": "Save location", "de": "Ort speichern"}

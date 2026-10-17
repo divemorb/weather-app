@@ -24,6 +24,7 @@ from page_checks import (check_chart, check_common_a, check_details, check_glanc
                          check_now, check_radar, contrast_problems, page_unconfigured,
                          theme_icon_problems, theme_problems)
 from big import kiosk_chart_problems, kiosk_fill_problems, kiosk_room_problems, run_big  # noqa: E402
+from edges import fallback_text_problems, now_texts_problems, radar_unavailable_text_problems, setup_texts_problems  # noqa: E402
 from flows import refresh_config_retry, refresh_render_error, run_wizard, theme_toggle  # noqa: E402
 from sky import run_reasons, run_sky  # noqa: E402
 from views import page_fallback, run_views  # noqa: E402
@@ -185,10 +186,12 @@ def page_content(run: Run):
             run.add("radar-unavailable", visible_one(pg, "radar-unavailable")[1]
                     + [f"{n} rendered [data-test=radar-step] without radar" for n in
                        [sum(e["rendered"] for e in pg.ui("radar-step"))] if n])
+            run.add("radar-unavailable-text", radar_unavailable_text_problems(pg, run.lang))
         else:
             check_radar(pg, exp, run.add)
         if exp["now"]:
             check_now(pg, run.add)
+            run.add("now-texts", now_texts_problems(pg, run.lang))
             run.add("now-station", expect_tokens(pg, "now-station", NOW_STATION[run.lang]))
             run.add("now-fallback", [f"{n} visible [data-test=now-fallback]: no value fell back here"
                                      for n in [sum(e["visible"] for e in pg.ui("now-fallback"))] if n])
@@ -260,6 +263,7 @@ def page_phone_360(run: Run):
 def page_unconfigured_dark(run: Run):
     """The unconfigured scenario's dark part (B: desktop, dark)."""
     pg = run.page(scheme="dark")
+    run.add("setup-texts", setup_texts_problems(pg, run.lang))
     run.add("theme-dark", theme_problems(pg.js("__ui.page()"), "dark"))
     run.icons["dark"] = pg.js('__ui.icons("theme-toggle")')
     run.add("contrast-dark", contrast_problems(pg))

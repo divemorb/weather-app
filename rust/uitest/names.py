@@ -46,10 +46,12 @@ def check_names(scenario: str, lang: str) -> list[str]:
             names += REASON + ["view-label"] + (["theme-toggle"] + VIEW + ["big-tracks"] if lang == "en" else [])
         else:
             names += KIOSK_CHART + (["reduced-motion"] + REFRESH + ["rain-tracks"] if lang == "en" else [])
+        names += ["now-texts"]
         return names
     if scenario == "errors":
-        return (COMMON + ["rain-answer", "rain-when", "rain-probability", "radar-unavailable", "now-unavailable",
-                          "chart-unavailable", "now-station", "station-map"] + [n for n in DETAILS if n not in ("details-weights", "details-signals")])
+        return (COMMON + ["rain-answer", "rain-when", "rain-probability", "radar-unavailable", "radar-unavailable-text",
+                          "now-unavailable", "chart-unavailable", "now-station", "station-map"]
+                + [n for n in DETAILS if n not in ("details-weights", "details-signals")])
     if scenario == "accuracy":
         return ["console", "requests", "location", "location-detail", "rain-probability", "details-open",
                 "details-weighting", "accuracy-table", "accuracy-head", "accuracy-note", "details-fit", "details-contrast",
@@ -57,16 +59,16 @@ def check_names(scenario: str, lang: str) -> list[str]:
     if scenario in ("report", "report-glance"):
         return report_ui.check_names(scenario, lang)
     if scenario == "fallback":
-        return ["console", "now-station", "now-fallback"]
+        return ["console", "now-station", "now-fallback", "fallback-text"]
     if scenario == "sky":
         return ["console", "requests"] + LAYOUT + SKY
     if scenario == "unconfigured":
-        return ["console", "requests", "lang", "setup-visible", "theme-light", "theme-dark", "theme-icon",
-                "contrast-light", "contrast-dark", "overflow-360", "buttons"]
+        return ["console", "requests", "lang", "setup-visible", "setup-texts", "theme-light", "theme-dark",
+                "theme-icon", "contrast-light", "contrast-dark", "overflow-360", "buttons"]
     if scenario == "wizard":
-        return ["console", "validation"] if lang == "de" else ["console", "requests", "validation", "search",
-                                                               "search-lines", "save", "location-long",
-                                                               "location-lines", "change"]
+        return ["console", "validation", "setup-texts"] if lang == "de" else \
+               ["console", "requests", "validation", "setup-texts", "search", "search-lines", "save", "location-long",
+                "location-lines", "change"]
     raise ValueError(scenario)
 
 

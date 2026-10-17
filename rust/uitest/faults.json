@@ -297,9 +297,7 @@
    "must_fail": [
     "report-glance/en/*"
    ]
-  }
- ],
- "gaps": [
+  },
   {
    "name": "en-feels",
    "why": "an English text changed",
@@ -317,9 +315,11 @@
     "en"
    ],
    "must_fail": [
-    "live/en/*"
+    "live/en/now-texts"
    ],
-   "seen_by_today": "missed 2026-10-13"
+   "only": [
+    "live/en/now-texts"
+   ]
   },
   {
    "name": "de-radar-unavailable",
@@ -338,9 +338,11 @@
     "de"
    ],
    "must_fail": [
-    "errors/de/*"
+    "errors/de/radar-unavailable-text"
    ],
-   "seen_by_today": "missed 2026-10-13"
+   "only": [
+    "errors/de/radar-unavailable-text"
+   ]
   },
   {
    "name": "fallback-name",
@@ -359,9 +361,11 @@
     "en"
    ],
    "must_fail": [
-    "fallback/en/*"
+    "fallback/en/fallback-text"
    ],
-   "seen_by_today": "missed 2026-10-13"
+   "only": [
+    "fallback/en/fallback-text"
+   ]
   },
   {
    "name": "setup-save",
@@ -382,9 +386,14 @@
     "de"
    ],
    "must_fail": [
-    "wizard/en/*"
+    "wizard/en/setup-texts",
+    "unconfigured/en/setup-texts"
    ],
-   "seen_by_today": "missed 2026-10-13"
+   "only": [
+    "wizard/en/setup-texts",
+    "unconfigured/en/setup-texts"
+   ]
   }
- ]
+ ],
+ "gaps": []
 }

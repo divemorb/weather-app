@@ -8,6 +8,7 @@ import time
 
 from expect import (CONFIG_RETRY_S, WIZARD_DETAIL, WIZARD_LABEL, WIZARD_RESULTS,
                     WIZARD_SELECTED)
+from edges import setup_texts_problems
 from page import Run, UIPage, expect_hidden, expect_tokens, visible_one
 from page_checks import theme_problems
 
@@ -96,6 +97,7 @@ def lines_problems(pg: UIPage, hook: str, want: list[str]) -> list[str]:
 def run_wizard(run: Run):
     """The wizard: setup validation, the location search, saving, and changing it."""
     pg = run.page()
+    run.add("setup-texts", setup_texts_problems(pg, run.lang))
     problems = []
     for hook, text in (("setup-lat", "91"), ("setup-lon", "13.4"), ("setup-tz", "Europe/Berlin")):
         problems += pg.type_into(hook, text)

@@ -3,6 +3,7 @@ view query, the phone view, the detailed-only page, and the now fallback marks."
 
 from __future__ import annotations
 
+from edges import fallback_text_problems
 from expect import NOW_STATION, VIEW_DESKTOP, VIEW_LABEL, VIEW_PHONE
 from page import Run, UIPage, expect_hidden, expect_tokens, has, norm, visible_one
 from page_checks import details_open_problems
@@ -18,6 +19,7 @@ def page_fallback(run: Run):
     pg = run.page()
     run.add("now-station", expect_tokens(pg, "now-station", NOW_STATION[run.lang]))
     run.add("now-fallback", now_fallback_problems(pg))
+    run.add("fallback-text", fallback_text_problems(pg, run.lang))
     run.shot(pg, "desktop-light")
     run.done(pg)
 
