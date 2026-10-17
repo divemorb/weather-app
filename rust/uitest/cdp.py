@@ -20,6 +20,10 @@ import tempfile
 import threading
 import time
 
+# Opt-in coverage report (coverage_report.py): every page records JS block
+# coverage and CSS rule usage and writes them here when it closes.
+COVERAGE_DIR = os.environ.get("WETTER_UITEST_COVERAGE")
+
 CHROMIUM_FLAGS = [
     "--headless", "--no-sandbox", "--disable-gpu", "--disable-dev-shm-usage",
     "--no-first-run", "--no-default-browser-check", "--disable-extensions",
@@ -170,6 +174,26 @@ class Page:
         self._fakes: dict[str, list[tuple[int, str]]] = {}
         for domain in ("Page", "Runtime", "Log", "Network"):
             self.send(f"{domain}.enable")
+        self._sheets: dict[str, str] = {}
+        self._coverage: list[dict] = []
+        if COVERAGE_DIR:
+            for method, params in (("Profiler.enable", {}), ("DOM.enable", {}), ("CSS.enable", {}),
+                                   ("Profiler.startPreciseCoverage", {"callCount": True, "detailed": True}),
+                                   ("CSS.startRuleUsageTracking", {})):
+                self.send(method, params)
+
+    def _take_coverage(self, final: bool):
+        """Collect the coverage so far (before a navigation drops the scripts)."""
+        self.pump()
+        js = self.send("Profiler.takePreciseCoverage")["result"]
+        css = self.send("CSS.stopRuleUsageTracking" if final else "CSS.takeCoverageDelta")
+        rules = [{"url": self._sheets.get(r["styleSheetId"], ""), "start": r["startOffset"],
+                  "end": r["endOffset"], "used": r["used"]} for r in css.get("ruleUsage", css.get("coverage", []))]
+        self._coverage.append({"js": js, "css": rules})
+        if final:
+            name = f"{os.getpid()}-{self.target}.json"
+            with open(os.path.join(COVERAGE_DIR, name), "w") as f:
+                json.dump(self._coverage, f)
 
     def fake(self, responses: dict[str, list[tuple[int, str]]]):
         """Answer the next requests to these paths with (status, JSON body), in
@@ -218,10 +242,20 @@ class Page:
                 self._loaded = True
             elif m == "Fetch.requestPaused":
                 self._paused(p)
+            elif m == "CSS.styleSheetAdded":
+                self._sheets[p["header"]["styleSheetId"]] = p["header"].get("sourceURL", "")
+
+    def reload(self):
+        """Reload the page (its coverage so far is kept)."""
+        if COVERAGE_DIR:
+            self._take_coverage(final=False)
+        self.send("Page.reload")
 
     def goto(self, url: str, timeout: float = 20.0, idle: float = 0.5):
         """Navigate and wait for the load event plus `idle` seconds without network activity."""
         self._loaded = False
+        if COVERAGE_DIR:
+            self._take_coverage(final=False)
         self.send("Page.navigate", {"url": url})
         self.wait_idle(timeout, idle)
 
@@ -255,6 +289,11 @@ class Page:
             f.write(base64.b64decode(data))
 
     def close(self):
+        if COVERAGE_DIR:
+            try:
+                self._take_coverage(final=True)
+            except CDPError:
+                pass
         try:
             self.b.send("Target.disposeBrowserContext", {"browserContextId": self.context})
         except CDPError:

@@ -6,7 +6,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { fmtTime } from "../../../app/static/format.js";
-import { isDay } from "../../../app/static/reportkind.js";
+import { readFileSync } from "node:fs";
+import { isDay, isDayAt } from "../../../app/static/reportkind.js";
 
 const norm = (s) => s.replace(/[   ]/g, " ");
 const TZ = "Europe/Berlin";
@@ -35,4 +36,16 @@ test("isDay: Berlin around sunrise and sunset on both sides of the change", () =
     assert.equal(isDay(...BERLIN, new Date(`${day}T15:00:00Z`)), true, `${day} 15:00Z`);
     assert.equal(isDay(...BERLIN, new Date(`${day}T16:25:00Z`)), false, `${day} 16:25Z`);
   }
+});
+
+test("isDayAt: the sun at the location /api/config sends, not the UTC fallback", () => {
+  // the location exactly as the API serves it (contract golden), so a renamed
+  // field can't silently switch the report pictures to the 05-17 UTC window
+  const golden = JSON.parse(readFileSync(new URL("../../contract/golden/live.json", import.meta.url)));
+  const loc = golden.cases["api/config"].json.location;
+  assert.equal(isDayAt(loc, "2026-10-25T16:25:00Z"), false); // after sunset; the fallback says day
+  assert.equal(isDayAt(loc, "2026-12-15T15:30:00Z"), false);
+  assert.equal(isDayAt(loc, "2026-12-15T10:00:00Z"), true);
+  assert.equal(isDayAt(null, "2026-12-15T15:30:00Z"), true); // no location: 05-17 UTC
+  assert.equal(isDayAt(loc, "not a time"), false);
 });

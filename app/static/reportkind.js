@@ -84,3 +84,15 @@ export function isDay(lat, lon, date) {
   const d = date instanceof Date ? date : new Date(date);
   return sunAltitude(lat, lon, d) > -0.833;
 }
+
+/* Day or night for a report observed at observedIso, at location (the
+ * /api/config shape: latitude, longitude); without one, 05-17 UTC. */
+export function isDayAt(location, observedIso) {
+  const d = new Date(observedIso);
+  if (isNaN(d.getTime())) return false;
+  if (!location || typeof location.latitude !== "number" || typeof location.longitude !== "number") {
+    const h = d.getUTCHours();
+    return h >= 5 && h < 17;
+  }
+  return isDay(location.latitude, location.longitude, d);
+}

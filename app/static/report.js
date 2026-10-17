@@ -2,7 +2,7 @@
  * POSTs /api/reports; rain first asks for its intensity; a failure keeps
  * the back open with its message; the front's line carries the undo), and
  * the sky and its "why" line follow the fresh report. The host is found by its data-report-host attribute (never by an id). */
-import { KINDS, kindScene, sceneKind } from "./reportkind.js";
+import { KINDS, kindScene, sceneKind, isDayAt } from "./reportkind.js";
 import { t } from "./i18n.js";
 import { fmtTime } from "./format.js";
 import { getJSON, postJSON, deleteJSON } from "./api.js";
@@ -14,7 +14,7 @@ let lineWrap = null, lineEl = null, lineUndoBtn = null;
 let lang = null;
 let locale = "en";
 let tz = "UTC";
-let location = null; // {lat, lon} from the config (app.js), for day/night
+let location = null; // /api/config's location (app.js), for day/night
 let isOpen = false;
 let saving = false;
 let currentReport = null;
@@ -259,7 +259,7 @@ function hideError() {
 function renderLine() {
   if (!lineEl) return;
   const rep = currentReport;
-  const scene = rep ? kindScene(rep.kind, rep.intensity, isDayAt(rep.observed_at)) : null;
+  const scene = rep ? kindScene(rep.kind, rep.intensity, isDayAt(location, rep.observed_at)) : null;
   if (!scene) {
     lineWrap.hidden = true;
     return;
@@ -270,18 +270,6 @@ function renderLine() {
     time: fmtTime(rep.observed_at, locale, tz),
   });
   lineWrap.hidden = false;
-}
-
-/* The sun up at the location when the report was observed (only clear and
- * partly cloudy depend on it); the real instant, so no zone shift. */
-function isDayAt(observedIso) {
-  const d = new Date(observedIso);
-  if (isNaN(d.getTime())) return false;
-  if (!location || location.lat == null || location.lon == null) {
-    const h = d.getUTCHours(); // without a location: the day window in UTC
-    return h >= 5 && h < 17;
-  }
-  return isDay(location.lat, location.lon, d);
 }
 
 /* Undo: delete, then re-read the current report (an older one may show). */
@@ -350,7 +338,7 @@ document.addEventListener("keydown", (e) => {
 export function reportSky() {
   const rep = currentReport;
   if (!rep || !rep.kind || !rep.observed_at) return null;
-  const scene = kindScene(rep.kind, rep.intensity, isDayAt(rep.observed_at));
+  const scene = kindScene(rep.kind, rep.intensity, isDayAt(location, rep.observed_at));
   if (!scene) return null;
   const key = rep.confirms ? "sky-confirmed" : "sky";
   return {

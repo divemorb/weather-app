@@ -210,7 +210,7 @@ class UIPage:
 
     def reload(self):
         self.p._loaded = False
-        self.p.send("Page.reload")
+        self.p.reload()
         self.p.wait_idle()
         self.settle()
 
