@@ -1,6 +1,6 @@
 {
  "now": "2026-09-30T10:27:10Z",
- "python_memory_kb": 64108,
+ "python_memory_kb": 64208,
  "upstream": [],
  "cases": {
   "healthz": {
@@ -399,8 +399,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "5140a4f442419cbce9f41559f89776e0b505297ecd0f2952c25bb08505dd22dd",
-   "length": 16378
+   "sha256": "6a5e69562b65ccbe66f9f693beaa63dcd48b6b5c20f94df500f702ec85afec8a",
+   "length": 16415
   },
   "static/glance.js": {
    "status": 200,
