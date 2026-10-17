@@ -7,33 +7,31 @@ How the app works, for developers: how the rain probability is calculated, the d
 The scheduler keeps the local cache and history up to date, and the browser only ever reads from them — never from the upstream services.
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph upstream["Upstream services"]
         brightsky["Bright Sky (DWD)"]
         openmeteo["Open-Meteo"]
     end
-    subgraph app["The app"]
-        triggers["Scheduler, startup, location saved"]
-        radarJob["Radar job, every 5 min"]
-        modelsJob["Models job, every 60 min"]
-        api["API endpoints"]
-    end
+    triggers["Scheduler, startup,<br>location saved"]
+    radarJob["Radar job<br>every 5 min"]
+    modelsJob["Models job<br>every 60 min"]
     subgraph db["SQLite file"]
-        cache["source_cache: raw responses"]
+        cache["source_cache:<br>raw responses"]
         history["forecast_history"]
     end
+    api["API endpoints"]
     browser["Browser"]
     triggers --> radarJob
     triggers --> modelsJob
-    radarJob -->|current weather, radar| brightsky
-    modelsJob -->|forecast, ensemble| openmeteo
-    modelsJob -->|observations, last 48 h| brightsky
-    radarJob -->|writes| cache
-    modelsJob -->|writes| cache
-    modelsJob -->|next 24 h per model, observations| history
-    browser -->|/api/...| api
-    api -->|reads only| cache
-    api -->|reads only| history
+    brightsky -->|current weather, radar| radarJob
+    openmeteo -->|forecast, ensemble| modelsJob
+    brightsky -->|observations, last 48 h| modelsJob
+    radarJob --> cache
+    modelsJob --> cache
+    modelsJob -->|next 24 h per model,<br>observations| history
+    cache -->|read only| api
+    history -->|read only| api
+    api -->|/api/...| browser
 ```
 
 ## How the rain probability is calculated
@@ -47,15 +45,16 @@ Three independent signals for the **next 60 minutes**, combined linearly:
 The three signals are combined in one weighted sum, with a fallback when radar has no coverage and an optional accuracy weighting for the model signal:
 
 ```mermaid
-flowchart TD
-    radar["Radar: rain within the radius? R = 1 or 0"]
-    models["Models above 0.1 mm: share M"]
-    ensemble["Ensemble members above the threshold: share E"]
-    coverage{"Radar covers the location?"}
-    full["Weights 0.5 / 0.3 / 0.2"]
-    noradar["No radar weight: 0.3 / 0.2 become 0.6 / 0.4"]
-    sum["P = w_r · R + w_m · M + w_e · E"]
-    accuracy["Optional accuracy weighting"]
+flowchart LR
+    radar["Radar: rain within the radius?<br>R = 1 or 0"]
+    accuracy["Optional accuracy<br>weighting"]
+    models["Models above 0.1 mm:<br>share M"]
+    ensemble["Ensemble members above<br>the threshold: share E"]
+    coverage{"Radar covers<br>the location?"}
+    full["Weights<br>0.5 / 0.3 / 0.2"]
+    noradar["No radar weight:<br>0.3 / 0.2 become 0.6 / 0.4"]
+    sum["P = w_r · R<br>+ w_m · M<br>+ w_e · E"]
+    accuracy -.->|only with enough<br>compared hours| models
     coverage -->|yes| full
     coverage -->|no| noradar
     radar --> sum
@@ -63,7 +62,6 @@ flowchart TD
     ensemble --> sum
     full --> sum
     noradar --> sum
-    accuracy -.->|only with enough compared hours| models
 ```
 
 ```
