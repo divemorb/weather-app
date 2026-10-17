@@ -340,9 +340,10 @@ export function sortAccuracy(models) {
  * radar at the location decides about precipitation right now: rain in
  * its first five-minute step overrides a dry icon (heavy at >= 0.2 mm);
  * a dry radar (first step 0 mm) turns the station's rain, sleet, snow or
- * hail into cloudy (rule B). A thunderstorm stays, and so does every icon
- * while the radar is unavailable; only the first step counts (rain later
- * is not rain now). Malformed answers never throw — they count as no data. */
+ * hail into cloudy (rule B). A thunderstorm stays as a warning (it can
+ * arrive fast), and so does every icon while the radar is unavailable;
+ * only the first step counts (rain later is not rain now). Malformed
+ * answers never throw — they count as no data. */
 export const SKY_ICONS = ["clear-day", "clear-night", "partly-cloudy-day", "partly-cloudy-night",
   "cloudy", "fog", "wind", "rain", "sleet", "snow", "hail", "thunderstorm"];
 /* Kept while the radar rains (it can't tell snow from rain); see rule B above. */

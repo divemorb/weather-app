@@ -48,7 +48,7 @@ Links to the code and the tests that prove each requirement are planned (traceab
 
 ## The page (PAGE)
 
-- **REQ_PAGE_1** Glance first: the rain answer as a sentence, the chance, the radar strip of the next 60 minutes; then Now, then the next 24 hours; the technical parts in Details. *Source: the user, 2026-10-02.*
+- **REQ_PAGE_1** The big view shows, top to bottom: the glance (the answer, the chance, the radar strip), Now, the next 24 hours. The technical parts are only in the detailed view (REQ_PAGE_4). *Source: the user, 2026-10-02.*
 - **REQ_PAGE_2** **The big view is the default on every screen** (large type, one screen on desktop and tablet; on a phone one column that may scroll vertically). The detailed view is one button away. *Source: the user, 2026-10-04.*
 - **REQ_PAGE_3** The view button is text that says where a click goes: "Details" in the big view, "Big view" in the detailed view (German "Details" / "Große Ansicht"); the choice is remembered per device. *Source: the user, 2026-10-05.*
 - **REQ_PAGE_4** The detailed view shows only the details (signals, countdowns, sources, accuracy, stations), not the glance, Now or the chart again. *Source: the user, 2026-10-12 (phone test P2).*
@@ -91,7 +91,7 @@ Links to the code and the tests that prove each requirement are planned (traceab
 
 - **REQ_SKY_1** The background shows the current weather as an animation, behind the tiles, on every screen: clear (day, night), partly cloudy (day, night), cloudy, fog, wind, rain, heavy rain, sleet, snow, hail, thunderstorm. *Source: the user, 2026-10-03.*
 - **REQ_SKY_2** The scene comes from the station's icon (Bright Sky), and from the radar at the place right now: rain on the radar shows rain (heavy rain from 0.2 mm per 5 minutes) even when the station reports dry. *Source: the user, 2026-10-03.*
-- **REQ_SKY_3** **Rule B**: a dry radar at the place turns the station's rain, sleet, snow or hail into cloudy; a thunderstorm stays. *Source: the user, 2026-10-04.*
+- **REQ_SKY_3** **Rule B (the radar beats the station when it's dry)**: the weather station can be several kilometres away, the radar measures at the place itself. So when the station reports rain, sleet, snow or hail but the radar shows no rain at the place right now (its current 5-minute step is 0 mm), the sky shows cloudy instead. A thunderstorm from the station is always shown, as a warning: it can reach the place quickly, even while the radar is still dry there. Without radar data the station's report is shown as it is. *Source: the user, 2026-10-04.*
 - **REQ_SKY_4** The tiles are glass: the sky can be seen through them (no blur), every text keeps REQ_PAGE_8. *Source: the user, 2026-10-03/04.*
 - **REQ_SKY_5** With "reduce motion" the sky is a still picture; lightning flashes at most once per 3 seconds (WCAG 2.3.1). *Source: the user, 2026-10-03; WCAG.*
 - **REQ_SKY_6** The "why" line names the source: the station and its distance, the nearest station, the radar (with rule B: what the station reports), or the user's report and its time. *Source: the user, 2026-10-04 and 2026-10-07.*
@@ -100,7 +100,7 @@ Links to the code and the tests that prove each requirement are planned (traceab
 ## The user's reports, "Stimmt nicht?" (REPORT)
 
 - **REQ_REPORT_1** When reality and forecast differ, the user can record the real weather, phone-first: the Now tile turns over, its back holds 8 picture buttons (clear, partly cloudy, cloudy, fog, rain, thunderstorm, snow, hail) in the page's own scene words. *Source: the user, 2026-10-07.*
-- **REQ_REPORT_2** The button on the front is a pencil with the word "Report" ("Melden"), not a reload-like arrow. *Source: the user, 2026-10-12 (phone test P3).*
+- **REQ_REPORT_2** The button on the front is a pencil with the word "Report" ("Melden"), so it's clear that it opens the report. *Source: the user, 2026-10-12 (phone test P3: the earlier arrow icon looked like reload).*
 - **REQ_REPORT_3** One tap saves; rain first asks for the intensity (light, moderate, heavy, or skip); "now", "15 min ago" or "30 min ago". *Source: the user, 2026-10-07.*
 - **REQ_REPORT_4** A "That's right" button confirms what the page shows. *Source: the user, 2026-10-07.*
 - **REQ_REPORT_5** After saving, the front shows the report and its time with an undo, while it is fresh; a failed save says so and keeps the back open. *Source: the user, 2026-10-07.*
