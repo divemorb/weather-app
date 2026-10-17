@@ -67,7 +67,7 @@ FROM gcr.io/distroless/static-debian13@sha256:e2e927ec666bae08560abb3c55d0659ece
 COPY --from=build /out/wetter /app/wetter
 COPY app/static /app/static
 COPY weather.yaml /app/weather.yaml
-# SQLite lives here (mount a volume); uid 1000 like the Python image, so an
+# SQLite lives here (mount a volume); uid 1000 like the v1 (Python) image, so an
 # existing weather-data volume stays writable
 COPY --from=build --chown=1000:1000 /out/data /data
 ENV DATABASE_PATH=/data/weather.db \

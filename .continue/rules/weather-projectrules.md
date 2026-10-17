@@ -2,10 +2,11 @@
 name: Wetter project rules
 alwaysApply: true
 ---
-- Image `localhost/wetter_weather`. Tests:
-  `podman run --rm -v "$PWD":/app:Z -w /app localhost/wetter_weather timeout -k 10 300 python -m pytest -q`
-  Syntax check: the same with `python -m py_compile <file>`. Rebuild (`podman compose build`)
-  only when requirements.txt changes.
+- The app is the Rust crate in `rust/` (v2); the page is `app/static/`. Tests (in the
+  sandbox image): `cd rust && cargo test`, `cargo clippy --all-targets -- -D warnings`,
+  then `python3 rust/contract/run.py --backend rust --binary /target/debug/wetter` and
+  `python3 rust/uitest/run.py --binary /target/debug/wetter`. The Python app (v1) is
+  gone since v2.0 (tag `python-last`).
 - Don't run `podman compose up/down` and don't touch the `weather-data` volume: the user deploys.
 - Weather services (Open-Meteo, Bright Sky): only via `meteo_get`, and only when the task asks
   for a live check. Never curl/wget/Python for this.

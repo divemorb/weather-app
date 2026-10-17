@@ -1,5 +1,5 @@
 {
- "about": "The short place label (phone test P1, 2026-10-12): line 1 'road house_number' (no road: the name unless it is the city), line 2 'postcode city' (city: the first of city, town, village, municipality, hamlet); joined by a newline; both empty: the name, else display_name. Read by tests/test_geocode_label.py and the Rust geocode tests.",
+ "about": "The short place label (phone test P1, 2026-10-12): line 1 'road house_number' (no road: the name unless it is the city), line 2 'postcode city' (city: the first of city, town, village, municipality, hamlet); joined by a newline; both empty: the name, else display_name. Read by the Rust geocode tests.",
  "cases": [
   {
    "case": "street and number (the user's example)",

@@ -1,4 +1,4 @@
-//! Test-only payload builders, the Rust version of `tests/helpers.py`.
+//! Test-only payload builders.
 //! Everything here is compiled only under `#[cfg(test)]`, so it may unwrap.
 
 pub mod fake_upstream;

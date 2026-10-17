@@ -26,18 +26,24 @@ Change `weather.yaml` and rebuild: `docker compose up -d --build`.
 
 ## Without Docker (development)
 
+The app is the Rust crate in `rust/` (Rust 1.99, see `rust/Dockerfile`). From the repo root:
+
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-DATABASE_PATH=./data/weather.db uvicorn app.main:app --reload
+cd rust && cargo build && cd ..
+mkdir -p data
+WEATHER_CONFIG=./weather.yaml DATABASE_PATH=./data/weather.db STATIC_DIR=./app/static \
+  BIND_ADDR=127.0.0.1:8000 rust/target/debug/wetter
 ```
 
 ## Running the tests
 
 ```bash
-pip install -r requirements.txt   # includes pytest + pytest-asyncio
-pytest
+cd rust && cargo test && cargo clippy --all-targets -- -D warnings && cd ..
+python3 rust/contract/run.py --backend rust --binary rust/target/debug/wetter   # API contract (goldens)
+python3 rust/uitest/run.py --binary rust/target/debug/wetter                   # the page, headless Chromium
 ```
+
+The contract and UI suites need only Python 3 (stdlib) and, for the UI suite, Chromium; see [rust/contract/README.md](../rust/contract/README.md) and [rust/uitest/README.md](../rust/uitest/README.md). Until v2.0 the app was written in Python, which served as the reference for the port; that code is kept at the git tag `python-last`.
 
 ## Development history
 

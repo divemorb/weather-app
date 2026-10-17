@@ -97,7 +97,7 @@ def key(path: str, src: str) -> str | None:
     return None
 
 
-ROOTS = ["app", "tests", "rust/src", "rust/tests", "rust/uitest", "rust/contract"]
+ROOTS = ["app", "rust/src", "rust/tests", "rust/uitest", "rust/contract"]
 CODE = {"py", "rs", "js", "mjs", "css", "html"}
 DOCS = ["README.md", "docs/*.md", "rust/docs/*.md", "rust/contract/README.md", "rust/uitest/README.md"]
 

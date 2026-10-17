@@ -1,10 +1,9 @@
-# Python
+# Python (the test harnesses)
 __pycache__/
 *.py[cod]
 *.egg-info/
 .venv/
 venv/
-.pytest_cache/
 .mypy_cache/
 .ruff_cache/
 

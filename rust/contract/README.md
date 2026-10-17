@@ -1,21 +1,22 @@
 # Contract suite
 
-Proves that the Rust backend answers exactly like the Python backend (the reference). Stdlib-only Python; see the docstring of `run.py` for the details.
+Proves that the Rust backend answers exactly as the goldens record. Stdlib-only Python; see the docstring of `run.py` for the details.
 
 - `scenarios.py`: 7 scenarios (fixed "now", environment, upstream data) with about 100 request cases. List them with `python3 rust/contract/run.py --list`.
 - `fakeup.py`: the fake upstream (Bright Sky, Open-Meteo, Nominatim) that replays the fixtures and logs the requests.
-- `golden/`: the Python backend's normalized responses. Regenerate them (only when the Python backend or a scenario changes) inside the Python image:
+- `golden/`: the normalized responses. They were recorded from the Python app (v1, the reference until v2.0; its code is at the git tag `python-last`) and are frozen. When a change is intended, record them from the Rust backend and review every changed line in `git diff rust/contract/golden` before committing:
 
-      podman run --rm --init --network=none --userns=keep-id --user 1000:1000 -v "$PWD":/w -w /w localhost/wetter_weather python rust/contract/run.py --backend python --update
+      python3 rust/contract/run.py --backend rust --binary /target/debug/wetter --update
 
-- `pyapp.py`: starts the Python backend with a frozen clock (patched from outside; the Python code is unchanged).
 - `fixtures/live/`: real responses recorded on 2026-09-30 10:25 UTC for a neutral location (Berlin, 52.52/13.405). `fixtures/rain/` is derived from them by `make_fixtures.py` (synthetic rain for the edge cases).
+- `fixtures/python_schema_v3.sql`: the v1 database schema, frozen at `python-last`; `run.py` seeds a v1 database with it (the takeover test).
+- `fixtures/py_cases/`, `fixtures/pyfmt_cases.json`, `fixtures/geocode_labels.json`: reference results from the v1 app for the Rust unit tests (recorded once, frozen).
 
 Run against the Rust binary (after `cargo build`):
 
     python3 rust/contract/run.py --backend rust --binary /target/debug/wetter
 
-The Rust binary reads the same environment variables as the Python app, plus `WETTER_FAKE_NOW` (frozen clock, tests only), `BIND_ADDR` (default `0.0.0.0:8000`) and `STATIC_DIR` (default `/app/static`).
+The Rust binary reads the same environment variables as the v1 app, plus `WETTER_FAKE_NOW` (frozen clock, tests only), `BIND_ADDR` (default `0.0.0.0:8000`) and `STATIC_DIR` (default `/app/static`).
 
 ## Data sources of the fixtures
 

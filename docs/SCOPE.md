@@ -110,10 +110,10 @@ The app is meant for a **trusted home network**.
 
 ## Technology
 
-- **Backend:** Python 3.12, FastAPI, uvicorn, httpx2 (async), APScheduler, SQLite (aiosqlite), PyYAML.
+- **Backend:** Rust (axum, tokio, reqwest, rusqlite), one static binary on a distroless image. v1 was a Python app (tag `python-last`).
 - **Storage:** one SQLite file: cached upstream responses, forecast history with observations, app settings (including the location).
 - **Frontend:** plain HTML, CSS and JavaScript, served by the backend.
-- **Tests:** pytest with pytest-asyncio.
+- **Tests:** Rust unit tests, an API contract suite (recorded answers, "goldens") and a UI suite in headless Chromium.
 
 ## Out of scope
 

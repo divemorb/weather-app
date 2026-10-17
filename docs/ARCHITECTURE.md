@@ -98,7 +98,7 @@ The upstreams timestamp precipitation differently; the backend normalizes everyt
 
 ## Project layout
 
-v2 runs the Rust app in `rust/`. The Python app in `app/` (v1) stays as the reference implementation: the contract suite records its answers and checks the Rust app against them.
+v2 is the Rust app in `rust/`; `app/static/` is the web page it serves. The Python app (v1) was the reference while the port was built: the contract suite's goldens were recorded from it and are frozen since v2.0. Its code is kept at the git tag `python-last`.
 
 ```
 weather.yaml              # runtime configuration (baked into the image)
@@ -126,16 +126,15 @@ rust/
   src/geocode.rs          # address search (Nominatim)
   src/snapshot.rs         # consistent copy of the database
   src/static_files.rs     # serves app/static
-  src/pyfmt.rs, times.rs  # number and time formatting as the Python app does it
-  contract/               # API contract suite: goldens from the Python app, run against Rust
+  src/pyfmt.rs, times.rs  # number and time formatting (as v1 did it: same JSON)
+  contract/               # API contract suite: frozen goldens, run against the Rust app
   uitest/                 # page checks in headless Chromium
-app/                      # the Python app (v1, reference implementation)
-  static/                 # the web page, served by both apps:
+app/
+  static/                 # the web page, served by the Rust app:
     index.html, *.css     #   markup and styles (kiosk.css: the wall display)
     app.js                #   entry module: language, theme, config, refresh
     glance.js, now.js, chart.js, details.js, stationmap.js, setup.js
     format.js, i18n.js    #   pure formatting, English and German texts
-tests/                    # tests of the Python app
 ```
 
 ## Location lifecycle

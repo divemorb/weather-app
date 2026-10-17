@@ -285,8 +285,9 @@ fn short_label_matches_the_shared_table() {
         entry: serde_json::Map<String, Value>,
         label: String,
     }
-    let table: Table = serde_json::from_str(include_str!("../../../tests/geocode_labels.json"))
-        .expect("the shared label table parses");
+    let table: Table =
+        serde_json::from_str(include_str!("../../contract/fixtures/geocode_labels.json"))
+            .expect("the shared label table parses");
     for case in &table.cases {
         let mut entry = case.entry.clone();
         entry.insert("lat".to_string(), json!("52.5"));

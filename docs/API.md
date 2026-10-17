@@ -29,7 +29,7 @@ ENABLE_API_DOCS=true docker compose up -d --build
 
 ### Response contract
 
-The serializers live in `app/api_serializers.py` (pure functions, unit-tested in `tests/test_api_serializers.py`); the endpoints in `app/main.py` are thin (aggregate → serialize). Every data payload carries freshness so the UI can show an age badge / stale flag without a round-trip to `/api/sources`.
+The serializers live in `rust/src/serializers.rs` (pure functions with unit tests); the endpoints in `rust/src/routes.rs` are thin (aggregate → serialize). Every data payload carries freshness so the UI can show an age badge / stale flag without a round-trip to `/api/sources`.
 
 **`GET /api/now`**
 

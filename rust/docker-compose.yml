@@ -1,5 +1,5 @@
-# Rust backend (port in progress; the Python app in the repo root is still
-# the deployed version). From the repo root:
+# The app with an explicitly named volume (the root docker-compose.yml is
+# the plain variant). From the repo root:
 #   podman compose -f rust/docker-compose.yml up -d --build --force-recreate
 # On a machine that doesn't build (Raspberry Pi), load the image first
 # (podman save | ssh … podman load) and start it without --build.
@@ -18,7 +18,7 @@ services:
     volumes:
       - weather-data:/data
     restart: always
-    # Same hardening as the Python app: non-root (uid 1000), read-only root
+    # Hardening: non-root (uid 1000), read-only root
     # filesystem, only /data (volume) and /tmp (small tmpfs) writable, all
     # capabilities dropped, no privilege gain, bounded process count.
     read_only: true
@@ -32,8 +32,8 @@ services:
 
 volumes:
   weather-data:
-    # Takes over the Python app's data as is (same schema, same uid 1000).
+    # Takes over the v1 (Python) app's data as is (same schema, same uid 1000).
     # Compose names that volume <project>_weather-data, the project being the
-    # directory of the Python compose file (a checkout named "wetter" by
+    # directory of the v1 compose file (a checkout named "wetter" by
     # default); set WETTER_VOLUME if yours is named differently.
     name: ${WETTER_VOLUME:-wetter_weather-data}

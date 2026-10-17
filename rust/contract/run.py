@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Contract suite: prove the Rust backend answers exactly like the Python one.
+"""Contract suite: prove the Rust backend answers exactly as the goldens record.
 
 For each scenario (``scenarios.py``) a fresh backend is started with a
 frozen clock (``WETTER_FAKE_NOW``), a temporary database and a generated
 config whose upstream URLs point at a fake upstream (``fakeup.py``). The
-responses are normalized and compared with the goldens in ``golden/``,
-which come from the Python backend (``--backend python --update``).
+responses are normalized and compared with the goldens in ``golden/``.
+The goldens were recorded from the Python app (the reference until v2.0,
+tag ``python-last``) and are frozen: a change is recorded from the Rust
+backend with ``--update`` and reviewed as a git diff.
 
     # in the sandbox (after `cargo build`):
     python3 rust/contract/run.py --backend rust --binary /target/debug/wetter
@@ -14,12 +16,12 @@ which come from the Python backend (``--backend python --update``).
     # list the cases:
     python3 rust/contract/run.py --list
 
-What the Rust binary must honour (same as the Python app, plus three
+What the Rust binary must honour (same as the v1 app, plus three
 test/deployment variables): ``WEATHER_CONFIG``, ``DATABASE_PATH``,
 ``LATITUDE``/``LONGITUDE``/``TIMEZONE``, ``ALLOWED_HOSTS``,
 ``USE_ACCURACY_WEIGHTS``; ``WETTER_FAKE_NOW`` (frozen clock),
 ``BIND_ADDR`` (default ``0.0.0.0:8000``), ``STATIC_DIR`` (default
-``/app/static``). Like the Python app it runs the initial refresh before
+``/app/static``). Like the v1 app it runs the initial refresh before
 it starts serving, so ``/healthz`` answering means the refresh is done.
 
 Comparison: parsed JSON with strict types (``1`` is not ``1.0``) and exact
@@ -31,7 +33,6 @@ are compared too, and with ``--budget-mb`` the peak memory (VmHWM).
 from __future__ import annotations
 
 import argparse
-import ast
 import fnmatch
 import hashlib
 import http.client
@@ -84,12 +85,8 @@ api:
 
 
 def python_schema() -> str:
-    """``_SCHEMA`` from app/store.py, read without importing the app."""
-    tree = ast.parse((REPO / "app" / "store.py").read_text())
-    for node in tree.body:
-        if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "_SCHEMA":
-            return ast.literal_eval(node.value)
-    raise RuntimeError("_SCHEMA not found in app/store.py")
+    """The v1 (Python) app's schema, frozen at tag python-last."""
+    return (HERE / "fixtures" / "python_schema_v3.sql").read_text()
 
 
 def seed_db(db: pathlib.Path, seed: dict, now: str):
@@ -152,10 +149,7 @@ SEEDED_REPORTS = [
 
 
 def seed_reports(con, hour: datetime) -> None:
-    """User reports (report steps). Skipped while the schema has no
-    ``user_reports`` table (before the Python step that adds it)."""
-    if not con.execute("SELECT 1 FROM sqlite_master WHERE name = 'user_reports'").fetchone():
-        return
+    """User reports, for the scenarios with the ``reports`` seed."""
     for back, minute, kind, intensity, confirms in SEEDED_REPORTS:
         at = (hour - timedelta(hours=back)).replace(minute=minute)
         con.execute("INSERT INTO user_reports (kind, intensity, confirms, observed_at) VALUES (?, ?, ?, ?)",
@@ -165,12 +159,8 @@ def seed_reports(con, hour: datetime) -> None:
 def start_backend(args, port: int, env: dict) -> subprocess.Popen:
     base_env = {k: os.environ[k] for k in ("PATH", "HOME", "LANG") if k in os.environ}
     full_env = {**base_env, **env}
-    if args.backend == "python":
-        cmd = [sys.executable, str(HERE / "pyapp.py"), str(port)]
-    else:
-        cmd = [args.binary]
-        full_env.update(BIND_ADDR=f"127.0.0.1:{port}", STATIC_DIR=env.get("STATIC_DIR", str(REPO / "app" / "static")))
-    return subprocess.Popen(cmd, cwd=REPO, env=full_env, stdin=subprocess.DEVNULL,
+    full_env.update(BIND_ADDR=f"127.0.0.1:{port}", STATIC_DIR=env.get("STATIC_DIR", str(REPO / "app" / "static")))
+    return subprocess.Popen([args.binary], cwd=REPO, env=full_env, stdin=subprocess.DEVNULL,
                             stdout=args.log, stderr=subprocess.STDOUT)
 
 
@@ -334,7 +324,7 @@ def run_scenario(args, sc: dict) -> dict:
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--backend", choices=["python", "rust", "external"], default="rust",
+    ap.add_argument("--backend", choices=["rust", "external"], default="rust",
                     help="external: test an app that already runs on --port (started with --print-env's variables)")
     ap.add_argument("--port", type=int, default=8000, help="port of the external app")
     ap.add_argument("--print-env", metavar="SCENARIO",
@@ -344,7 +334,7 @@ def main():
     ap.add_argument("--require", nargs="*", default=["*"],  # "!pattern" excludes
                     help="case patterns (scenario:case) that must pass; others are reported only")
     ap.add_argument("--budget-mb", type=float, help="fail a scenario whose peak memory is above this")
-    ap.add_argument("--update", action="store_true", help="write the goldens (Python backend only)")
+    ap.add_argument("--update", action="store_true", help="write the goldens from the Rust backend (review the git diff)")
     ap.add_argument("--list", action="store_true", help="list the cases and exit")
     ap.add_argument("--backend-log", default=None, help="file for the backend's output (default: discard)")
     args = ap.parse_args()
@@ -365,8 +355,8 @@ def main():
             for case in sc["cases"]:
                 print(f"{sc['name']}:{case['name']}")
         return 0
-    if args.update and args.backend != "python":
-        sys.exit("goldens come from the Python backend only")
+    if args.update and args.backend != "rust":
+        sys.exit("goldens are recorded from the Rust backend (--backend rust)")
     args.log = open(args.backend_log, "a") if args.backend_log else subprocess.DEVNULL
 
     passed = failed = required_failed = 0
@@ -392,15 +382,22 @@ def main():
             errors = {n: c["error"] for n, c in result["cases"].items() if "error" in c}
             if errors:
                 sys.exit(f"{sc['name']}: {errors}")
-            golden = {"now": sc["now"], "python_memory_kb": result["memory_kb"],
-                      "upstream": result["upstream"], "cases": result["cases"]}
-            (GOLDEN / f"{sc['name']}.json").write_text(json.dumps(golden, indent=1, ensure_ascii=False) + "\n")
-            print(f"wrote golden/{sc['name']}.json ({len(result['cases'])} cases, "
-                  f"Python peak {result['memory_kb']} kB)")
+            # an entry that still compares equal stays as recorded (key order
+            # included), so the git diff shows only the cases that changed
+            path = GOLDEN / f"{sc['name']}.json"
+            old = json.loads(path.read_text()) if path.exists() else {"cases": {}}
+            cases = {n: old["cases"][n] if n in old["cases"] and not diff(old["cases"][n], c) else c
+                     for n, c in result["cases"].items()}
+            upstream = (old["upstream"] if "upstream" in old and not diff(old["upstream"], result["upstream"])
+                        else result["upstream"])
+            changed = sum(cases[n] is c for n, c in result["cases"].items()) + (upstream is result["upstream"])
+            golden = {"now": sc["now"], "upstream": upstream, "cases": cases}
+            path.write_text(json.dumps(golden, indent=1, ensure_ascii=False) + "\n")
+            print(f"wrote golden/{sc['name']}.json ({len(cases)} cases, {changed} new or changed)")
             continue
         golden_file = GOLDEN / f"{sc['name']}.json"
         if not golden_file.exists():  # a new scenario before its goldens were recorded
-            report(f"{sc['name']}:golden", [f"no golden/{golden_file.name} yet (recorded from the Python backend)"])
+            report(f"{sc['name']}:golden", [f"no golden/{golden_file.name} yet (record it with --update)"])
             continue
         golden = json.loads(golden_file.read_text())
         for name, want in golden["cases"].items():

@@ -2,7 +2,7 @@ use super::*;
 
 const THRESHOLD: f64 = 0.1;
 
-/// pytest.approx(expected) with the default tolerances.
+/// Equal within a relative tolerance of 1e-6 (1e-12 absolute when `expected` is 0).
 fn approx(actual: f64, expected: f64) -> bool {
     let tol = if expected == 0.0 {
         1e-12
