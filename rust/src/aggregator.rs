@@ -6,10 +6,9 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Mutex, RwLock};
 
-use chrono::{DateTime, TimeDelta, Utc};
+use chrono::{DateTime, Utc};
 use serde_json::{Map, Value, json};
 
-use crate::brightsky::{parse_hourly_observations, parse_station_info};
 use crate::clients::{BrightSkyClient, OpenMeteoClient};
 use crate::config::{AppConfig, LocationConfig};
 use crate::location;
@@ -17,9 +16,8 @@ use crate::openmeteo::parse_forecast;
 use crate::pyfmt::py_round_int;
 use crate::serializers::CacheMeta;
 use crate::series::build_forecast_history_rows;
-use crate::stations;
 use crate::store::{Source, Store, StoreError};
-use crate::times::{Clock, to_iso};
+use crate::times::Clock;
 use crate::upstream::SourceError;
 
 /// The two scheduled refresh jobs.
@@ -267,68 +265,6 @@ impl Aggregator {
         }
     }
 
-    /// Fill `observed_mm` in `forecast_history` from DWD observations:
-    /// fetch the last 48 h of Bright Sky `/weather` hourly records and
-    /// write each real observation (`observation_type != "forecast"`) for
-    /// its hour start (`timestamp - 1h`). Never runs on a page load;
-    /// failures are logged and swallowed.
-    pub async fn backfill_observations(&self) {
-        let now = self.now();
-        let payload = match self
-            .brightsky
-            .fetch_weather_payload(now - TimeDelta::hours(48), now)
-            .await
-        {
-            Ok(payload) => payload,
-            Err(err) => {
-                tracing::error!("observation backfill fetch failed: {err}");
-                return;
-            }
-        };
-        let station = match parse_station_info(&payload) {
-            Ok(station) => station,
-            Err(err) => {
-                tracing::error!("observation backfill fetch failed: {err}");
-                return;
-            }
-        };
-        if let Some((name, distance)) = station {
-            tracing::info!(
-                "observation backfill: station {name} ({} m away)",
-                crate::pyfmt::py_repr(distance)
-            );
-        }
-        let observations = match parse_hourly_observations(&payload, now) {
-            Ok(observations) => observations,
-            Err(err) => {
-                tracing::error!("observation backfill fetch failed: {err}");
-                return;
-            }
-        };
-        if observations.is_empty() {
-            tracing::info!("observation backfill: no observation records in the last 48 h");
-            return;
-        }
-        for (hour_start, mm) in &observations {
-            if let Err(err) = self.store.set_observation(&to_iso(*hour_start), *mm) {
-                tracing::error!("observation backfill: writing observations failed: {err}");
-                return;
-            }
-        }
-        // Remember which stations the observations came from; the value is
-        // canonical JSON, byte-identical across backends.
-        let station_list = stations::observation_stations(&payload, now);
-        if let Err(err) = self.store.set_meta(
-            stations::OBSERVATION_STATIONS_KEY,
-            &stations::stations_to_json(&station_list),
-        ) {
-            tracing::error!("observation backfill: writing observations failed: {err}");
-            return;
-        }
-        let count = observations.len();
-        tracing::info!("observation backfill: {count} hourly observations written");
-    }
-
     // -- read model (page loads) --
 
     /// `available` / `age_seconds` / `stale` for one source. `age_seconds`
@@ -382,6 +318,7 @@ impl Aggregator {
     }
 }
 
+mod backfill;
 mod read;
 
 #[cfg(test)]
