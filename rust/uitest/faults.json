@@ -486,6 +486,29 @@
    "must_fail": [
     "report/en/report-undo-failed"
    ]
+  },
+  {
+   "name": "report-always-day",
+   "why": "the report's day/night test always answers day, so a report observed after the place's sunset still shows the day scene",
+   "edits": [
+    {
+     "file": "reportkind.js",
+     "find": "return isDay(location.latitude, location.longitude, d);",
+     "replace": "return true; // fault: always day"
+    }
+   ],
+   "scenario": [
+    "report"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "report/en/report-night"
+   ],
+   "must_fail": [
+    "report/en/report-night"
+   ]
   }
  ],
  "gaps": []

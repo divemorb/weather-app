@@ -40,7 +40,7 @@ GLANCE_HOST = ["report-open", "report-closed", "report-flip", "report-fit-big-12
 def check_names(scenario: str, lang: str) -> list[str]:
     """The checks a report scenario runs (report and report-glance)."""
     if scenario == "report":
-        return ["console", "requests"] + FLIP + SAVE + SKY + DETAILS
+        return ["console", "requests"] + FLIP + SAVE + SKY + DETAILS + ["report-night"]
     if scenario == "report-glance":
         return ["console"] + GLANCE_HOST
     raise ValueError(scenario)

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 
+from edges import report_night
 from expect import MODEL_LABELS, REPORT_FIT, REPORT_SKY_CASES, REPORT_TEXT, SCENE_LABEL
 from page import Run, UIPage, has, norm
 from report_save import run_save, undo_failed
@@ -31,6 +32,8 @@ def run(run: Run):
         run_sky(run)
     if "details-reports" in run.names:
         details_checks(run)
+    if "report-night" in run.names:
+        report_night(run)
     clear_fresh(run.base)
 
 

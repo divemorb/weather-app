@@ -355,6 +355,10 @@ REPORT_SKY_CASES = {
     "hail": ({"kind": "hail"}, None, "hail"),
     "confirmed": ({"kind": "cloudy", "confirms": True}, None, "cloudy"),
 }
+# The report after sunset (the page at 19:30Z, the report observed at 19:25Z,
+# both after Berlin's sunset of 2026-09-30): the scene must be the clear night one.
+REPORT_NIGHT_NOW = "2026-09-30T19:30:00Z"
+REPORT_NIGHT_OBSERVED = "2026-09-30T19:25:00Z"
 REPORT_MIN_BUTTON = 44  # px: the kind and intensity buttons are touch targets (WCAG 2.5.5)
 # Where the back must fit inside the host without changing its size (the measured worst case, 2026-10-07:
 # the big view at 1280x800 on a rainy day, Now 660x320 px with 20/26 px padding; a 360 px phone 332x403).
