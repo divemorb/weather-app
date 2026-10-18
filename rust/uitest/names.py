@@ -46,6 +46,7 @@ def check_names(scenario: str, lang: str) -> list[str]:
             names += REASON + ["view-label"] + (["theme-toggle"] + VIEW + ["big-tracks"] if lang == "en" else [])
         else:
             names += KIOSK_CHART + (["reduced-motion"] + REFRESH + ["rain-tracks"] if lang == "en" else [])
+            names += ["dst-radar-labels", "dst-chart-x-labels"]  # the CEST->CET switch (clock.py)
         names += ["now-texts"]
         return names
     if scenario == "errors":

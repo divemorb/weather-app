@@ -393,6 +393,30 @@
     "wizard/en/setup-texts",
     "unconfigured/en/setup-texts"
    ]
+  },
+  {
+   "name": "dst-fixed-offset",
+   "why": "Berlin's summer time is applied year-round, the autumn fall-back is ignored",
+   "edits": [
+    {
+     "file": "format.js",
+     "find": "minute: \"2-digit\", timeZone }",
+     "replace": "minute: \"2-digit\", timeZone: \"Etc/GMT-2\" }"
+    }
+   ],
+   "scenario": [
+    "rain"
+   ],
+   "lang": [
+    "en",
+    "de"
+   ],
+   "must_fail": [
+    "rain/en/dst-radar-labels",
+    "rain/de/dst-radar-labels",
+    "rain/en/dst-chart-x-labels",
+    "rain/de/dst-chart-x-labels"
+   ]
   }
  ],
  "gaps": []

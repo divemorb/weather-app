@@ -24,6 +24,7 @@ from page_checks import (check_chart, check_common_a, check_details, check_glanc
                          check_now, check_radar, contrast_problems, page_unconfigured,
                          theme_icon_problems, theme_problems)
 from big import kiosk_chart_problems, kiosk_fill_problems, kiosk_room_problems, run_big  # noqa: E402
+from clock import dst_chart_x_labels, dst_radar_labels  # noqa: E402
 from edges import fallback_text_problems, now_texts_problems, radar_unavailable_text_problems, setup_texts_problems  # noqa: E402
 from flows import refresh_config_retry, refresh_render_error, run_wizard, theme_toggle  # noqa: E402
 from sky import run_reasons, run_sky  # noqa: E402
@@ -310,6 +311,10 @@ def page_kiosk_and_common(run: Run):
         running = pg.js("__ui.animations()")
         run.add("reduced-motion", [f"animations still running with prefers-reduced-motion: {running}"] if running else [])
         run.done(pg)
+    if "dst-radar-labels" in run.names:  # the rain page at the CEST->CET switch (clock.py)
+        run.add("dst-radar-labels", dst_radar_labels(run))
+    if "dst-chart-x-labels" in run.names:
+        run.add("dst-chart-x-labels", dst_chart_x_labels(run))
 
     own = run.base + "/"
     foreign = sorted({u for u in run.requests if not (u.startswith(own) or u.startswith("data:"))})
