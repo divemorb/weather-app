@@ -1,13 +1,26 @@
 #!/usr/bin/env python3
-"""Function size gate: no function longer than --max-lines lines or with more
-than --max-args parameters, in the given Python and JavaScript files.
+"""Size gate: function size in the given files, and file length in the given
+directories.
 
-Python is measured by its AST (first to last line of the def, decorators
-excluded; self/cls not counted); JavaScript by matching braces of
-`function` declarations and arrow functions with a body. Prints one line per
-violation and exits 1 if there is any.
+Function size (Python and JavaScript): no function longer than --max-lines
+lines or with more than --max-args parameters. Python is measured by its AST
+(first to last line of the def, decorators excluded; self/cls not counted);
+JavaScript by matching braces of `function` declarations and arrow functions
+with a body.
+
+File length (--file-lines WARN MAX): walks the directory arguments for
+program code (rs, py, js, mjs, css, html), skipping target/, vendor/,
+node_modules/, golden/, fixtures/ and baseline/; data files (json, yaml,
+lock, sql, txt) are never counted. A file over WARN lines prints a warning;
+a file over MAX lines is a violation. File arguments are still checked for
+function size, so both gates can run in one call.
+
+Prints one line per violation and exits 1 if there is any (warnings don't
+fail).
 
     python3 rust/contract/sizes.py --max-lines 80 --max-args 6 rust/uitest/*.py rust/uitest/probe.js
+    python3 rust/contract/sizes.py --file-lines 400 600 rust app
+    python3 rust/contract/sizes.py --file-lines 400 600 rust app --max-lines 80 rust/uitest/probe.js
 """
 import argparse
 import ast
@@ -18,6 +31,9 @@ import sys
 JS_FUNC = re.compile(r"(?:function\s*\*?\s*(\w*)\s*\(([^)]*)\)\s*\{)"
                      r"|(?:(\w+)\s*[:=]\s*(?:async\s*)?\(([^)]*)\)\s*=>\s*\{)"
                      r"|(?:^\s*(?:async\s+)?(\w+)\s*\(([^)]*)\)\s*\{)", re.M)
+
+CODE_SUFFIXES = (".rs", ".py", ".js", ".mjs", ".css", ".html")
+SKIP_DIRS = ("target", "vendor", "node_modules", "golden", "fixtures", "baseline")
 
 
 def python_sizes(path):
@@ -73,14 +89,54 @@ def js_sizes(path):
         yield name, start, end - start + 1, len(args)
 
 
+def code_files(dirs):
+    """Program code under dirs (by suffix), skipping build, vendored, fixture
+    and data paths; data file types are never counted."""
+    out = []
+    for d in dirs:
+        for p in sorted(d.rglob("*")):
+            if not p.is_file() or p.suffix not in CODE_SUFFIXES:
+                continue
+            if any(part in SKIP_DIRS for part in p.relative_to(d).parts[:-1]):
+                continue
+            out.append(p)
+    return out
+
+
+def file_sizes(dirs, warn, max_lines):
+    """(path, line count) of each code file over max_lines; files over warn
+    lines print a warning."""
+    for p in code_files(dirs):
+        n = len(p.read_text().splitlines())
+        if n > warn:
+            print(f"WARN {p}: {n} lines (over {warn})")
+        if n > max_lines:
+            yield p, n
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--max-lines", type=int, default=80)
     ap.add_argument("--max-args", type=int, default=6)
-    ap.add_argument("files", nargs="+", type=pathlib.Path)
+    ap.add_argument("--file-lines", nargs=2, type=int, metavar=("WARN", "MAX"),
+                    help="file length gate: warn over WARN lines, fail over MAX, in the directory arguments")
+    ap.add_argument("paths", nargs="+", type=pathlib.Path)
     args = ap.parse_args()
     bad = 0
-    for path in args.files:
+    files = 0
+    func_paths = args.paths
+    if args.file_lines:
+        warn, max_lines = args.file_lines
+        dirs = [p for p in args.paths if p.is_dir()]
+        for p in args.paths:
+            if not p.exists():
+                print(f"{p}: no such file or directory")
+                bad += 1
+        files = sum(len(code_files([d])) for d in dirs)
+        for p, _ in file_sizes(dirs, warn, max_lines):
+            bad += 1
+        func_paths = [p for p in args.paths if p.is_file()]
+    for path in func_paths:
         sizes = python_sizes(path) if path.suffix == ".py" else js_sizes(path)
         for name, line, n, nargs in sizes:
             problems = ([f"{n} lines (at most {args.max_lines})"] if n > args.max_lines else []) + \
@@ -88,7 +144,10 @@ def main():
             if problems:
                 bad += 1
                 print(f"{path}:{line} {name}: {', '.join(problems)}")
-    print(f"sizes: {bad} functions over the limits")
+    if args.file_lines:
+        print(f"sizes: {bad} files over the limits ({files} files checked)")
+    else:
+        print(f"sizes: {bad} functions over the limits")
     return 1 if bad else 0
 
 
