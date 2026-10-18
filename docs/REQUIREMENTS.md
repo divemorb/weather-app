@@ -60,6 +60,7 @@ Links to the code and the tests that prove each requirement are planned (traceab
 - **REQ_PAGE_10** No build step, no framework, no CDN, no images or fonts from outside: plain HTML, CSS and JavaScript; all of `app/static` at most 300 KB. *Source: scope; budget: the user, 2026-10-04.*
 - **REQ_PAGE_11** Credits for every data source (DWD via Bright Sky, Open-Meteo, OpenStreetMap). *Source: the sources' terms.*
 - **REQ_PAGE_12** Calm and minimal: lots of whitespace, one accent colour for rain, system fonts. *Source: the user, 2026-10-02.*
+- **REQ_PAGE_13** A refresh that fails keeps the tile's last good values and says so: the tile shows that the update failed and the time of the data it still shows (English "Update failed – showing data from 14:05", German "Aktualisierung fehlgeschlagen – Daten von 14:05"); the next good refresh removes the note. Only a part that never loaded shows "not available". *Source: the user, 2026-10-18.*
 
 ## The glance (GLANCE)
 
