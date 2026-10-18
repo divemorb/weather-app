@@ -192,6 +192,7 @@ class Page:
         self._coverage.append({"js": js, "css": rules})
         if final:
             name = f"{os.getpid()}-{self.target}.json"
+            os.makedirs(COVERAGE_DIR, exist_ok=True)  # parallel workers: any may be first
             with open(os.path.join(COVERAGE_DIR, name), "w") as f:
                 json.dump(self._coverage, f)
 
