@@ -16,22 +16,37 @@ In words: the app on your computer fetches the radar and current weather every 5
 
 ## What you see
 
-Once a location is set, the page shows, in English or German (following your browser's language):
+Once a location is set, the page works in English or German (following your browser's language). The header shows the place in two lines, with its coordinates and time zone under it, a map-pin button that reopens the setup wizard, a view button and the light/dark button (the page follows your system setting until you use it). Times use the place's time zone in your browser's time format; wind is in km/h.
 
-- **The answer at the top** — one sentence such as "Rain likely in the next hour", with what the radar sees ("Radar: rain from 12:55 PM to 1:05 PM"), the chance of rain in the next 60 minutes as a big number, and a strip with one segment per 5 minutes showing the strongest rain the DWD radar expects near you.
-- **Now** — the current conditions at your location (temperature, weather, wind, gusts, humidity, pressure, dew point, clouds, rain in the last hour).
-- **Next 24 hours** — a line per weather model, comparing what each one predicts over the next 24 hours (or one line saying no rain is expected).
-- **Details** (closed until you open it) — the signals and weights behind the number, three live timers (the next radar fetch, the next model fetch, the next page reload), the data sources with the age of each one, and the model accuracy table.
+There are two views, and the big view is the default on every screen:
 
-The header has the location button (a map pin) to change the location and a button to switch between light and dark (the page follows your system setting until you use it).
+- **The big view** — the answer, Now and the 24-hour chart, in large type. On a desktop or tablet it fits one screen without scrolling; on a phone the cards stack in one column that scrolls.
+- **The detailed view** — only the Details card (see [Reading the page](#reading-the-page)).
 
-**Wall display:** open `http://localhost:8000/?kiosk` on a landscape tablet or TV. That view fits on one screen without scrolling, with large type: the answer on the left, Now and the 24-hour chart on the right; it leaves out the Details.
+The view button switches between the two. Its text says where a click goes — "Details" in the big view, "Big view" in the detailed view (in German: "Details" / "Große Ansicht") — and the page remembers your choice per device. `?detailed` opens the page directly in the detailed view.
+
+In the big view, top to bottom:
+
+- **The answer** — one sentence: "No rain expected in the next hour", "Rain possible in the next hour" or "Rain likely in the next hour". Under it, what the radar sees right now ("Radar: raining now, until 1:05 PM"; outside Germany: "Radar: not available").
+- **The "why" line** — it says what the sky shows and which source decided it: for example "Sky: rain, reported by station Munich (12.4 km away)", "Sky: partly cloudy here, seen by the radar", or, when the station reports rain but the radar at your place is dry, "Sky: cloudy — dry here according to the radar; station … reports rain". A report of yours that is still fresh decides the sky and is named with its time.
+- **The chance** — the big number, labelled "chance of rain in the next 60 min".
+- **The radar strip** — one column per 5 minutes for the strongest rain near you, with the hour's times under it; the caption names the radius it looks at (1 km by default). On a dry hour it says "Dry for the next 60 minutes".
+- **Now** — the temperature and the condition in large type, then Feels like, Wind (km/h plus a compass point), Gusts, Humidity, Pressure, Dew point, Clouds and Rain last hour. Under it: "as of" the observation time, and the station the values come from ("Station Berlin-Tempelhof · 5.8 km"). A value that came from another station is marked "from {station}".
+- **Next 24 hours** — one line per weather model, in millimetres per hour, or "No rain expected in the next 24 hours" on a dry day.
+
+**The sky:** behind the tiles, an animated scene shows the weather at your place right now — clear (day or night), partly cloudy, cloudy, fog, windy, rain, heavy rain, sleet, snow, hail or thunderstorm. The tiles are glass, so you see it through them. The scene comes from the weather station's report and the radar at your place: rain on the radar shows rain even when the station is dry, and a station report of rain, sleet, snow or hail becomes cloudy when the radar at your place is dry, because the station can be kilometres away while the radar measures at your place ([REQ_SKY_3](docs/REQUIREMENTS.md)); a thunderstorm is always shown, since it can arrive quickly. While one of your reports is fresh (30 minutes), your report decides the sky. With your system's "reduce motion" setting, the sky is a still picture.
+
+**When the page is wrong:** the Now tile has a "Report" button (a pencil). The tile turns over; its back is titled "What is it really like?", shows "The page shows: {scene}" and eight picture buttons — Clear, Partly cloudy, Cloudy, Fog, Rain, Thunderstorm, Snow, Hail. Tap the right one and the report saves at once; "That's right" confirms what the page shows. For rain, the page first asks for the strength — Light, Moderate or Heavy — or "Skip". You can also say the report is about 15 or 30 minutes ago, not now. While the report is fresh, the front of the tile shows "Reported by you: rain · 1:45 PM" (or "Confirmed by you: …") with an "Undo"; if saving fails, "The report could not be saved." keeps the back open.
+
+Outside Germany the radar does not reach you. The page shows "Radar: not available" and the chance is computed from the weather models and the ensemble alone, with the radar's weight given to them ([REQ_PROB_6](docs/REQUIREMENTS.md)).
+
+**Wall display:** open `http://localhost:8000/?kiosk` on a landscape tablet or TV. The big view fits one screen without scrolling, with large type: the answer on the left, Now and the 24-hour chart on the right (one column on a phone). The view, location and report buttons are hidden, so nobody standing at the wall can change it.
 
 ## What you need
 
 - **Podman** (with podman-compose) or **Docker** (with Compose), on the machine that will run the app. A *container* is the isolated little environment the app runs in, and the *volume* is the app's data store on your disk.
 - An **internet connection** — the weather data is downloaded from free services.
-- **About 15 MB of disk** for the container image, plus a little extra for the cached data.
+- **About 12 MB of disk** for the container image, plus a little extra for the cached data.
 - **About 10 MB of RAM** while it runs.
 
 One geographic limit: **the radar covers Germany only.** Elsewhere the app automatically drops the radar from the calculation and computes the rain chance from the weather models and the ensemble alone — the page tells you when that is the case.
@@ -72,18 +87,24 @@ Two notes from the wizard itself: the address search sends the text you type to 
 
 ## Reading the page
 
-Open **Details** to see how the chance was built. **Signals and weights** has two lines, for example:
+The **detailed view** (the "Details" button) shows one card with six sections.
+
+**Signals and weights** has two lines, for example:
 
 > Radar 50% · Models 30% · Ensemble 20%<br>
-> Radar: raining · Models: 3 of 5 · Ensemble: 35%
+> Radar: raining · Models: 3 of 6 · Ensemble: 35%
 
-The first line is how much each signal counts; the second is what each one says right now: whether the radar sees rain near you, how many of the weather models predict more than 0.1 mm of rain in the next hour, and the **ensemble** figure — the share of the 50 ensemble members that forecast rain. Outside Germany there is no radar, and its weight goes to the other two.
+The first line is how much each signal counts; the second is what each one says right now: whether the radar sees rain near you, how many of the six weather models predict more than 0.1 mm of rain in the next hour, and the **ensemble** figure — the share of the 50 ensemble members that forecast rain. Outside Germany there is no radar, and its weight goes to the other two. With accuracy weighting on (a setting, off by default), a third line says "Models weighted by their hit rate"; it applies once every model has enough compared hours.
 
-Under **Data sources**, each row names the part of the page it feeds (Radar, Now, Models, Ensemble) and the service it comes from. **stale** means the cached copy is older than the freshness limit (10 minutes for the radar, 2 hours for the models) — the app keeps showing the old data rather than nothing, and keeps retrying. **n/a** means the app has not yet managed a successful fetch from that source.
+**Refresh** has three live countdowns: to the next radar fetch, the next model fetch and the next page reload (the page reloads with fresh data shortly after each backend fetch).
 
-The radar is updated every 5 minutes and the models every hour; the timers under **Details** show when the next fetch happens and when the page reloads with fresh data.
+**Data sources** has one row per source — Radar, Now, Models and Ensemble — with the service it comes from and the age of the cached copy. **stale** means the copy is older than the freshness limit (10 minutes for the radar, 2 hours for the models) — the app keeps showing the old data rather than nothing, and keeps retrying. **n/a** means the app has not yet managed a successful fetch from that source. The last error of a source is shown under its row.
 
-The **Model accuracy** table compares each model's past forecasts with the observations, hour by hour. It needs about 2 days of comparisons before the numbers mean anything.
+**Model accuracy** compares each model's past forecasts with the observations, hour by hour, over the last 30 days: the Hours compared, the Hits, Misses and False alarms, the Hit rate and the Avg. error. A model's numbers count as reliable once it has 48 compared hours; until then its row is greyed. The plain-words text under the table explains what each column means.
+
+**Against your reports** repeats the same comparison, but scored against your reports instead of the station: the same forecast hours, your newest report per hour, and the wet kinds (rain, thunderstorm, snow, hail) counting as rain. It is its own block — the station's table, the weights and the forecast do not use your reports ([REQ_REPORT_8](docs/REQUIREMENTS.md)).
+
+**Stations** lists the weather stations — name, distance, how many hours they have measured — and draws a schematic map: your place in the centre, the stations by bearing and distance, the radar radius as a circle, a north arrow and a scale bar.
 
 If you want to know exactly how the percentage is calculated, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
