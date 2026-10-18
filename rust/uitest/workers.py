@@ -139,6 +139,8 @@ class JobPool:
         self.busy = [None] * n
         self.next_idx = 0
         self.remaining = len(jobs)
+        self.started: dict[int, float] = {}  # job idx -> monotonic start
+        self.took: dict[int, float] = {}  # job idx -> seconds, for the timing line
 
     def fail_job(self, idx: int):
         for name in self.job_checks[idx]:
@@ -156,9 +158,11 @@ class JobPool:
             self.workers[i].close()
             return False
         self.busy[i] = idx
+        self.started[idx] = time.monotonic()
         return True
 
     def absorb(self, line: str, idx: int):
+        self.took[idx] = time.monotonic() - self.started.get(idx, time.monotonic())
         if line.startswith(RESULT_PREFIX):
             # extend, don't overwrite: a few checks (the sky's console and
             # requests) are added by every job and must be the union of what
@@ -179,6 +183,18 @@ class JobPool:
                     self.absorb(worker.next_result(), self.busy[i])
                     self.busy[i] = None
             worker.close()
+
+    def job_name(self, idx: int) -> str:
+        """The scenario of a job, with the sky's scene (its first check) when split."""
+        job = self.jobs[idx]
+        only = job.get("only")
+        return job["scenarios"][0] + (f"[{only[0]}]" if only else "")
+
+    def timing_line(self) -> str:
+        """The jobs, slowest first: where the suite's wall time goes."""
+        order = sorted(self.took, key=self.took.get, reverse=True)
+        return "uitest jobs, slowest first: " + ", ".join(
+            f"{self.job_name(i)} {self.took[i]:.0f} s" for i in order)
 
     def poll(self) -> dict[str, list[str]]:
         """Serve the jobs to the workers until every one is absorbed; on a
@@ -217,6 +233,7 @@ class JobPool:
                         continue
                     time.sleep(0.02)
             self.drain_deadline()
+            print(self.timing_line(), file=sys.stderr)
         except Exception:
             for worker in self.workers:
                 worker.proc.kill()
