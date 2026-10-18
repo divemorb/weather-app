@@ -8,7 +8,8 @@ import time
 
 from expect import (CONFIG_RETRY_S, WIZARD_DETAIL, WIZARD_LABEL, WIZARD_RESULTS,
                     WIZARD_SELECTED)
-from edges import setup_texts_problems
+from edges import (setup_texts_problems, wizard_cancel_problems, wizard_min_length_problems,
+                   wizard_search_failed_problems)
 from page import Run, UIPage, expect_hidden, expect_tokens, visible_one
 from page_checks import theme_problems
 
@@ -112,6 +113,10 @@ def run_wizard(run: Run):
         problems.append(f"German page, English message: {el['text']!r}")
     run.add("validation", problems)
     run.shot(pg, "setup-validation")
+    if "min-length" in run.names:
+        run.add("min-length", wizard_min_length_problems(pg, run.lang))
+    if "search-failed" in run.names:
+        run.add("search-failed", wizard_search_failed_problems(run))
     run.done(pg)
     if run.lang != "en":
         return
@@ -162,3 +167,5 @@ def run_wizard(run: Run):
         problems += pg.click("setup-cancel") + expect_hidden(pg, "setup") + visible_one(pg, "rain-answer")[1]
     run.add("change", problems)
     run.done(pg)
+    if "cancel" in run.names:
+        run.add("cancel", wizard_cancel_problems(run))

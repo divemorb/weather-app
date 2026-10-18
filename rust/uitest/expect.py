@@ -129,6 +129,11 @@ WIZARD_RESULTS = ["Alexanderplatz\nBerlin", "Dircksenstraße 2\n10179 Berlin", "
 WIZARD_LABEL = ["Alexanderplatz", "Berlin"]
 WIZARD_SELECTED = "Alexanderplatz, Berlin"  # in a sentence the lines are joined by ", "
 WIZARD_DETAIL = ["52.522", "13.414", TZ]
+# The wizard's edge-path status lines (i18n.js: setup.status.*), each in its error state
+WIZARD_MIN_LENGTH = {"en": "Type at least 3 characters to search.",
+                     "de": "Gib mindestens 3 Zeichen ein, um zu suchen."}
+WIZARD_SEARCH_FAILED = {"en": "Address search failed — try again, or enter the coordinates directly.",
+                        "de": "Adresssuche fehlgeschlagen — versuche es noch einmal oder gib die Koordinaten direkt ein."}
 
 # The stations behind the data (live and rain: the same Bright Sky recordings). Now: the
 # current_weather source; the observation stations: the backfill's /weather sources, nearest

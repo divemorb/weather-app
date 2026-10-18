@@ -68,9 +68,9 @@ def check_names(scenario: str, lang: str) -> list[str]:
         return ["console", "requests", "lang", "setup-visible", "setup-texts", "theme-light", "theme-dark",
                 "theme-icon", "contrast-light", "contrast-dark", "overflow-360", "buttons"]
     if scenario == "wizard":
-        return ["console", "validation", "setup-texts"] if lang == "de" else \
-               ["console", "requests", "validation", "setup-texts", "search", "search-lines", "save", "location-long",
-                "location-lines", "change"]
+        return ["console", "validation", "setup-texts", "min-length", "search-failed"] if lang == "de" else \
+               ["console", "requests", "validation", "setup-texts", "min-length", "search-failed", "search",
+                "search-lines", "save", "location-long", "location-lines", "change", "cancel"]
     raise ValueError(scenario)
 
 

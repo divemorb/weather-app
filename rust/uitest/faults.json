@@ -280,6 +280,47 @@
    ]
   },
   {
+   "name": "wizard-search-failed-silent",
+   "why": "a failed address search shows no message",
+   "edits": [
+    {
+     "file": "setup.js",
+     "find": "    status(t(lang, \"setup.status.search-failed\"), true);",
+     "replace": "    // fault: the failed search is silent"
+    }
+   ],
+   "scenario": [
+    "wizard"
+   ],
+   "lang": [
+    "de",
+    "en"
+   ],
+   "must_fail": [
+    "wizard/*/search-failed"
+   ]
+  },
+  {
+   "name": "wizard-cancel-dead",
+   "why": "the wizard's cancel button does nothing",
+   "edits": [
+    {
+     "file": "setup.js",
+     "find": "  els.cancel.addEventListener(\"click\", closeSetup);",
+     "replace": "  // fault: cancel does nothing"
+    }
+   ],
+   "scenario": [
+    "wizard"
+   ],
+   "lang": [
+    "en"
+   ],
+   "must_fail": [
+    "wizard/en/cancel"
+   ]
+  },
+  {
    "name": "report-button-hidden",
    "why": "the report button on the glance is hidden",
    "edits": [
