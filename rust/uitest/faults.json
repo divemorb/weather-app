@@ -417,6 +417,29 @@
     "rain/en/dst-chart-x-labels",
     "rain/de/dst-chart-x-labels"
    ]
+  },
+  {
+   "name": "reload-never-fires",
+   "why": "the page's reload timer no longer calls onReload(), the page never refreshes by itself",
+   "edits": [
+    {
+     "file": "details.js",
+     "find": "  loadTimer = setTimeout(() => {\n    onReload();\n  }, delay);",
+     "replace": "  loadTimer = setTimeout(() => {}, delay);"
+    }
+   ],
+   "scenario": [
+    "rain"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "rain/en/reload-fires"
+   ],
+   "must_fail": [
+    "rain/en/reload-fires"
+   ]
   }
  ],
  "gaps": []
