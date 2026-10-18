@@ -328,8 +328,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "bd46d61c172185a1b3229ac66676343663d2e2030e294464ef7e650276ff4021",
-   "length": 10573
+   "sha256": "c041b540f1ded999ef8a3587dd19552bb42bd337aeda388a2320d130a6f05505",
+   "length": 13129
   },
   "static/chart.css": {
    "status": 200,
@@ -426,8 +426,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "930c5b82ba9b39db01097f0e266c4cf50f1c4a4b4eb311f747168b93ab0b311a",
-   "length": 16281
+   "sha256": "8fd619903002d75a85cdb2386f9f91fac35634cca401e1c2c12982f1e019f119",
+   "length": 16413
   },
   "static/kiosk.css": {
    "status": 200,
@@ -496,8 +496,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "ff6f84b71aeb4abf8de2a81679c62e65bb1cb78f93a47fa7e927bfc1ef40e2f4",
-   "length": 12943
+   "sha256": "a168c2915ca9657e28a3ef8c1708d5de65a745edc657bae07eb9320eaf875947",
+   "length": 13179
   },
   "static/app.js-revalidate": {
    "status": 304,

@@ -589,6 +589,29 @@
    "must_fail": [
     "report/en/report-night"
    ]
+  },
+  {
+   "name": "refresh-forgets-old",
+   "why": "a failed fetch no longer falls back to the endpoint's last good answer, so a part that had data shows nothing",
+   "edits": [
+    {
+     "file": "app.js",
+     "find": "      data[key] = lastGood[key].answer;",
+     "replace": "      // fault: the failed fetch forgets the last good answer"
+    }
+   ],
+   "scenario": [
+    "rain"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "rain/en/refresh-keeps-old"
+   ],
+   "must_fail": [
+    "rain/en/refresh-keeps-old"
+   ]
   }
  ],
  "gaps": []

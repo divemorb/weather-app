@@ -73,6 +73,14 @@ a:hover { text-decoration: underline; }
 
 .muted { color: var(--muted); }
 
+/* The tile's outdated note after a failed refresh (app.js): a small
+   muted line, the same voice as the other quiet lines on the card. */
+.outdated {
+  margin: 14px 0 0;
+  font-size: 13px; line-height: 1.45;
+  color: var(--muted);
+}
+
 .wrap { max-width: 720px; margin: 0 auto; padding: 20px 16px 48px; }
 
 /* ---- header: the place and the two icon buttons ----------------------- */

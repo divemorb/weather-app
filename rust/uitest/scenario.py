@@ -28,6 +28,7 @@ from chart import chart_single_point  # noqa: E402
 from clock import dst_chart_x_labels, dst_radar_labels  # noqa: E402
 from edges import now_texts_problems, radar_unavailable_text_problems, setup_texts_problems  # noqa: E402
 from flows import refresh_config_retry, refresh_render_error, run_wizard, theme_toggle  # noqa: E402
+from outdated import refresh_keeps_old  # noqa: E402
 from reload import reload_fires  # noqa: E402
 from sky import run_reasons, run_sky  # noqa: E402
 from views import page_fallback, run_views  # noqa: E402
@@ -330,6 +331,8 @@ def page_kiosk_and_common(run: Run):
         run.add("refresh-config-retry", refresh_config_retry(run))
     if "reload-fires" in run.names:  # the timed page reload (reload.py)
         run.add("reload-fires", reload_fires(run))
+    if "refresh-keeps-old" in run.names:  # a failed refresh keeps the last good data (outdated.py)
+        run.add("refresh-keeps-old", refresh_keeps_old(run))
     if "reduced-motion" in run.names:
         pg = run.page(reduced=True)
         time.sleep(0.3)

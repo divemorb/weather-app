@@ -1,11 +1,11 @@
 /* app.js — the page's entry module.
  *
- * Sets the language (<html lang>, the aria-labels, the footer) and the
- * theme, then reads /api/config: unconfigured -> the wizard in "first"
- * mode; configured -> the glance, Now, the chart and the details. A
- * failed /api/config at startup is retried every 10 s. A refresh
- * re-fetches all the data endpoints; each endpoint and each page part
- * fails and renders on its own; the next page reload is scheduled
+ * Sets the language and the theme, then reads /api/config: unconfigured
+ * -> the wizard in "first" mode, configured -> the glance, Now, the
+ * chart and the details. A failed /api/config is retried every 10 s.
+ * A refresh re-fetches all the data endpoints; each endpoint and page
+ * part fails and renders on its own; a failed fetch keeps the part's
+ * last good data, noted as outdated; the next reload is scheduled
  * whatever failed. Nothing throws uncaught.
  */
 
@@ -13,7 +13,7 @@
 import "./view.js";
 import { pickLang, t } from "./i18n.js";
 import { getJSON } from "./api.js";
-import { CONFIG_RETRY_MS, locationText, locationDetail, scene } from "./format.js";
+import { CONFIG_RETRY_MS, fmtTime, locationText, locationDetail, scene } from "./format.js";
 import { renderGlance, renderSkyReason } from "./glance.js";
 import { initSky } from "./sky.js";
 import { initNow, renderNow } from "./now.js";
@@ -99,6 +99,9 @@ $("theme-toggle").addEventListener("click", () => {
 /* ---- state and loading ---- */
 let cfg = null;
 let tz = "UTC";
+/* The last good answer per data endpoint, with the Date.now() ms it
+ * arrived (a failed refresh re-shows it, the note names the time). */
+let lastGood = {};
 
 /* The header's place line and the muted detail under it (the time zone,
  * plus the coordinates when the place shows a label); set everywhere a
@@ -134,11 +137,48 @@ function renderPart(name, render) {
   }
 }
 
+// the oldest arrival (Date.now() ms) among the part's failed endpoints, or null
+function oldestOf(stale, keys) {
+  let at = null;
+  for (const key of keys) {
+    if (stale[key] != null && (at == null || stale[key] < at)) at = stale[key];
+  }
+  return at;
+}
+
+/* The part's outdated note at the end of its tile (#glance, #now,
+ * #chart-card, #details): a small muted line naming the arrival time of
+ * the oldest failed endpoint, in the place's time zone. Removed when the
+ * part's endpoints all fetch good again (or it never had good data). */
+function setOutdated(part, at) {
+  const tile = document.getElementById(part === "chart" ? "chart-card" : part);
+  if (!tile) return;
+  const old = tile.querySelector("[data-test=outdated][data-part=" + part + "]");
+  if (at == null || !Number.isFinite(at)) {
+    if (old) old.remove();
+    return;
+  }
+  const text = t(lang, "outdated", { time: fmtTime(new Date(at).toISOString(), locale, tz) });
+  if (old) {
+    old.textContent = text;
+    return;
+  }
+  const p = document.createElement("p");
+  p.className = "outdated";
+  p.setAttribute("data-test", "outdated");
+  p.setAttribute("data-part", part);
+  p.textContent = text;
+  tile.appendChild(p);
+}
+
 /* One refresh: the glance, the Now section, the chart and the details.
  * Each endpoint fails on its own (a failing source never breaks the
- * other parts), so a null reaches the renderer, which shows its
- * "unavailable" state; each part renders on its own; and the next page
- * reload is scheduled whatever failed (details.js). */
+ * other parts). A good answer updates that endpoint's last-good copy;
+ * a failed fetch falls back to it, and the affected page parts get
+ * their small "outdated" note (the oldest arrival time of the failed
+ * endpoints). A part without any good answer yet keeps its "not
+ * available" state. Each part renders on its own; the next page reload
+ * is scheduled whatever failed (details.js). */
 async function refresh() {
   const fetchOrNull = (path) =>
     getJSON(path).catch((e) => {
@@ -163,6 +203,25 @@ async function refresh() {
   } catch (e) {
     console.warn(e);
   }
+  /* A good answer (not null) is this endpoint's new last-good copy,
+   * with the moment it arrived. A failed fetch falls back to the last
+   * good answer; without one, the renderer gets null ("not available").
+   * The arrival times of the failed endpoints feed the outdated notes. */
+  const stale = {};
+  for (const key of ["rain", "radar", "now", "models", "sources", "accuracy"]) {
+    if (data[key] != null) {
+      lastGood[key] = { answer: data[key], at: Date.now() };
+    } else if (lastGood[key]) {
+      data[key] = lastGood[key].answer;
+      stale[key] = lastGood[key].at;
+    }
+  }
+  /* One outdated note per affected page part; the next good refresh
+   * removes it (a part without a last good answer keeps "not available"). */
+  setOutdated("glance", oldestOf(stale, ["rain", "radar"]));
+  setOutdated("now", oldestOf(stale, ["now"]));
+  setOutdated("chart", oldestOf(stale, ["models"]));
+  setOutdated("details", oldestOf(stale, ["rain", "sources", "accuracy"]));
   if (data.now != null) skyNow = data.now;
   if (data.radar != null) skyRadar = data.radar;
   /* The current report first: the sky and the "why" line follow it.
