@@ -129,6 +129,8 @@ def parse_args(argv: list[str] | None = None):
                          "available), never more than 8; 1: one after another, as before)")
     ap.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)  # the worker processes
     ap.add_argument("--worker-index", type=int, default=0, help=argparse.SUPPRESS)
+    # the first worker index (faults.py runs several run.py at once: disjoint port ranges)
+    ap.add_argument("--worker-offset", type=int, default=0, help=argparse.SUPPRESS)
     return ap.parse_args(argv)
 
 

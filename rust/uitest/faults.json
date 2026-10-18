@@ -139,6 +139,9 @@
    ],
    "must_fail": [
     "live/en/overflow-360"
+   ],
+   "only": [
+    "live/en/overflow-360"
    ]
   },
   {
@@ -158,6 +161,9 @@
     "en"
    ],
    "must_fail": [
+    "rain/en/rain-answer"
+   ],
+   "only": [
     "rain/en/rain-answer"
    ]
   },
@@ -179,6 +185,9 @@
    ],
    "must_fail": [
     "accuracy/en/*"
+   ],
+   "only": [
+    "accuracy/en/*"
    ]
   },
   {
@@ -199,6 +208,9 @@
    ],
    "must_fail": [
     "report/en/report-shows"
+   ],
+   "only": [
+    "report/en/report-shows"
    ]
   },
   {
@@ -217,6 +229,9 @@
     "de"
    ],
    "must_fail": [
+    "errors/de/radar-unavailable"
+   ],
+   "only": [
     "errors/de/radar-unavailable"
    ]
   },
@@ -237,6 +252,9 @@
    ],
    "must_fail": [
     "fallback/en/now-fallback"
+   ],
+   "only": [
+    "fallback/en/now-fallback"
    ]
   },
   {
@@ -255,6 +273,9 @@
     "en"
    ],
    "must_fail": [
+    "unconfigured/en/setup-visible"
+   ],
+   "only": [
     "unconfigured/en/setup-visible"
    ]
   },
@@ -277,6 +298,9 @@
    ],
    "must_fail": [
     "wizard/*/validation"
+   ],
+   "only": [
+    "wizard/*/validation"
    ]
   },
   {
@@ -298,6 +322,9 @@
    ],
    "must_fail": [
     "wizard/*/search-failed"
+   ],
+   "only": [
+    "wizard/*/search-failed"
    ]
   },
   {
@@ -318,6 +345,9 @@
    ],
    "must_fail": [
     "wizard/en/cancel"
+   ],
+   "only": [
+    "wizard/en/cancel"
    ]
   },
   {
@@ -336,6 +366,9 @@
     "en"
    ],
    "must_fail": [
+    "report-glance/en/*"
+   ],
+   "only": [
     "report-glance/en/*"
    ]
   },
@@ -453,6 +486,12 @@
     "de"
    ],
    "must_fail": [
+    "rain/en/dst-radar-labels",
+    "rain/de/dst-radar-labels",
+    "rain/en/dst-chart-x-labels",
+    "rain/de/dst-chart-x-labels"
+   ],
+   "only": [
     "rain/en/dst-radar-labels",
     "rain/de/dst-radar-labels",
     "rain/en/dst-chart-x-labels",

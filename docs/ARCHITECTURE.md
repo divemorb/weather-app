@@ -102,7 +102,7 @@ The background behind the tiles shows the current weather as an animated scene (
 
 The scene is decided by `sceneReason()` in `format.js` (pure; the UI tests run it in Node). It looks at two inputs from the API: the station's icon (`/api/now` conditions icon — one of Bright Sky's twelve) and the radar at the place right now (the first five-minute step of `/api/radar/next-hour`). The rules:
 
-- Rain on the radar overrides everything: a wet first step shows "heavy-rain" at 0.2 mm or more per step, "rain" below (REQ_SKY_2).
+- Rain on the radar overrides a dry icon: a wet first step shows "heavy-rain" at 0.2 mm or more per step, "rain" below (REQ_SKY_2). It does not override sleet, snow, hail or a thunderstorm: the radar can't tell snow from rain, so those icons stay while it rains.
 - A dry radar beats a wet station: the station's rain, sleet, snow or hail icon becomes "cloudy", because the station can be kilometres away and the radar measures at the place itself (rule B, REQ_SKY_3). A thunderstorm stays a thunderstorm even with a dry radar — it can arrive fast (REQ_SKY_3).
 - The station's "rain" icon follows the radar at the place: dry radar gives "cloudy", a wet radar gives "rain" or "heavy-rain".
 - Without radar data the station's icon is shown as it is; with nothing to show the scene is "none" and the sky shows the plain page background.
@@ -132,7 +132,7 @@ rust/
   contract/               # API contract suite: frozen goldens, run against the Rust app (rust/contract/README.md)
   uitest/                 # page checks in headless Chromium (rust/uitest/README.md)
   src/main.rs             # the binary: server, `wetter snapshot PATH`
-  src/lib.rs              # crate root: the router, startup wiring, the public API
+  src/lib.rs              # crate root: the private modules and the re-exports main.rs and rust/tests use
   src/config.rs           # weather.yaml + environment overrides
   src/models.rs           # the normalized types shared by parsers, logic and serializers
   src/store.rs            # SQLite: source cache, forecast history, user reports, app_meta
@@ -140,7 +140,7 @@ rust/
   src/brightsky.rs        # Bright Sky parsers (current weather, observations)
   src/radar.rs            # radar frame decoding
   src/openmeteo.rs        # model forecast + ensemble parsers
-  src/upstream.rs         # SourceError: malformed upstream data, never a panic
+  src/upstream.rs         # shared upstream plumbing: the HTTP client, SourceError (bad data never panics)
   src/aggregator.rs       # refreshes, observation backfill, read model
   src/probability.rs      # rain probability for the next 60 minutes
   src/accuracy.rs         # per-model accuracy scoring
@@ -213,7 +213,7 @@ The code is checked in four layers, cheapest first.
 
 **Unit tests.** `cargo test` in `rust/` runs the crate's tests: the logic lives in small pure functions (the probability signals, the scene, the parsers, the validation), so each is tested directly against fixture payloads from `testutil.rs`, without a server or a database.
 
-**The contract suite.** `rust/contract/` (its [README](../rust/contract/README.md)) proves the backend answers exactly as frozen goldens record. Seven scenarios with fixed "now", environment and upstream data drive about 100 request cases through a fake upstream (`fakeup.py`) and a frozen clock; the responses are normalized and diffed against `golden/`. The goldens were recorded from the Python app and are frozen: a change to them is reviewed line by line before it is kept.
+**The contract suite.** `rust/contract/` (its [README](../rust/contract/README.md)) proves the backend answers exactly as frozen goldens record. Scenarios with fixed "now", environment and upstream data drive the request cases through a fake upstream (`fakeup.py`) and a frozen clock; the responses are normalized and diffed against `golden/`. The goldens were recorded from the Python app and are frozen: a change to them is reviewed line by line before it is kept.
 
 **The UI suite.** `rust/uitest/` (its [README](../rust/uitest/README.md)) checks the page in headless Chromium against the Rust app, on the contract suite's recorded Berlin data. It asserts what the page shows through `data-test` hooks, measures contrast on pixels (translucent tiles over the moving sky included), runs the sky scenario (scene, motion, stillness under reduced motion), and runs the pure page modules (`format.js`, `i18n.js`) as Node unit tests. `faults.py` plants known defects into a copy of `app/static` and fails when the harness misses one of them — the proof that the checks still see what they should.
 

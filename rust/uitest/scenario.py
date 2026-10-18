@@ -26,7 +26,7 @@ from page_checks import (check_chart, check_common_a, check_details, check_glanc
 from big import kiosk_chart_problems, kiosk_fill_problems, kiosk_room_problems, run_big  # noqa: E402
 from chart import chart_single_point  # noqa: E402
 from clock import dst_chart_x_labels, dst_radar_labels  # noqa: E402
-from edges import fallback_text_problems, now_texts_problems, radar_unavailable_text_problems, setup_texts_problems  # noqa: E402
+from edges import now_texts_problems, radar_unavailable_text_problems, setup_texts_problems  # noqa: E402
 from flows import refresh_config_retry, refresh_render_error, run_wizard, theme_toggle  # noqa: E402
 from reload import reload_fires  # noqa: E402
 from sky import run_reasons, run_sky  # noqa: E402

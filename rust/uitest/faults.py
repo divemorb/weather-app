@@ -21,9 +21,11 @@ gone: update faults.json).
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import fnmatch
 import json
 import pathlib
+import queue
 import re
 import shutil
 import subprocess
@@ -32,6 +34,7 @@ import tempfile
 import time
 
 HERE = pathlib.Path(__file__).resolve().parent
+JOBS = 6  # faults run at once; each run.py gets 2 workers of its own (ports: worker_ports)
 STATIC = HERE.parent.parent / "app" / "static"
 
 
@@ -50,13 +53,19 @@ def plant(fault: dict, dest: pathlib.Path) -> None:
         path.write_text(text)
 
 
-def run_fault(fault: dict, binary: str) -> tuple[list[str], str]:
+def worker_ports(slot: int) -> list[str]:
+    """run.py options for a fault in this slot: 2 workers whose indices (and so
+    port ranges) no other slot and no plain run.py (indices 0-7) uses."""
+    return ["--workers", "2", "--worker-offset", str(8 + 2 * slot)]
+
+
+def run_fault(fault: dict, binary: str, slot: int = 0) -> tuple[list[str], str]:
     """The failing checks of the run on the planted copy, and the output."""
     with tempfile.TemporaryDirectory(prefix="fault-") as tmp:
         static = pathlib.Path(tmp) / "static"
         plant(fault, static)
         cmd = [sys.executable, str(HERE / "run.py"), "--binary", binary, "--no-unit", "--static", str(static),
-               "--scenario", *fault["scenario"]]
+               "--scenario", *fault["scenario"], *worker_ports(slot)]
         if fault.get("lang"):
             cmd += ["--lang", *fault["lang"]]
         if fault.get("only"):
@@ -73,6 +82,7 @@ def main() -> int:
     ap.add_argument("--discover", action="store_true", help="print every failing check per fault")
     ap.add_argument("--require", nargs="*", default=["*"], help="fault/<name> patterns that must be caught")
     ap.add_argument("--gaps", action="store_true", help="run the gaps list (not required)")
+    ap.add_argument("--jobs", type=int, default=JOBS, help="faults run at once")
     args = ap.parse_args()
     faults = json.loads((HERE / "faults.json").read_text())["gaps" if args.gaps else "faults"]
     if args.fault:
@@ -85,18 +95,32 @@ def main() -> int:
         return (not args.gaps and any(fnmatch.fnmatch(n, p) for p in args.require if not p.startswith("!"))
                 and not any(fnmatch.fnmatch(n, p[1:]) for p in args.require if p.startswith("!")))
 
-    caught = missed = required_missed = 0
-    for fault in faults:
-        t0 = time.time()
+    slots: queue.Queue[int] = queue.Queue()
+    for s in range(max(1, args.jobs)):
+        slots.put(s)
+
+    def in_slot(fault):
+        slot = slots.get()
         try:
-            failed, out = run_fault(fault, args.binary)
+            t0 = time.time()
+            failed, out = run_fault(fault, args.binary, slot)
+            return failed, out, time.time() - t0
+        finally:
+            slots.put(slot)
+
+    caught = missed = required_missed = 0
+    pool = concurrent.futures.ThreadPoolExecutor(max(1, args.jobs))
+    futures = [pool.submit(in_slot, f) for f in faults]
+    for fault, future in zip(faults, futures):  # reported in faults.json order
+        try:
+            failed, out, secs = future.result()
         except (ValueError, subprocess.TimeoutExpired) as exc:
             missed += 1
             required_missed += required(fault["name"])
             print(f"MISSED {fault['name']}: not run: {exc}")
             continue
         lacking = [p for p in fault["must_fail"] if not any(fnmatch.fnmatch(c, p) for c in failed)]
-        took = f"{time.time() - t0:.0f} s"
+        took = f"{secs:.0f} s"
         if lacking:
             missed += 1
             required_missed += required(fault["name"])
@@ -110,6 +134,7 @@ def main() -> int:
         if args.discover:
             for c in failed:
                 print(f"     {c}")
+    pool.shutdown()
     print(f"faults: {caught} caught, {missed} missed, {required_missed} of them required")
     return 1 if required_missed else 0
 

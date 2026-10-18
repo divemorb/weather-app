@@ -125,7 +125,7 @@ python3 rust/contract/doc_check.py
 
 ## Working with an AI coding agent
 
-This project is developed with a local model through the Continue extension. The project rules the agent follows (container and test commands, what it must not touch, backend and frontend conventions, and one sub-step per chat with `Step Nx:` commits) are in [`.continue/rules/weather-projectrules.md`](../.continue/rules/weather-projectrules.md). Continue loads that file automatically in this workspace; contributors using a different agent should give it the same rules.
+This project is developed with a local model (opencode, run step by step in a sandbox). The project rules the agent follows (container and test commands, what it must not touch, backend and frontend conventions, and one sub-step per run with `Step Nx:` commits) are in [`.continue/rules/weather-projectrules.md`](../.continue/rules/weather-projectrules.md); `opencode.json` loads them, and so does the Continue extension in this workspace. Contributors using a different agent should give it the same rules.
 
 ## Development history
 

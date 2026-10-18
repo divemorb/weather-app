@@ -1,12 +1,11 @@
-"""The day-light-saving checks for the rain page.
+"""The clock-change checks for the rain page.
 
-The page's clock is frozen at Berlin's CEST->CET switchover (a little after
-midnight UTC on the switch night) while every one of the scenario's real API
-answers is shifted by the same delta, so the data lines up with that moment.
-The radar strip and the 24-hour chart must then show the wall-clock times
-across the switch, where a fixed +02:00 offset is an hour late. The expected
-strings come from the page's own Intl formatting (UIPage.times, the location's
-zone), so the harness and the page can never disagree on the locale's shape.
+The page's clock is frozen just before Berlin's CEST->CET switch while every
+real API answer of the scenario is shifted by the same delta, so the data
+lines up with that moment. The radar strip and the 24-hour chart must then
+show the wall-clock times across the switch (a fixed +02:00 is an hour late).
+The expected strings are the browser's own Intl formatting in the place's zone
+(UIPage.times); Python's zoneinfo checks them on their own (wall_clock_problems).
 """
 
 from __future__ import annotations
@@ -15,6 +14,7 @@ import json
 import re
 import urllib.request
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from expect import TZ
 from page import Run, norm
@@ -83,6 +83,21 @@ def dst_fakes(run: Run) -> dict:
     return fakes
 
 
+def wall_clock_problems(ok: list[str], isos: list[str], lang: str) -> list[str]:
+    """The browser's expected times checked against Python's own zone data
+    (zoneinfo, not the browser's ICU): each must show the Berlin wall time
+    of its instant, 12-hour in English, 24-hour in German, so the hour after
+    the switch repeats instead of running on."""
+    problems = []
+    for shown, iso in zip(ok, isos):
+        t = _parse(iso).astimezone(ZoneInfo(TZ))
+        want = f"{t.hour % 12 or 12 if lang == 'en' else t.hour}:{t.minute:02d}"
+        m = re.search(r"\d{1,2}:\d{2}", shown)
+        if not m or m.group(0) != want:
+            problems.append(f"expected time for {iso} is {shown!r}, but Berlin's wall clock says {want}")
+    return problems
+
+
 def _faked(fakes: dict, path: str):
     """The shifted fake body for one path (dst_fakes' JSON, decoded), or None."""
     item = fakes.get(path)
@@ -102,6 +117,9 @@ def dst_radar_labels(run: Run) -> list[str]:
     pg = run.page(now=DST_NOW, fakes=fakes)
     try:
         ok = pg.times(isos)
+        wrong = wall_clock_problems(ok, isos, run.lang)
+        if wrong:
+            return wrong
         want = [ok[0], ok[4], ok[8], ok[-1]]  # glance.js labels steps 0, 4, 8 and the end
         got = [norm(e["text"]) for e in pg.ui("radar-label") if e["visible"]]
         return [] if got == want else [f"radar labels {got}, expected {want} "
@@ -128,6 +146,9 @@ def dst_chart_x_labels(run: Run) -> list[str]:
     pg = run.page(now=DST_NOW, fakes=fakes)
     try:
         ok = pg.times(hours)
+        wrong = wall_clock_problems(ok, hours, run.lang)
+        if wrong:
+            return wrong
         every = _label_every(pg.js("document.getElementById('chart-body').clientWidth"))
         want = [ok[i] for i in range(0, len(hours), every)]
         got = [norm(e["text"]) for e in pg.ui("chart-x-label") if e["visible"]]

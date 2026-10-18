@@ -71,7 +71,7 @@ class Worker:
 
     def __init__(self, index: int, args):
         cmd = [sys.executable, str(pathlib.Path(__file__).resolve().parent / "run.py"),
-               "--worker", "--worker-index", str(index)]
+               "--worker", "--worker-index", str(args.worker_offset + index)]
         if args.binary != "/target/debug/wetter":
             cmd += ["--binary", args.binary]
         if args.only:
