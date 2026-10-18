@@ -109,6 +109,8 @@ The scene is decided by `sceneReason()` in `format.js` (pure; the UI tests run i
 
 `app.js` then picks the freshest input: a fresh user report (REQ_REPORT_6) decides the sky via `reportkind.js` (REQ_SKY_7), otherwise the station and the radar decide. The "why" line under the answer (REQ_GLANCE_4, REQ_SKY_6) is rendered by `glance.js` and names what the sky shows and who decided it: the station with its distance, the nearest station, the radar, or the user's report with its time. It is hidden when the source is "none".
 
+Every refresh re-fetches all the data endpoints, and `app.js` keeps each endpoint's last good answer with the moment it arrived (REQ_PAGE_13): a good answer replaces the copy, a failed fetch falls back to it, so a failing source never empties a tile. The affected page parts — the glance, Now, the chart and the Details card — each get a small note at their tile's end naming the arrival time of the oldest failed endpoint, and the note is removed when the part's endpoints all fetch good again; a part without any good answer yet keeps its "not available" state.
+
 ## User reports
 
 The page's "Not right?" feature lets the user record the real weather when reality and the forecast differ (REQ_REPORT_1). The host tile is found by its `data-report-host` attribute in the page, not by an id, so another tile can host it later (REQ_REPORT_7); today the host is the Now tile.

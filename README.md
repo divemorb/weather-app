@@ -106,6 +106,8 @@ The first line is how much each signal counts; the second is what each one says 
 
 **Stations** lists the weather stations — name, distance, how many hours they have measured — and draws a schematic map: your place in the centre, the stations by bearing and distance, the radar radius as a circle, a north arrow and a scale bar.
 
+When a refresh can't reach a part's data, that tile keeps its last good values and adds a small note at its bottom — "Update failed – showing data from 1:45 PM" (German: "Aktualisierung fehlgeschlagen – Daten von 14:05") — naming the time those values came in. The app keeps retrying, and the note goes away by itself once a refresh works again; only a part that never loaded shows "not available" instead ([REQ_PAGE_13](docs/REQUIREMENTS.md)).
+
 If you want to know exactly how the percentage is calculated, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Everyday tasks
