@@ -31,7 +31,7 @@ mod testutil;
 
 pub use aggregator::Aggregator;
 pub use clients::{BrightSkyClient, OpenMeteoClient};
-pub use config::load_config;
+pub use config::{AppConfig, load_config};
 pub use geocode::Geocoder;
 pub use location::resolve_startup_location;
 pub use routes::{AppState, build_router};

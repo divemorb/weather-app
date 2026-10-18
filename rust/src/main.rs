@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use tokio::signal::unix::{Signal, SignalKind, signal};
 use wetter::{
-    Aggregator, AppState, BrightSkyClient, Clock, Geocoder, OpenMeteoClient, Scheduler, Store,
-    build_router, http_client, initial_refresh, load_config, load_static, parse_allowed_hosts,
-    resolve_startup_location, snapshot, snapshot_report, to_iso,
+    Aggregator, AppConfig, AppState, BrightSkyClient, Clock, Geocoder, OpenMeteoClient, Scheduler,
+    Store, build_router, http_client, initial_refresh, load_config, load_static,
+    parse_allowed_hosts, resolve_startup_location, snapshot, snapshot_report, to_iso,
 };
 
 /// `wetter` runs the server; `wetter snapshot PATH` copies the live
@@ -77,6 +77,37 @@ async fn server() {
     }
 }
 
+/// `result`, or print `message(err)` to stderr and exit with 1.
+fn or_exit<T, E: std::fmt::Display>(result: Result<T, E>, message: impl FnOnce(E) -> String) -> T {
+    match result {
+        Ok(value) => value,
+        Err(err) => {
+            eprintln!("{}", message(err));
+            std::process::exit(1);
+        }
+    }
+}
+
+/// Config, database and location (each exits with 1 on error). The location
+/// is runtime state: the stored value wins over env/YAML, which is adopted
+/// only on first start (then written to the DB).
+fn open_data() -> (AppConfig, Store) {
+    let mut config = or_exit(load_config(None, &|k| std::env::var(k).ok()), |err| {
+        format!("config error: {err}")
+    });
+    tracing::info!("config loaded (database: {})", config.database_path);
+    let store = or_exit(Store::open(&config.database_path), |err| {
+        format!(
+            "cannot open the database at {}: {err}",
+            config.database_path
+        )
+    });
+    config.location = or_exit(resolve_startup_location(&store, &config), |err| {
+        format!("cannot resolve the startup location: {err}")
+    });
+    (config, store)
+}
+
 /// Clock, config, database, clients and scheduler, ready to serve. `None`
 /// means a stop request came in during the startup refresh (clean exit).
 struct Startup {
@@ -86,62 +117,20 @@ struct Startup {
 }
 
 async fn startup(term: &mut Signal) -> Option<Startup> {
-    let clock = match Clock::from_env(&|k| std::env::var(k).ok()) {
-        Ok(clock) => clock,
-        Err(err) => {
-            eprintln!("WETTER_FAKE_NOW must be an ISO-8601 timestamp: {err}");
-            std::process::exit(1);
-        }
-    };
+    let clock = or_exit(Clock::from_env(&|k| std::env::var(k).ok()), |err| {
+        format!("WETTER_FAKE_NOW must be an ISO-8601 timestamp: {err}")
+    });
     if clock.is_fixed() {
         tracing::warn!(
             "WETTER_FAKE_NOW is set: the clock is frozen at {}",
             to_iso(clock.now())
         );
     }
-    let mut config = match load_config(None, &|k| std::env::var(k).ok()) {
-        Ok(config) => config,
-        Err(err) => {
-            eprintln!("config error: {err}");
-            std::process::exit(1);
-        }
-    };
-    tracing::info!("config loaded (database: {})", config.database_path);
-    let store = match Store::open(&config.database_path) {
-        Ok(store) => store,
-        Err(err) => {
-            eprintln!(
-                "cannot open the database at {}: {err}",
-                config.database_path
-            );
-            std::process::exit(1);
-        }
-    };
-    // The location is runtime state: the stored value wins over env/YAML,
-    // which is adopted only on first start (then written to the DB).
-    config.location = match resolve_startup_location(&store, &config) {
-        Ok(location) => location,
-        Err(err) => {
-            eprintln!("cannot resolve the startup location: {err}");
-            std::process::exit(1);
-        }
-    };
-    let http = match http_client(config.api.timeout_seconds) {
-        Ok(http) => http,
-        Err(err) => {
-            eprintln!("{err}");
-            std::process::exit(1);
-        }
-    };
+    let (config, store) = open_data();
+    let http = or_exit(http_client(config.api.timeout_seconds), |err| err);
     // The geocoder gets its own client: Nominatim's 10 s timeout is fixed
     // by its usage policy, whatever the app's upstream timeout is.
-    let geocode_http = match http_client(10.0) {
-        Ok(client) => client,
-        Err(err) => {
-            eprintln!("{err}");
-            std::process::exit(1);
-        }
-    };
+    let geocode_http = or_exit(http_client(10.0), |err| err);
     let brightsky = BrightSkyClient::new(&config, http.clone());
     let openmeteo = OpenMeteoClient::new(&config, http);
     let agg = Arc::new(Aggregator::new(
@@ -154,17 +143,8 @@ async fn startup(term: &mut Signal) -> Option<Startup> {
     let geocoder = Arc::new(Geocoder::new(&config.api.nominatim_base_url, geocode_http));
     let scheduler = Arc::new(Scheduler::new());
     scheduler.start(&agg);
-    // Warm the cache before the listener binds: /healthz answering means the
-    // first refresh is done (a failing source must not block startup). A
-    // stop request during the refresh exits cleanly: the spawned scheduler
-    // tasks end with the runtime, and database writes are synchronous calls
-    // between the .awaits, so no half-done write survives.
-    tokio::select! {
-        () = initial_refresh(&agg) => {},
-        () = shutdown_requested(term) => {
-            tracing::info!("shutdown requested during startup");
-            return None;
-        }
+    if !warm_cache(term, &agg).await {
+        return None;
     }
     scheduler.schedule_models_retry(&agg);
     tracing::info!("weather app started (db={})", config.database_path);
@@ -173,6 +153,22 @@ async fn startup(term: &mut Signal) -> Option<Startup> {
         scheduler,
         geocoder,
     })
+}
+
+/// Warm the cache before the listener binds: /healthz answering means the
+/// first refresh is done (a failing source must not block startup). A stop
+/// request during the refresh ends the startup cleanly: the spawned
+/// scheduler tasks end with the runtime, and database writes are synchronous
+/// calls between the .awaits, so no half-done write survives. `true` means
+/// the refresh finished.
+async fn warm_cache(term: &mut Signal, agg: &Arc<Aggregator>) -> bool {
+    tokio::select! {
+        () = initial_refresh(agg) => true,
+        () = shutdown_requested(term) => {
+            tracing::info!("shutdown requested during startup");
+            false
+        }
+    }
 }
 
 /// The router state from the startup parts.
