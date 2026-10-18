@@ -463,6 +463,29 @@
    "must_fail": [
     "rain/en/chart-single-point"
    ]
+  },
+  {
+   "name": "undo-no-reread",
+   "why": "a failed undo no longer re-reads the current report, the front shows nothing although the report is still there",
+   "edits": [
+    {
+     "file": "report.js",
+     "find": "    await reportCurrent(null, true); // an older fresh report may show again: the sky follows it",
+     "replace": "    // re-read removed (fault)"
+    }
+   ],
+   "scenario": [
+    "report"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "report/en/report-undo-failed"
+   ],
+   "must_fail": [
+    "report/en/report-undo-failed"
+   ]
   }
  ],
  "gaps": []

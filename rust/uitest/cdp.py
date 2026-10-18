@@ -198,15 +198,41 @@ class Page:
     def fake(self, responses: dict[str, list[tuple[int, str]]]):
         """Answer the next requests to these paths with (status, JSON body), in
         order; once a path's list is used up, its requests reach the app again.
-        Call before goto(); the fakes are served while the page is pumped."""
+        A key ending in * is a path prefix; a key starting with a method word
+        ("DELETE /api/reports/*") also matches the request's method. Call
+        before goto(); the fakes are served while the page is pumped."""
         self._fakes = {path: list(seq) for path, seq in responses.items()}
-        self.send("Fetch.enable", {"patterns": [{"urlPattern": f"*{path}*"} for path in responses]})
+        self.send("Fetch.enable", {"patterns": [{"urlPattern": f"*{self._fake_pattern(key)}*"}
+                                                for key in responses]})
+
+    def fakes_left(self) -> int:
+        """How many faked answers are still waiting to be served."""
+        return sum(len(seq) for seq in self._fakes.values())
+
+    @staticmethod
+    def _fake_pattern(key: str) -> str:
+        """The urlPattern for a fake key: the path part (after an optional method word)."""
+        return key.split(" ", 1)[1] if " " in key else key
+
+    def _fake_key(self, path: str, method: str) -> str | None:
+        """The key of the fake that answers this request: the exact path first,
+        then a "METHOD prefix*" or "prefix*" key (a * matches the rest of the path)."""
+        if path in self._fakes:
+            return path
+        for key in self._fakes:
+            if not self._fakes[key]:
+                continue
+            m, pat = (key.split(" ", 1) + [""])[:2] if " " in key else ("", key)
+            if (m == method if m else True) and path.startswith(pat.rstrip("*")):
+                return key
+        return None
 
     def _paused(self, p: dict):
         import base64
         import urllib.parse
         path = urllib.parse.urlsplit(p["request"]["url"]).path
-        seq = self._fakes.get(path)
+        key = self._fake_key(path, p["request"].get("method", "GET"))
+        seq = self._fakes.get(key) if key else None
         if not seq:
             self.send("Fetch.continueRequest", {"requestId": p["requestId"]})
             return

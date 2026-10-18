@@ -29,8 +29,8 @@ LANG_I = {"en": 0, "de": 1}
 FLIP = (["report-open", "report-closed", "report-flip", "report-picker", "report-shows", "report-close",
          "report-escape", "report-locked", "report-motion", "report-still", "report-buttons",
          "report-contrast-light", "report-contrast-dark", "report-open-clear"] + [f"report-fit-{v}" for v in REPORT_FIT])
-SAVE = ["report-save", "report-undo", "report-intensity", "report-skip", "report-confirm", "report-error",
-        "report-line-fresh"]
+SAVE = ["report-save", "report-undo", "report-undo-failed", "report-intensity", "report-skip", "report-confirm",
+        "report-error", "report-line-fresh"]
 SKY = [f"sky-report-{c}" for c in REPORT_SKY_CASES] + ["sky-report-none", "sky-after-save"]
 DETAILS = ["details-reports", "details-reports-fit"]
 GLANCE_HOST = ["report-open", "report-closed", "report-flip", "report-fit-big-1280x800", "report-fit-phone-360",

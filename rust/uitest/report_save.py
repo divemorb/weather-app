@@ -172,6 +172,40 @@ def save_fresh(run: Run) -> None:
     run.done(pg)
 
 
+def undo_settled(pg, rep: dict) -> list[str]:
+    """Wait until the undo's DELETE has been faked (the 500 served) and the
+    page is idle again (a re-read, when it happens, has landed and rendered)."""
+    end = time.monotonic() + REPORT_SAVE_S
+    while pg.p.fakes_left() and time.monotonic() < end:
+        pg.p.pump()
+        time.sleep(0.05)
+    if pg.p.fakes_left():
+        return [f"the undo's DELETE /api/reports/{rep['id']} never reached the page"]
+    pg.p.wait_idle(timeout=REPORT_SAVE_S, idle=0.1)
+    pg.settle()
+    return []
+
+
+def undo_failed(run: Run) -> None:
+    """A failed undo (a faked 500 on the DELETE): the page re-reads
+    /api/reports/current and the front's line still shows the report that is
+    really still there (report-undo-failed)."""
+    clear_fresh(run.base)
+    pg = run.page()
+    rep = save_fog(run, pg)
+    if not rep:
+        run.add("report-undo-failed", ["nothing saved (see report-save)"])
+        run.done(pg)
+        return
+    pg.p.fake({"DELETE /api/reports/*": [(500, json.dumps({"detail": "boom"}))]})
+    problems = pg.click(selector=sel("report-undo")) or undo_settled(pg, rep)
+    if not problems and current(run.base) != rep:
+        problems.append(f"the report after the failed undo is {current(run.base)!r}, expected {rep!r}")
+    problems = problems or line_problems(pg, run.lang, rep, run.sc["now"])
+    run.add("report-undo-failed", problems)
+    pg.close()  # its console has the faked 500 on purpose
+
+
 def run_save(run: Run):
     """Saving: fog, the sky after the save, undo, the intensity
     choices, confirming, a failing save, a fresh report from elsewhere."""

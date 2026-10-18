@@ -9,7 +9,7 @@ import json
 
 from expect import MODEL_LABELS, REPORT_FIT, REPORT_SKY_CASES, REPORT_TEXT, SCENE_LABEL
 from page import Run, UIPage, has, norm
-from report_save import run_save
+from report_save import run_save, undo_failed
 from report_ui import (FIT, LANG_I, OPEN_CLEAR, _api, _iso, back_contrast,
                        clear_fresh, closed_problems, current, open_back, open_label_problems,
                        picker_problems, sel, settle_turn, shows_problems, state, visible, wait)
@@ -25,6 +25,8 @@ def run(run: Run):
     locked_motion_checks(run)
     if "report-save" in run.names:
         run_save(run)
+    if "report-undo-failed" in run.names:
+        undo_failed(run)
     if "sky-report-none" in run.names:
         run_sky(run)
     if "details-reports" in run.names:
