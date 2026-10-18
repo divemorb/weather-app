@@ -135,6 +135,7 @@ def main():
         files = sum(len(code_files([d])) for d in dirs)
         for p, _ in file_sizes(dirs, warn, max_lines):
             bad += 1
+        long_files = bad
         func_paths = [p for p in args.paths if p.is_file()]
     for path in func_paths:
         sizes = python_sizes(path) if path.suffix == ".py" else js_sizes(path)
@@ -145,7 +146,8 @@ def main():
                 bad += 1
                 print(f"{path}:{line} {name}: {', '.join(problems)}")
     if args.file_lines:
-        print(f"sizes: {bad} files over the limits ({files} files checked)")
+        print(f"sizes: {long_files} files over the length limit ({files} files checked)"
+              + (f", {bad - long_files} functions over the limits" if func_paths else ""))
     else:
         print(f"sizes: {bad} functions over the limits")
     return 1 if bad else 0

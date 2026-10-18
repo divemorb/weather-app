@@ -115,7 +115,8 @@ python3 rust/contract/doc_check.py
 
 - **Lints** in `rust/Cargo.toml` (`[lints]`): `unsafe_code` is forbidden; Clippy denies `unwrap`, `expect`, `panic`, index and string slicing, `todo!`/`unimplemented!`/`dbg!`, lossy casts, and `allow` without a reason, plus a curated list of pedantic and nursery lints (for example `too_many_lines`, `unreadable_literal`, `use_self`). `rust/clippy.toml` relaxes `unwrap`, `expect`, `panic` and indexing in test code.
 - **Comments**, checked by `rust/contract/comment_rules.py AREA` (`rust-app`, `rust-tests`, `page`, `harness`): no build-step IDs and no dates (git keeps history), no mention of Python, the module header at most 10 lines, every other comment block at most 12, and a comment right above every public item.
-- **Function size**, checked by `rust/contract/sizes.py --max-lines 80 --max-args 6 <files>`: no function longer than 80 lines or with more than 6 parameters (the docstring's example sizes the harness, `rust/uitest/*.py` and `rust/uitest/probe.js`).
+- **Function size**, checked by `rust/contract/sizes.py --max-lines 80 --max-args 6 <files>`: no function longer than 80 lines or with more than 6 parameters (the docstring's example sizes the harness, `rust/uitest/*.py` and `rust/uitest/probe.js`). In Rust, Clippy holds the same line: `too_many_lines` (100), `too_many_arguments` (7), `cognitive_complexity` (25) and the two bool lints.
+- **File length**, checked by `rust/contract/sizes.py --file-lines 400 600 rust app`: a code file over 400 lines is a warning (split it when you next add to it), over 600 an error. Data files are not counted.
 
 ## Where to start reading
 

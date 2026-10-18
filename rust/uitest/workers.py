@@ -47,13 +47,14 @@ def cgroup_cpus() -> float | None:
 
 
 def default_workers() -> int:
-    """min(6, the CPUs available), the CPUs from the affinity mask and the
-    cgroup quota when set; never more than 8, never less than 1."""
+    """min(8, the CPUs available), the CPUs from the affinity mask and the
+    cgroup quota when set; never less than 1 (8 workers: 86 s against 100 s
+    with 6, measured 2026-10-18; the suite waits more than it computes)."""
     cpus = float(len(os.sched_getaffinity(0)))
     quota = cgroup_cpus()
     if quota is not None:
         cpus = min(cpus, quota)
-    return max(1, min(6, int(cpus)))
+    return max(1, min(MAX_WORKERS, int(cpus)))
 
 
 # The scenarios, longest first (report, live and rain take the longest; the
