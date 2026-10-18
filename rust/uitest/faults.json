@@ -440,6 +440,29 @@
    "must_fail": [
     "rain/en/reload-fires"
    ]
+  },
+  {
+   "name": "chart-no-dot",
+   "why": "the one-value run is never drawn as a dot",
+   "edits": [
+    {
+     "file": "chart.js",
+     "find": "} else if (cur.length === 1) {",
+     "replace": "} else if (false) {"
+    }
+   ],
+   "scenario": [
+    "rain"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "rain/en/chart-single-point"
+   ],
+   "must_fail": [
+    "rain/en/chart-single-point"
+   ]
   }
  ],
  "gaps": []

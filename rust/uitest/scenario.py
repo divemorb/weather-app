@@ -24,6 +24,7 @@ from page_checks import (check_chart, check_common_a, check_details, check_glanc
                          check_now, check_radar, contrast_problems, page_unconfigured,
                          theme_icon_problems, theme_problems)
 from big import kiosk_chart_problems, kiosk_fill_problems, kiosk_room_problems, run_big  # noqa: E402
+from chart import chart_single_point  # noqa: E402
 from clock import dst_chart_x_labels, dst_radar_labels  # noqa: E402
 from edges import fallback_text_problems, now_texts_problems, radar_unavailable_text_problems, setup_texts_problems  # noqa: E402
 from flows import refresh_config_retry, refresh_render_error, run_wizard, theme_toggle  # noqa: E402
@@ -202,6 +203,8 @@ def page_content(run: Run):
                     + expect_hidden(pg, "now-temp"))
             run.add("now-station", expect_hidden(pg, "now-station"))
         check_chart(pg, exp, run.add)
+        if "chart-single-point" in run.names:
+            run.add("chart-single-point", chart_single_point(run))
     run.shot(pg, "desktop-light")
     run.done(pg)
     # the details page (?detailed), light
