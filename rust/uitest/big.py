@@ -238,25 +238,35 @@ def track_problems(pg: UIPage, theme: str, rain: bool = False) -> list[str]:
     return []
 
 
-def run_big(run: Run):
-    """The big view (the default) on a desktop and on a phone."""
+def big_label_pages(run: Run) -> list[str]:
+    """The big view's radar labels, on a desktop and on a phone."""
     problems = []
     for size, where in ((VIEW_DESKTOP, "desktop"), (BIG_PHONE, "phone")):
         pg = run.page(width=size[0], height=size[1])
         problems += big_label_problems(pg, f"{where} {size[0]}x{size[1]}")
         pg.close()
-    hp = []
-    for size in BIG_HEADLINE_SIZES:
-        pg = run.page(width=size[0], height=size[1])
-        hp += headline_problems(pg, size)
-        pg.close()
-    run.add("big-headline", hp)
-    order = []
-    for size in BIG_HIERARCHY_SIZES:
-        pg = run.page(width=size[0], height=size[1])
-        order += hierarchy_problems(pg, size)
-        pg.close()
-    run.add("big-hierarchy", order)
+    return problems
+
+
+def run_big(run: Run):
+    """The big view (the default) on a desktop and on a phone; a job that wants
+    only the tracks (``rain-tracks``) loads no other big-view page."""
+    if "big-labels" in run.names:
+        run.add("big-labels", big_label_pages(run))
+    if "big-headline" in run.names:
+        hp = []
+        for size in BIG_HEADLINE_SIZES:
+            pg = run.page(width=size[0], height=size[1])
+            hp += headline_problems(pg, size)
+            pg.close()
+        run.add("big-headline", hp)
+    if "big-hierarchy" in run.names:
+        order = []
+        for size in BIG_HIERARCHY_SIZES:
+            pg = run.page(width=size[0], height=size[1])
+            order += hierarchy_problems(pg, size)
+            pg.close()
+        run.add("big-hierarchy", order)
     if "rain-tracks" in run.names:
         tracks = []
         for theme in ("light", "dark"):
@@ -264,7 +274,6 @@ def run_big(run: Run):
             tracks += track_problems(pg, theme, rain=True)
             pg.close()
         run.add("rain-tracks", tracks)
-    run.add("big-labels", problems)
     if "view-label" in run.names:
         problems = []
         for size in (VIEW_DESKTOP, BIG_PHONE):

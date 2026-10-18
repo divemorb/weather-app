@@ -170,10 +170,25 @@ def run_pages(run: Run):
     page_kiosk_and_common(run)
 
 
+# the checks the phases after the content pages record (the phone at 360 px and
+# the kiosk and flow pages); a job that wants only these loads no content page
+AFTER_CONTENT = {"overflow-360", "details-fit", "theme-icon", "theme-toggle", "rain-tracks",
+                 "reduced-motion", "reload-fires", "console", "requests"}
+AFTER_CONTENT_PREFIX = ("kiosk-", "reason-", "view-", "big-", "layout-", "refresh-", "dst-")
+
+
+def content_wanted(run: Run) -> bool:
+    """Whether any check the content pages record is wanted (a job that runs
+    only the kiosk and flow checks loads no content page for nothing)."""
+    return any(c not in AFTER_CONTENT and not c.startswith(AFTER_CONTENT_PREFIX) for c in run.names)
+
+
 def page_content(run: Run):
     """A: desktop, light; the content checks, then the details opened (live, rain,
     errors and accuracy; the other scenarios have their own page above)."""
     if run.name not in ("live", "rain", "errors", "accuracy"):
+        return
+    if not content_wanted(run):
         return
     exp = SCENARIO.get(run.name, {})
     pg = run.page()
@@ -251,6 +266,8 @@ def page_phone_360(run: Run):
     """C: phone, 360 px: the big view, then the details page (opened)."""
     if run.name not in ("live", "rain", "errors", "unconfigured", "accuracy"):
         return
+    if not any(c in run.names for c in ("overflow-360", "details-fit")):
+        return  # a job that wants neither check loads no phone page
     for query in ("", "?detailed"):
         pg = run.page(width=360, height=740, query=query)
         pg.js("__ui.openDetails()")
@@ -281,7 +298,8 @@ def page_kiosk_and_common(run: Run):
     labels, the tile layout per width, the refresh failures and the reduced motion."""
     if "theme-icon" in run.names:
         run.add("theme-icon", theme_icon_problems(run.icons))
-    if run.name in ("live", "rain"):
+    kiosk_wanted = any(f"kiosk-{w}x{h}" in run.names for w, h in KIOSK_SIZES)
+    if run.name in ("live", "rain") and kiosk_wanted:
         for size in KIOSK_SIZES:
             pg = run.page(width=size[0], height=size[1], query="?kiosk")
             check_kiosk(pg, SCENARIO.get(run.name, {}), size, run.add)
@@ -297,7 +315,8 @@ def page_kiosk_and_common(run: Run):
         run_reasons(run)
     if "view-default" in run.names:
         run_views(run)
-    if "big-labels" in run.names:
+    if any(n in run.names for n in ("big-labels", "big-headline", "big-hierarchy", "rain-tracks", "big-tracks",
+                                    "view-label")):
         run_big(run)
     for w in LAYOUT_COLUMNS:
         if f"layout-{w}" in run.names:

@@ -1,12 +1,12 @@
 """Parallel UI runs: one worker process per job.
-
-One job per scenario, except ``sky`` (one job per scene), so no scenario is
-the long pole; each worker is a ``run.py --worker`` subprocess with its own
-app, fake upstream and Chromium per language. Worker k owns the app ports
-``20000 + 100*k .. 20000 + 100*k + 99`` (disjoint ranges: two workers never
-pick the same port; on a busy port the next in the range is tried). Jobs
-arrive on stdin as one JSON line each (with an ``idx``); per job the worker
-prints ``UITEST-RESULT <json>`` to stdout, everything else to stderr.
+One job per scenario and language (``wizard`` stays one job, its German
+validation before the English save), except ``sky`` (one per scene) and
+``rain`` (the en-only flow checks in a second job); each worker is a
+``run.py --worker`` subprocess with its own app, fake upstream and Chromium
+per language. Worker k owns app ports ``20000 + 100*k .. 20000 + 100*k + 99``
+(disjoint ranges, a busy port tries the next); jobs arrive on stdin as one
+JSON line each (with an ``idx``); per job the worker prints ``UITEST-RESULT
+<json>`` to stdout, everything else to stderr.
 """
 from __future__ import annotations
 
@@ -185,10 +185,13 @@ class JobPool:
             worker.close()
 
     def job_name(self, idx: int) -> str:
-        """The scenario of a job, with the sky's scene (its first check) when split."""
+        """The scenario of a job, its language when the job has one, and the
+        part when split (its tag, or the sky's scene as its first check)."""
         job = self.jobs[idx]
         only = job.get("only")
-        return job["scenarios"][0] + (f"[{only[0]}]" if only else "")
+        part = job.get("tag") or (only[0] if only else None)
+        lang = f"/{job['langs'][0]}" if job.get("langs") else ""
+        return job["scenarios"][0] + lang + (f"[{part}]" if part else "")
 
     def timing_line(self) -> str:
         """The jobs, slowest first: where the suite's wall time goes."""
@@ -247,7 +250,21 @@ def run_jobs(args, jobs: list[dict], job_checks: list[list[str]]) -> dict[str, l
     return JobPool(args, jobs, job_checks).poll()
 
 
-# --- the jobs (one per scenario, sky one per scene) -------------------------
+# --- the jobs (one per scenario and language, sky one per scene, rain en
+# split off its flow checks) ---------------------------------------------------
+
+# The rain checks that need their own page or a long wait (the timed reload,
+# the refresh flows, the reduced motion and the rainy tracks): they run in a
+# job of their own (rain_flow_names), never on the same job as the content
+# pages they would otherwise follow.
+RAIN_FLOW = ["reduced-motion", "refresh-render-error", "refresh-config-retry", "rain-tracks", "reload-fires"]
+
+
+def rain_flow_names() -> list[str]:
+    """The rain/en flow job's checks: RAIN_FLOW plus console and requests
+    (the per-page aggregations, kept in every job: the merge takes the union,
+    so an error on a flow page still fails them, as in the serial run)."""
+    return RAIN_FLOW + ["console", "requests"]
 
 
 def _sky_scene_of(check: str) -> str | None:
@@ -281,13 +298,36 @@ def sky_job_names() -> list[list[str]]:
 
 def build_jobs(args, scenarios: list[str], langs: list[str]) -> tuple[list[dict], list[list[str]]]:
     """The jobs to run, longest first, and the check names each job is
-    responsible for (a job that dies reports its checks as failed)."""
+    responsible for (a job that dies reports its checks as failed). Every
+    scenario that runs both languages gets one job per language (each with its
+    own app and database, so a check never reads what the other language's run
+    left behind); ``wizard`` stays one job (``SCENARIO_LANGS``: the German
+    validation runs before the English save). rain's en-only flow checks (the
+    timed reload, the refresh flows, the reduced motion and the tracks) run in
+    a second rain/en job (``only`` subset, like the sky's scene jobs)."""
     jobs: list[tuple[int, dict, list[str]]] = []
     for name in scenarios:
         if name != "sky":
-            jobs.append((JOB_RANK.get(name, 9), {"scenarios": [name], "only": None},
-                         [f"{name}/{lang}/{c}" for lang in SCENARIO_LANGS.get(name, ["en", "de"])
-                          if lang in langs for c in check_names(name, lang)]))
+            for lang in SCENARIO_LANGS.get(name, ["en", "de"]):
+                if lang not in langs:
+                    continue
+                if name == "wizard":
+                    continue
+                names = check_names(name, lang)
+                if name == "rain" and lang == "en":  # the content pages and the flow pages split
+                    flow = rain_flow_names()
+                    for only, tag in (([c for c in names if c not in flow], "content"), (flow, "flows")):
+                        jobs.append((JOB_RANK[name],
+                                     {"scenarios": [name], "langs": [lang], "only": only, "tag": tag},
+                                     [f"{name}/{lang}/{c}" for c in only]))
+                    continue
+                jobs.append((JOB_RANK.get(name, 9),
+                             {"scenarios": [name], "langs": [lang], "only": None},
+                             [f"{name}/{lang}/{c}" for c in names]))
+            if name == "wizard" and any(l in langs for l in SCENARIO_LANGS["wizard"]):
+                jobs.append((JOB_RANK["wizard"], {"scenarios": [name], "only": None},
+                             [f"{name}/{lang}/{c}" for lang in SCENARIO_LANGS["wizard"] if lang in langs
+                              for c in check_names(name, lang)]))
             continue
         for subset in sky_job_names():
             jobs.append((JOB_RANK["sky"], {"scenarios": ["sky"], "only": subset},
@@ -299,20 +339,18 @@ def build_jobs(args, scenarios: list[str], langs: list[str]) -> tuple[list[dict]
 def run_job(args, job: dict) -> dict[str, list[str]]:
     """One job in a worker process (its own app, fake upstream and Chromium,
     as ``run_scenario`` does per scenario today): ``{"scenarios": [...],
-    "only": [check names] or None}``; returns the problems, keyed by the
-    checks' full names."""
+    "langs": [language] or all the scenario's languages when missing,
+    "only": [check names] or None, "tag": the job's part name for the timing
+    line (the rain split)}``; returns the problems, keyed by the checks' full
+    names."""
     res = Results()
     want_langs = args.lang or list(LOCALES)
-    needed = set()
-    for name in job["scenarios"]:  # only the languages this job's scenarios use
-        for lang in SCENARIO_LANGS.get(name, ["en", "de"]):
-            if lang in want_langs:
-                needed.add(lang)
-    browsers = {}
+    job_langs = [l for l in job.get("langs", []) if l in want_langs]
+    for name in job["scenarios"]:  # all of the scenario's languages when the job names none
+        if not job_langs:
+            job_langs = [lang for lang in SCENARIO_LANGS.get(name, ["en", "de"]) if lang in want_langs]
+    browsers = {lang: Browser(lang=LOCALES[lang]) for lang in job_langs}
     try:
-        for lang in want_langs:
-            if lang in needed:
-                browsers[lang] = Browser(lang=LOCALES[lang])
         for name in job["scenarios"]:
             run_scenario(name, browsers, args, res, checks=job.get("only"))
     finally:

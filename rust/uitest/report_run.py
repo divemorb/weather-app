@@ -17,7 +17,9 @@ from report_ui import (FIT, LANG_I, OPEN_CLEAR, _api, _iso, back_contrast,
 
 def run(run: Run):
     """The report scenario, in order: the desktop (the big view), saving, the sky after a
-    fresh report, and Details scoring the reports."""
+    fresh report, and Details scoring the reports. Each language runs on its own
+    app and database (one job per language), and the run starts and ends with
+    clear_fresh, so no check reads what another language's run left behind."""
     clear_fresh(run.base)
     pg = desktop_checks(run)
     close_checks(run, pg)
