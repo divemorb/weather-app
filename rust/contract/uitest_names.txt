@@ -95,6 +95,7 @@ live/en/view-query
 live/en/view-phone
 live/en/view-details-only
 live/en/big-tracks
+live/en/now-texts
 live/de/console
 live/de/requests
 live/de/lang
@@ -165,6 +166,7 @@ live/de/reason-radar-unavailable
 live/de/reason-radar-only
 live/de/reason-none
 live/de/view-label
+live/de/now-texts
 rain/en/console
 rain/en/requests
 rain/en/lang
@@ -235,6 +237,11 @@ rain/en/reduced-motion
 rain/en/refresh-render-error
 rain/en/refresh-config-retry
 rain/en/rain-tracks
+rain/en/reload-fires
+rain/en/chart-single-point
+rain/en/dst-radar-labels
+rain/en/dst-chart-x-labels
+rain/en/now-texts
 rain/de/console
 rain/de/requests
 rain/de/lang
@@ -301,6 +308,10 @@ rain/de/kiosk-room-1280x800
 rain/de/kiosk-room-1920x1080
 rain/de/kiosk-chart-1280x800
 rain/de/kiosk-chart-1920x1080
+rain/de/chart-single-point
+rain/de/dst-radar-labels
+rain/de/dst-chart-x-labels
+rain/de/now-texts
 errors/en/console
 errors/en/requests
 errors/en/lang
@@ -318,6 +329,7 @@ errors/en/rain-answer
 errors/en/rain-when
 errors/en/rain-probability
 errors/en/radar-unavailable
+errors/en/radar-unavailable-text
 errors/en/now-unavailable
 errors/en/chart-unavailable
 errors/en/now-station
@@ -349,6 +361,7 @@ errors/de/rain-answer
 errors/de/rain-when
 errors/de/rain-probability
 errors/de/radar-unavailable
+errors/de/radar-unavailable-text
 errors/de/now-unavailable
 errors/de/chart-unavailable
 errors/de/now-station
@@ -395,6 +408,7 @@ unconfigured/en/console
 unconfigured/en/requests
 unconfigured/en/lang
 unconfigured/en/setup-visible
+unconfigured/en/setup-texts
 unconfigured/en/theme-light
 unconfigured/en/theme-dark
 unconfigured/en/theme-icon
@@ -406,6 +420,7 @@ unconfigured/de/console
 unconfigured/de/requests
 unconfigured/de/lang
 unconfigured/de/setup-visible
+unconfigured/de/setup-texts
 unconfigured/de/theme-light
 unconfigured/de/theme-dark
 unconfigured/de/theme-icon
@@ -415,21 +430,30 @@ unconfigured/de/overflow-360
 unconfigured/de/buttons
 wizard/de/console
 wizard/de/validation
+wizard/de/setup-texts
+wizard/de/min-length
+wizard/de/search-failed
 wizard/en/console
 wizard/en/requests
 wizard/en/validation
+wizard/en/setup-texts
+wizard/en/min-length
+wizard/en/search-failed
 wizard/en/search
 wizard/en/search-lines
 wizard/en/save
 wizard/en/location-long
 wizard/en/location-lines
 wizard/en/change
+wizard/en/cancel
 fallback/en/console
 fallback/en/now-station
 fallback/en/now-fallback
+fallback/en/fallback-text
 fallback/de/console
 fallback/de/now-station
 fallback/de/now-fallback
+fallback/de/fallback-text
 sky/en/console
 sky/en/requests
 sky/en/layout-360
@@ -552,6 +576,7 @@ report/en/report-fit-big-1920x1080
 report/en/report-fit-phone-360
 report/en/report-save
 report/en/report-undo
+report/en/report-undo-failed
 report/en/report-intensity
 report/en/report-skip
 report/en/report-confirm
@@ -574,6 +599,7 @@ report/en/sky-report-none
 report/en/sky-after-save
 report/en/details-reports
 report/en/details-reports-fit
+report/en/report-night
 report/de/console
 report/de/requests
 report/de/report-open
@@ -595,6 +621,7 @@ report/de/report-fit-big-1920x1080
 report/de/report-fit-phone-360
 report/de/report-save
 report/de/report-undo
+report/de/report-undo-failed
 report/de/report-intensity
 report/de/report-skip
 report/de/report-confirm
@@ -617,6 +644,7 @@ report/de/sky-report-none
 report/de/sky-after-save
 report/de/details-reports
 report/de/details-reports-fit
+report/de/report-night
 report-glance/en/console
 report-glance/en/report-open
 report-glance/en/report-closed
