@@ -1,6 +1,6 @@
 # Architecture
 
-How the app works, for developers: how the rain probability is calculated, the data conventions of the upstream sources, and the project layout.
+How the app works, for developers: how the rain probability is calculated, the data conventions of the upstream sources, the sky and the user reports, the project layout, and how the code is checked.
 
 ## Data flow
 
@@ -96,9 +96,32 @@ The upstreams timestamp precipitation differently; the backend normalizes everyt
 
 `forecast_history` stores one row per `(model, valid_from)` (unique index). Every hourly refresh *upserts* the rows for the next 24 hours: the latest forecast issued before the hour started (shortest lead time) wins, and a row that already has an observation is never overwritten. A one-time migration (tracked in `app_meta`, key `forecast_history_version`) empties the table and adds the unique index on the first startup after this change (schema v2), then a later startup (schema v3) drops the unused `model_accuracy` table — accuracy is now computed on demand from `forecast_history` — and is a no-op afterwards. Observations are filled by the hourly backfill described above; `observed_mm` stays `NULL` until the hour's observation exists.
 
+## The sky and the scene
+
+The background behind the tiles shows the current weather as an animated scene (REQ_SKY_1). `index.html` holds the fixed `.sky` layer (the first child of `<body>`, behind everything, `pointer-events: none`); the header, the footer and the setup card keep an opaque card background, the data tiles are glass so the sky shows through them (REQ_SKY_4). `app.js` names the scene on `<html data-scene>` on every refresh; `sky.css` paints one gradient per scene per theme and animates the particles; `sky.js` fills the particle containers once at startup (stars, wind streaks, rain drops, snow flakes, hail stones, the clouds and the sun, moon and lightning bolt in the markup) with random positions and timings. All motion sits under `prefers-reduced-motion: no-preference`; with reduced motion the sky is a still picture (REQ_SKY_5).
+
+The scene is decided by `sceneReason()` in `format.js` (pure; the UI tests run it in Node). It looks at two inputs from the API: the station's icon (`/api/now` conditions icon — one of Bright Sky's twelve) and the radar at the place right now (the first five-minute step of `/api/radar/next-hour`). The rules:
+
+- Rain on the radar overrides everything: a wet first step shows "heavy-rain" at 0.2 mm or more per step, "rain" below (REQ_SKY_2).
+- A dry radar beats a wet station: the station's rain, sleet, snow or hail icon becomes "cloudy", because the station can be kilometres away and the radar measures at the place itself (rule B, REQ_SKY_3). A thunderstorm stays a thunderstorm even with a dry radar — it can arrive fast (REQ_SKY_3).
+- The station's "rain" icon follows the radar at the place: dry radar gives "cloudy", a wet radar gives "rain" or "heavy-rain".
+- Without radar data the station's icon is shown as it is; with nothing to show the scene is "none" and the sky shows the plain page background.
+
+`app.js` then picks the freshest input: a fresh user report (REQ_REPORT_6) decides the sky via `reportkind.js` (REQ_SKY_7), otherwise the station and the radar decide. The "why" line under the answer (REQ_GLANCE_4, REQ_SKY_6) is rendered by `glance.js` and names what the sky shows and who decided it: the station with its distance, the nearest station, the radar, or the user's report with its time. It is hidden when the source is "none".
+
+## User reports
+
+The page's "Not right?" feature lets the user record the real weather when reality and the forecast differ (REQ_REPORT_1). The host tile is found by its `data-report-host` attribute in the page, not by an id, so another tile can host it later (REQ_REPORT_7); today the host is the Now tile.
+
+The UI is `report.js` with `report.css`. The front corner carries a pencil button with the word "Report" (REQ_REPORT_2); it turns the tile over to the back (`role="dialog"`, the front goes inert), which shows "The page shows: {scene}" with a "That's right" confirm button (REQ_REPORT_4) and eight picture buttons for the kinds in `reportkind.js` (REQ_REPORT_1). Tapping a kind saves at once — rain first asks for its intensity (light, moderate, heavy, or skip) (REQ_REPORT_3) — together with the "when" chip the user pressed: now, 15 or 30 minutes ago. Saving POSTs `{kind, minutes_ago, confirms, intensity?}` to `/api/reports`; the server's clock sets `observed_at`, the client sends no times. A failed save says so and keeps the back open (REQ_REPORT_5). While a report is fresh the front shows the report and its time ("Reported by you", or "Confirmed by you" for a "That's right") with an undo; the undo DELETEs the report and re-reads the current state (an older fresh report may show again). The locked wall display (`?kiosk`) has no report button (REQ_REPORT_10).
+
+The backend is `reports.rs` (closed-set validation: eight kinds, three intensities, `minutes_ago` of 0/15/30, `confirms`; unknown fields and client times are refused with a 422), `routes/reports.rs` (freshness and storage) and `store/reports.rs` (the `user_reports` table: `id, kind, intensity, confirms, observed_at`). A report is fresh for 30 minutes, both ends inclusive (REQ_REPORT_6); the newest fresh report decides the sky (REQ_SKY_7). Every save prunes the table: older than the accuracy window (`accuracy.window_days`) first, then all but the newest 500 (REQ_REPORT_9).
+
+`reports/score.rs` adds the `user_reports` block to `GET /api/model-accuracy`, and `reportdetails.js` renders it in the Details card as "Against your reports", right after the station's accuracy table, sharing its rows with `accuracyrows.js` (REQ_REPORT_8, REQ_DETAILS_4). The scoring follows REQ_REPORT_8: per UTC hour the newest report decides, the wet kinds (rain, thunderstorm, snow, hail) count as rain, and the models are scored on the same forecast hours as the station with the same threshold. The station's table, the weights and the vote stay station-only.
+
 ## Project layout
 
-v2 is the Rust app in `rust/`; `app/static/` is the web page it serves. The Python app (v1) was the reference while the port was built: the contract suite's goldens were recorded from it and are frozen since v2.0. Its code is kept at the git tag `python-last`.
+The app is the Rust crate in `rust/`; `app/static/` is the web page it serves. The Python app (v1) is gone, but the contract suite's goldens were recorded from it and are frozen since v2.0 (its code is kept at the git tag `python-last`).
 
 ```
 weather.yaml              # runtime configuration (baked into the image)
@@ -106,16 +129,22 @@ docker-compose.yml        # deployment: the Rust app (v2)
 rust/
   Dockerfile              # static binary on a distroless image
   docker-compose.yml      # variant with an explicitly named volume
+  contract/               # API contract suite: frozen goldens, run against the Rust app (rust/contract/README.md)
+  uitest/                 # page checks in headless Chromium (rust/uitest/README.md)
   src/main.rs             # the binary: server, `wetter snapshot PATH`
+  src/lib.rs              # crate root: the router, startup wiring, the public API
   src/config.rs           # weather.yaml + environment overrides
-  src/store.rs            # SQLite: source cache, forecast history, app_meta
+  src/models.rs           # the normalized types shared by parsers, logic and serializers
+  src/store.rs            # SQLite: source cache, forecast history, user reports, app_meta
   src/clients.rs          # HTTP clients for Bright Sky and Open-Meteo
   src/brightsky.rs        # Bright Sky parsers (current weather, observations)
   src/radar.rs            # radar frame decoding
   src/openmeteo.rs        # model forecast + ensemble parsers
+  src/upstream.rs         # SourceError: malformed upstream data, never a panic
   src/aggregator.rs       # refreshes, observation backfill, read model
   src/probability.rs      # rain probability for the next 60 minutes
   src/accuracy.rs         # per-model accuracy scoring
+  src/reports.rs          # user reports: the closed sets and their validation
   src/series.rs           # 24 h series, radar bar
   src/stations.rs         # the weather stations behind the data
   src/serializers.rs      # JSON shapes of the API
@@ -126,15 +155,37 @@ rust/
   src/geocode.rs          # address search (Nominatim)
   src/snapshot.rs         # consistent copy of the database
   src/static_files.rs     # serves app/static
-  src/pyfmt.rs, times.rs  # number and time formatting (as v1 did it: same JSON)
-  contract/               # API contract suite: frozen goldens, run against the Rust app
-  uitest/                 # page checks in headless Chromium
+  src/pyfmt.rs            # number formatting (as v1 did it: same JSON)
+  src/times.rs            # time formatting (as v1 did it: same JSON)
+  src/testutil.rs         # test-only payload builders
 app/
-  static/                 # the web page, served by the Rust app:
-    index.html, *.css     #   markup and styles (kiosk.css: the wall display)
-    app.js                #   entry module: language, theme, config, refresh
-    glance.js, now.js, chart.js, details.js, stationmap.js, setup.js
-    format.js, i18n.js    #   pure formatting, English and German texts
+  static/                 # the web page, served by the Rust app (no build step):
+    index.html            #   the markup: the sky layer, the tiles, the report host
+    view.js               #   the two views: big (default) and detailed (?kiosk locks big)
+    app.js                #   entry module: language, theme, config, refresh, the sky scene
+    glance.js             #   the rain answer, the "why" line, the radar strip
+    now.js                #   the Now tile: current conditions and the station
+    chart.js              #   the 24 h multi-model chart (inline SVG)
+    details.js            #   the Details card and the page reload
+    stationmap.js         #   the station rows and the schematic map
+    accuracyrows.js       #   the shared rows of the two accuracy tables
+    fit.js                #   the big view's headline on a narrow screen (max two lines)
+    sky.js                #   the sky's particle generation
+    report.js             #   the report flip tile: the picker, saving, the undo
+    reportkind.js         #   the eight kinds and the kind-to-scene mapping (pure)
+    reportdetails.js      #   the Details' "Against your reports" section
+    setup.js              #   the location wizard
+    api.js                #   the page's fetch helpers
+    format.js             #   pure formatting: numbers, times, the scene
+    i18n.js               #   the page's texts, English and German
+    i18n-report.js        #   the report's texts, English and German
+    style.css             #   tokens, themes, cards, tiles
+    layout.css            #   the tile grid, the glass tiles
+    kiosk.css             #   the big view (the wall display)
+    chart.css             #   the chart card
+    details.css           #   the Details card
+    sky.css               #   the sky: the per-scene skies and the particle motion
+    report.css            #   the report flip tile
 ```
 
 ## Location lifecycle
@@ -155,3 +206,15 @@ flowchart TD
     moved -->|no| save
     save --> refresh["Start a refresh right away"]
 ```
+
+## Checks
+
+The code is checked in four layers, cheapest first.
+
+**Unit tests.** `cargo test` in `rust/` runs the crate's tests: the logic lives in small pure functions (the probability signals, the scene, the parsers, the validation), so each is tested directly against fixture payloads from `testutil.rs`, without a server or a database.
+
+**The contract suite.** `rust/contract/` (its [README](../rust/contract/README.md)) proves the backend answers exactly as frozen goldens record. Seven scenarios with fixed "now", environment and upstream data drive about 100 request cases through a fake upstream (`fakeup.py`) and a frozen clock; the responses are normalized and diffed against `golden/`. The goldens were recorded from the Python app and are frozen: a change to them is reviewed line by line before it is kept.
+
+**The UI suite.** `rust/uitest/` (its [README](../rust/uitest/README.md)) checks the page in headless Chromium against the Rust app, on the contract suite's recorded Berlin data. It asserts what the page shows through `data-test` hooks, measures contrast on pixels (translucent tiles over the moving sky included), runs the sky scenario (scene, motion, stillness under reduced motion), and runs the pure page modules (`format.js`, `i18n.js`) as Node unit tests. `faults.py` plants known defects into a copy of `app/static` and fails when the harness misses one of them — the proof that the checks still see what they should.
+
+**The doc check.** `rust/contract/doc_check.py` keeps the docs honest: every relative link in `README.md` and `docs/*.md` resolves, and this file names every file of the page and every backend module.
