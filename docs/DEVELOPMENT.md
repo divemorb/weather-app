@@ -1,28 +1,54 @@
 # Development
 
-Running the app and the test suite without Docker, and the full configuration reference (settings table and environment variables).
+Working on the app: the full configuration reference (every `weather.yaml` key and every environment variable), building and running without Docker, the checks, and the code rules.
 
 ## Configuration
 
-All runtime settings live in **`weather.yaml`** (repo root). Key sections:
+All runtime settings live in **`weather.yaml`** (repo root). A missing file is all code defaults; the file ships without a `location:` block, with a commented-out Berlin example. Every key:
 
 | Key | Meaning | Default |
 | --- | --- | --- |
-| `location.*` | latitude / longitude / display timezone | — (set in the browser, see below) |
-| `radar.radius_km` | "local rain" radius around you | `1.0` |
-| `probability.weights.{radar,models,ensemble}` | combination weights | `0.5 / 0.3 / 0.2` |
-| `probability.model_rain_threshold_mm` | model rain threshold | `0.1` |
-| `models.forecast` | Open-Meteo models to compare | 6 models |
-| `models.ensemble_model` | ensemble for probability | `ecmwf_ifs025` (50 members) |
-| `scheduling.*` | refresh cadence + stale thresholds | radar 5 min, models 60 min |
-| `accuracy.window_days` | accuracy window (compared hours) | `30` |
-| `accuracy.min_samples` | min compared hours before a model counts as "enough data" | `48` |
+| `location.latitude` / `location.longitude` | seed the home location on first start (below) | — |
+| `location.timezone` | display timezone (the backend stays UTC) | `Europe/Berlin` |
+| `radar.radius_km` | "local rain" radius for the next-hour probability (km) | `5.0` (the file sets `1.0`) |
+| `radar.grid_size_km` | radar grid cell size (km) | `1.0` |
+| `probability.weights.radar` / `.models` / `.ensemble` | weights of the combined rain probability (normalized) | `0.5` / `0.3` / `0.2` |
+| `probability.model_rain_threshold_mm` | a model "votes rain" above this precipitation in the next hour (mm) | `0.1` |
+| `probability.radar_cell_rain_threshold_mm` | a radar cell counts as rain above this per 5-minute step (mm) | `0.05` |
+| `models.forecast` | Open-Meteo models compared for the next 24 h | none (the file sets the list) |
+| `models.ensemble_model` | Open-Meteo ensemble model for the precipitation probability | `ecmwf_ifs025` |
+| `scheduling.radar_interval_minutes` | radar cache refresh interval (minutes) | `5` |
+| `scheduling.models_interval_minutes` | model cache refresh interval (minutes) | `60` |
+| `scheduling.stale_after_minutes.radar` | radar shown as stale after this age (minutes) | `10` |
+| `scheduling.stale_after_minutes.models` | models shown as stale after this age (minutes) | `120` |
+| `accuracy.window_days` | days of forecasts compared against observations | `30` |
+| `accuracy.min_samples` | compared hours before a model counts as "enough data" | `48` |
+| `api.brightsky_base_url` | Bright Sky endpoint | `https://api.brightsky.dev` |
+| `api.open_meteo_base_url` | Open-Meteo forecast endpoint | `https://api.open-meteo.com/v1` |
+| `api.ensemble_base_url` | Open-Meteo ensemble endpoint | `https://ensemble-api.open-meteo.com/v1` |
+| `api.nominatim_base_url` | address search for the setup wizard | `https://nominatim.openstreetmap.org` |
+| `api.timeout_seconds` | per-request upstream timeout (seconds) | `20` |
 
-**Location.** The home location is *runtime state*: it is stored in the app's database (`/data` volume), not in the repo. On first run the page shows a setup wizard — search an address (OpenStreetMap Nominatim) or type latitude/longitude — and the app starts fetching. From then on the map-pin button in the header changes the location (cached data and the accuracy history of the old location are deleted). `LATITUDE`/`LONGITUDE` env vars or a `location:` block in `weather.yaml` only *seed* the location on first start (adopted into the database); afterwards the stored value wins. `weather.yaml` ships without one, with a commented-out Berlin example under `location:` for exactly this purpose. The display timezone defaults to `Europe/Berlin` and can be set via `TIMEZONE` / `location.timezone`.
+**Location.** The home location is *runtime state*: it is stored in the app's database (`DATABASE_PATH`), not in the repo. On first run the page shows a setup wizard — search an address (OpenStreetMap Nominatim) or type latitude/longitude — and the app starts fetching. From then on the map-pin button in the header changes the location (the cached data and the accuracy history of the old location are deleted). `LATITUDE`/`LONGITUDE` env vars or a `location:` block in `weather.yaml` only *seed* the location on first start (adopted into the database); afterwards the stored value wins. The display timezone defaults to `Europe/Berlin` and can be set via `TIMEZONE` / `location.timezone`.
 
-Environment variables override the YAML for the most common knobs: `LATITUDE`, `LONGITUDE`, `TIMEZONE`, `RADAR_RADIUS_KM`, `WEIGHT_RADAR`, `WEIGHT_MODELS`, `WEIGHT_ENSEMBLE`, `DATABASE_PATH`, `USE_ACCURACY_WEIGHTS` (boolean, default `false` — see [ARCHITECTURE.md](ARCHITECTURE.md) — "Optional accuracy weighting"). The refresh intervals are set in `weather.yaml` only (`scheduling.*`). Other environment variables: `ALLOWED_HOSTS` (see [SECURITY.md](SECURITY.md)), `ENABLE_API_DOCS` (see [API.md](API.md)) and `WEATHER_CONFIG` (path to an alternative `weather.yaml`).
+The file is read at startup; a change takes effect on the next restart.
 
-Change `weather.yaml` and rebuild: `docker compose up -d --build`.
+Environment variables (read in `rust/src/config.rs`, `main.rs` and `times.rs`) override the file. Each with its default:
+
+| Variable | Meaning | Default |
+| --- | --- | --- |
+| `WEATHER_CONFIG` | path to an alternative config file | `/app/weather.yaml` |
+| `LATITUDE` / `LONGITUDE` | seed the home location on first start (both must be set) | — |
+| `TIMEZONE` | display timezone | `Europe/Berlin` |
+| `RADAR_RADIUS_KM` | overrides `radar.radius_km` | `5.0` |
+| `WEIGHT_RADAR` / `WEIGHT_MODELS` / `WEIGHT_ENSEMBLE` | override the probability weights | `0.5` / `0.3` / `0.2` |
+| `RADAR_INTERVAL_MINUTES` / `MODELS_INTERVAL_MINUTES` | override the refresh intervals | `5` / `60` |
+| `DATABASE_PATH` | the SQLite database | `/data/weather.db` |
+| `USE_ACCURACY_WEIGHTS` | boolean, accuracy weighting (see [ARCHITECTURE.md](ARCHITECTURE.md)) | `false` |
+| `BIND_ADDR` | the address the server listens on | `0.0.0.0:8000` |
+| `STATIC_DIR` | the directory of the page files | `/app/static` |
+| `ALLOWED_HOSTS` | extra allowed `Host` values (see [SECURITY.md](SECURITY.md)) | none |
+| `WETTER_FAKE_NOW` | frozen clock, an ISO-8601 timestamp (tests only) | the system clock |
 
 ## Without Docker (development)
 
@@ -35,20 +61,72 @@ WEATHER_CONFIG=./weather.yaml DATABASE_PATH=./data/weather.db STATIC_DIR=./app/s
   BIND_ADDR=127.0.0.1:8000 rust/target/debug/wetter
 ```
 
-## Running the tests
+The binary has one subcommand: `wetter snapshot PATH` copies the live database to `PATH` and prints a short report to stdout.
+
+## The checks
+
+All from the repo root, after `cargo build`:
 
 ```bash
-cd rust && cargo test && cargo clippy --all-targets -- -D warnings && cd ..
-python3 rust/contract/run.py --backend rust --binary rust/target/debug/wetter   # API contract (goldens)
-python3 rust/uitest/run.py --binary rust/target/debug/wetter                   # the page, headless Chromium
+cd rust && cargo fmt --check && cargo clippy --all-targets -- -D warnings && cargo test && cd ..
 ```
 
-The contract and UI suites need only Python 3 (stdlib) and, for the UI suite, Chromium; see [rust/contract/README.md](../rust/contract/README.md) and [rust/uitest/README.md](../rust/uitest/README.md). Until v2.0 the app was written in Python, which served as the reference for the port; that code is kept at the git tag `python-last`.
+The contract suite checks the API against the frozen goldens (Python 3 stdlib only; see [rust/contract/README.md](../rust/contract/README.md)):
 
-## Development history
+```bash
+python3 rust/contract/run.py --backend rust --binary rust/target/debug/wetter
+python3 rust/contract/run.py --backend rust --binary rust/target/debug/wetter --list            # the cases
+python3 rust/contract/run.py --backend rust --binary rust/target/debug/wetter --require 'unconfigured:static/*'
+python3 rust/contract/run.py --backend rust --binary rust/target/debug/wetter --update          # record the goldens (an intended change)
+```
 
-The history is in `git log --oneline` (one `Step Nx:` commit per sub-step).
+`--require PATTERNS` makes some cases mandatory (`!pattern` excludes), `--budget-mb MB` fails a scenario whose peak memory is above the limit.
+
+The UI suite checks the page in headless Chromium (needs `chromium` and `node`; see [rust/uitest/README.md](../rust/uitest/README.md)):
+
+```bash
+python3 rust/uitest/run.py --binary rust/target/debug/wetter
+python3 rust/uitest/run.py --binary rust/target/debug/wetter --list                       # the checks
+python3 rust/uitest/run.py --binary rust/target/debug/wetter --scenario sky               # a scenario
+python3 rust/uitest/run.py --binary rust/target/debug/wetter --only 'sky/en/<check>'      # one check
+python3 rust/uitest/run.py --binary rust/target/debug/wetter --shots /tmp/shots           # screenshots
+```
+
+The fault suite plants defects in a copy of the page and proves the checks still see them (`--gaps` runs the defects the checks don't see yet):
+
+```bash
+python3 rust/uitest/faults.py --binary rust/target/debug/wetter --require '*'
+```
+
+The coverage report lists the page code no check runs (a report, not a gate; code run only by the node unit tests shows up too):
+
+```bash
+WETTER_UITEST_COVERAGE=/tmp/cov python3 rust/uitest/run.py --binary rust/target/debug/wetter
+python3 rust/uitest/coverage_report.py /tmp/cov
+```
+
+The docs gate: every relative link in the docs leads to a file, and [ARCHITECTURE.md](ARCHITECTURE.md) names every page file and every Rust module:
+
+```bash
+python3 rust/contract/doc_check.py
+```
+
+## Code rules
+
+- **Lints** in `rust/Cargo.toml` (`[lints]`): `unsafe_code` is forbidden; Clippy denies `unwrap`, `expect`, `panic`, index and string slicing, `todo!`/`unimplemented!`/`dbg!`, lossy casts, and `allow` without a reason, plus a curated list of pedantic and nursery lints (for example `too_many_lines`, `unreadable_literal`, `use_self`). `rust/clippy.toml` relaxes `unwrap`, `expect`, `panic` and indexing in test code.
+- **Comments**, checked by `rust/contract/comment_rules.py AREA` (`rust-app`, `rust-tests`, `page`, `harness`): no build-step IDs and no dates (git keeps history), no mention of Python, the module header at most 10 lines, every other comment block at most 12, and a comment right above every public item.
+- **Function size**, checked by `rust/contract/sizes.py --max-lines 80 --max-args 6 <files>`: no function longer than 80 lines or with more than 6 parameters (the docstring's example sizes the harness, `rust/uitest/*.py` and `rust/uitest/probe.js`).
+
+## Where to start reading
+
+- [ARCHITECTURE.md](ARCHITECTURE.md): the design, the modules, the data conventions.
+- [REQUIREMENTS.md](REQUIREMENTS.md): what the app does, one entry per requirement with an ID.
+- [API.md](API.md): the HTTP API.
 
 ## Working with an AI coding agent
 
 This project is developed with a local model through the Continue extension. The project rules the agent follows (container and test commands, what it must not touch, backend and frontend conventions, and one sub-step per chat with `Step Nx:` commits) are in [`.continue/rules/weather-projectrules.md`](../.continue/rules/weather-projectrules.md). Continue loads that file automatically in this workspace; contributors using a different agent should give it the same rules.
+
+## Development history
+
+The history is in `git log --oneline` (one `Step Nx:` commit per sub-step). The Python app (v1) is retired; its code is at the git tag `python-last`.
