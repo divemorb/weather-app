@@ -76,19 +76,32 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 ## The page (PAGE)
 
 - **REQ_PAGE_1** The big view shows, top to bottom: the glance (the answer, the chance, the radar strip), Now, the next 24 hours. The technical parts are only in the detailed view (REQ_PAGE_4). *Source: the user, 2026-10-02.*
+  *Proof:* `ui:sky/*/layout-*`; `ui:*/*/big-hierarchy`
 - **REQ_PAGE_2** **The big view is the default on every screen** (large type, one screen on desktop and tablet; on a phone one column that may scroll vertically). The detailed view is one button away. *Source: the user, 2026-10-04.*
+  *Proof:* `ui:live/*/view-default`; `ui:live/*/view-phone`
 - **REQ_PAGE_3** The view button is text that says where a click goes: "Details" in the big view, "Big view" in the detailed view (German "Details" / "Große Ansicht"); the choice is remembered per device. *Source: the user, 2026-10-05.*
+  *Proof:* `ui:live/*/view-toggle`; `ui:live/*/view-label`; `ui:unit/view-f3.test.mjs`
 - **REQ_PAGE_4** The detailed view shows only the details (signals, countdowns, sources, accuracy, stations), not the glance, Now or the chart again. *Source: the user, 2026-10-12 (phone test P2).*
+  *Proof:* `ui:live/*/view-details-only`
 - **REQ_PAGE_5** `?detailed` forces the detailed view; `?kiosk` forces the big view and locks it for a wall display (no view button, no place button, no report button). *Source: the user, 2026-10-02 and 2026-10-04.*
+  *Proof:* `ui:live/*/view-query`; `ui:report/*/report-locked`
 - **REQ_PAGE_6** English and German, following the browser's language; times in the place's time zone and the browser's time format, also on the days the clock changes; wind in km/h. *Source: the user, 2026-10-02; the clock change: 2026-10-13.*
+  *Proof:* `ui:*/*/lang`; `ui:rain/*/dst-chart-x-labels`; `ui:rain/*/now-wind`
 - **REQ_PAGE_7** Light and dark theme: follows the system, a toggle in the top bar overrides it and is remembered. *Source: the user, 2026-10-02.*
+  *Proof:* `ui:*/*/theme-light`; `ui:live/*/theme-toggle`
 - **REQ_PAGE_8** Every text keeps WCAG AA contrast (4.5:1, large text 3:1) against what is actually drawn behind it, in both themes, in every view and scene. *Source: the user, 2026-10-03 (glass tiles).*
+  *Proof:* `ui:live/*/contrast-light`; `ui:live/*/contrast-dark`; `ui:live/*/details-contrast`
 - **REQ_PAGE_9** Works from 360 px wide without horizontal scrolling; buttons at least 24×24 px (the report's picture buttons 44×44). *Source: scope; the user, 2026-10-07.*
+  *Proof:* `ui:*/*/overflow-360`; `ui:*/*/buttons`; `ui:report/*/report-buttons`
 - **REQ_PAGE_10** No build step, no framework, no CDN, no images or fonts from outside: plain HTML, CSS and JavaScript; all of `app/static` at most 300 KB. *Source: scope; budget: the user, 2026-10-04.*
+  *Proof:* `ui:budget`; `ui:static-files`; `ui:*/*/requests`
   *Refines:* REQ_PRIV_1
 - **REQ_PAGE_11** Credits for every data source (DWD via Bright Sky, Open-Meteo, OpenStreetMap). *Source: the sources' terms.*
+  *Proof:* `ui:live/*/attribution`
 - **REQ_PAGE_12** Calm and minimal: lots of whitespace, one accent colour for rain, system fonts. *Source: the user, 2026-10-02.*
+  *Proof:* review: the page uses system font stacks and one rain accent colour in app/static/style.css
 - **REQ_PAGE_13** A refresh that fails keeps the tile's last good values and says so: the tile shows that the update failed and the time of the data it still shows (English "Update failed – showing data from 14:05", German "Aktualisierung fehlgeschlagen – Daten von 14:05"); the next good refresh removes the note. Only a part that never loaded shows "not available". *Source: the user, 2026-10-18.*
+  *Proof:* `ui:rain/*/refresh-keeps-old`; `ui:errors/*/radar-unavailable`
   *Refines:* REQ_GEN_4, REQ_DATA_2
 
 ## The glance (GLANCE)
@@ -112,6 +125,7 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 ## The next 24 hours (CHART)
 
 - **REQ_CHART_1** Hourly precipitation per model as a chart with a labelled y axis; a dry day says so instead of an empty chart. *Source: scope; the user, 2026-10-02.*
+  *Proof:* `ui:rain/*/chart-y-labels`; `ui:rain/*/chart-dry`
 
 ## Details (DETAILS)
 
