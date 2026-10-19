@@ -14,6 +14,7 @@ Links to the code and the tests that prove each requirement are planned (traceab
 ## The rain probability (PROB)
 
 - **REQ_PROB_1** The chance of rain in the next 60 minutes is shown in percent, with a one-line explanation of how it was derived. *Source: scope.*
+  *Refines:* REQ_GEN_1, REQ_GEN_4
 - **REQ_PROB_2** Three signals, combined with weights (`probability.weights`: radar 0.5, models 0.3, ensemble 0.2): the radar nowcast, the share of the forecast models, the share of the ensemble members. *Source: scope.*
 - **REQ_PROB_3** Radar signal: any rain cell (≥ `radar_cell_rain_threshold_mm`, 0.05 mm) within `radar.radius_km` (1 km) of the location in the next hour. *Source: scope.*
 - **REQ_PROB_4** Models signal: the share of the configured models (`models.forecast`: ICON-D2, ICON-EU, ECMWF IFS, GFS, AROME, UKMO) forecasting more than `model_rain_threshold_mm` (0.1 mm) in the next hour. *Source: scope.*
@@ -35,11 +36,14 @@ Links to the code and the tests that prove each requirement are planned (traceab
 - **REQ_ACC_1** Per model, over the last `accuracy.window_days` (30): compared hours, hits, misses, false alarms, hit rate, mean error; rain means more than 0.1 mm in the hour. *Source: scope.*
 - **REQ_ACC_2** Models with fewer than 48 compared hours are marked as not having enough data yet. *Source: scope.*
 - **REQ_ACC_3** The table explains its columns in plain words under it; the column names are plain ("Hits", "Misses", "False alarms", "Hit rate", "Avg. error"). *Source: the user, 2026-10-02.*
+  *Refines:* REQ_GEN_4
 - **REQ_ACC_4** It names the stations its observations came from (name, distance, hours). *Source: the user, 2026-10-03.*
+  *Refines:* REQ_GEN_4
 
 ## Location (LOC)
 
 - **REQ_LOC_1** On the first start a setup wizard asks for the place: an address search, or latitude and longitude, plus the time zone. The place can be changed later from the page. *Source: scope.*
+  *Refines:* REQ_GEN_2
 - **REQ_LOC_2** The place is runtime state in the app's database, not in the code or the repository; environment variables or `weather.yaml` may seed it on the first start. *Source: scope.*
 - **REQ_LOC_3** Coordinates are rounded to 3 decimals (about 100 m) before they are stored. *Source: scope.*
 - **REQ_LOC_4** A move of more than about 1 km (0.01° in latitude or longitude) deletes the cached data, the accuracy history and the user's reports of the old place: they would describe another place. *Source: scope; reports: the user, 2026-10-07.*
@@ -58,22 +62,29 @@ Links to the code and the tests that prove each requirement are planned (traceab
 - **REQ_PAGE_8** Every text keeps WCAG AA contrast (4.5:1, large text 3:1) against what is actually drawn behind it, in both themes, in every view and scene. *Source: the user, 2026-10-03 (glass tiles).*
 - **REQ_PAGE_9** Works from 360 px wide without horizontal scrolling; buttons at least 24×24 px (the report's picture buttons 44×44). *Source: scope; the user, 2026-10-07.*
 - **REQ_PAGE_10** No build step, no framework, no CDN, no images or fonts from outside: plain HTML, CSS and JavaScript; all of `app/static` at most 300 KB. *Source: scope; budget: the user, 2026-10-04.*
+  *Refines:* REQ_PRIV_1
 - **REQ_PAGE_11** Credits for every data source (DWD via Bright Sky, Open-Meteo, OpenStreetMap). *Source: the sources' terms.*
 - **REQ_PAGE_12** Calm and minimal: lots of whitespace, one accent colour for rain, system fonts. *Source: the user, 2026-10-02.*
 - **REQ_PAGE_13** A refresh that fails keeps the tile's last good values and says so: the tile shows that the update failed and the time of the data it still shows (English "Update failed – showing data from 14:05", German "Aktualisierung fehlgeschlagen – Daten von 14:05"); the next good refresh removes the note. Only a part that never loaded shows "not available". *Source: the user, 2026-10-18.*
+  *Refines:* REQ_GEN_4, REQ_DATA_2
 
 ## The glance (GLANCE)
 
 - **REQ_GLANCE_1** The answer in plain words ("No rain expected in the next hour", "Rain possible …", "Rain likely …"). *Source: the user, 2026-10-02.*
+  *Refines:* REQ_GEN_1
 - **REQ_GLANCE_2** The radar strip: 12 steps of 5 minutes, the strongest rain within the radius per step, time labels that don't overlap; its caption names the radius; a dry hour says so in a sentence. *Source: the user, 2026-10-02.*
+  *Refines:* REQ_GEN_1, REQ_GEN_4
 - **REQ_GLANCE_3** On a phone in the big view the headline takes at most two lines, as large as fits. *Source: the user, 2026-10-05.*
 - **REQ_GLANCE_4** The "why" line under the answer says what the sky shows and who decided it (REQ_SKY_6). *Source: the user, 2026-10-04.*
+  *Refines:* REQ_GEN_4
 
 ## Now (NOW)
 
 - **REQ_NOW_1** Temperature, feels-like, wind and gusts, cloud cover, humidity, pressure, dew point, rain of the last hour, condition. *Source: scope.*
 - **REQ_NOW_2** The station the values come from, with its distance ("Station Berlin-Tempelhof · 5.8 km"). *Source: the user, 2026-10-02/03.*
+  *Refines:* REQ_GEN_4
 - **REQ_NOW_3** A value that comes from another station (Bright Sky's fallback) is marked with that station's name. *Source: the user, 2026-10-03.*
+  *Refines:* REQ_GEN_4
 
 ## The next 24 hours (CHART)
 
@@ -82,21 +93,27 @@ Links to the code and the tests that prove each requirement are planned (traceab
 ## Details (DETAILS)
 
 - **REQ_DETAILS_1** The signals and the weights in use. *Source: scope.*
+  *Refines:* REQ_GEN_4
 - **REQ_DETAILS_2** Countdowns to the next radar and model refresh and the next page reload. *Source: scope.*
 - **REQ_DETAILS_3** Each data source with its age, a stale mark and its last error. *Source: scope.*
+  *Refines:* REQ_GEN_4
 - **REQ_DETAILS_4** The model accuracy (REQ_ACC_1-4) and, in its own block, the accuracy against the user's reports (REQ_REPORT_8). *Source: scope; the user, 2026-10-07.*
 - **REQ_DETAILS_5** A schematic map (no map tiles: privacy and CSP): the place in the middle, the stations by bearing and distance, the radar radius, a north arrow and a scale bar. *Source: the user, 2026-10-03.*
 - **REQ_DETAILS_6** One failing part never empties the others. *Source: the user, 2026-10-02 (W9 review).*
+  *Refines:* REQ_DATA_2
 
 ## The sky (SKY)
 
 - **REQ_SKY_1** The background shows the current weather as an animation, behind the tiles, on every screen: clear (day, night), partly cloudy (day, night), cloudy, fog, wind, rain, heavy rain, sleet, snow, hail, thunderstorm. *Source: the user, 2026-10-03.*
 - **REQ_SKY_2** The scene comes from the station's icon (Bright Sky), and from the radar at the place right now: rain on the radar shows rain (heavy rain from 0.2 mm per 5 minutes) even when the station reports dry. *Source: the user, 2026-10-03.*
 - **REQ_SKY_3** **Rule B (the radar beats the station when it's dry)**: the weather station can be several kilometres away, the radar measures at the place itself. So when the station reports rain, sleet, snow or hail but the radar shows no rain at the place right now (its current 5-minute step is 0 mm), the sky shows cloudy instead. A thunderstorm from the station is always shown, as a warning: it can reach the place quickly, even while the radar is still dry there. Without radar data the station's report is shown as it is. *Source: the user, 2026-10-04.*
+  *Refines:* REQ_SKY_2
 - **REQ_SKY_4** The tiles are glass: the sky can be seen through them (no blur), every text keeps REQ_PAGE_8. *Source: the user, 2026-10-03/04.*
 - **REQ_SKY_5** With "reduce motion" the sky is a still picture; lightning flashes at most once per 3 seconds (WCAG 2.3.1). *Source: the user, 2026-10-03; WCAG.*
 - **REQ_SKY_6** The "why" line names the source: the station and its distance, the nearest station, the radar (with rule B: what the station reports), or the user's report and its time. *Source: the user, 2026-10-04 and 2026-10-07.*
+  *Refines:* REQ_GLANCE_4
 - **REQ_SKY_7** A fresh user report (REQ_REPORT_6) decides the sky. *Source: the user, 2026-10-07.*
+  *Refines:* REQ_SKY_2
 
 ## The user's reports, "Stimmt nicht?" (REPORT)
 
@@ -117,6 +134,7 @@ Links to the code and the tests that prove each requirement are planned (traceab
 - **REQ_SEC_2** A foreign website can neither read data from the app nor change it: no CORS; changes (location, reports) only as same-origin JSON. *Source: scope.*
 - **REQ_SEC_3** DNS-rebinding protection: the app answers only to IP addresses, `localhost`, `*.local` names and explicitly allowed host names. *Source: scope.*
 - **REQ_SEC_4** Security headers on every response, errors included: a strict Content Security Policy, no framing, no referrer, no MIME sniffing. *Source: scope.*
+  *Refines:* REQ_PRIV_1
 - **REQ_SEC_5** Upstream data and the user's input are never rendered as HTML. *Source: scope.*
 - **REQ_SEC_6** The interactive API documentation is off unless enabled. *Source: scope.*
 - **REQ_SEC_7** The container runs as a non-root user on a read-only file system, without capabilities, with a process limit. *Source: scope.*
@@ -130,8 +148,10 @@ Links to the code and the tests that prove each requirement are planned (traceab
 ## Operation (OPS)
 
 - **REQ_OPS_1** One container, run with Docker Compose or Podman Compose, on Linux PCs and a Raspberry Pi with a 64-bit OS (down to a Pi Zero 2 W with 512 MB); Docker Desktop on macOS or Windows. *Source: scope; Pi Zero: the user.*
+  *Refines:* REQ_GEN_2
 - **REQ_OPS_2** All data in one volume that can be backed up and restored. *Source: scope.*
 - **REQ_OPS_3** Settings in `weather.yaml` plus a few environment variables (port, allowed host names, accuracy weighting, API docs, the first-start place). *Source: scope.*
+  *Refines:* REQ_GEN_2
 - **REQ_OPS_4** An update keeps the data: the new version reads the old database as it is; a way back to the previous version exists and is tested. *Source: the user, 2026-10-03.*
 
 ## Code and checks (CODE)
