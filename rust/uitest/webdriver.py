@@ -166,6 +166,11 @@ class WebKit:
         """The viewport as PNG bytes."""
         return base64.b64decode(self._sess("GET", "/screenshot"))
 
+    def actions(self, actions: list) -> None:
+        """Run W3C pointer or key actions, then release the input sources."""
+        self._sess("POST", "/actions", {"actions": actions})
+        self._sess("DELETE", "/actions")
+
     def close(self) -> None:
         """End the session, then stop the driver's and Xvfb's process groups."""
         if self.session:
