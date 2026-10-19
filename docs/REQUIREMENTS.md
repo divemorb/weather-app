@@ -107,19 +107,26 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 ## The glance (GLANCE)
 
 - **REQ_GLANCE_1** The answer in plain words ("No rain expected in the next hour", "Rain possible …", "Rain likely …"). *Source: the user, 2026-10-02.*
+  *Proof:* `ui:unit/format.test.mjs`; `ui:*/*/rain-answer`
   *Refines:* REQ_GEN_1
 - **REQ_GLANCE_2** The radar strip: 12 steps of 5 minutes, the strongest rain within the radius per step, time labels that don't overlap; its caption names the radius; a dry hour says so in a sentence. *Source: the user, 2026-10-02.*
+  *Proof:* `ui:*/*/radar-*`; `ui:*/*/big-labels`
   *Refines:* REQ_GEN_1, REQ_GEN_4
 - **REQ_GLANCE_3** On a phone in the big view the headline takes at most two lines, as large as fits. *Source: the user, 2026-10-05.*
+  *Proof:* `ui:*/*/big-headline`
 - **REQ_GLANCE_4** The "why" line under the answer says what the sky shows and who decided it (REQ_SKY_6). *Source: the user, 2026-10-04.*
+  *Proof:* refined; `ui:live/*/reason-*`
   *Refines:* REQ_GEN_4
 
 ## Now (NOW)
 
 - **REQ_NOW_1** Temperature, feels-like, wind and gusts, cloud cover, humidity, pressure, dew point, rain of the last hour, condition. *Source: scope.*
+  *Proof:* `cargo:serializers::tests::now_with_conditions`; `ui:live/en/now-*`; `ui:live/de/now-*`
 - **REQ_NOW_2** The station the values come from, with its distance ("Station Berlin-Tempelhof · 5.8 km"). *Source: the user, 2026-10-02/03.*
+  *Proof:* `cargo:stations::tests::station_names_the_source_of_the_values`; `ui:live/*/now-station`
   *Refines:* REQ_GEN_4
 - **REQ_NOW_3** A value that comes from another station (Bright Sky's fallback) is marked with that station's name. *Source: the user, 2026-10-03.*
+  *Proof:* `cargo:stations::tests::fallback_every_carried_field_maps_to_its_api_name`; `ui:fallback/*/now-fallback`
   *Refines:* REQ_GEN_4
 
 ## The next 24 hours (CHART)
@@ -130,13 +137,19 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 ## Details (DETAILS)
 
 - **REQ_DETAILS_1** The signals and the weights in use. *Source: scope.*
+  *Proof:* `ui:*/*/details-signals`; `ui:*/*/details-weights`
   *Refines:* REQ_GEN_4
 - **REQ_DETAILS_2** Countdowns to the next radar and model refresh and the next page reload. *Source: scope.*
+  *Proof:* `ui:*/*/countdown-*`
 - **REQ_DETAILS_3** Each data source with its age, a stale mark and its last error. *Source: scope.*
+  *Proof:* `cargo:routes::api_tests::api_sources`; `ui:*/*/source-rows`; `ui:*/*/source-errors`
   *Refines:* REQ_GEN_4
 - **REQ_DETAILS_4** The model accuracy (REQ_ACC_1-4) and, in its own block, the accuracy against the user's reports (REQ_REPORT_8). *Source: scope; the user, 2026-10-07.*
+  *Proof:* `ui:*/*/accuracy-table`; `ui:report/*/details-reports`
 - **REQ_DETAILS_5** A schematic map (no map tiles: privacy and CSP): the place in the middle, the stations by bearing and distance, the radar radius, a north arrow and a scale bar. *Source: the user, 2026-10-03.*
+  *Proof:* `ui:*/*/station-map`
 - **REQ_DETAILS_6** One failing part never empties the others. *Source: the user, 2026-10-02 (W9 review).*
+  *Proof:* `ui:errors/*/source-errors`; `ui:errors/*/details-fit`; `ui:errors/*/now-unavailable`
   *Refines:* REQ_DATA_2
 
 ## The sky (SKY)
