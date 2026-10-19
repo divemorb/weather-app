@@ -11,7 +11,7 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 - **REQ_GEN_2** One household, one location; the person running it can paste terminal commands but needn't be a developer. *Source: scope.*
   *Proof:* refined; manual: run the compose file on a plain Linux PC and a Raspberry Pi and open the page
 - **REQ_GEN_3** It uses only free data sources that need no account or key, for non-commercial use. *Source: scope; Open-Meteo's and Bright Sky's terms.*
-  *Proof:* `cargo:clients::tests::openmeteo::client_forecast_builds_correct_params`; `cargo:clients::tests::brightsky::client_fetch_current_uses_correct_endpoint`; manual: check the upstream terms for free, keyless, non-commercial use before a release
+  *Proof:* manual: check the upstream terms for free, keyless, non-commercial use before a release
 - **REQ_GEN_4** **The page explains itself**: every value shown says what it is and where it comes from (which source decided, how a number was derived). *Source: the user, 2026-10-04.*
   *Proof:* refined; review: every value the page shows says what it is and where it comes from
 
@@ -208,14 +208,14 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 - **REQ_SEC_3** DNS-rebinding protection: the app answers only to IP addresses, `localhost`, `*.local` names and explicitly allowed host names. *Source: scope.*
   *Proof:* `cargo:security::tests::host_allowed_accepted`; `cargo:security::tests::host_allowed_rejected`; `contract:*:security/host-evil`
 - **REQ_SEC_4** Security headers on every response, errors included: a strict Content Security Policy, no framing, no referrer, no MIME sniffing. *Source: scope.*
-  *Proof:* `contract:*:security/docs`; `cargo:routes::api_tests::unhandled_error_500_still_carries_security_headers`
+  *Proof:* `gate:contract`; `cargo:routes::api_tests::unhandled_error_500_still_carries_security_headers`; `cargo:routes::location_tests::post_location_security_headers_still_present_on_403_and_422`
   *Refines:* REQ_PRIV_1
 - **REQ_SEC_5** Upstream data and the user's input are never rendered as HTML. *Source: scope.*
-  *Proof:* review: every value the page fills is set via textContent, innerHTML only with constants
+  *Proof:* `ui:report/*/report-escape`; review: every value the page fills is set via textContent, innerHTML only with constants; todo: a UI check that upstream text (station name, place label) with HTML markup is shown as text
 - **REQ_SEC_6** The interactive API documentation is off unless enabled. *Source: scope.*
   *Proof:* `contract:*:security/docs`; `contract:*:security/redoc`; `contract:*:security/openapi`
 - **REQ_SEC_7** The container runs as a non-root user on a read-only file system, without capabilities, with a process limit. *Source: scope.*
-  *Proof:* review: docker-compose.yml and rust/Dockerfile set read_only, cap_drop ALL, pids_limit and a non-root user
+  *Proof:* todo: a check that reads docker-compose.yml and rust/Dockerfile (read_only, cap_drop ALL, pids_limit, a non-root user)
 
 ## Privacy (PRIV)
 
@@ -232,7 +232,7 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
   *Proof:* manual: start the image on a Pi Zero 2 W (512 MB) and a PC, open the page, and check the contract's 60 MB peak-memory budget
   *Refines:* REQ_GEN_2
 - **REQ_OPS_2** All data in one volume that can be backed up and restored. *Source: scope.*
-  *Proof:* `cargo:snapshot_command`; `cargo:snapshot::tests::*`
+  *Proof:* `cargo:snapshot_command`; `cargo:snapshot::tests::*`; todo: a test that restores a snapshot into a fresh volume and the app reads it
 - **REQ_OPS_3** Settings in `weather.yaml` plus a few environment variables (port, allowed host names, accuracy weighting, API docs, the first-start place). *Source: scope.*
   *Proof:* `cargo:config::tests::defaults_from_yaml`; `cargo:config::tests::env_overrides_yaml`; `cargo:security::tests::parse_allowed_hosts_strips_and_lowercases`
   *Refines:* REQ_GEN_2
@@ -246,7 +246,7 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 - **REQ_CODE_2** Decisions live in small pure functions with tests; the aggregator and the store only move data. No source file over 400 lines. *Source: scope.*
   *Proof:* `gate:sizes`; review: the aggregator and the store only move data, the decisions are in the pure functions
 - **REQ_CODE_3** Tests never touch the network and run in the project's container images. *Source: scope.*
-  *Proof:* `cargo:upstream::tests::fetch_parses_json_and_sends_params`; review: the tests run in the project's container image with no network
+  *Proof:* review: the tests run in the project's container images, which have no network (`--network=none`)
 - **REQ_CODE_4** The API's answers stay byte for byte the same unless a change is intended (the contract suite). *Source: the Rust port.*
   *Proof:* `gate:contract`
 - **REQ_CODE_5** The UI checks may not get weaker unnoticed: planted faults must keep failing them. *Source: the user, 2026-10-13.*
