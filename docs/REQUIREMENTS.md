@@ -14,30 +14,47 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 ## The rain probability (PROB)
 
 - **REQ_PROB_1** The chance of rain in the next 60 minutes is shown in percent, with a one-line explanation of how it was derived. *Source: scope.*
+  *Proof:* `cargo:aggregator::rain_tests::get_rain_probability_all_signals`; `ui:*/*/rain-probability`
   *Refines:* REQ_GEN_1, REQ_GEN_4
 - **REQ_PROB_2** Three signals, combined with weights (`probability.weights`: radar 0.5, models 0.3, ensemble 0.2): the radar nowcast, the share of the forecast models, the share of the ensemble members. *Source: scope.*
+  *Proof:* `cargo:probability::combine::tests::combine_all_signals_weighted`; `ui:*/*/details-weights`
 - **REQ_PROB_3** Radar signal: any rain cell (≥ `radar_cell_rain_threshold_mm`, 0.05 mm) within `radar.radius_km` (1 km) of the location in the next hour. *Source: scope.*
+  *Proof:* `cargo:probability::tests::radar_has_local_rain_scans_all_frames`; `ui:*/*/details-signals`
 - **REQ_PROB_4** Models signal: the share of the configured models (`models.forecast`: ICON-D2, ICON-EU, ECMWF IFS, GFS, AROME, UKMO) forecasting more than `model_rain_threshold_mm` (0.1 mm) in the next hour. *Source: scope.*
+  *Proof:* `cargo:probability::tests::model_rain_signal_share`; `ui:*/*/details-signals`
 - **REQ_PROB_5** Ensemble signal: the share of the 50 ECMWF ensemble members forecasting rain. *Source: scope.*
+  *Proof:* `cargo:probability::combine::tests::ensemble_vote_share`; `ui:*/*/details-signals`
 - **REQ_PROB_6** Outside the DWD radar's coverage (Germany) the radar weight is dropped and the others are renormalized; the app works anywhere. *Source: scope.*
+  *Proof:* `cargo:aggregator::rain_tests::get_rain_probability_without_radar`; `ui:errors/*/radar-unavailable`
 - **REQ_PROB_7** Optional accuracy weighting (off by default): each model's vote counts by its hit rate at this location, but only once every voting model has `accuracy.min_samples` (48) compared hours; until then the plain vote. *Source: scope.*
+  *Proof:* `cargo:aggregator::rain_tests::get_rain_probability_accuracy_weights_applied`; `cargo:probability::combine::tests::weighted_signal_gate_falls_back_below_min_samples`; `ui:*/*/details-weighting`
 
 ## Data handling (DATA)
 
 - **REQ_DATA_1** The upstream services are never called per page load: a scheduler refreshes a local cache (radar every 5 min, models every 60 min), the page reads the cache. A refresh also runs at startup and after a location change. *Source: scope.*
+  *Proof:* `cargo:scheduler::tests::scheduled_jobs_run_refreshes_on_event_loop`; `cargo:aggregator::tests::refresh_radar_caches_payloads`; `contract:*:api/schedule`
 - **REQ_DATA_2** A failing source never blocks the app: the last good data is shown with its age; a source is stale after 10 min (radar) or 120 min (models). *Source: scope.*
+  *Proof:* refined; `cargo:aggregator::tests::refresh_radar_tolerates_one_failing_source`; `cargo:aggregator::tests::source_status_marks_stale`
 - **REQ_DATA_3** Upstream data is untrusted: malformed, oversized or deeply nested responses are a source error, never a crash. *Source: scope.*
+  *Proof:* `cargo:upstream::tests::fetch_deeply_nested_json_is_source_error`; `cargo:upstream::tests::fetch_streamed_oversize_is_source_error`; `cargo:upstream::tests::fetch_broken_json_is_source_error`
 - **REQ_DATA_4** Forecasts are stored per model and hour and compared with the observations as they arrive; hours missed while the app was down are caught up (last 48 h). *Source: scope.*
+  *Proof:* `cargo:aggregator::tests::refresh_models_writes_forecast_history`; `cargo:aggregator::backfill_tests::refresh_models_triggers_backfill`; `contract:*:api/model-accuracy`
 - **REQ_DATA_5** UTC everywhere in the backend; only the page converts to the display time zone. *Source: scope.*
+  *Proof:* `cargo:times::tests::parse_iso_offset_normalized_to_utc`; `contract:*:api/sources`
 - **REQ_DATA_6** Address search follows the Nominatim usage policy: at most one request per second, results cached, a search only on explicit request (no search-as-you-type). *Source: Nominatim's policy.*
+  *Proof:* `cargo:geocode::tests::search_throttles_two_different_queries`; `cargo:geocode::tests::search_caches_identical_query_including_case`; `ui:wizard/*/search`
 
 ## Model accuracy (ACC)
 
 - **REQ_ACC_1** Per model, over the last `accuracy.window_days` (30): compared hours, hits, misses, false alarms, hit rate, mean error; rain means more than 0.1 mm in the hour. *Source: scope.*
+  *Proof:* `cargo:aggregator::read_tests::get_model_accuracy_scores_window_only`; `contract:*:api/model-accuracy`
 - **REQ_ACC_2** Models with fewer than 48 compared hours are marked as not having enough data yet. *Source: scope.*
+  *Proof:* `contract:accuracy-gate:api/model-accuracy`; `ui:accuracy/*/accuracy-table`
 - **REQ_ACC_3** The table explains its columns in plain words under it; the column names are plain ("Hits", "Misses", "False alarms", "Hit rate", "Avg. error"). *Source: the user, 2026-10-02.*
+  *Proof:* `ui:accuracy/*/accuracy-head`; `ui:accuracy/*/accuracy-note`
   *Refines:* REQ_GEN_4
 - **REQ_ACC_4** It names the stations its observations came from (name, distance, hours). *Source: the user, 2026-10-03.*
+  *Proof:* `ui:live/*/observation-stations`
   *Refines:* REQ_GEN_4
 
 ## Location (LOC)
