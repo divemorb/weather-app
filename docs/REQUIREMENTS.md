@@ -2,7 +2,7 @@
 
 What the app must do and why. Each requirement has an ID (`REQ_<AREA>_<n>`), one or two sentences, and its source: the user's decision with its date, the upstream's terms, or the original scope (`SCOPE.md`, 2026-09-30). Numbers that are settings name their `weather.yaml` key; the value given is the default.
 
-Links to the code and the tests that prove each requirement are planned (traceability, backlog).
+Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `contract:` and `ui:` items are cargo tests, contract cases and UI checks, `gate:` items are the gates (fmt, clippy, sizes, comment_rules, doc_check, contract, faults, trace), and the marks `manual:`, `review:`, `scope:` and `todo:` stand in where no test can exist or is still missing; `refined` defers to the requirements that refine it. `*Refines:*` names the requirement a child makes concrete. `python3 rust/contract/trace.py` checks the links (`--report` for the overview).
 
 ## Purpose and users (GEN)
 
