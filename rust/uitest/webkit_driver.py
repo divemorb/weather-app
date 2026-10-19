@@ -11,6 +11,7 @@ as SKIP, never as passed.
 from __future__ import annotations
 
 import base64
+import fnmatch
 import http.server
 import sys
 import threading
@@ -18,10 +19,68 @@ import time
 
 from webdriver import WebKit, leftovers, wait_for
 
-# evaluates the expression in the page, awaits a Promise, reports errors
+# evaluates the expression in the page (inlined: the page's CSP allows no
+# eval or Function, unlike Chromium's CDP), awaits a Promise, reports errors
 EVAL = ("const cb = arguments[arguments.length - 1]; "
-        "Promise.resolve().then(() => (0, eval)(arguments[0]))"
+        "Promise.resolve((() => (%s))())"
         ".then((v) => cb({ok: v === undefined ? null : v}), (e) => cb({err: String(e)}));")
+
+def webkit_skip(name: str) -> str | None:
+    """Why a check is skipped on WebKit (the pattern without the
+    scenario/lang/ prefix), or None when the check runs like on Chromium."""
+    for pattern, reason in WEBKIT_SKIP.items():
+        if fnmatch.fnmatch(name, pattern):
+            return reason
+    return None
+
+
+# The checks WebKit cannot run (the reason, per pattern without the
+# scenario/lang/ prefix), reported as SKIP, never as passed:
+WEBKIT_SKIP = {
+    # no console or request capture in WebDriver classic
+    "console": "no console capture in WebDriver classic",
+    "requests": "no request capture in WebDriver classic",
+    # the window is at least 447 px wide (MiniBrowser's minimum), no phone view
+    "*-360": "window is at least 447 px wide, no phone view",
+    "*-390": "window is at least 447 px wide, no phone view",
+    "overflow-360": "window is at least 447 px wide, no phone view",
+    "details-fit": "window is at least 447 px wide, no phone view",
+    "view-phone": "window is at least 447 px wide, no phone view",
+    "view-details-only": "window is at least 447 px wide, no phone view",
+    # its 390 px (phone) part asserts the page is no wider than 390 px; at the
+    # 447 px minimum the page is wider, so that part cannot run (the label
+    # text itself is fine at both widths)
+    "view-label": "window is at least 447 px wide, no phone view",
+    "location-long": "window is at least 447 px wide, no phone view",
+    "location-lines": "window is at least 447 px wide, no phone view",
+    # no media emulation (prefers-reduced-motion cannot be turned on); the
+    # track checks freeze the sky with it, so their measured glass colour is a
+    # snapshot of a drifting animation, not a stable page property
+    "reduced-motion": "no media emulation for prefers-reduced-motion",
+    "report-still": "no media emulation for prefers-reduced-motion",
+    "big-tracks": "no media emulation for prefers-reduced-motion (the check freezes the sky)",
+    "rain-tracks": "no media emulation for prefers-reduced-motion (the check freezes the sky)",
+    # the faked API answers need request interception, which WebDriver classic cannot do
+    "reason-*": "no request interception in WebDriver classic, which the faked API answers need",
+    "refresh-*": "no request interception in WebDriver classic, which the faked API answers need",
+    "reload-fires": "no request interception in WebDriver classic, which the faked API answers need",
+    "chart-single-point": "no request interception in WebDriver classic, which the faked API answers need",
+    "dst-*": "no request interception in WebDriver classic, which the faked API answers need",
+    "search-failed": "no request interception in WebDriver classic, which the faked API answers need",
+    "report-error": "no request interception in WebDriver classic, which the faked API answers need",
+    "report-line-fresh": "no request interception in WebDriver classic, which the faked API answers need",
+    "report-undo-failed": "no request interception in WebDriver classic, which the faked API answers need",
+    "report-night": "no request interception in WebDriver classic, which the faked API answers need",
+    "sky-report-*": "no request interception in WebDriver classic, which the faked API answers need",
+    "sky-report-none": "no request interception in WebDriver classic, which the faked API answers need",
+    "sky-layer": "no request interception in WebDriver classic, which the faked API answers need",
+    "scene-*": "no request interception in WebDriver classic, which the faked API answers need",
+    "motion-*": "no request interception in WebDriver classic, which the faked API answers need",
+    "still-*": "no request interception in WebDriver classic, which the faked API answers need",
+    "glass-*": "no request interception in WebDriver classic, which the faked API answers need",
+    "contrast-*-light": "no request interception in WebDriver classic, which the faked API answers need",
+    "contrast-*-dark": "no request interception in WebDriver classic, which the faked API answers need",
+}
 
 
 class WebKitBrowser:
@@ -65,25 +124,47 @@ class WebKitPage:
         self.reduced = False
         self.init_script = ""
         self._loaded = False
+        self._cleared = False  # the localStorage cleanup after the first goto
         self.errors: list[str] = []  # WebDriver classic cannot see console errors
         self.requests: list[str] = []  # ... nor the requests (their checks are skipped)
 
     def setup(self, locale: str, width: int, height: int, scheme: str, reduced: bool, init_script: str):
         """Start the page's own WebKit (the theme is fixed per process) at the
-        given size (at least 447 px wide, the browser's minimum); the frozen
+        given viewport size (at least 447 px wide, the browser's minimum; the
+        window is taller by its title bar's offset, see _calibrate); the frozen
         clock cannot run before the page's own scripts, so init_script is only
         remembered here."""
         self.wk = WebKit(self.lang, dark=(scheme == "dark"))
         self.wk.start()
-        self.wk.window(max(width, 447), height)
+        self._calibrate(max(width, 447), height)
         self.reduced, self.init_script = reduced, init_script
 
+    def _calibrate(self, width: int, height: int):
+        """The window at the size whose viewport is width x height (the window's
+        title bar eats the difference, so ask for more height, then measure)."""
+        self.wk.window(width, height)
+        for _ in range(3):
+            w, h = self.wk.js("return [innerWidth, innerHeight]")
+            if w == width and h == height:
+                return
+            self.wk.window(width, height + (height - h))
+
     def goto(self, url: str):
-        """Navigate and wait until the document is complete (at most 20 s)."""
+        """Navigate and wait until the page is idle (at most 20 s)."""
         self._loaded = False
         self.wk.goto(url)
-        wait_for(lambda: self.wk.js("return document.readyState") == "complete",
-                 20, f"page {url} not complete after 20 s")
+        self._idle(20.0, 0.5)
+        if not self._cleared:  # the WebKit profile keeps localStorage between
+            self._cleared = True  # pages (Chromium starts empty); the view
+            try:                  # checks need that (the app's pages are http)
+                n = self.wk.js("return localStorage.length")
+            except (OSError, RuntimeError):
+                n = 0
+            if n > 0:
+                self.wk.js("localStorage.clear(); return null")
+                self._loaded = False
+                self.wk.goto(url)
+                self._idle(20.0, 0.5)
         self._loaded = True
 
     def reload(self):
@@ -93,15 +174,38 @@ class WebKitPage:
     def eval(self, expression: str):
         """Evaluate a JavaScript expression (awaiting a Promise), return the
         JSON value; RuntimeError with the error text on a page error."""
-        r = self.wk.js_async(EVAL, expression)
+        expr = expression.rstrip()
+        if expr.endswith(";"):  # the inlined body is one expression
+            expr = expr[:-1].rstrip()
+        r = self.wk.js_async(EVAL % expr)
         if isinstance(r, dict) and "err" in r:
             raise RuntimeError(r["err"])
         return r.get("ok")
 
+    def _idle(self, timeout: float, idle: float):
+        """Poll every 0.1 s until the document is complete and the count of
+        loaded resources has not changed for `idle` seconds (the page's API
+        calls still run after readyState turns complete); `timeout` at most."""
+        last, since = None, 0.0
+        end = time.monotonic() + timeout
+        while time.monotonic() < end:
+            now = time.monotonic()
+            try:
+                state, n = self.wk.js("return [document.readyState, "
+                                      "performance.getEntriesByType('resource').length]")
+            except (OSError, RuntimeError):
+                state, n = None, None
+            if n != last:
+                last, since = n, now
+            elif state == "complete" and now - since >= idle:
+                return
+            time.sleep(0.1)
+        raise RuntimeError(f"page not idle after {timeout:.0f} s")
+
     def wait_idle(self, timeout: float = 20.0, idle: float = 0.5):
-        """Wait until the page is quiet: there is nothing to observe, so a
-        fixed pause (timeout is accepted for the interface and not used)."""
-        time.sleep(idle)
+        """Wait until the page is quiet (the resource count is stable for
+        `idle` seconds, `timeout` at most)."""
+        self._idle(timeout, idle)
 
     def pump(self):
         """Collect pending events: there is none (WebDriver classic has no
@@ -109,11 +213,11 @@ class WebKitPage:
 
     def fake(self, responses):
         """Answer API paths with given responses: not possible here."""
-        raise NotImplementedError("webkit: no request interception yet (W2)")
+        raise NotImplementedError("webkit: no request interception in WebDriver classic")
 
     def fakes_left(self) -> int:
         """How many faked answers are still waiting: none, they are impossible."""
-        raise NotImplementedError("webkit: no request interception yet (W2)")
+        raise NotImplementedError("webkit: no request interception in WebDriver classic")
 
     def mouse_click(self, x: float, y: float):
         """A real mouse click at x, y (move, press, release)."""

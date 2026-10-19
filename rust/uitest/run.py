@@ -44,6 +44,7 @@ from names import UI_SCENARIOS, SCENARIO_LANGS, all_names, check_names, unit_fil
 from scenario import Results, run_scenario  # noqa: E402
 import workers  # noqa: E402
 from workers import build_jobs, worker_main  # noqa: E402
+from webkit_driver import WebKitBrowser, webkit_skip  # noqa: E402
 
 ALLOWED_EXT = {".html", ".js", ".css"}
 
@@ -110,6 +111,9 @@ def parse_args(argv: list[str] | None = None):
     """The command line; main adds args.selected (the --only filter) afterwards."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--binary", default="/target/debug/wetter", help="the Rust binary")
+    ap.add_argument("--browser", choices=["chromium", "webkit"], default="chromium",
+                    help="the engine (webkit: WebKitGTK behind the same checks, never in the gate; "
+                         "it needs the scenarios given with --scenario)")
     ap.add_argument("--scenario", nargs="*", choices=UI_SCENARIOS, help="only these scenarios")
     ap.add_argument("--lang", nargs="*", choices=list(LOCALES), help="only these languages")
     ap.add_argument("--require", nargs="*", default=["*"],
@@ -134,13 +138,21 @@ def parse_args(argv: list[str] | None = None):
     return ap.parse_args(argv)
 
 
-def report(res: Results, args, scenarios: list[str], langs: list[str]) -> int:
+def report(res: Results, args, scenarios: list[str], langs: list[str],
+           skipped: dict | None = None, exclude: set = frozenset()) -> int:
     """The PASS/FAIL lines and the summary, in the order of all_names():
-    identical no matter which process ran the checks."""
+    identical no matter which process ran the checks. ``skipped``: the check
+    names that were not run, each with its reason (one line, printed as a
+    SKIP line between the PASS and the FAIL lines of the same check);
+    ``exclude``: the names not reported at all (the WebKit run's static and
+    unit checks, which don't depend on the browser)."""
     passed = failed = required_failed = 0
-    expected = [n for n in all_names(scenarios, langs)
-                if args.selected(n) and not (args.no_unit and n.startswith("unit/"))]
-    for name in expected:
+    for name in all_names(scenarios, langs):
+        if name in (skipped or {}):
+            print(f"SKIP {name} ({args.browser}: {skipped[name]})")
+            continue
+        if not args.selected(name) or (args.no_unit and name.startswith("unit/")) or name in exclude:
+            continue
         problems = res.problems.get(name)
         if problems is None:
             problems = ["not checked (harness error before this check)"]
@@ -155,8 +167,40 @@ def report(res: Results, args, scenarios: list[str], langs: list[str]) -> int:
         print(f"FAIL {name}{'' if required else ' (not required yet)'}")
         for p in problems[:8]:
             print(f"     {p}")
-    print(f"uitest: {passed} passed, {failed} failed, {required_failed} of them required")
+    if skipped:
+        print(f"uitest ({args.browser}): {passed} passed, {failed} failed, {len(skipped)} skipped")
+    else:
+        print(f"uitest: {passed} passed, {failed} failed, {required_failed} of them required")
     return 1 if required_failed else 0
+
+
+def webkit_run(args, scenarios: list[str], langs: list[str]) -> int:
+    """The WebKit run (behind --browser webkit, never in the gate): the
+    scenarios given with --scenario, one after another, one WebKit browser per
+    language; the checks WebKit cannot run are not run (folded into
+    args.selected) and reported as SKIP. No static and no unit checks: they
+    don't depend on the browser."""
+    skipped = {}
+    for name in all_names(scenarios, langs):
+        if args.selected(name) and not name.startswith(("budget", "static-files", "unit/")):
+            reason = webkit_skip(name.rsplit("/", 1)[1])
+            if reason:
+                skipped[name] = reason
+    args.selected = lambda name: name not in skipped
+    args.workers = 1
+    if args.shots:
+        pathlib.Path(args.shots).mkdir(parents=True, exist_ok=True)
+    args.log = open(args.backend_log, "a") if args.backend_log else subprocess.DEVNULL
+    res = Results()
+    try:
+        browsers = {lang: WebKitBrowser(lang) for lang in langs}
+        for name in scenarios:
+            run_scenario(name, browsers, args, res)
+    finally:
+        for b in browsers.values():
+            b.close()
+    exclude = {"budget", "static-files"} | {f"unit/{p.name}" for p in unit_files()}
+    return report(res, args, scenarios, langs, skipped, exclude)
 
 
 def main() -> int:
@@ -170,6 +214,11 @@ def main() -> int:
     if args.list:
         print("\n".join(n for n in all_names(scenarios, langs) if args.selected(n)))
         return 0
+    if args.browser == "webkit" and not args.scenario:
+        print("uitest: --browser webkit runs only the scenarios given with --scenario", file=sys.stderr)
+        return 2
+    if args.browser == "webkit":
+        return webkit_run(args, scenarios, langs)
     refused = sandbox_refusal(args, scenarios, langs)
     if refused:
         print(refused, file=sys.stderr)
