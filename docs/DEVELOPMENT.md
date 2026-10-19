@@ -92,6 +92,8 @@ python3 rust/uitest/run.py --binary rust/target/debug/wetter --only 'sky/en/<che
 python3 rust/uitest/run.py --binary rust/target/debug/wetter --shots /tmp/shots           # screenshots
 ```
 
+A Safari-like run on WebKit (from time to time, not part of the checks above): `--browser webkit --scenario live`; what it needs and what it skips is in [rust/uitest/README.md](../rust/uitest/README.md#webkit-safari-like-run).
+
 The fault suite plants defects in a copy of the page and proves the checks still see them (`--gaps` runs the defects the checks don't see yet):
 
 ```bash
