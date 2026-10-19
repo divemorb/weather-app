@@ -125,8 +125,8 @@ def parse_args(argv: list[str] | None = None):
     ap.add_argument("--list", action="store_true", help="list the checks and exit")
     ap.add_argument("--backend-log", default=None, help="file for the app's output (default: discard)")
     ap.add_argument("--workers", type=int, default=0,
-                    help="the number of worker processes for the scenarios (default: min(8, the CPUs "
-                         "available), never more than 8; 1: one after another)")
+                    help="the number of worker processes for the scenarios (default: min(12, the CPUs "
+                         "available), never more than 16; 1: one after another)")
     ap.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)  # the worker processes
     ap.add_argument("--worker-index", type=int, default=0, help=argparse.SUPPRESS)
     # the first worker index (faults.py runs several run.py at once: disjoint port ranges)

@@ -33,8 +33,12 @@ import sys
 import tempfile
 import time
 
+from workers import MAX_WORKERS, default_workers
+
 HERE = pathlib.Path(__file__).resolve().parent
-JOBS = 6  # faults run at once; each run.py gets 2 workers of its own (ports: worker_ports)
+# faults run at once (10 on 14 CPUs: 33 s against 47 s with 6, measured 2026-10-19),
+# never more than the CPUs; each run.py gets 2 workers of its own (worker_ports)
+JOBS = min(10, default_workers())
 STATIC = HERE.parent.parent / "app" / "static"
 
 
@@ -55,8 +59,8 @@ def plant(fault: dict, dest: pathlib.Path) -> None:
 
 def worker_ports(slot: int) -> list[str]:
     """run.py options for a fault in this slot: 2 workers whose indices (and so
-    port ranges) no other slot and no plain run.py (indices 0-7) uses."""
-    return ["--workers", "2", "--worker-offset", str(8 + 2 * slot)]
+    port ranges) no other slot and no plain run.py (indices below MAX_WORKERS) uses."""
+    return ["--workers", "2", "--worker-offset", str(MAX_WORKERS + 2 * slot)]
 
 
 def run_fault(fault: dict, binary: str, slot: int = 0) -> tuple[list[str], str]:
