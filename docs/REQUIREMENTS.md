@@ -60,12 +60,18 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 ## Location (LOC)
 
 - **REQ_LOC_1** On the first start a setup wizard asks for the place: an address search, or latitude and longitude, plus the time zone. The place can be changed later from the page. *Source: scope.*
+  *Proof:* `ui:unconfigured/*/setup-visible`; `ui:wizard/*/save`; `ui:wizard/*/change`
   *Refines:* REQ_GEN_2
 - **REQ_LOC_2** The place is runtime state in the app's database, not in the code or the repository; environment variables or `weather.yaml` may seed it on the first start. *Source: scope.*
+  *Proof:* `cargo:location::tests::startup_adopts_cfg_location_into_db`; `cargo:config::tests::env_location_without_yaml`; `cargo:config::tests::yaml_location_defaults_timezone`
 - **REQ_LOC_3** Coordinates are rounded to 3 decimals (about 100 m) before they are stored. *Source: scope.*
+  *Proof:* `cargo:location::tests::validate::into_location_rounds_to_three_decimals`; `contract:wizard:location/set-berlin`
 - **REQ_LOC_4** A move of more than about 1 km (0.01° in latitude or longitude) deletes the cached data, the accuracy history and the user's reports of the old place: they would describe another place. *Source: scope; reports: the user, 2026-10-07.*
+  *Proof:* `cargo:location::tests::moved_beyond_epsilon_is_a_move`; `cargo:aggregator::tests::set_location_moved_clears_location_data`; `cargo:store::reports::tests::clear_location_data_removes_every_report`
 - **REQ_LOC_5** The place is shown as two short lines in German order, without quarter, state or country: `Street number` / `Postcode City` (from Nominatim's address details; fallbacks: the result's name, then its full name). Same order for every country. *Source: the user, 2026-10-12 (phone test P1).*
+  *Proof:* `cargo:geocode::tests::short_label_matches_the_shared_table`; `ui:wizard/*/search-lines`; `ui:wizard/*/location-long`
 - **REQ_LOC_6** A label stored before REQ_LOC_5 stays as it is until the user picks the place again; no automatic shortening (it would need the address details again). *Source: the user, 2026-10-12.*
+  *Proof:* `cargo:location::tests::location_json_round_trip`; `ui:unit/location-w3b.test.mjs`
 
 ## The page (PAGE)
 
@@ -148,19 +154,29 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 ## Security (SEC)
 
 - **REQ_SEC_1** Meant for a trusted home network: no login, no accounts; it must not be reachable from the internet. *Source: scope.*
+  *Proof:* scope: home-network-only is a deployment assumption; review: no login, account or password code in the app
 - **REQ_SEC_2** A foreign website can neither read data from the app nor change it: no CORS; changes (location, reports) only as same-origin JSON. *Source: scope.*
+  *Proof:* `cargo:routes::api_tests::no_cors_for_foreign_origin`; `contract:unconfigured:security/cors`; `cargo:routes::location_tests::post_location_foreign_origin_is_403`
 - **REQ_SEC_3** DNS-rebinding protection: the app answers only to IP addresses, `localhost`, `*.local` names and explicitly allowed host names. *Source: scope.*
+  *Proof:* `cargo:security::tests::host_allowed_accepted`; `cargo:security::tests::host_allowed_rejected`; `contract:*:security/host-evil`
 - **REQ_SEC_4** Security headers on every response, errors included: a strict Content Security Policy, no framing, no referrer, no MIME sniffing. *Source: scope.*
+  *Proof:* `contract:*:security/docs`; `cargo:routes::api_tests::unhandled_error_500_still_carries_security_headers`
   *Refines:* REQ_PRIV_1
 - **REQ_SEC_5** Upstream data and the user's input are never rendered as HTML. *Source: scope.*
+  *Proof:* review: every value the page fills is set via textContent, innerHTML only with constants
 - **REQ_SEC_6** The interactive API documentation is off unless enabled. *Source: scope.*
+  *Proof:* `contract:*:security/docs`; `contract:*:security/redoc`; `contract:*:security/openapi`
 - **REQ_SEC_7** The container runs as a non-root user on a read-only file system, without capabilities, with a process limit. *Source: scope.*
+  *Proof:* review: docker-compose.yml and rust/Dockerfile set read_only, cap_drop ALL, pids_limit and a non-root user
 
 ## Privacy (PRIV)
 
 - **REQ_PRIV_1** No tracking, no analytics, no account. *Source: scope.*
+  *Proof:* refined; `ui:*/*/requests`; review: no analytics, tracking or account code in app/static or the backend
 - **REQ_PRIV_2** The coordinates go only to the weather services (needed for the forecast); search text goes to Nominatim from the app's server; coordinates typed in directly go nowhere else (so no reverse geocoding). *Source: scope.*
+  *Proof:* `ui:*/*/requests`; `cargo:geocode::tests::search_request_carries_user_agent_and_jsonv2_params`
 - **REQ_PRIV_3** No information about the user's home location in the repository (code, fixtures, goldens, commits). *Source: the user, 2026-10-03.*
+  *Proof:* review: the fixtures, goldens and examples use only test places such as Berlin
 
 ## Operation (OPS)
 
