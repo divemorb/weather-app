@@ -7,9 +7,13 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 ## Purpose and users (GEN)
 
 - **REQ_GEN_1** The app answers one question for one place: will it rain here in the next 60 minutes. *Source: scope.*
+  *Proof:* `ui:*/*/rain-probability`
 - **REQ_GEN_2** One household, one location; the person running it can paste terminal commands but needn't be a developer. *Source: scope.*
+  *Proof:* refined; manual: run the compose file on a plain Linux PC and a Raspberry Pi and open the page
 - **REQ_GEN_3** It uses only free data sources that need no account or key, for non-commercial use. *Source: scope; Open-Meteo's and Bright Sky's terms.*
+  *Proof:* `cargo:clients::tests::openmeteo::client_forecast_builds_correct_params`; `cargo:clients::tests::brightsky::client_fetch_current_uses_correct_endpoint`; manual: check the upstream terms for free, keyless, non-commercial use before a release
 - **REQ_GEN_4** **The page explains itself**: every value shown says what it is and where it comes from (which source decided, how a number was derived). *Source: the user, 2026-10-04.*
+  *Proof:* refined; review: every value the page shows says what it is and where it comes from
 
 ## The rain probability (PROB)
 
@@ -225,16 +229,25 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 ## Operation (OPS)
 
 - **REQ_OPS_1** One container, run with Docker Compose or Podman Compose, on Linux PCs and a Raspberry Pi with a 64-bit OS (down to a Pi Zero 2 W with 512 MB); Docker Desktop on macOS or Windows. *Source: scope; Pi Zero: the user.*
+  *Proof:* manual: start the image on a Pi Zero 2 W (512 MB) and a PC, open the page, and check the contract's 60 MB peak-memory budget
   *Refines:* REQ_GEN_2
 - **REQ_OPS_2** All data in one volume that can be backed up and restored. *Source: scope.*
+  *Proof:* `cargo:snapshot_command`; `cargo:snapshot::tests::*`
 - **REQ_OPS_3** Settings in `weather.yaml` plus a few environment variables (port, allowed host names, accuracy weighting, API docs, the first-start place). *Source: scope.*
+  *Proof:* `cargo:config::tests::defaults_from_yaml`; `cargo:config::tests::env_overrides_yaml`; `cargo:security::tests::parse_allowed_hosts_strips_and_lowercases`
   *Refines:* REQ_GEN_2
 - **REQ_OPS_4** An update keeps the data: the new version reads the old database as it is; a way back to the previous version exists and is tested. *Source: the user, 2026-10-03.*
+  *Proof:* `cargo:store::tests::migrates_old_db_once`; `cargo:store::tests::v2_db_migrates_to_v3_dropping_model_accuracy`; review: docs/MIGRATION.md's roll-back path is checked when an update ships
 
 ## Code and checks (CODE)
 
 - **REQ_CODE_1** The backend is Rust, idiomatic and safe by lint (no `unsafe`, no panicking calls, no unchecked indexing or lossy casts outside tests). *Source: the user (the Rust port).*
+  *Proof:* `gate:clippy`; `gate:fmt`
 - **REQ_CODE_2** Decisions live in small pure functions with tests; the aggregator and the store only move data. No source file over 400 lines. *Source: scope.*
+  *Proof:* `gate:sizes`; review: the aggregator and the store only move data, the decisions are in the pure functions
 - **REQ_CODE_3** Tests never touch the network and run in the project's container images. *Source: scope.*
+  *Proof:* `cargo:upstream::tests::fetch_parses_json_and_sends_params`; review: the tests run in the project's container image with no network
 - **REQ_CODE_4** The API's answers stay byte for byte the same unless a change is intended (the contract suite). *Source: the Rust port.*
+  *Proof:* `gate:contract`
 - **REQ_CODE_5** The UI checks may not get weaker unnoticed: planted faults must keep failing them. *Source: the user, 2026-10-13.*
+  *Proof:* `gate:faults`
