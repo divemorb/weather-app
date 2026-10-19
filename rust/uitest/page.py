@@ -184,22 +184,16 @@ class View:
 
 
 class UIPage:
-    """The page under test: one tab with the frozen clock, the locale, the view and faked API answers."""
+    """The page under test: one tab with the frozen clock, the locale, the view and
+    faked API answers. ``self.p`` is the driver (``cdp.Page`` on Chromium), whose
+    interface is: setup, goto, reload, _loaded, eval, wait_idle, pump, errors,
+    requests, fake, fakes_left, mouse_click, insert_text, press_key,
+    screenshot_b64, screenshot, close."""
     def __init__(self, browser, base, sc_now, lang, view: View | None = None, fakes=None):
         view = view or View()
         self.lang, self.locale, self.base = lang, LOCALES[lang], base
         self.p = browser.new_page()
-        mobile = view.width < 600
-        self.p.send("Emulation.setLocaleOverride", {"locale": self.locale})
-        self.p.send("Emulation.setTimezoneOverride", {"timezoneId": "UTC"})
-        self.p.send("Emulation.setDeviceMetricsOverride",
-                    {"width": view.width, "height": view.height, "deviceScaleFactor": 1, "mobile": mobile})
-        if mobile:
-            self.p.send("Emulation.setTouchEmulationEnabled", {"enabled": True})
-        self.p.send("Emulation.setEmulatedMedia", {"features": [
-            {"name": "prefers-color-scheme", "value": view.scheme},
-            {"name": "prefers-reduced-motion", "value": "reduce" if view.reduced else "no-preference"}]})
-        self.p.send("Page.addScriptToEvaluateOnNewDocument", {"source": CLOCK % sc_now})
+        self.p.setup(self.locale, view.width, view.height, view.scheme, view.reduced, CLOCK % sc_now)
         if fakes:
             self.p.fake(fakes)
         self.p.goto(base + "/" + view.query)
@@ -242,9 +236,7 @@ class UIPage:
         }})()""")
         if "error" in r:
             return [r["error"]]
-        for kind in ("mousePressed", "mouseReleased"):
-            self.p.send("Input.dispatchMouseEvent", {"type": kind, "x": r["x"], "y": r["y"],
-                                                     "button": "left", "clickCount": 1})
+        self.p.mouse_click(r["x"], r["y"])
         self.p.wait_idle(idle=0.3)
         self.settle()
         return []
@@ -257,12 +249,12 @@ class UIPage:
         }})()""")
         if not ok:
             return [f"no element [data-test={hook}]"]
-        self.p.send("Input.insertText", {"text": text})
+        self.p.insert_text(text)
         return []
 
     def shot_b64(self) -> str:
         """The viewport as a base64 PNG (what the user sees now)."""
-        return self.p.send("Page.captureScreenshot", {"format": "png"}, timeout=60)["data"]
+        return self.p.screenshot_b64()
 
     def frame(self):
         self.p.eval("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))")

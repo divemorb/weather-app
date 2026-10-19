@@ -84,10 +84,7 @@ def close_checks(run: Run, pg: UIPage):
     if "report-escape" in run.names:
         problems = open_back(pg)
         if not problems:
-            pg.p.send("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Escape", "code": "Escape",
-                                                 "windowsVirtualKeyCode": 27})
-            pg.p.send("Input.dispatchKeyEvent", {"type": "keyUp", "key": "Escape", "code": "Escape",
-                                                 "windowsVirtualKeyCode": 27})
+            pg.p.press_key("Escape")
             problems = wait(pg, lambda s: not s.get("backLive") and s.get("frontLive"), 1.5, "Escape to close")
         run.add("report-escape", problems + (["Escape saved a report"] if current(run.base) else []))
     run.done(pg)

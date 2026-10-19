@@ -164,6 +164,8 @@ class Browser:
 class Page:
     """One tab in its own browser context; collects errors and network activity."""
 
+    KEYS = {"Escape": ("Escape", 27)}  # key name -> (code, windowsVirtualKeyCode)
+
     def __init__(self, browser: Browser, session: str, target: str, context: str):
         self.b, self.session, self.target, self.context = browser, session, target, context
         self.errors: list[str] = []
@@ -246,6 +248,22 @@ class Page:
     def send(self, method, params=None, timeout=30.0):
         return self.b.send(method, params, self.session, timeout)
 
+    def setup(self, locale: str, width: int, height: int, scheme: str, reduced: bool, init_script: str):
+        """Prepare the page before the first goto: the locale and the UTC zone,
+        the size and touch (mobile under 600 px wide), the colour scheme and the
+        motion, and a script for every new document."""
+        mobile = width < 600
+        self.send("Emulation.setLocaleOverride", {"locale": locale})
+        self.send("Emulation.setTimezoneOverride", {"timezoneId": "UTC"})
+        self.send("Emulation.setDeviceMetricsOverride",
+                  {"width": width, "height": height, "deviceScaleFactor": 1, "mobile": mobile})
+        if mobile:
+            self.send("Emulation.setTouchEmulationEnabled", {"enabled": True})
+        self.send("Emulation.setEmulatedMedia", {"features": [
+            {"name": "prefers-color-scheme", "value": scheme},
+            {"name": "prefers-reduced-motion", "value": "reduce" if reduced else "no-preference"}]})
+        self.send("Page.addScriptToEvaluateOnNewDocument", {"source": init_script})
+
     def pump(self):
         for ev in self.b.events(self.session):
             m, p = ev.get("method"), ev.get("params", {})
@@ -303,6 +321,27 @@ class Page:
             d = r["exceptionDetails"]
             raise CDPError("evaluate: " + (d.get("exception", {}).get("description") or d.get("text", "")))
         return r["result"].get("value")
+
+    def mouse_click(self, x: float, y: float):
+        """A real mouse click at x, y (pressed, then released)."""
+        for kind in ("mousePressed", "mouseReleased"):
+            self.send("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y,
+                                                   "button": "left", "clickCount": 1})
+
+    def insert_text(self, text: str):
+        """Insert the text at the cursor (the focused element gets it)."""
+        self.send("Input.insertText", {"text": text})
+
+    def press_key(self, key: str):
+        """Press and release one named key (only the keys in KEYS are known)."""
+        code, vk = self.KEYS[key]
+        for kind in ("keyDown", "keyUp"):
+            self.send("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code,
+                                                 "windowsVirtualKeyCode": vk})
+
+    def screenshot_b64(self) -> str:
+        """The viewport as a base64 PNG (what the user sees now)."""
+        return self.send("Page.captureScreenshot", {"format": "png"}, timeout=60)["data"]
 
     def screenshot(self, path: str, full_page: bool = True):
         import base64
