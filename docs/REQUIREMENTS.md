@@ -155,28 +155,45 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 ## The sky (SKY)
 
 - **REQ_SKY_1** The background shows the current weather as an animation, behind the tiles, on every screen: clear (day, night), partly cloudy (day, night), cloudy, fog, wind, rain, heavy rain, sleet, snow, hail, thunderstorm. *Source: the user, 2026-10-03.*
+  *Proof:* `ui:sky/*/motion-*`; `ui:sky/*/sky-layer`; `ui:sky/*/layout-*`
 - **REQ_SKY_2** The scene comes from the station's icon (Bright Sky), and from the radar at the place right now: rain on the radar shows rain (heavy rain from 0.2 mm per 5 minutes) even when the station reports dry. *Source: the user, 2026-10-03.*
+  *Proof:* refined; `ui:unit/scene.test.mjs`; `ui:sky/*/scene-radar-*`; `ui:sky/*/scene-no-*`
 - **REQ_SKY_3** **Rule B (the radar beats the station when it's dry)**: the weather station can be several kilometres away, the radar measures at the place itself. So when the station reports rain, sleet, snow or hail but the radar shows no rain at the place right now (its current 5-minute step is 0 mm), the sky shows cloudy instead. A thunderstorm from the station is always shown, as a warning: it can reach the place quickly, even while the radar is still dry there. Without radar data the station's report is shown as it is. *Source: the user, 2026-10-04.*
+  *Proof:* `ui:unit/scene.test.mjs`; `ui:sky/*/scene-rain-radar-unavailable`; `ui:sky/*/scene-radar-unavailable`
   *Refines:* REQ_SKY_2
 - **REQ_SKY_4** The tiles are glass: the sky can be seen through them (no blur), every text keeps REQ_PAGE_8. *Source: the user, 2026-10-03/04.*
+  *Proof:* `ui:sky/*/glass-*`
 - **REQ_SKY_5** With "reduce motion" the sky is a still picture; lightning flashes at most once per 3 seconds (WCAG 2.3.1). *Source: the user, 2026-10-03; WCAG.*
+  *Proof:* `ui:sky/*/still-*`; review: the lightning keyframes in app/static/sky.css keep the flashes at least 3 s apart (WCAG 2.3.1)
 - **REQ_SKY_6** The "why" line names the source: the station and its distance, the nearest station, the radar (with rule B: what the station reports), or the user's report and its time. *Source: the user, 2026-10-04 and 2026-10-07.*
+  *Proof:* `ui:live/*/reason-*`; `ui:report/*/sky-after-save`; `ui:report/*/sky-report-none`
   *Refines:* REQ_GLANCE_4
 - **REQ_SKY_7** A fresh user report (REQ_REPORT_6) decides the sky. *Source: the user, 2026-10-07.*
+  *Proof:* `ui:report/en/sky-report-*`; `ui:report/de/sky-report-*`; `ui:report/*/sky-after-save`
   *Refines:* REQ_SKY_2
 
 ## The user's reports, "Stimmt nicht?" (REPORT)
 
 - **REQ_REPORT_1** When reality and forecast differ, the user can record the real weather, phone-first: the Now tile turns over, its back holds 8 picture buttons (clear, partly cloudy, cloudy, fog, rain, thunderstorm, snow, hail) in the page's own scene words. *Source: the user, 2026-10-07.*
+  *Proof:* `ui:report/*/report-flip`; `ui:report/*/report-picker`; `ui:report/*/report-fit-phone-360`
 - **REQ_REPORT_2** The button on the front is a pencil with the word "Report" ("Melden"), so it's clear that it opens the report. *Source: the user, 2026-10-12 (phone test P3: the earlier arrow icon looked like reload).*
+  *Proof:* `ui:report/*/report-open`
 - **REQ_REPORT_3** One tap saves; rain first asks for the intensity (light, moderate, heavy, or skip); "now", "15 min ago" or "30 min ago". *Source: the user, 2026-10-07.*
+  *Proof:* `ui:report/*/report-save`; `ui:report/*/report-intensity`; `ui:report/*/report-picker`
 - **REQ_REPORT_4** A "That's right" button confirms what the page shows. *Source: the user, 2026-10-07.*
+  *Proof:* `ui:report/*/report-confirm`; `ui:report/*/report-shows`
 - **REQ_REPORT_5** After saving, the front shows the report and its time with an undo, while it is fresh; a failed save says so and keeps the back open. *Source: the user, 2026-10-07.*
+  *Proof:* `ui:report/*/report-save`; `ui:report/*/report-line-fresh`; `ui:report/*/report-error`
 - **REQ_REPORT_6** A report is fresh for 30 minutes (the newest observed at or before now). *Source: the user, 2026-10-07.*
+  *Proof:* `cargo:routes::reports_tests::current_report_freshness_bounds_inclusive_future_ignored`; `contract:report:reports/current-still-rain`
 - **REQ_REPORT_7** The host tile is one attribute in the page, so another tile can host it later. *Source: the user, 2026-10-07.*
+  *Proof:* `ui:report-glance/*/report-flip`
 - **REQ_REPORT_8** Reports count in the accuracy only in their own block ("Against your reports"), scored on the same forecast hours as the station; the station's table, the weights and the vote stay station-only. Per hour the newest report decides; rain, thunderstorm, snow and hail count as rain. *Source: the user, 2026-10-07 (option A).*
+  *Proof:* `cargo:reports::score::tests::*`; `contract:report:reports/rain-probability`; `ui:report/*/details-reports`
 - **REQ_REPORT_9** Reports are kept for the accuracy window, at most 500. *Source: the user, 2026-10-07.*
+  *Proof:* `cargo:store::reports::tests::prune_drops_old_reports_then_keeps_only_the_newest`; `contract:report:reports/delete-pruned`
 - **REQ_REPORT_10** No report button on the locked wall display (`?kiosk`). *Source: the user, 2026-10-07.*
+  *Proof:* `ui:report/*/report-locked`
 
 ## Security (SEC)
 
