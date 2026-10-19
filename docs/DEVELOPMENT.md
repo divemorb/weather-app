@@ -113,6 +113,17 @@ The docs gate: every relative link in the docs leads to a file, and [ARCHITECTUR
 python3 rust/contract/doc_check.py
 ```
 
+### Traceability
+
+Every requirement in [REQUIREMENTS.md](REQUIREMENTS.md) names the tests that prove it in a `*Proof:*` line under its bullet; the item kinds and the marks are described in the header of [REQUIREMENTS.md](REQUIREMENTS.md). The check:
+
+```bash
+python3 rust/contract/trace.py --strict
+python3 rust/contract/trace.py --report
+```
+
+`--strict` fails a requirement without a Proof line; `--report` prints the Markdown overview instead. A new or changed requirement gets its Proof line checked again, and a renamed test fails the check until the line is updated.
+
 ## Code rules
 
 - **Lints** in `rust/Cargo.toml` (`[lints]`): `unsafe_code` is forbidden; Clippy denies `unwrap`, `expect`, `panic`, index and string slicing, `todo!`/`unimplemented!`/`dbg!`, lossy casts, and `allow` without a reason, plus a curated list of pedantic and nursery lints (for example `too_many_lines`, `unreadable_literal`, `use_self`). `rust/clippy.toml` relaxes `unwrap`, `expect`, `panic` and indexing in test code.
