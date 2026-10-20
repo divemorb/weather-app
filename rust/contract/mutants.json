@@ -1,0 +1,734 @@
+{
+ "MT1": [
+  {
+   "name": "src/upstream.rs:7:41: replace * with +",
+   "file": "src/upstream.rs",
+   "start": [
+    7,
+    41
+   ],
+   "end": [
+    7,
+    42
+   ],
+   "anchor": "pub const MAX_RESPONSE_BYTES: usize = 5 * 1024 * 1024;",
+   "original": "*",
+   "replacement": "+"
+  },
+  {
+   "name": "src/upstream.rs:76:21: replace > with == in fetch_json_capped",
+   "file": "src/upstream.rs",
+   "start": [
+    76,
+    21
+   ],
+   "end": [
+    76,
+    22
+   ],
+   "anchor": "        && declared > MAX_RESPONSE_BYTES as u64",
+   "original": ">",
+   "replacement": "=="
+  },
+  {
+   "name": "src/upstream.rs:76:21: replace > with >= in fetch_json_capped",
+   "file": "src/upstream.rs",
+   "start": [
+    76,
+    21
+   ],
+   "end": [
+    76,
+    22
+   ],
+   "anchor": "        && declared > MAX_RESPONSE_BYTES as u64",
+   "original": ">",
+   "replacement": ">="
+  },
+  {
+   "name": "src/upstream.rs:88:37: replace > with >= in fetch_json_capped",
+   "file": "src/upstream.rs",
+   "start": [
+    88,
+    37
+   ],
+   "end": [
+    88,
+    38
+   ],
+   "anchor": "        if body.len() + chunk.len() > MAX_RESPONSE_BYTES {",
+   "original": ">",
+   "replacement": ">="
+  }
+ ],
+ "MT2": [
+  {
+   "name": "src/location.rs:65:41: replace > with >= in moved",
+   "file": "src/location.rs",
+   "start": [
+    65,
+    41
+   ],
+   "end": [
+    65,
+    42
+   ],
+   "anchor": "    (old.latitude - new.latitude).abs() > MOVED_EPSILON",
+   "original": ">",
+   "replacement": ">="
+  },
+  {
+   "name": "src/location.rs:66:50: replace > with >= in moved",
+   "file": "src/location.rs",
+   "start": [
+    66,
+    50
+   ],
+   "end": [
+    66,
+    51
+   ],
+   "anchor": "        || (old.longitude - new.longitude).abs() > MOVED_EPSILON",
+   "original": ">",
+   "replacement": ">="
+  },
+  {
+   "name": "src/location.rs:222:32: replace > with >= in validate_location_body",
+   "file": "src/location.rs",
+   "start": [
+    222,
+    32
+   ],
+   "end": [
+    222,
+    33
+   ],
+   "anchor": "            if len == 0 || len > 64 {",
+   "original": ">",
+   "replacement": ">="
+  },
+  {
+   "name": "src/geocode.rs:238:20: replace >= with < in cache_result",
+   "file": "src/geocode.rs",
+   "start": [
+    238,
+    20
+   ],
+   "end": [
+    238,
+    22
+   ],
+   "anchor": "    if cache.len() >= MAX_CACHE_ENTRIES {",
+   "original": ">=",
+   "replacement": "<"
+  },
+  {
+   "name": "src/routes/location.rs:115:19: replace < with <= in get_geocode",
+   "file": "src/routes/location.rs",
+   "start": [
+    115,
+    19
+   ],
+   "end": [
+    115,
+    20
+   ],
+   "anchor": "    if characters < 3 {",
+   "original": "<",
+   "replacement": "<="
+  },
+  {
+   "name": "src/routes/location.rs:118:19: replace > with >= in get_geocode",
+   "file": "src/routes/location.rs",
+   "start": [
+    118,
+    19
+   ],
+   "end": [
+    118,
+    20
+   ],
+   "anchor": "    if characters > 200 {",
+   "original": ">",
+   "replacement": ">="
+  },
+  {
+   "name": "src/routes/location.rs:139:5: replace store_error -> Response with Default::default()",
+   "file": "src/routes/location.rs",
+   "start": [
+    139,
+    5
+   ],
+   "end": [
+    145,
+    25
+   ],
+   "anchor": "    tracing::error!(\"saving the location failed: {err}\");",
+   "original": "tracing::error!(\"saving the location failed: {err}\");\n    (\n        StatusCode::INTERNAL_SERVER_ERROR,\n        [(header::CONTENT_TYPE, \"text/plain; charset=utf-8\")],\n        \"Internal Server Error\",\n    )\n        .into_response()",
+   "replacement": "Default::default()"
+  }
+ ],
+ "MT3": [
+  {
+   "name": "src/routes/reports.rs:184:5: replace store_error -> Response with Default::default()",
+   "file": "src/routes/reports.rs",
+   "start": [
+    184,
+    5
+   ],
+   "end": [
+    190,
+    25
+   ],
+   "anchor": "    tracing::error!(\"the user report write failed: {err}\");",
+   "original": "tracing::error!(\"the user report write failed: {err}\");\n    (\n        StatusCode::INTERNAL_SERVER_ERROR,\n        [(header::CONTENT_TYPE, \"text/plain; charset=utf-8\")],\n        \"Internal Server Error\",\n    )\n        .into_response()",
+   "replacement": "Default::default()"
+  },
+  {
+   "name": "src/radar.rs:141:19: replace || with && in radar_grid",
+   "file": "src/radar.rs",
+   "start": [
+    141,
+    19
+   ],
+   "end": [
+    141,
+    21
+   ],
+   "anchor": "    if width <= 0 || height <= 0 || n_cells > MAX_RADAR_CELLS {",
+   "original": "||",
+   "replacement": "&&"
+  },
+  {
+   "name": "src/radar.rs:141:45: replace > with >= in radar_grid",
+   "file": "src/radar.rs",
+   "start": [
+    141,
+    45
+   ],
+   "end": [
+    141,
+    46
+   ],
+   "anchor": "    if width <= 0 || height <= 0 || n_cells > MAX_RADAR_CELLS {",
+   "original": ">",
+   "replacement": ">="
+  },
+  {
+   "name": "src/radar.rs:149:35: replace < with <= in radar_grid",
+   "file": "src/radar.rs",
+   "start": [
+    149,
+    35
+   ],
+   "end": [
+    149,
+    36
+   ],
+   "anchor": "    let covered = 0.0 <= px && px < width as f64 && 0.0 <= py && py < height as f64;",
+   "original": "<",
+   "replacement": "<="
+  },
+  {
+   "name": "src/radar.rs:149:50: replace && with || in radar_grid",
+   "file": "src/radar.rs",
+   "start": [
+    149,
+    50
+   ],
+   "end": [
+    149,
+    52
+   ],
+   "anchor": "    let covered = 0.0 <= px && px < width as f64 && 0.0 <= py && py < height as f64;",
+   "original": "&&",
+   "replacement": "||"
+  },
+  {
+   "name": "src/radar.rs:149:63: replace && with || in radar_grid",
+   "file": "src/radar.rs",
+   "start": [
+    149,
+    63
+   ],
+   "end": [
+    149,
+    65
+   ],
+   "anchor": "    let covered = 0.0 <= px && px < width as f64 && 0.0 <= py && py < height as f64;",
+   "original": "&&",
+   "replacement": "||"
+  },
+  {
+   "name": "src/radar.rs:149:69: replace < with <= in radar_grid",
+   "file": "src/radar.rs",
+   "start": [
+    149,
+    69
+   ],
+   "end": [
+    149,
+    70
+   ],
+   "anchor": "    let covered = 0.0 <= px && px < width as f64 && 0.0 <= py && py < height as f64;",
+   "original": "<",
+   "replacement": "<="
+  }
+ ],
+ "MT4": [
+  {
+   "name": "src/probability.rs:45:33: replace * with / in cell_distance_km",
+   "file": "src/probability.rs",
+   "start": [
+    45,
+    33
+   ],
+   "end": [
+    45,
+    34
+   ],
+   "anchor": "        (cell_y as f64 - loc_y) * cell_km,",
+   "original": "*",
+   "replacement": "/"
+  },
+  {
+   "name": "src/probability.rs:61:54: replace < with <= in radar_has_local_rain",
+   "file": "src/probability.rs",
+   "start": [
+    61,
+    54
+   ],
+   "end": [
+    61,
+    55
+   ],
+   "anchor": "        if !(now <= frame.time_utc && frame.time_utc < end) {",
+   "original": "<",
+   "replacement": "<="
+  },
+  {
+   "name": "src/probability/combine.rs:105:24: replace && with || in combine_signals",
+   "file": "src/probability/combine.rs",
+   "start": [
+    105,
+    24
+   ],
+   "end": [
+    105,
+    26
+   ],
+   "anchor": "    if radar_available && radar_raining.is_some() {",
+   "original": "&&",
+   "replacement": "||"
+  },
+  {
+   "name": "src/series.rs:82:45: replace && with || in build_24h_series",
+   "file": "src/series.rs",
+   "start": [
+    82,
+    45
+   ],
+   "end": [
+    82,
+    47
+   ],
+   "anchor": "        .find(|m| !m.hourly_time.is_empty() && !m.hourly_precip_mm.is_empty())",
+   "original": "&&",
+   "replacement": "||"
+  },
+  {
+   "name": "src/aggregator/read.rs:237:37: replace || with && in first_hour_apparent",
+   "file": "src/aggregator/read.rs",
+   "start": [
+    237,
+    37
+   ],
+   "end": [
+    237,
+    39
+   ],
+   "anchor": "        if m.hourly_time.is_empty() || m.hourly_apparent_c.is_empty() {",
+   "original": "||",
+   "replacement": "&&"
+  },
+  {
+   "name": "src/aggregator/read.rs:243:24: replace < with <= in first_hour_apparent",
+   "file": "src/aggregator/read.rs",
+   "start": [
+    243,
+    24
+   ],
+   "end": [
+    243,
+    25
+   ],
+   "anchor": "                && now < *t + TimeDelta::hours(1)",
+   "original": "<",
+   "replacement": "<="
+  },
+  {
+   "name": "src/aggregator.rs:291:41: replace > with >= in Aggregator::cache_meta",
+   "file": "src/aggregator.rs",
+   "start": [
+    291,
+    41
+   ],
+   "end": [
+    291,
+    42
+   ],
+   "anchor": "            stale: age.is_none_or(|a| a > stale_minutes.saturating_mul(60) as f64),",
+   "original": ">",
+   "replacement": ">="
+  }
+ ],
+ "MT5": [
+  {
+   "name": "src/config.rs:265:39: delete ! in load_location",
+   "file": "src/config.rs",
+   "start": [
+    265,
+    39
+   ],
+   "end": [
+    265,
+    40
+   ],
+   "anchor": "            Some(Value::String(s)) if !s.is_empty() => s.clone(),",
+   "original": "!",
+   "replacement": ""
+  },
+  {
+   "name": "src/config.rs:265:39: replace match guard !s.is_empty() with false in load_location",
+   "file": "src/config.rs",
+   "start": [
+    265,
+    39
+   ],
+   "end": [
+    265,
+    52
+   ],
+   "anchor": "            Some(Value::String(s)) if !s.is_empty() => s.clone(),",
+   "original": "!s.is_empty()",
+   "replacement": "false"
+  },
+  {
+   "name": "src/config.rs:265:39: replace match guard !s.is_empty() with true in load_location",
+   "file": "src/config.rs",
+   "start": [
+    265,
+    39
+   ],
+   "end": [
+    265,
+    52
+   ],
+   "anchor": "            Some(Value::String(s)) if !s.is_empty() => s.clone(),",
+   "original": "!s.is_empty()",
+   "replacement": "true"
+  },
+  {
+   "name": "src/config/values.rs:40:5: replace env_bool -> bool with true",
+   "file": "src/config/values.rs",
+   "start": [
+    40,
+    5
+   ],
+   "end": [
+    46,
+    6
+   ],
+   "anchor": "    match env_str(env, name) {",
+   "original": "match env_str(env, name) {\n        Some(raw) => matches!(\n            raw.trim().to_lowercase().as_str(),\n            \"1\" | \"true\" | \"yes\" | \"on\"\n        ),\n        None => default,\n    }",
+   "replacement": "true"
+  },
+  {
+   "name": "src/config/values.rs:53:9: delete match arm Value::String(s) in yaml_f64",
+   "file": "src/config/values.rs",
+   "start": [
+    53,
+    9
+   ],
+   "end": [
+    56,
+    66
+   ],
+   "anchor": "        Value::String(s) => s",
+   "original": "Value::String(s) => s\n            .trim()\n            .parse()\n            .map_err(|_| format!(\"{what}: not a number: {s:?}\")),",
+   "replacement": ""
+  },
+  {
+   "name": "src/config/values.rs:57:9: delete match arm Value::Bool(b) in yaml_f64",
+   "file": "src/config/values.rs",
+   "start": [
+    57,
+    9
+   ],
+   "end": [
+    57,
+    58
+   ],
+   "anchor": "        Value::Bool(b) => Ok(if *b { 1.0 } else { 0.0 }),",
+   "original": "Value::Bool(b) => Ok(if *b { 1.0 } else { 0.0 }),",
+   "replacement": ""
+  },
+  {
+   "name": "src/config/values.rs:70:9: delete match arm Value::String(s) in yaml_i64",
+   "file": "src/config/values.rs",
+   "start": [
+    70,
+    9
+   ],
+   "end": [
+    73,
+    68
+   ],
+   "anchor": "        Value::String(s) => s",
+   "original": "Value::String(s) => s\n            .trim()\n            .parse()\n            .map_err(|_| format!(\"{what}: not an integer: {s:?}\")),",
+   "replacement": ""
+  },
+  {
+   "name": "src/config/values.rs:74:9: delete match arm Value::Bool(b) in yaml_i64",
+   "file": "src/config/values.rs",
+   "start": [
+    74,
+    9
+   ],
+   "end": [
+    74,
+    45
+   ],
+   "anchor": "        Value::Bool(b) => Ok(i64::from(*b)),",
+   "original": "Value::Bool(b) => Ok(i64::from(*b)),",
+   "replacement": ""
+  },
+  {
+   "name": "src/config/values.rs:99:5: replace subsec -> Result<Option<&'a serde_json::Map<String, Value>>, String> with Ok(None)",
+   "file": "src/config/values.rs",
+   "start": [
+    99,
+    5
+   ],
+   "end": [
+    105,
+    6
+   ],
+   "anchor": "    match sec.and_then(|m| m.get(key)) {",
+   "original": "match sec.and_then(|m| m.get(key)) {\n        None | Some(Value::Null) => Ok(None),\n        Some(Value::Object(map)) => Ok(Some(map)),\n        Some(other) => Err(format!(\n            \"config section {key:?} must be a mapping, got {other}\"\n        )),\n    }",
+   "replacement": "Ok(None)"
+  },
+  {
+   "name": "src/config/values.rs:99:5: replace subsec -> Result<Option<&'a serde_json::Map<String, Value>>, String> with Ok(Some(Box::leak(Box::new(Default::default()))))",
+   "file": "src/config/values.rs",
+   "start": [
+    99,
+    5
+   ],
+   "end": [
+    105,
+    6
+   ],
+   "anchor": "    match sec.and_then(|m| m.get(key)) {",
+   "original": "match sec.and_then(|m| m.get(key)) {\n        None | Some(Value::Null) => Ok(None),\n        Some(Value::Object(map)) => Ok(Some(map)),\n        Some(other) => Err(format!(\n            \"config section {key:?} must be a mapping, got {other}\"\n        )),\n    }",
+   "replacement": "Ok(Some(Box::leak(Box::new(Default::default()))))"
+  }
+ ],
+ "MT6": [
+  {
+   "name": "src/brightsky.rs:191:20: replace match guard py_truthy(n) with true in parse_station_info",
+   "file": "src/brightsky.rs",
+   "start": [
+    191,
+    20
+   ],
+   "end": [
+    191,
+    32
+   ],
+   "anchor": "        Some(n) if py_truthy(n) => py_str(n),",
+   "original": "py_truthy(n)",
+   "replacement": "true"
+  },
+  {
+   "name": "src/stations.rs:251:18: replace > with == in observation_stations",
+   "file": "src/stations.rs",
+   "start": [
+    251,
+    18
+   ],
+   "end": [
+    251,
+    19
+   ],
+   "anchor": "        if stamp > now {",
+   "original": ">",
+   "replacement": "=="
+  },
+  {
+   "name": "src/store.rs:387:24: replace || with && in schema_version",
+   "file": "src/store.rs",
+   "start": [
+    387,
+    24
+   ],
+   "end": [
+    387,
+    26
+   ],
+   "anchor": "    if text.is_empty() || !text.bytes().all(|b| b.is_ascii_digit()) {",
+   "original": "||",
+   "replacement": "&&"
+  },
+  {
+   "name": "src/scheduler.rs:165:24: replace > with >= in interval",
+   "file": "src/scheduler.rs",
+   "start": [
+    165,
+    24
+   ],
+   "end": [
+    165,
+    25
+   ],
+   "anchor": "        .filter(|m| *m > 0)",
+   "original": ">",
+   "replacement": ">="
+  },
+  {
+   "name": "src/pyfmt.rs:79:17: replace match guard r.is_nan() with true in py_round_int",
+   "file": "src/pyfmt.rs",
+   "start": [
+    79,
+    17
+   ],
+   "end": [
+    79,
+    27
+   ],
+   "anchor": "        None if r.is_nan() => 0,",
+   "original": "r.is_nan()",
+   "replacement": "true"
+  },
+  {
+   "name": "src/pyfmt.rs:79:17: replace match guard r.is_nan() with false in py_round_int",
+   "file": "src/pyfmt.rs",
+   "start": [
+    79,
+    17
+   ],
+   "end": [
+    79,
+    27
+   ],
+   "anchor": "        None if r.is_nan() => 0,",
+   "original": "r.is_nan()",
+   "replacement": "false"
+  },
+  {
+   "name": "src/pyfmt.rs:80:17: replace match guard r < 0.0 with true in py_round_int",
+   "file": "src/pyfmt.rs",
+   "start": [
+    80,
+    17
+   ],
+   "end": [
+    80,
+    24
+   ],
+   "anchor": "        None if r < 0.0 => i64::MIN,",
+   "original": "r < 0.0",
+   "replacement": "true"
+  },
+  {
+   "name": "src/pyfmt.rs:80:17: replace match guard r < 0.0 with false in py_round_int",
+   "file": "src/pyfmt.rs",
+   "start": [
+    80,
+    17
+   ],
+   "end": [
+    80,
+    24
+   ],
+   "anchor": "        None if r < 0.0 => i64::MIN,",
+   "original": "r < 0.0",
+   "replacement": "false"
+  },
+  {
+   "name": "src/pyfmt.rs:80:19: replace < with == in py_round_int",
+   "file": "src/pyfmt.rs",
+   "start": [
+    80,
+    19
+   ],
+   "end": [
+    80,
+    20
+   ],
+   "anchor": "        None if r < 0.0 => i64::MIN,",
+   "original": "<",
+   "replacement": "=="
+  },
+  {
+   "name": "src/pyfmt.rs:80:19: replace < with > in py_round_int",
+   "file": "src/pyfmt.rs",
+   "start": [
+    80,
+    19
+   ],
+   "end": [
+    80,
+    20
+   ],
+   "anchor": "        None if r < 0.0 => i64::MIN,",
+   "original": "<",
+   "replacement": ">"
+  },
+  {
+   "name": "src/pyfmt.rs:138:17: replace && with || in py_sum",
+   "file": "src/pyfmt.rs",
+   "start": [
+    138,
+    17
+   ],
+   "end": [
+    138,
+    19
+   ],
+   "anchor": "    if c != 0.0 && c.is_finite() {",
+   "original": "&&",
+   "replacement": "||"
+  },
+  {
+   "name": "src/pyfmt.rs:149:25: replace || with && in py_hypot",
+   "file": "src/pyfmt.rs",
+   "start": [
+    149,
+    25
+   ],
+   "end": [
+    149,
+    27
+   ],
+   "anchor": "    if ax.is_infinite() || ay.is_infinite() {",
+   "original": "||",
+   "replacement": "&&"
+  },
+  {
+   "name": "src/pyfmt.rs:152:20: replace || with && in py_hypot",
+   "file": "src/pyfmt.rs",
+   "start": [
+    152,
+    20
+   ],
+   "end": [
+    152,
+    22
+   ],
+   "anchor": "    if ax.is_nan() || ay.is_nan() {",
+   "original": "||",
+   "replacement": "&&"
+  }
+ ]
+}
