@@ -234,6 +234,31 @@ async fn search_first_request_never_sleeps() {
     assert!(sleeps.lock().unwrap().is_empty());
 }
 
+// A request made once the spacing has passed (exactly, or long after) doesn't wait.
+#[tokio::test]
+async fn search_after_the_spacing_never_sleeps() {
+    for gap in [5.0, MIN_REQUEST_SPACING] {
+        let fake = FakeUpstream::start();
+        fake.set("/search", FakeResponse::Json(nominatim_sample()));
+        let sleeps = Arc::new(Mutex::new(Vec::new()));
+        let mut g =
+            Geocoder::new_for_test(&fake.base, http(), Monotonic::Fixed(0.0), sleeps.clone());
+        g.search("query one")
+            .await
+            .expect("the first search succeeds");
+        g.clock = Monotonic::Fixed(gap);
+        g.search("query two")
+            .await
+            .expect("the second search succeeds");
+        assert_eq!(fake.requests().len(), 2);
+        let sleeps = sleeps.lock().unwrap();
+        assert!(
+            sleeps.is_empty(),
+            "gap {gap}: the second request must not wait once the spacing has passed"
+        );
+    }
+}
+
 #[tokio::test]
 async fn search_caches_two_different_queries() {
     let fake = FakeUpstream::start();

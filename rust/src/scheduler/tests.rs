@@ -75,6 +75,31 @@ async fn schedule_status_reports_next_runs() {
     );
 }
 
+#[tokio::test]
+async fn next_run_after_a_tick_is_one_period_ahead() {
+    let fake = FakeUpstream::start();
+    let payloads = make_payloads();
+    serve(&fake, &payloads, &[]);
+    let cfg = make_cfg(&fake, CfgOpts::default());
+    let agg = Arc::new(make_aggregator(cfg.clone(), memory_store()));
+    let scheduler = Arc::new(Scheduler::new());
+    scheduler.start_with_periods(&agg, Duration::from_millis(50), Duration::from_secs(3600));
+    for _ in 0..100 {
+        if !fake.requests_to("/bs/current_weather").is_empty() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    // The radar job has ticked: it records the next run before it refreshes.
+    assert_ne!(fake.requests_to("/bs/current_weather"), []);
+    // After a tick the next run is one period ahead, not behind.
+    let status = schedule_status(Some(&scheduler), &cfg, testkit::now());
+    assert_eq!(
+        status["jobs"]["radar"]["next_run_utc"],
+        json!(to_iso(testkit::now() + TimeDelta::milliseconds(50)))
+    );
+}
+
 #[test]
 fn schedule_status_without_running_scheduler() {
     let fake = FakeUpstream::start();
