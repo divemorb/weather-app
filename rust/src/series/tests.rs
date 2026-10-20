@@ -149,6 +149,24 @@ fn test_24h_series_skips_misaligned_model() {
 }
 
 #[test]
+fn test_24h_series_reference_needs_precipitation() {
+    // "first" has an hourly axis but no precipitation values, so the
+    // reference must come from "second" (the hourly axes differ by one
+    // hour, so taking "first" would drop "second" as misaligned)
+    let mut first = model("first", vec![Some(5.0); 30], Some(at(2025, 1, 1, 13, 0)));
+    first.hourly_precip_mm.clear();
+    let bundle = ForecastBundle {
+        models: vec![
+            first,
+            model("second", vec![Some(1.0); 30], Some(at(2025, 1, 1, 12, 0))),
+        ],
+    };
+    let out = build_24h_series(Some(&bundle), now(), 24);
+    assert_eq!(out.n_models, 1);
+    assert_eq!(out.models[0].name, "second");
+}
+
+#[test]
 fn test_24h_series_empty_when_no_future_hours() {
     let bundle = ForecastBundle {
         models: vec![model(

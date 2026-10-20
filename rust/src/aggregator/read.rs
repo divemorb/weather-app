@@ -231,7 +231,10 @@ impl Aggregator {
 /// first model with hourly data. When the current hour is not on the axis,
 /// that model's first value is used (even if it is null — the loop stops
 /// at the first usable model).
-fn first_hour_apparent(bundle: Option<&ForecastBundle>, now: DateTime<Utc>) -> Option<f64> {
+pub(super) fn first_hour_apparent(
+    bundle: Option<&ForecastBundle>,
+    now: DateTime<Utc>,
+) -> Option<f64> {
     let bundle = bundle?;
     for m in &bundle.models {
         if m.hourly_time.is_empty() || m.hourly_apparent_c.is_empty() {

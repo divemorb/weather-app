@@ -344,6 +344,14 @@ fn combine_models_only() {
 }
 
 #[test]
+fn combine_radar_available_but_unknown_is_left_out() {
+    // radar available but not yet raining (None) must not enter the mix
+    let (prob, weights) = combine_signals(&PROB, true, None, Some(30.0), None);
+    assert!(approx(prob, 30.0));
+    assert_eq!(weights, vec![("models".to_string(), 1.0)]);
+}
+
+#[test]
 fn combine_no_signals_is_zero() {
     let (prob, weights) = combine_signals(&PROB, false, None, None, None);
     assert_eq!(prob, 0.0);

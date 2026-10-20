@@ -160,6 +160,25 @@ async fn source_status_marks_stale() {
 }
 
 #[tokio::test]
+async fn source_status_stale_boundary_is_exclusive() {
+    let opts = CfgOpts {
+        stale_radar: 1,
+        ..CfgOpts::default()
+    };
+    let (_fake, agg) = standard_aggregator(opts);
+
+    agg.refresh_radar().await;
+    // exactly at the threshold (age 60 s == 1 min) the cache is fresh
+    agg.set_clock(Clock::fixed(testkit::now() + TimeDelta::seconds(60)));
+    let status = agg.source_status().unwrap();
+    assert_eq!(status["radar"]["stale"], json!(false));
+    // one second beyond the threshold it is stale
+    agg.set_clock(Clock::fixed(testkit::now() + TimeDelta::seconds(61)));
+    let status = agg.source_status().unwrap();
+    assert_eq!(status["radar"]["stale"], json!(true));
+}
+
+#[tokio::test]
 async fn aggregator_without_location_makes_no_fetch_calls() {
     let opts = CfgOpts {
         location: None,

@@ -2,11 +2,14 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use chrono::{DateTime, TimeDelta, Utc};
 use serde_json::json;
 
 use super::testkit::{self, *};
 use super::*;
+use crate::models::{ForecastBundle, ModelSeries};
 use crate::series::HistoryRow;
+use crate::times::parse_iso;
 
 fn row(
     model: &str,
@@ -267,4 +270,48 @@ fn get_current_conditions_malformed_cache_returns_none() {
     let agg = make_aggregator(make_cfg(&fake, CfgOpts::default()), store);
 
     assert!(agg.get_current_conditions().unwrap().is_none());
+}
+
+/// A model with one hourly step at `t0` (2025-01-01 12:00 UTC) and
+/// `apparent` as its apparent temperature.
+fn apparent_model(name: &str, t0: DateTime<Utc>, apparent: Vec<Option<f64>>) -> ModelSeries {
+    ModelSeries {
+        name: name.to_string(),
+        hourly_time: vec![t0],
+        hourly_apparent_c: apparent,
+        ..ModelSeries::default()
+    }
+}
+
+#[test]
+fn feels_like_skips_a_model_without_apparent_values() {
+    let t0 = parse_iso("2025-01-01T12:00:00Z").expect("valid stamp");
+    let bundle = ForecastBundle {
+        models: vec![
+            apparent_model("a", t0, vec![]),
+            apparent_model("b", t0, vec![Some(7.0)]),
+        ],
+    };
+    assert_eq!(
+        super::read::first_hour_apparent(Some(&bundle), t0 + TimeDelta::minutes(30)),
+        Some(7.0)
+    );
+}
+
+#[test]
+fn feels_like_at_the_hour_boundary_takes_the_new_hour() {
+    let t0 = parse_iso("2025-01-01T12:00:00Z").expect("valid stamp");
+    let model = ModelSeries {
+        name: "a".to_string(),
+        hourly_time: vec![t0, t0 + TimeDelta::hours(1)],
+        hourly_apparent_c: vec![Some(1.0), Some(2.0)],
+        ..ModelSeries::default()
+    };
+    let bundle = ForecastBundle {
+        models: vec![model],
+    };
+    assert_eq!(
+        super::read::first_hour_apparent(Some(&bundle), t0 + TimeDelta::hours(1)),
+        Some(2.0)
+    );
 }

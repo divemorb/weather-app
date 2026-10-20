@@ -100,6 +100,13 @@ fn cell_distance_uses_cell_size() {
     assert!(approx(cell_distance_km(&nc, 6, 5, 2.0), 2.0));
 }
 
+#[test]
+fn cell_distance_north_uses_cell_size() {
+    let nc = nowcast(vec![frame(0, vec![])]);
+    // 3 cells north, 2 km each -> 6 km
+    assert!(approx(cell_distance_km(&nc, 5, 8, 2.0), 6.0));
+}
+
 // max local rain per frame (feeds the next-hour bar)
 #[test]
 fn max_local_rain_strongest_in_radius() {
@@ -162,6 +169,14 @@ fn radar_ignores_cell_outside_radius() {
 fn radar_ignores_frame_outside_horizon() {
     // rain in a frame 2 h out (beyond the 1 h nowcast window) must be ignored
     let nc = nowcast(vec![frame(120, vec![cell(5, 5, 0.5)])]);
+    let (_, raining) = radar_rain_signal(Some(&nc), now(), &RADAR, &PROB, TimeDelta::hours(1));
+    assert_eq!(raining, Some(false));
+}
+
+#[test]
+fn radar_ignores_frame_exactly_at_horizon_end() {
+    // a frame stamped exactly at now + 1 h is outside [now, now + 1 h)
+    let nc = nowcast(vec![frame(60, vec![cell(5, 5, 0.5)])]);
     let (_, raining) = radar_rain_signal(Some(&nc), now(), &RADAR, &PROB, TimeDelta::hours(1));
     assert_eq!(raining, Some(false));
 }
