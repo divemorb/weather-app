@@ -94,6 +94,12 @@ def main():
     if args.group not in groups:
         sys.exit(f"unknown group {args.group!r}; groups: {', '.join(groups)}")
     crate = copy_crate()
+    # Unmutated first: a failing test would make every mutant look killed.
+    p = subprocess.run(TEST, cwd=crate, capture_output=True, text=True, timeout=TIMEOUT_S,
+                       env={**os.environ, "CARGO_TARGET_DIR": TARGET})
+    if p.returncode != 0:
+        print((p.stdout + p.stderr)[-3000:])
+        sys.exit("the unit tests fail without any mutant: fix them first")
     counts = {"KILLED": 0, "SURVIVED": 0, "ERROR": 0}
     for m in groups[args.group]:
         outcome, why = check(crate, m)

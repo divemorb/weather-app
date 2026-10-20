@@ -730,5 +730,97 @@
    "original": "||",
    "replacement": "&&"
   }
+ ],
+ "FU1": [
+  {
+   "name": "src/geocode.rs:176:9: replace Monotonic::now -> f64 with -1.0",
+   "file": "src/geocode.rs",
+   "start": [
+    176,
+    9
+   ],
+   "end": [
+    180,
+    10
+   ],
+   "anchor": "        match self {",
+   "original": "match self {\n            Self::System => start_instant().elapsed().as_secs_f64(),\n            #[cfg(test)]\n            Self::Fixed(v) => v,\n        }",
+   "replacement": "-1.0"
+  },
+  {
+   "name": "src/geocode.rs:176:9: replace Monotonic::now -> f64 with 0.0",
+   "file": "src/geocode.rs",
+   "start": [
+    176,
+    9
+   ],
+   "end": [
+    180,
+    10
+   ],
+   "anchor": "        match self {",
+   "original": "match self {\n            Self::System => start_instant().elapsed().as_secs_f64(),\n            #[cfg(test)]\n            Self::Fixed(v) => v,\n        }",
+   "replacement": "0.0"
+  },
+  {
+   "name": "src/geocode.rs:176:9: replace Monotonic::now -> f64 with 1.0",
+   "file": "src/geocode.rs",
+   "start": [
+    176,
+    9
+   ],
+   "end": [
+    180,
+    10
+   ],
+   "anchor": "        match self {",
+   "original": "match self {\n            Self::System => start_instant().elapsed().as_secs_f64(),\n            #[cfg(test)]\n            Self::Fixed(v) => v,\n        }",
+   "replacement": "1.0"
+  },
+  {
+   "name": "src/geocode.rs:309:71: replace - with + in Geocoder::search",
+   "file": "src/geocode.rs",
+   "start": [
+    309,
+    71
+   ],
+   "end": [
+    309,
+    72
+   ],
+   "anchor": "            let wait = last_request_at.map(|last| MIN_REQUEST_SPACING - (self.clock.now() - last));",
+   "original": "-",
+   "replacement": "+"
+  },
+  {
+   "name": "src/geocode.rs:311:25: replace > with >= in Geocoder::search",
+   "file": "src/geocode.rs",
+   "start": [
+    311,
+    25
+   ],
+   "end": [
+    311,
+    26
+   ],
+   "anchor": "                && wait > 0.0",
+   "original": ">",
+   "replacement": ">="
+  },
+  {
+   "name": "src/scheduler.rs:141:59: replace + with - in Scheduler::start_with_periods",
+   "file": "src/scheduler.rs",
+   "start": [
+    141,
+    59
+   ],
+   "end": [
+    141,
+    60
+   ],
+   "anchor": "                    scheduler.set_next_run(job, agg.now() + period_delta);",
+   "original": "+",
+   "replacement": "-"
+  }
  ]
 }
