@@ -10,6 +10,7 @@ from expect import (CONFIG_RETRY_S, WIZARD_DETAIL, WIZARD_LABEL, WIZARD_RESULTS,
                     WIZARD_SELECTED)
 from edges import (setup_texts_problems, wizard_cancel_problems, wizard_min_length_problems,
                    wizard_search_failed_problems)
+from markup import markup_search
 from page import Run, UIPage, expect_hidden, expect_tokens, visible_one
 from page_checks import theme_problems
 
@@ -117,6 +118,8 @@ def run_wizard(run: Run):
         run.add("min-length", wizard_min_length_problems(pg, run.lang))
     if "search-failed" in run.names:
         run.add("search-failed", wizard_search_failed_problems(run))
+    if "markup-search" in run.names:  # the search result labels with HTML markup shown as text (markup.py)
+        run.add("markup-search", markup_search(run))
     run.done(pg)
     if run.lang != "en":
         return

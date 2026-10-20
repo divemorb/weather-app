@@ -26,6 +26,7 @@ from page_checks import (check_chart, check_common_a, check_details, check_glanc
 from big import kiosk_chart_problems, kiosk_fill_problems, kiosk_room_problems, run_big  # noqa: E402
 from chart import chart_single_point  # noqa: E402
 from clock import dst_chart_x_labels, dst_radar_labels  # noqa: E402
+from markup import markup_api  # noqa: E402
 from edges import now_texts_problems, radar_unavailable_text_problems, setup_texts_problems  # noqa: E402
 from flows import refresh_config_retry, refresh_render_error, run_wizard, theme_toggle  # noqa: E402
 from outdated import refresh_keeps_old  # noqa: E402
@@ -175,7 +176,7 @@ def run_pages(run: Run):
 # the kiosk and flow pages); a job that wants only these loads no content page
 AFTER_CONTENT = {"overflow-360", "details-fit", "theme-icon", "theme-toggle", "rain-tracks",
                  "reduced-motion", "reload-fires", "console", "requests"}
-AFTER_CONTENT_PREFIX = ("kiosk-", "reason-", "view-", "big-", "layout-", "refresh-", "dst-")
+AFTER_CONTENT_PREFIX = ("kiosk-", "reason-", "view-", "big-", "layout-", "refresh-", "dst-", "markup-")
 
 
 def content_wanted(run: Run) -> bool:
@@ -343,6 +344,8 @@ def page_kiosk_and_common(run: Run):
         run.add("dst-radar-labels", dst_radar_labels(run))
     if "dst-chart-x-labels" in run.names:
         run.add("dst-chart-x-labels", dst_chart_x_labels(run))
+    if "markup-api" in run.names:  # the API texts with HTML markup shown as text (markup.py)
+        run.add("markup-api", markup_api(run))
 
     own = run.base + "/"
     foreign = sorted({u for u in run.requests if not (u.startswith(own) or u.startswith("data:"))})

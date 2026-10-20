@@ -26,7 +26,7 @@ PATHS = ["/api/config", "/api/rain-probability", "/api/radar/next-hour", "/api/n
 ISO_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")
 
 
-def _get(base: str, path: str):
+def api_answer(base: str, path: str):
     """The app's real answer for one API path (status, decoded body; (0, None) on error)."""
     try:
         with urllib.request.urlopen(base + path, timeout=10) as r:
@@ -74,7 +74,7 @@ def dst_fakes(run: Run) -> dict:
     delta = _delta(run)
     fakes = {}
     for path in PATHS:
-        status, body = _get(run.base, path)
+        status, body = api_answer(run.base, path)
         if status != 200 or body is None:
             continue
         if path == "/api/config" and isinstance(body.get("location"), dict):

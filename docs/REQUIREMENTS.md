@@ -211,7 +211,7 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
   *Proof:* `gate:contract`; `cargo:routes::api_tests::unhandled_error_500_still_carries_security_headers`; `cargo:routes::location_tests::post_location_security_headers_still_present_on_403_and_422`
   *Refines:* REQ_PRIV_1
 - **REQ_SEC_5** Upstream data and the user's input are never rendered as HTML. *Source: scope.*
-  *Proof:* `ui:report/*/report-escape`; review: every value the page fills is set via textContent, innerHTML only with constants; todo: a UI check that upstream text (station name, place label) with HTML markup is shown as text
+  *Proof:* `ui:rain/en/markup-api`; `ui:wizard/en/markup-search`; review: every value the page fills is set via textContent, innerHTML only with constants
 - **REQ_SEC_6** The interactive API documentation is off unless enabled. *Source: scope.*
   *Proof:* `contract:*:security/docs`; `contract:*:security/redoc`; `contract:*:security/openapi`
 - **REQ_SEC_7** The container runs as a non-root user on a read-only file system, without capabilities, with a process limit. *Source: scope.*
