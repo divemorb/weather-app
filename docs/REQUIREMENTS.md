@@ -215,7 +215,7 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 - **REQ_SEC_6** The interactive API documentation is off unless enabled. *Source: scope.*
   *Proof:* `contract:*:security/docs`; `contract:*:security/redoc`; `contract:*:security/openapi`
 - **REQ_SEC_7** The container runs as a non-root user on a read-only file system, without capabilities, with a process limit. *Source: scope.*
-  *Proof:* todo: a check that reads docker-compose.yml and rust/Dockerfile (read_only, cap_drop ALL, pids_limit, a non-root user)
+  *Proof:* `cargo:compose_files_are_hardened`; `cargo:dockerfile_runs_as_non_root`; `cargo:weakened_compose_is_reported`
 
 ## Privacy (PRIV)
 
