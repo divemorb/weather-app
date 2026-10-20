@@ -183,6 +183,30 @@ fn py_hypot_3_4_is_5() {
 }
 
 #[test]
+fn py_round_int_non_finite_saturates() {
+    // CPython's round() raises for these inputs; the Rust function saturates
+    assert_eq!(py_round_int(f64::NAN), 0);
+    assert_eq!(py_round_int(f64::INFINITY), i64::MAX);
+    assert_eq!(py_round_int(f64::NEG_INFINITY), i64::MIN);
+    assert_eq!(py_round_int(1e300), i64::MAX);
+    assert_eq!(py_round_int(-1e300), i64::MIN);
+}
+
+#[test]
+fn py_sum_overflow_is_infinite() {
+    assert_eq!(py_sum([1e308, 1e308]), f64::INFINITY);
+}
+
+#[test]
+fn py_hypot_infinite_or_nan_argument() {
+    assert_eq!(py_hypot(f64::INFINITY, 1.0), f64::INFINITY);
+    assert_eq!(py_hypot(1.0, f64::INFINITY), f64::INFINITY);
+    assert_eq!(py_hypot(f64::INFINITY, f64::NAN), f64::INFINITY);
+    assert!(py_hypot(f64::NAN, 0.0).is_nan());
+    assert!(py_hypot(0.0, f64::NAN).is_nan());
+}
+
+#[test]
 fn f64_to_i64() {
     assert_eq!(super::f64_to_i64(2.9), Some(2));
     assert_eq!(super::f64_to_i64(-2.9), Some(-2));

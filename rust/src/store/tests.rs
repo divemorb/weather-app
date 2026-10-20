@@ -377,3 +377,27 @@ fn v2_db_migrates_to_v3_dropping_model_accuracy() {
     let store = Store::open(&db).unwrap();
     assert_eq!(rows(&store).len(), 1);
 }
+
+#[test]
+fn stored_schema_version_text() {
+    // The file's own `schema_version` helper reads the meta row; the store's
+    // function (called by path) maps the raw stored value, non-digit text
+    // included.
+    assert_eq!(
+        super::schema_version(super::StoredVersion::Text("abc".to_string())),
+        1
+    );
+    assert_eq!(
+        super::schema_version(super::StoredVersion::Text(String::new())),
+        1
+    );
+    assert_eq!(
+        super::schema_version(super::StoredVersion::Text("12a".to_string())),
+        1
+    );
+    assert_eq!(
+        super::schema_version(super::StoredVersion::Text("3".to_string())),
+        3
+    );
+    assert_eq!(super::schema_version(super::StoredVersion::Missing), 1);
+}

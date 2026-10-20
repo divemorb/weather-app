@@ -158,3 +158,10 @@ async fn retry_repeats_while_failing_and_stops_after_success() {
         "back to the regular run"
     );
 }
+
+#[test]
+fn interval_of_zero_or_less_is_one_second() {
+    assert_eq!(super::interval(0), Duration::from_secs(1));
+    assert_eq!(super::interval(-5), Duration::from_secs(1));
+    assert_eq!(super::interval(2), Duration::from_secs(120));
+}

@@ -297,6 +297,30 @@ fn observation_stations_empty_without_any_kept_record() {
 }
 
 #[test]
+fn observation_stations_record_exactly_at_now_counts() {
+    // A record stamped exactly `now` covers [now-1h, now): it is complete
+    let payload = json!({"weather": [record("15:00", 777, Some(0.3))], "sources": [mueggelsee()]});
+    assert_eq!(
+        observation_stations(&payload, later()),
+        vec![station_entry(
+            "Berlin-Müggelsee",
+            17000.0,
+            52.44,
+            13.65,
+            "00410",
+            1
+        )]
+    );
+}
+
+#[test]
+fn observation_stations_record_after_now_is_ignored() {
+    // A record stamped after `now` covers an incomplete hour: it is skipped
+    let payload = json!({"weather": [record("16:00", 777, Some(0.3))], "sources": [mueggelsee()]});
+    assert_eq!(observation_stations(&payload, later()), []);
+}
+
+#[test]
 fn observation_stations_missing_distance_sorts_last() {
     let payload = json!({
         "weather": [record("12:00", 1, Some(0.1)), record("13:00", 2, Some(0.1))],

@@ -237,6 +237,20 @@ fn parse_station_info_falls_back_to_first_source() {
 }
 
 #[test]
+fn parse_station_info_falsy_station_name_falls_back_to_id() {
+    // A null or empty station_name is as good as missing: fall back to the id
+    for name in [json!(null), json!("")] {
+        let payload = json!({"sources": [
+            {"id": 77, "observation_type": "forecast", "station_name": name},
+        ]});
+        assert_eq!(
+            parse_station_info(&payload).unwrap(),
+            Some(("77".to_string(), 0.0))
+        );
+    }
+}
+
+#[test]
 fn parse_station_info_no_sources_returns_none() {
     assert_eq!(parse_station_info(&json!({})).unwrap(), None);
     assert_eq!(parse_station_info(&json!({"sources": null})).unwrap(), None);
