@@ -242,6 +242,24 @@ async fn current_report_freshness_bounds_inclusive_future_ignored() {
     assert_eq!(report["observed_at"], Value::from(at_30));
 }
 
+#[tokio::test]
+async fn current_report_store_error_is_500() {
+    let state = state_with_location();
+    state
+        .aggregator
+        .store()
+        .lock_for_tests()
+        .execute_batch("DROP TABLE user_reports")
+        .unwrap();
+    let (status, headers, body) = call(state, "GET", "/api/reports/current", None, &[]).await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(body, "Internal Server Error");
+    assert_eq!(
+        headers.get("content-type").and_then(|v| v.to_str().ok()),
+        Some("text/plain; charset=utf-8")
+    );
+}
+
 // -- DELETE /api/reports/{id} ------------------------------------------------
 
 #[tokio::test]

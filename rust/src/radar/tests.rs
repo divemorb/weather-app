@@ -133,6 +133,55 @@ fn parse_radar_huge_bbox_raises_source_error() {
     assert!(err.to_string().contains("MAX_RADAR_CELLS"));
 }
 
+#[test]
+fn parse_radar_bbox_with_right_before_left_raises() {
+    // a bbox whose right edge is before its left edge (width -1) must be
+    // rejected like an oversized grid
+    let g = crate::testutil::grid(5, 5, 0);
+    let payload = crate::testutil::make_radar_payload(
+        &[frame("2026-09-25T06:45:00+00:00", g)],
+        (10, 20, 14, 18),
+        DEFAULT_LLP,
+    );
+    let err = parse_radar(&payload).unwrap_err();
+    assert!(err.to_string().contains("MAX_RADAR_CELLS"));
+}
+
+#[test]
+fn parse_radar_grid_of_exactly_max_cells_is_accepted() {
+    // exactly MAX_RADAR_CELLS cells is the largest accepted grid
+    let g = crate::testutil::grid(500, 500, 0);
+    let payload = crate::testutil::make_radar_payload(
+        &[frame("2026-09-25T06:45:00+00:00", g)],
+        (0, 0, 499, 499),
+        (2.0, 2.0),
+    );
+    let nc = parse_radar(&payload).unwrap();
+    assert_eq!(nc.grid_width, 500);
+    assert_eq!(nc.grid_height, 500);
+}
+
+#[test]
+fn parse_radar_location_on_the_grid_edge() {
+    // `covered` is true only while the position is strictly inside the grid
+    // (x and y within [0, width/height))
+    let g = crate::testutil::grid(5, 5, 0);
+    let covered = |llp: (f64, f64)| -> bool {
+        let payload = crate::testutil::make_radar_payload(
+            &[frame("2026-09-25T06:45:00+00:00", g.clone())],
+            DEFAULT_BBOX,
+            llp,
+        );
+        parse_radar(&payload).unwrap().covered
+    };
+    assert!(covered((4.0, 4.0)));
+    assert!(!covered((5.0, 2.0)));
+    assert!(!covered((2.0, 5.0)));
+    assert!(!covered((7.0, 2.0)));
+    assert!(!covered((2.0, -1.0)));
+    assert!(!covered((-1.0, 2.0)));
+}
+
 fn encode_zlib(data: &[u8]) -> String {
     let mut enc = flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
     enc.write_all(data).unwrap();
