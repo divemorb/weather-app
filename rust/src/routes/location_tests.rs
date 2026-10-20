@@ -64,6 +64,33 @@ async fn post_location_ok_rounds_and_updates_cfg() {
     assert_eq!(body["location"]["latitude"], serde_json::json!(48.137));
 }
 
+/// a broken store makes the save fail with the plain-text 500.
+#[tokio::test]
+async fn post_location_store_error_is_500() {
+    let fake = FakeUpstream::start();
+    let state = api_state(&fake, CfgOpts::default());
+    state
+        .aggregator
+        .store()
+        .lock_for_tests()
+        .execute_batch("DROP TABLE app_meta")
+        .unwrap();
+    let (status, headers, body) = call(
+        state,
+        "POST",
+        "/api/location",
+        Some(default_body()),
+        &[("content-type", "application/json")],
+    )
+    .await;
+    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
+    assert_eq!(body, "Internal Server Error");
+    assert_eq!(
+        headers.get("content-type").and_then(|v| v.to_str().ok()),
+        Some("text/plain; charset=utf-8")
+    );
+}
+
 #[tokio::test]
 async fn post_location_empty_label_defaults() {
     let fake = FakeUpstream::start();
@@ -344,6 +371,53 @@ async fn get_geocode_query_too_short_is_422() {
     let fake = FakeUpstream::start();
     let state = api_state(&fake, CfgOpts::default());
     let (status, _headers, body) = call(state, "GET", "/api/geocode?q=ab", None, &[]).await;
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    assert_eq!(
+        body_json(&body)["detail"][0]["loc"],
+        serde_json::json!(["query", "q"])
+    );
+    assert_eq!(fake.requests_to("/nom/search"), []);
+}
+
+#[tokio::test]
+async fn get_geocode_query_of_3_characters_is_accepted() {
+    let fake = FakeUpstream::start();
+    fake.set(
+        "/nom/search",
+        FakeResponse::Json(serde_json::json!([
+            {"display_name": "Marienplatz, München", "lat": 48.138, "lon": 11.577},
+        ])),
+    );
+    let state = api_state(&fake, CfgOpts::default());
+    let (status, _headers, _body) = call(state, "GET", "/api/geocode?q=abc", None, &[]).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(fake.requests_to("/nom/search").len(), 1);
+}
+
+#[tokio::test]
+async fn get_geocode_query_of_200_characters_is_accepted() {
+    let fake = FakeUpstream::start();
+    fake.set(
+        "/nom/search",
+        FakeResponse::Json(serde_json::json!([
+            {"display_name": "Marienplatz, München", "lat": 48.138, "lon": 11.577},
+        ])),
+    );
+    let state = api_state(&fake, CfgOpts::default());
+    let q = "a".repeat(200);
+    let (status, _headers, _body) =
+        call(state, "GET", &format!("/api/geocode?q={q}"), None, &[]).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(fake.requests_to("/nom/search").len(), 1);
+}
+
+#[tokio::test]
+async fn get_geocode_query_of_201_characters_is_422() {
+    let fake = FakeUpstream::start();
+    let state = api_state(&fake, CfgOpts::default());
+    let q = "a".repeat(201);
+    let (status, _headers, body) =
+        call(state, "GET", &format!("/api/geocode?q={q}"), None, &[]).await;
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(
         body_json(&body)["detail"][0]["loc"],

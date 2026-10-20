@@ -81,6 +81,14 @@ fn moved_beyond_epsilon_is_a_move() {
     assert!(moved(Some(&old), &loc(52.0, 13.02, "", "")));
 }
 
+#[test]
+fn moved_exactly_epsilon_is_not_a_move() {
+    // 0.01 is MOVED_EPSILON itself: exactly 1 km apart is not a move
+    let old = loc(0.0, 0.0, "", "");
+    assert!(!moved(Some(&old), &loc(0.01, 0.0, "", "")));
+    assert!(!moved(Some(&old), &loc(0.0, 0.01, "", "")));
+}
+
 fn fresh_store() -> (tempfile::TempDir, Store) {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("weather.db");

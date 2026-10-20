@@ -235,6 +235,29 @@ async fn search_first_request_never_sleeps() {
 }
 
 #[tokio::test]
+async fn search_caches_two_different_queries() {
+    let fake = FakeUpstream::start();
+    fake.set("/search", FakeResponse::Json(nominatim_sample()));
+    let sleeps = Arc::new(Mutex::new(Vec::new()));
+    let g = geocoder(&fake, &sleeps);
+    let first = g
+        .search("query one")
+        .await
+        .expect("the first search succeeds");
+    let second = g
+        .search("query two")
+        .await
+        .expect("the second search succeeds");
+    let third = g
+        .search("query one")
+        .await
+        .expect("the third search succeeds");
+    assert_eq!(first, third); // the third call came from the cache
+    assert_eq!(second.len(), 2);
+    assert_eq!(fake.requests().len(), 2);
+}
+
+#[tokio::test]
 async fn search_upstream_error_is_source_error_and_not_cached() {
     let fake = FakeUpstream::start();
     fake.set("/search", FakeResponse::Status(503));

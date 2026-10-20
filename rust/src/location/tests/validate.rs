@@ -143,6 +143,19 @@ fn validate_timezone_too_long() {
 }
 
 #[test]
+fn validate_timezone_of_64_characters_is_accepted() {
+    // validate checks only the length; whether the zone exists is checked later
+    let text = body(&[
+        ("latitude", json!(52.52)),
+        ("longitude", json!(13.405)),
+        ("timezone", json!("x".repeat(64))),
+        ("label", json!("")),
+    ]);
+    let in_ = validate(&text).unwrap();
+    assert_eq!(in_.timezone, "x".repeat(64));
+}
+
+#[test]
 fn validate_label_not_a_string() {
     for raw in [json!(null), json!(5)] {
         let text = body(&[
