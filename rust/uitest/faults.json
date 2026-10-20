@@ -683,6 +683,29 @@
    ]
   },
   {
+   "name": "markup-fallback",
+   "why": "the fallback station's name from /api/now is parsed as HTML instead of shown as text",
+   "edits": [
+    {
+     "file": "now.js",
+     "find": "    note.textContent = t(lang, \"now.fallback\", { name: src.name });",
+     "replace": "    note.innerHTML = t(lang, \"now.fallback\", { name: src.name });"
+    }
+   ],
+   "scenario": [
+    "rain"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "rain/en/markup-api"
+   ],
+   "must_fail": [
+    "rain/en/markup-api"
+   ]
+  },
+  {
    "name": "markup-search",
    "why": "the geocode result labels from /api/geocode are parsed as HTML instead of shown as text",
    "edits": [
