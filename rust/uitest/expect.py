@@ -148,7 +148,8 @@ MAP_MARKS = {"00433": (182, 5.837), "17473": (127, 1.86)}
 MAP_RADIUS_KM = 1.0  # the test config's radar radius
 MAP_BEARING_TOLERANCE = 20  # degrees
 
-KIOSK_SIZES = [(1280, 800), (1920, 1080)]
+# The iPad Pro 13" in Safari, full screen, minus the toolbar: upright and lying.
+KIOSK_SIZES = [(1280, 800), (1920, 1080), (1032, 1280), (1376, 940)]
 KIOSK_MIN_FONT = {"rain-answer": 28, "now-temp": 40}
 KIOSK_CHART_MIN = 0.22  # the chart's height as a share of the kiosk screen (1280x800: 176 px)
 KIOSK_CHART_MIN_W = 0.44  # and its width (about the right column's: 1280 -> 563 px)

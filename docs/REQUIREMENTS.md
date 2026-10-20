@@ -82,7 +82,7 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 - **REQ_PAGE_1** The big view shows, top to bottom: the glance (the answer, the chance, the radar strip), Now, the next 24 hours. The technical parts are only in the detailed view (REQ_PAGE_4). *Source: the user, 2026-10-02.*
   *Proof:* `ui:sky/*/layout-*`; `ui:*/*/big-hierarchy`
 - **REQ_PAGE_2** **The big view is the default on every screen** (large type, one screen on desktop and tablet; on a phone one column that may scroll vertically). The detailed view is one button away. *Source: the user, 2026-10-04.*
-  *Proof:* `ui:live/*/view-default`; `ui:live/*/view-phone`
+  *Proof:* `ui:live/*/view-default`; `ui:live/*/view-phone`; `ui:live/*/kiosk-1032x1280`
 - **REQ_PAGE_3** The view button is text that says where a click goes: "Details" in the big view, "Big view" in the detailed view (German "Details" / "Große Ansicht"); the choice is remembered per device. *Source: the user, 2026-10-05.*
   *Proof:* `ui:live/*/view-toggle`; `ui:live/*/view-label`; `ui:unit/view-f3.test.mjs`
 - **REQ_PAGE_4** The detailed view shows only the details (signals, countdowns, sources, accuracy, stations), not the glance, Now or the chart again. *Source: the user, 2026-10-12 (phone test P2).*

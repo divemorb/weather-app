@@ -366,9 +366,36 @@ def accuracy_problems(pg, exp) -> list[str]:
     return problems
 
 
+# The cards' content must stay inside the cards: for each of the three cards, the first
+# element that reaches outside its box (1 px tolerance; zero-sized or hidden elements
+# don't count), one string per such card.
+CONTAINED_JS = """(() => {
+  const out = [];
+  for (const id of ["glance", "now", "chart-card"]) {
+    const c = document.getElementById(id);
+    if (!c || !c.checkVisibility()) continue;
+    const r = c.getBoundingClientRect();
+    for (const el of c.querySelectorAll("*")) {
+      if (getComputedStyle(el).visibility === "hidden") continue;
+      const b = el.getBoundingClientRect();
+      if (b.width === 0 || b.height === 0) continue;
+      if (b.left < r.left - 1 || b.top < r.top - 1 || b.right > r.right + 1 || b.bottom > r.bottom + 1) {
+        const name = el.dataset && el.dataset.test ? "[data-test=" + el.dataset.test + "]" : el.tagName.toLowerCase();
+        out.push("#" + id + " " + name + " (" + Math.round(b.left) + "," + Math.round(b.top)
+                 + " to " + Math.round(b.right) + "," + Math.round(b.bottom) + "; card to "
+                 + Math.round(r.right) + "," + Math.round(r.bottom) + ")");
+        break;
+      }
+    }
+  }
+  return out;
+})()"""
+
+
 def check_kiosk(pg: UIPage, exp: dict, size, add_kiosk):
     """The kiosk view: everything fits the screen, the key content is visible, the fonts
-    are large enough, and the details card stays out."""
+    are large enough, and the details card stays out; and no card's content reaches
+    outside its card."""
     w, h = size
     info = pg.js("__ui.page()")
     problems = []
@@ -389,6 +416,8 @@ def check_kiosk(pg: UIPage, exp: dict, size, add_kiosk):
                 problems.append(f"[data-test={hook}] is outside the {w}x{h} screen ({round(r['x'])},{round(r['y'])} "
                                 f"to {round(r['right'])},{round(r['bottom'])})")
                 break
+    for spill in pg.js(CONTAINED_JS):
+        problems.append(f"{spill} reaches outside its card at {w}x{h}")
     for hook, px in KIOSK_MIN_FONT.items():
         els = [e for e in pg.ui(hook) if e["visible"]]
         if els and els[0]["fontSize"] < px:

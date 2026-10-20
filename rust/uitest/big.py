@@ -20,9 +20,9 @@ def kiosk_chart_problems(pg: UIPage, size) -> list[str]:
     if not els:
         return ["[data-test=chart] not visible in the kiosk view"]
     r, problems = els[0]["rect"], []
-    if r["h"] < KIOSK_CHART_MIN * h:
+    if r["h"] < KIOSK_CHART_MIN * min(w, h):
         problems.append(f"[data-test=chart] is {r['h']:.0f} px high at {w}x{h}, "
-                        f"at least {KIOSK_CHART_MIN * h:.0f} px ({KIOSK_CHART_MIN:.0%} of the screen height)")
+                        f"at least {KIOSK_CHART_MIN * min(w, h):.0f} px ({KIOSK_CHART_MIN:.0%} of the screen's shorter side)")
     if r["w"] < KIOSK_CHART_MIN_W * w:
         problems.append(f"[data-test=chart] is {r['w']:.0f} px wide at {w}x{h}, "
                         f"at least {KIOSK_CHART_MIN_W * w:.0f} px ({KIOSK_CHART_MIN_W:.0%} of the screen width)")
@@ -103,9 +103,9 @@ def kiosk_room_problems(pg: UIPage, size) -> list[str]:
     els = [e for e in pg.ui("sky-reason") if e["visible"]]
     if not els:
         problems.append("[data-test=sky-reason] not visible in the big view")
-    elif els[0]["fontSize"] < KIOSK_REASON_SHARE * h - 0.5:
+    elif els[0]["fontSize"] < KIOSK_REASON_SHARE * min(w, h) - 0.5:
         problems.append(f"[data-test=sky-reason] font size {els[0]['fontSize']:.0f} px at {w}x{h}, at least "
-                        f"{KIOSK_REASON_SHARE * h:.0f} px ({KIOSK_REASON_SHARE:.1%} of the screen height): "
+                        f"{KIOSK_REASON_SHARE * min(w, h):.0f} px ({KIOSK_REASON_SHARE:.1%} of the screen's shorter side): "
                         "the line that says why the sky looks as it does is read from across the room too")
     return problems
 
@@ -326,13 +326,13 @@ def kiosk_fill_problems(pg: UIPage, exp: dict, size) -> list[str]:
                             f"at least {share:.0%}: larger type instead of empty bands")
     for hook, share in KIOSK_FONT_SHARE.items():
         els = [e for e in pg.ui(hook) if e["visible"]]
-        if els and els[0]["fontSize"] < share * h - 0.5:
+        if els and els[0]["fontSize"] < share * min(w, h) - 0.5:
             problems.append(f"[data-test={hook}] font size {els[0]['fontSize']:.0f} px at {w}x{h}, "
-                            f"at least {share * h:.0f} px ({share:.0%} of the screen height)")
+                            f"at least {share * min(w, h):.0f} px ({share:.0%} of the screen's shorter side)")
     strip = pg.js('(() => { const s = document.getElementById("radar-strip"); '
                   'return s && s.checkVisibility() ? s.getBoundingClientRect().height : null; })()')
-    if strip is not None and strip < KIOSK_RADAR_SHARE * h - 0.5:
-        problems.append(f"the radar strip is {strip:.0f} px high at {w}x{h}, at least {KIOSK_RADAR_SHARE * h:.0f} px")
+    if strip is not None and strip < KIOSK_RADAR_SHARE * min(w, h) - 0.5:
+        problems.append(f"the radar strip is {strip:.0f} px high at {w}x{h}, at least {KIOSK_RADAR_SHARE * min(w, h):.0f} px")
     chart = cards.get("chart-card")
     if exp.get("chart") == "dry" and chart and chart["h"] > KIOSK_DRY_CHART_MAX * h + 1:
         problems.append(f"#chart-card is {chart['h']:.0f} px high on a dry day at {w}x{h}, at most "
