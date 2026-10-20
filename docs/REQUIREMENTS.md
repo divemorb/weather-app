@@ -232,7 +232,7 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
   *Proof:* manual: start the image on a Pi Zero 2 W (512 MB) and a PC, open the page, and check the contract's 60 MB peak-memory budget
   *Refines:* REQ_GEN_2
 - **REQ_OPS_2** All data in one volume that can be backed up and restored. *Source: scope.*
-  *Proof:* `cargo:snapshot_command`; `cargo:snapshot::tests::*`; todo: a test that restores a snapshot into a fresh volume and the app reads it
+  *Proof:* `cargo:restored_backup_is_read_by_the_app`; `cargo:snapshot_command`; `cargo:snapshot::tests::*`
 - **REQ_OPS_3** Settings in `weather.yaml` plus a few environment variables (port, allowed host names, accuracy weighting, API docs, the first-start place). *Source: scope.*
   *Proof:* `cargo:config::tests::defaults_from_yaml`; `cargo:config::tests::env_overrides_yaml`; `cargo:security::tests::parse_allowed_hosts_strips_and_lowercases`
   *Refines:* REQ_GEN_2
