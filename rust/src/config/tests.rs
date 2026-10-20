@@ -213,6 +213,92 @@ fn env_location_without_yaml() {
 }
 
 #[test]
+fn yaml_location_timezone_is_used() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = make_config(
+        dir.path(),
+        "location:\n  latitude: 52.0\n  longitude: 13.0\n  timezone: Europe/Paris\n",
+    );
+    let cfg = load(Some(&path), &env_lookup(&[])).unwrap();
+    let loc = cfg.location.as_ref().unwrap();
+    assert_eq!(loc.timezone, "Europe/Paris");
+}
+
+#[test]
+fn yaml_location_empty_timezone_defaults() {
+    // An empty timezone string counts as missing, so the default applies.
+    let dir = tempfile::tempdir().unwrap();
+    let path = make_config(
+        dir.path(),
+        "location:\n  latitude: 52.0\n  longitude: 13.0\n  timezone: ''\n",
+    );
+    let cfg = load(Some(&path), &env_lookup(&[])).unwrap();
+    let loc = cfg.location.as_ref().unwrap();
+    assert_eq!(loc.timezone, "Europe/Berlin");
+}
+
+#[test]
+fn env_bool_false_values() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = make_config(dir.path(), "{}\n");
+    for (value, expected) in [("0", false), ("no", false), ("TRUE", true)] {
+        let env = env_lookup(&[("USE_ACCURACY_WEIGHTS", value)]);
+        let cfg = load(Some(&path), &env).unwrap();
+        assert_eq!(cfg.use_accuracy_weights, expected, "{value}");
+    }
+    let cfg = load(Some(&path), &env_lookup(&[])).unwrap();
+    assert!(!cfg.use_accuracy_weights);
+}
+
+#[test]
+fn yaml_numbers_as_strings_and_bools() {
+    let dir = tempfile::tempdir().unwrap();
+    let yaml = [
+        "radar:",
+        "  radius_km: '7.5'",
+        "  grid_size_km: true",
+        "scheduling:",
+        "  radar_interval_minutes: '7'",
+        "  models_interval_minutes: true",
+    ]
+    .join("\n")
+        + "\n";
+    let path = make_config(dir.path(), &yaml);
+    let cfg = load(Some(&path), &env_lookup(&[])).unwrap();
+    assert_eq!(cfg.radar.radius_km, 7.5);
+    assert_eq!(cfg.radar.grid_size_km, 1.0);
+    assert_eq!(cfg.scheduling.radar_interval_minutes, 7);
+    assert_eq!(cfg.scheduling.models_interval_minutes, 1);
+}
+
+#[test]
+fn yaml_subsections_are_read() {
+    // The subsections override the defaults (0.5 / 0.3 / 0.2 and 10 / 120),
+    // so a parser that ignores them would fail these assertions.
+    let dir = tempfile::tempdir().unwrap();
+    let yaml = [
+        "probability:",
+        "  weights:",
+        "    radar: 0.6",
+        "    models: 0.3",
+        "    ensemble: 0.1",
+        "scheduling:",
+        "  stale_after_minutes:",
+        "    radar: 7",
+        "    models: 90",
+    ]
+    .join("\n")
+        + "\n";
+    let path = make_config(dir.path(), &yaml);
+    let cfg = load(Some(&path), &env_lookup(&[])).unwrap();
+    assert_eq!(cfg.probability.weight_radar, 0.6);
+    assert_eq!(cfg.probability.weight_models, 0.3);
+    assert_eq!(cfg.probability.weight_ensemble, 0.1);
+    assert_eq!(cfg.scheduling.stale_radar_minutes, 7);
+    assert_eq!(cfg.scheduling.stale_models_minutes, 90);
+}
+
+#[test]
 fn falsy_yaml_documents_load_defaults() {
     // Every falsy document (null, false, 0, 0.0, "", []) loads as `{}`,
     // i.e. all builtin defaults.
