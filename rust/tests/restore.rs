@@ -1,50 +1,16 @@
 //! A snapshot restored into a fresh volume: the app reads the location the
 //! backup stored; a fresh volume without a backup stays unconfigured.
 
+mod common;
+
+use common::{REPO, free_port, healthz, write_config};
 use std::io::{Read, Write};
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::path::Path;
 use std::process::{Child, Command};
 use std::time::{Duration, Instant};
 
 const BIN: &str = env!("CARGO_BIN_EXE_wetter");
-const REPO: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/..");
-
-/// The repo's weather.yaml with the api block pointing at `base`.
-#[cfg(test)]
-fn write_config(dir: &Path, base: &str) -> std::path::PathBuf {
-    let text = std::fs::read_to_string(format!("{REPO}/weather.yaml")).unwrap();
-    let (head, _) = text.split_once("\napi:").unwrap();
-    let path = dir.join("weather.yaml");
-    std::fs::write(
-        &path,
-        format!(
-            "{head}\napi:\n  brightsky_base_url: \"{base}/bs\"\n  open_meteo_base_url: \"{base}/om/v1\"\n  ensemble_base_url: \"{base}/ens/v1\"\n  nominatim_base_url: \"{base}/nom\"\n  timeout_seconds: 20\n"
-        ),
-    )
-    .unwrap();
-    path
-}
-
-#[cfg(test)]
-fn free_port() -> u16 {
-    TcpListener::bind("127.0.0.1:0")
-        .unwrap()
-        .local_addr()
-        .unwrap()
-        .port()
-}
-
-#[cfg(test)]
-fn healthz(port: u16) -> bool {
-    let Ok(mut s) = TcpStream::connect(("127.0.0.1", port)) else {
-        return false;
-    };
-    s.write_all(b"GET /healthz HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n")
-        .unwrap();
-    let mut out = String::new();
-    s.read_to_string(&mut out).is_ok() && out.starts_with("HTTP/1.0 200")
-}
 
 /// The JSON body of `GET /api/config` (HTTP/1.0, the body after the first
 /// blank line; the status line must start with `HTTP/1.0 200`).
