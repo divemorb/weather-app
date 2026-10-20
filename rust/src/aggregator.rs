@@ -39,14 +39,6 @@ impl Job {
         }
     }
 
-    /// The scheduler job id: "radar_refresh" / "models_refresh".
-    pub fn id(self) -> &'static str {
-        match self {
-            Self::Radar => "radar_refresh",
-            Self::Models => "models_refresh",
-        }
-    }
-
     /// [Radar, Current] / [Forecast, Ensemble]
     pub fn sources(self) -> [Source; 2] {
         match self {
