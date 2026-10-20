@@ -29,8 +29,8 @@ impl FakeRequest {
     }
 }
 
-/// A canned answer: a JSON body, a status code, an exact body, or an
-/// oversized body (declared or close-delimited).
+/// A canned answer: a JSON body, a status code, an exact body, a streamed
+/// exact body, or an oversized body (declared or close-delimited).
 #[derive(Clone, Debug)]
 pub enum FakeResponse {
     /// 200 with this JSON body.
@@ -42,6 +42,8 @@ pub enum FakeResponse {
     /// 200 with a body of at least `bytes` bytes; with `declare` the
     /// Content-Length says so, without it the body is close-delimited.
     Oversize { bytes: usize, declare: bool },
+    /// 200 with this exact body and no Content-Length (close-delimited).
+    Streamed(String),
 }
 
 /// The fake upstream server itself: canned answers per path, and a log of
@@ -132,6 +134,7 @@ impl FakeUpstream {
             Some(FakeResponse::Oversize { bytes, declare }) => {
                 oversize(&mut stream, bytes, declare)
             }
+            Some(FakeResponse::Streamed(body)) => streamed(&mut stream, &body),
         };
     }
 }
@@ -143,6 +146,14 @@ fn respond(stream: &mut TcpStream, status: u16, body: &[u8]) -> std::io::Result<
         body.len()
     )?;
     stream.write_all(body)
+}
+
+fn streamed(stream: &mut TcpStream, body: &str) -> std::io::Result<()> {
+    write!(
+        stream,
+        "HTTP/1.0 200 OK\r\nContent-Type: application/json\r\n\r\n"
+    )?;
+    stream.write_all(body.as_bytes())
 }
 
 fn oversize(stream: &mut TcpStream, bytes: usize, declare: bool) -> std::io::Result<()> {

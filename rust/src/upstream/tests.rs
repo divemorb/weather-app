@@ -252,6 +252,53 @@ async fn fetch_streamed_oversize_is_source_error() {
     assert!(err.to_string().contains("cap"), "got: {err}");
 }
 
+/// The cap as a plain number, so the boundary tests pin the boundary even
+/// if the constant changes.
+const CAP: usize = 5_242_880;
+
+/// A valid JSON array of exactly `n` bytes; it parses to `[]`.
+fn json_of_len(n: usize) -> String {
+    format!("[{}]", " ".repeat(n - 2))
+}
+
+#[tokio::test]
+async fn fetch_declared_exactly_at_cap_is_accepted() {
+    assert_eq!(MAX_RESPONSE_BYTES, CAP);
+    let fake = FakeUpstream::start();
+    fake.set("/bs/current_weather", FakeResponse::Raw(json_of_len(CAP)));
+    let client = http_client(5.0).unwrap();
+    let value = fetch_json_capped(&client, &format!("{}/bs/current_weather", fake.base), &[])
+        .await
+        .unwrap();
+    assert_eq!(value, json!([]));
+}
+
+#[tokio::test]
+async fn fetch_streamed_exactly_at_cap_is_accepted() {
+    let fake = FakeUpstream::start();
+    fake.set(
+        "/bs/current_weather",
+        FakeResponse::Streamed(json_of_len(CAP)),
+    );
+    let client = http_client(5.0).unwrap();
+    let value = fetch_json_capped(&client, &format!("{}/bs/current_weather", fake.base), &[])
+        .await
+        .unwrap();
+    assert_eq!(value, json!([]));
+}
+
+#[tokio::test]
+async fn fetch_declared_one_over_cap_is_refused_by_its_length() {
+    let (_fake, err) = fetch_current_error(FakeResponse::Raw(json_of_len(CAP + 1))).await;
+    assert!(err.to_string().contains("declares"), "got: {err}");
+}
+
+#[tokio::test]
+async fn fetch_streamed_one_over_cap_is_refused() {
+    let (_fake, err) = fetch_current_error(FakeResponse::Streamed(json_of_len(CAP + 1))).await;
+    assert!(err.to_string().contains("exceeds"), "got: {err}");
+}
+
 #[tokio::test]
 async fn fetch_deeply_nested_json_is_source_error() {
     let (_fake, err) = fetch_current_error(FakeResponse::Raw(
