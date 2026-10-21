@@ -94,6 +94,8 @@ python3 rust/uitest/run.py --binary rust/target/debug/wetter --shots /tmp/shots 
 
 A Safari-like run on WebKit (from time to time, not part of the checks above): `--browser webkit --scenario live`; what it needs and what it skips is in [rust/uitest/README.md](../rust/uitest/README.md#webkit-safari-like-run).
 
+The responsive checks (`responsive-*`, `rust/uitest/responsive.py`) resize one page per check through the sizes, rotations and a dragged window; run them alone with `--only '*/responsive-*'` (with `--scenario`), also on WebKit (sizes from 447 px wide there).
+
 The fault suite plants defects in a copy of the page and proves the checks still see them (`--gaps` runs the defects the checks don't see yet):
 
 ```bash

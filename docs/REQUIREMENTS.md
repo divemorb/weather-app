@@ -79,10 +79,10 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 
 ## The page (PAGE)
 
-- **REQ_PAGE_1** The big view shows, top to bottom: the glance (the answer, the chance, the radar strip), Now, the next 24 hours. The technical parts are only in the detailed view (REQ_PAGE_4). *Source: the user, 2026-10-02.*
+- **REQ_PAGE_1** The big view shows the glance (the answer, the chance, the radar strip), Now and the next 24 hours, in this order: top to bottom, or the glance beside the other two on a wide window (REQ_PAGE_14). The technical parts are only in the detailed view (REQ_PAGE_4). *Source: the user, 2026-10-02 and 2026-10-21.*
   *Proof:* `ui:sky/*/layout-*`; `ui:*/*/big-hierarchy`
-- **REQ_PAGE_2** **The big view is the default on every screen** (large type, one screen on desktop and tablet; on a phone one column that may scroll vertically). The detailed view is one button away. *Source: the user, 2026-10-04.*
-  *Proof:* `ui:live/*/view-default`; `ui:live/*/view-phone`; `ui:live/*/kiosk-1032x1280`
+- **REQ_PAGE_2** **The big view is the default on every screen** (large type, one screen on desktop and tablet when it fits with readable type, at least 12 px; otherwise the page scrolls vertically). The detailed view is one button away. *Source: the user, 2026-10-04 and 2026-10-21.*
+  *Proof:* `ui:live/*/view-default`; `ui:live/*/view-phone`; `ui:live/*/kiosk-1032x1280`; `ui:*/*/responsive-big`
 - **REQ_PAGE_3** The view button is text that says where a click goes: "Details" in the big view, "Big view" in the detailed view (German "Details" / "Große Ansicht"); the choice is remembered per device. *Source: the user, 2026-10-05.*
   *Proof:* `ui:live/*/view-toggle`; `ui:live/*/view-label`; `ui:unit/view-f3.test.mjs`
 - **REQ_PAGE_4** The detailed view shows only the details (signals, countdowns, sources, accuracy, stations), not the glance, Now or the chart again. *Source: the user, 2026-10-12 (phone test P2).*
@@ -96,7 +96,7 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 - **REQ_PAGE_8** Every text keeps WCAG AA contrast (4.5:1, large text 3:1) against what is actually drawn behind it, in both themes, in every view and scene. *Source: the user, 2026-10-03 (glass tiles).*
   *Proof:* `ui:live/*/contrast-light`; `ui:live/*/contrast-dark`; `ui:live/*/details-contrast`
 - **REQ_PAGE_9** Works from 360 px wide without horizontal scrolling; buttons at least 24×24 px (the report's picture buttons 44×44). *Source: scope; the user, 2026-10-07.*
-  *Proof:* `ui:*/*/overflow-360`; `ui:*/*/buttons`; `ui:report/*/report-buttons`
+  *Proof:* `ui:*/*/overflow-360`; `ui:*/*/buttons`; `ui:report/*/report-buttons`; `ui:*/*/responsive-big`
 - **REQ_PAGE_10** No build step, no framework, no CDN, no images or fonts from outside: plain HTML, CSS and JavaScript; all of `app/static` at most 300 KB. *Source: scope; budget: the user, 2026-10-04.*
   *Proof:* `ui:budget`; `ui:static-files`; `ui:*/*/requests`
   *Refines:* REQ_PRIV_1
@@ -107,6 +107,8 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 - **REQ_PAGE_13** A refresh that fails keeps the tile's last good values and says so: the tile shows that the update failed and the time of the data it still shows (English "Update failed – showing data from 14:05", German "Aktualisierung fehlgeschlagen – Daten von 14:05"); the next good refresh removes the note. Only a part that never loaded shows "not available". *Source: the user, 2026-10-18.*
   *Proof:* `ui:rain/*/refresh-keeps-old`; `ui:errors/*/radar-unavailable`
   *Refines:* REQ_GEN_4, REQ_DATA_2
+- **REQ_PAGE_14** The page adapts automatically to any window from 360 px wide and any aspect ratio, to resizing and to rotation, without a reload; no content is cut off or overlaps. *Source: the user, 2026-10-21.*
+  *Proof:* `ui:*/*/responsive-big`; `ui:*/*/responsive-details`; `ui:report/*/responsive-picker`; `ui:live/*/responsive-wizard`; `gate:faults`
 
 ## The glance (GLANCE)
 
@@ -116,8 +118,8 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 - **REQ_GLANCE_2** The radar strip: 12 steps of 5 minutes, the strongest rain within the radius per step, time labels that don't overlap; its caption names the radius; a dry hour says so in a sentence. *Source: the user, 2026-10-02.*
   *Proof:* `ui:*/*/radar-*`; `ui:*/*/big-labels`
   *Refines:* REQ_GEN_1, REQ_GEN_4
-- **REQ_GLANCE_3** On a phone in the big view the headline takes at most two lines, as large as fits. *Source: the user, 2026-10-05.*
-  *Proof:* `ui:*/*/big-headline`
+- **REQ_GLANCE_3** On a phone in the big view the headline takes at most two lines; where the page scrolls as one column, as large as fits. *Source: the user, 2026-10-05 and 2026-10-21.*
+  *Proof:* `ui:*/*/big-headline`; `ui:*/*/responsive-big`
 - **REQ_GLANCE_4** The "why" line under the answer says what the sky shows and who decided it (REQ_SKY_6). *Source: the user, 2026-10-04.*
   *Proof:* refined; `ui:live/*/reason-*`
   *Refines:* REQ_GEN_4

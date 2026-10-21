@@ -121,6 +121,10 @@ The backend is `reports.rs` (closed-set validation: eight kinds, three intensiti
 
 `reports/score.rs` adds the `user_reports` block to `GET /api/model-accuracy`, and `reportdetails.js` renders it in the Details card as "Against your reports", right after the station's accuracy table, sharing its rows with `accuracyrows.js` (REQ_REPORT_8, REQ_DETAILS_4). The scoring follows REQ_REPORT_8: per UTC hour the newest report decides, the wet kinds (rain, thunderstorm, snow, hail) count as rain, and the models are scored on the same forecast hours as the station with the same threshold. The station's table, the weights and the vote stay station-only.
 
+## The page's layout
+
+The page adapts to the space, not to devices (REQ_PAGE_14). In the big view `.wrap` is a CSS size container whose shape picks one of three arrangements of the glance, Now and the chart: *wide* (wider than 1.15:1: the glance left, Now over the chart right), *tall* (the glance on top, Now and the chart below; stacked under 40em wide) and *compact* (one column that scrolls). Every size in `kiosk.css` is a token, a share of the container's shorter side times `--k`, clamped to a readable floor (text at least 12 px) and a cap. `fit.js` measures: it sets `--k` to the largest value at which the cards' content fits one screen (0.2 to 1.6, a binary search), and switches to compact when even the floors don't fit; it runs again after a resize, a size change of `.wrap` or a content change, and starts over each time, so the result depends only on the window and the content. Everything that measures observes its own box: the chart redraws when its body changes size (a `ResizeObserver`), spacing its hour labels by their measured width; the open report picker keeps the height its buttons need. The UI suite's responsive checks (`rust/uitest/responsive.py`) resize each page through 29 sizes from 360x640 to 2560x1440, three rotations and a dragged window, and check the invariants after every resize.
+
 ## Project layout
 
 The app is the Rust crate in `rust/`; `app/static/` is the web page it serves. The Python app (v1) is gone, but the contract suite's goldens were recorded from it and are frozen since v2.0 (its code is kept at the git tag `python-last`).
@@ -171,7 +175,7 @@ app/
     details.js            #   the Details card and the page reload
     stationmap.js         #   the station rows and the schematic map
     accuracyrows.js       #   the shared rows of the two accuracy tables
-    fit.js                #   the big view's headline on a narrow screen (max two lines)
+    fit.js                #   the big view fits its window: the type scale (--k) or the compact column
     sky.js                #   the sky's particle generation
     report.js             #   the report flip tile: the picker, saving, the undo
     reportkind.js         #   the eight kinds and the kind-to-scene mapping (pure)
@@ -183,7 +187,7 @@ app/
     i18n-report.js        #   the report's texts, English and German
     style.css             #   tokens, themes, cards, tiles
     layout.css            #   the tile grid, the glass tiles
-    kiosk.css             #   the big view (the wall display)
+    kiosk.css             #   the big view: three arrangements by the space, the type tokens
     chart.css             #   the chart card
     details.css           #   the Details card
     sky.css               #   the sky: the per-scene skies and the particle motion
