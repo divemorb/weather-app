@@ -750,6 +750,236 @@
    "must_fail": [
     "rain/en/responsive-big"
    ]
+  },
+  {
+   "name": "fit-off",
+   "why": "the big view is never fitted to its window: the type keeps --k 1 and never turns compact",
+   "edits": [
+    {
+     "file": "fit.js",
+     "find": "export function fit() {\n",
+     "replace": "export function fit() {\n  return;\n"
+    }
+   ],
+   "scenario": [
+    "rain"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "rain/en/responsive-big"
+   ],
+   "must_fail": [
+    "rain/en/responsive-big"
+   ]
+  },
+  {
+   "name": "never-compact",
+   "why": "a window too small for one screen never gets the compact arrangement, so the cards overflow",
+   "edits": [
+    {
+     "file": "fit.js",
+     "find": "    root.classList.add(\"compact\");\n",
+     "replace": ""
+    }
+   ],
+   "scenario": [
+    "rain"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "rain/en/responsive-big"
+   ],
+   "must_fail": [
+    "rain/en/responsive-big"
+   ]
+  },
+  {
+   "name": "page-overflow-hidden",
+   "why": "the big view cuts off what doesn't fit instead of scrolling",
+   "edits": [
+    {
+     "file": "kiosk.css",
+     "find": "html.kiosk { overflow-x: hidden; overflow-y: auto; }",
+     "replace": "html.kiosk { overflow: hidden; }"
+    }
+   ],
+   "scenario": [
+    "rain"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "rain/en/responsive-big"
+   ],
+   "must_fail": [
+    "rain/en/responsive-big"
+   ]
+  },
+  {
+   "name": "token-unbounded",
+   "why": "a type token without its floor and cap: small text shrinks below 12 px",
+   "edits": [
+    {
+     "file": "kiosk.css",
+     "find": "--fs-small: clamp(12px, 1.9 * var(--u), 26px);",
+     "replace": "--fs-small: calc(1.9 * var(--u));"
+    }
+   ],
+   "scenario": [
+    "rain"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "rain/en/responsive-big"
+   ],
+   "must_fail": [
+    "rain/en/responsive-big"
+   ]
+  },
+  {
+   "name": "fit-scrolls-to-top",
+   "why": "a refit jumps a scrolled page back to the top",
+   "edits": [
+    {
+     "file": "fit.js",
+     "find": "  document.scrollingElement.scrollTop = top;\n",
+     "replace": ""
+    }
+   ],
+   "scenario": [
+    "rain"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "rain/en/responsive-big"
+   ],
+   "must_fail": [
+    "rain/en/responsive-big"
+   ]
+  },
+  {
+   "name": "headline-three-lines",
+   "why": "the compact headline is fitted to three lines instead of two (the user's rule: at most two on a phone)",
+   "edits": [
+    {
+     "file": "fit.js",
+     "find": "const HEAD_MAX = 40, HEAD_MIN = 20, HEAD_LINES = 2;",
+     "replace": "const HEAD_MAX = 40, HEAD_MIN = 20, HEAD_LINES = 3;"
+    }
+   ],
+   "scenario": [
+    "rain"
+   ],
+   "lang": [
+    "de"
+   ],
+   "only": [
+    "rain/de/responsive-big"
+   ],
+   "must_fail": [
+    "rain/de/responsive-big"
+   ]
+  },
+  {
+   "name": "headline-not-fitted",
+   "why": "the compact headline stops at 24 px although a larger size still fits in two lines",
+   "edits": [
+    {
+     "file": "fit.js",
+     "find": "const HEAD_MAX = 40, HEAD_MIN = 20, HEAD_LINES = 2;",
+     "replace": "const HEAD_MAX = 24, HEAD_MIN = 20, HEAD_LINES = 2;"
+    }
+   ],
+   "scenario": [
+    "rain"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "rain/en/big-headline"
+   ],
+   "must_fail": [
+    "rain/en/big-headline"
+   ]
+  },
+  {
+   "name": "chart-labels-every-hour",
+   "why": "the chart labels every hour whatever its width: the labels overlap",
+   "edits": [
+    {
+     "file": "chart.js",
+     "find": "  const labelEvery = EVERY.find((e) => e * step >= xLabelW + Math.max(4, fontPx / 2)) || 24;",
+     "replace": "  const labelEvery = 1;"
+    }
+   ],
+   "scenario": [
+    "rain"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "rain/en/responsive-big"
+   ],
+   "must_fail": [
+    "rain/en/responsive-big"
+   ]
+  },
+  {
+   "name": "picker-no-room",
+   "why": "the open report picker keeps no room: a short card cuts its buttons' labels",
+   "edits": [
+    {
+     "file": "report.js",
+     "find": "  if (host.style.minHeight !== need + \"px\") host.style.minHeight = need + \"px\";",
+     "replace": "  // fault: the picker's room is not kept"
+    }
+   ],
+   "scenario": [
+    "report"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "report/en/responsive-picker"
+   ],
+   "must_fail": [
+    "report/en/responsive-picker"
+   ]
+  },
+  {
+   "name": "map-text-small",
+   "why": "the station map's labels are drawn at 11 units: on a phone they shrink below 12 px",
+   "edits": [
+    {
+     "file": "details.css",
+     "find": ".station-map .map-label { fill: var(--text); font-size: 14px; font-family: inherit; }",
+     "replace": ".station-map .map-label { fill: var(--text); font-size: 11px; font-family: inherit; }"
+    }
+   ],
+   "scenario": [
+    "rain"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "rain/en/responsive-details"
+   ],
+   "must_fail": [
+    "rain/en/responsive-details"
+   ]
   }
  ],
  "gaps": []
