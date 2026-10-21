@@ -60,7 +60,7 @@ def default_workers() -> int:
 
 # The scenarios, longest first (report, live and rain take the longest; the
 # sky jobs next; the small scenarios last).
-JOB_RANK = {"report": 0, "live": 1, "rain": 2, "sky": 3,
+JOB_RANK = {"report": 0, "live": 1, "responsive": 1, "rain": 2, "sky": 3,
             "errors": 4, "accuracy": 4, "unconfigured": 4, "wizard": 4,
             "fallback": 4, "report-glance": 4}
 
@@ -316,6 +316,11 @@ def build_jobs(args, scenarios: list[str], langs: list[str]) -> tuple[list[dict]
                 if name == "wizard":
                     continue
                 names = check_names(name, lang)
+                for check in [c for c in names if c.startswith("responsive-")]:  # each sweep a job of its own
+                    only = [check, "console", "requests"]
+                    jobs.append((JOB_RANK["responsive"], {"scenarios": [name], "langs": [lang], "only": only,
+                                                          "tag": check}, [f"{name}/{lang}/{c}" for c in only]))
+                names = [c for c in names if not c.startswith("responsive-")]
                 if name == "rain" and lang == "en":  # the content pages and the flow pages split
                     flow = rain_flow_names()
                     for only, tag in (([c for c in names if c not in flow], "content"), (flow, "flows")):

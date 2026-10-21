@@ -28,6 +28,7 @@ from chart import chart_single_point  # noqa: E402
 from clock import dst_chart_x_labels, dst_radar_labels  # noqa: E402
 from markup import markup_api  # noqa: E402
 from turn import kiosk_turn  # noqa: E402
+from responsive import run_responsive  # noqa: E402
 from edges import now_texts_problems, radar_unavailable_text_problems, setup_texts_problems  # noqa: E402
 from flows import refresh_config_retry, refresh_render_error, run_wizard, theme_toggle  # noqa: E402
 from outdated import refresh_keeps_old  # noqa: E402
@@ -165,12 +166,19 @@ def run_scenario(name: str, browsers: dict, args, res: Results, checks: list[str
 def run_pages(run: Run):
     """The scenario's page function, then the checks the scenarios share
     (content, the phone at 360 px, the kiosk and the common ones)."""
-    PAGES[run.name](run)
-    page_content(run)
-    page_phone_360(run)
-    if run.name == "unconfigured":
-        page_unconfigured_dark(run)
+    if not responsive_only(run):
+        PAGES[run.name](run)
+        page_content(run)
+        page_phone_360(run)
+        if run.name == "unconfigured":
+            page_unconfigured_dark(run)
     page_kiosk_and_common(run)
+
+
+def responsive_only(run: Run) -> bool:
+    """A job that runs only responsive sweeps (workers.build_jobs gives each its own):
+    the scenario's own pages are left out."""
+    return all(n.startswith("responsive-") or n in ("console", "requests") for n in run.names)
 
 
 # the checks the phases after the content pages record (the phone at 360 px and
@@ -349,6 +357,7 @@ def page_kiosk_and_common(run: Run):
         run.add("dst-chart-x-labels", dst_chart_x_labels(run))
     if "markup-api" in run.names:  # the API texts with HTML markup shown as text (markup.py)
         run.add("markup-api", markup_api(run))
+    run_responsive(run)  # the responsive sweeps this run wants (responsive.py)
 
     own = run.base + "/"
     foreign = sorted({u for u in run.requests if not (u.startswith(own) or u.startswith("data:"))})

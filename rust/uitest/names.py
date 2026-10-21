@@ -6,6 +6,7 @@ import pathlib
 
 import report_ui
 
+from responsive import CHECKS as RESPONSIVE
 from expect import (GLASS_SCENES, KIOSK_SIZES, LAYOUT_COLUMNS, NOW, REASON_CASES, SCENES,
                     SCENE_CASES)
 
@@ -37,7 +38,13 @@ KIOSK_ROOM = [f"kiosk-room-{w}x{h}" for w, h in KIOSK_SIZES]
 
 
 def check_names(scenario: str, lang: str) -> list[str]:
-    """The checks a scenario runs in a language, in order (what --list prints per name)."""
+    """The checks a scenario runs in a language, in order (what --list prints per name):
+    its own, then the responsive sweeps (responsive.py)."""
+    return _own_names(scenario, lang) + RESPONSIVE.get(scenario, [])
+
+
+def _own_names(scenario: str, lang: str) -> list[str]:
+    """The scenario's checks without the responsive sweeps."""
     if scenario in ("live", "rain"):
         names = (COMMON + GLANCE + RADAR + NOW_CHECKS + CHART + DETAILS + KIOSK + KIOSK_FILL_CHECKS + STATIONS
                  + BIG + KIOSK_ROOM)
