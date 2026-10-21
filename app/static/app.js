@@ -102,16 +102,6 @@ let tz = "UTC";
 /* The last good answer per data endpoint, with the Date.now() ms it
  * arrived (a failed refresh re-shows it, the note names the time). */
 let lastGood = {};
-/* The chart is drawn at its box's size; after a resize (a tablet turned,
- * Safari's toolbar) it is redrawn from the last data once the size has
- * settled for 150 ms. */
-let redrawChart = null;
-let resizeTimer = 0;
-window.addEventListener("resize", () => {
-  clearTimeout(resizeTimer);
-  resizeTimer = setTimeout(() => { if (redrawChart) renderPart("chart", redrawChart); }, 150);
-});
-
 /* The header's place line and the muted detail under it (the time zone,
  * plus the coordinates when the place shows a label); set everywhere a
  * location is known — startup, after a save, and the error path. */
@@ -244,8 +234,7 @@ async function refresh() {
   const repSky = reportSky();
   renderPart("sky-reason", () => renderSkyReason(data.now, data.radar, lang, locale, repSky ? repSky.text : null));
   renderPart("now", () => renderNow(data.now, lang, locale, tz));
-  redrawChart = () => renderChart(chartEls, data.models, lang, locale, tz);
-  renderPart("chart", redrawChart);
+  renderPart("chart", () => renderChart(chartEls, data.models, lang, locale, tz));
   /* The stations section (details.js) needs the Now's station and the
    * location's coordinates, the radar radius comes from the config. */
   renderPart("details", () => renderDetails({

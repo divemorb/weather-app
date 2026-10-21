@@ -122,10 +122,10 @@ function buildMap(location, marks, radiusKm, lang, locale) {
     mark.appendChild(title);
     svg.appendChild(mark);
     // The name under the mark (above it near the bottom), shifted to stay inside
-    // the map (width estimated at 6 px per character).
+    // the map (width estimated at 7.5 units per character of the 14-unit text).
     const x = Number(mark.getAttribute("cx"));
     const y = Number(mark.getAttribute("cy"));
-    const half = Math.min((String(m.name).length * 6) / 2, c - 4);
+    const half = Math.min((String(m.name).length * 7.5) / 2, c - 4);
     const label = svgEl("text", {
       class: "map-label", "text-anchor": "middle",
       x: Math.min(Math.max(x, half + 4), size - half - 4), y: y > size - 50 ? y - 8 : y + 16,

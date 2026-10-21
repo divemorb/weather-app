@@ -211,6 +211,7 @@ function showIntensity() {
   kindsEl.hidden = true;
   intensityEl.hidden = false;
   for (const b of kindBtns) b.removeAttribute("aria-current");
+  holdRoom();
 }
 
 // the kinds step: the kinds instead of the intensities (marks the scene's kind)
@@ -222,6 +223,7 @@ function showKinds() {
     if (sk && b.dataset.kind === sk.kind) b.setAttribute("aria-current", "true");
     else b.removeAttribute("aria-current");
   }
+  if (host) holdRoom();
 }
 
 /* Save at once: POST with the pressed chip's minutes_ago; the server's clock sets the observed_at (the client sends no times). */
@@ -249,6 +251,7 @@ async function save({ kind, intensity, minutes, confirms }) {
 function showError() {
   errorEl.hidden = false;
   errorEl.textContent = t(lang, "report.failed");
+  holdRoom();
 }
 // hides the failed-save message
 function hideError() {
@@ -307,6 +310,24 @@ export async function reportCurrent(report, refetch) {
   renderLine();
 }
 
+let roomObserver = null; // watches the open host's size (holdRoom)
+
+/* The open back keeps the room its picker needs: the host's min-height is
+ * the picker's content height (a shorter card would cut the buttons'
+ * labels). Measured again when a step of the picker shows and when the
+ * host's width changes (labels wrap differently); removed on close. */
+function holdRoom() {
+  if (!isOpen) {
+    host.style.minHeight = "";
+    return;
+  }
+  backInner.style.height = "max-content";
+  const pad = getComputedStyle(back);
+  const need = Math.ceil(backInner.offsetHeight + parseFloat(pad.paddingTop) + parseFloat(pad.paddingBottom));
+  backInner.style.height = "";
+  if (host.style.minHeight !== need + "px") host.style.minHeight = need + "px";
+}
+
 // turns the tile to the back: front inert, close button focused
 function open() {
   if (isOpen) return;
@@ -315,6 +336,11 @@ function open() {
   back.inert = false;
   for (const el of frontParts()) el.inert = true;
   host.classList.add("report-open");
+  holdRoom();
+  if (!roomObserver) {
+    roomObserver = new ResizeObserver(holdRoom);
+    roomObserver.observe(host);
+  }
   void backInner.offsetWidth; // start the turn immediately, in this tick
   closeBtn.focus();
 }
@@ -324,6 +350,7 @@ function close() {
   if (!isOpen) return;
   isOpen = false;
   host.classList.remove("report-open");
+  holdRoom();
   for (const el of frontParts()) el.inert = false;
   back.inert = true;
   openBtn.focus();

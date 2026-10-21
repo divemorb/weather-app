@@ -308,8 +308,6 @@ html[data-scene="thunderstorm"] .sky { --cloud: #8e9cb0; }
   padding: 12px 16px;
 }
 
-html.kiosk .topbar { padding: 8px 14px; }
-html.kiosk .attr { padding: 6px 12px; }
 
 /* ---- motion: only while the user allows it --------------------------------------
  * Every scene moves at least a little within 0.6 s; with reduced motion

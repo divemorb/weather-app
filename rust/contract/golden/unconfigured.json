@@ -328,8 +328,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "eb2757dd1a16246deb0c08930541c6045593489b7fd1fa201eb81edf6ab082c0",
-   "length": 13545
+   "sha256": "3b29029a653eceaff817df71c6d5515c8f1d887c22a2969d93bb68460041c607",
+   "length": 13128
   },
   "static/chart.css": {
    "status": 200,
@@ -356,8 +356,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "9f1ea9026d4f33feab754f04eeed77965cf291835bb250374b326f3d2cf2d014",
-   "length": 7052
+   "sha256": "a078f19fcf64e9c0f8b12ed11142e9cc6794b3a7b4774129d2d2538565e0552b",
+   "length": 8692
   },
   "static/details.css": {
    "status": 200,
@@ -370,8 +370,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "468e0cbefefa61e646382ee36ad3d1aa15936f69c1f2f13c6f619b0a10698d17",
-   "length": 5273
+   "sha256": "74e03e269b916abed08b5b7a9d9ee5863f2d7e29188824f74061ac276460842b",
+   "length": 5414
   },
   "static/details.js": {
    "status": 200,
@@ -412,8 +412,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "84bc830e642ababc8e6817096a8e8451da2130d3faf792a02aed14043b67802c",
-   "length": 7197
+   "sha256": "77f72ab267e9baf9e3ba6fac73896d6f6e7d65411b8fda9f57be0ce5ba012335",
+   "length": 6958
   },
   "static/i18n.js": {
    "status": 200,
@@ -440,8 +440,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "dce2d50b8911cebaeacf16f87e3609cd47bbeefd31b8a69a114f8b91c217c8aa",
-   "length": 11429
+   "sha256": "6a8eb74e19d139c26d55d982124f08a35bf9a160132030c8e6ff3b553fdd672f",
+   "length": 11443
   },
   "static/now.js": {
    "status": 200,
@@ -482,8 +482,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "8af19a62669ed4f40761a8b9fa58dce1302da719eb4abb64d6fc32c3b089ed83",
-   "length": 6883
+   "sha256": "5142a12a03147d3db4b24b0e05e20bf6169a8184ca65f8f0a99f57890a104b20",
+   "length": 6910
   },
   "static/style.css": {
    "status": 200,
@@ -496,8 +496,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "e08ba2a7e09d3a08d591319a94b724dd158a8170681dc0a6edc8db643a8a5c8d",
-   "length": 13237
+   "sha256": "ac29773b5b4a25fd2657756d2d615c36bf0e74574d20ff3aacfc1f88c6547cfb",
+   "length": 13134
   },
   "static/app.js-revalidate": {
    "status": 304,

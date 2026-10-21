@@ -90,7 +90,11 @@ a:hover { text-decoration: underline; }
   gap: 12px; margin-bottom: 20px;
 }
 
-.brand { display: flex; align-items: flex-start; gap: 10px; min-width: 0; flex: 1; }
+/* The place comes first; the buttons stay beside it while it keeps at
+ * least 10em, else they wrap to a row of their own under it (right). */
+.topbar { flex-wrap: wrap; }
+.brand { display: flex; align-items: flex-start; gap: 10px; min-width: 0; flex: 1 1 10em; }
+.actions { margin-left: auto; }
 
 .brand-mark { width: 24px; height: 24px; color: var(--accent); flex: none; margin-top: 2px; }
 
@@ -378,13 +382,6 @@ button:focus-visible, a:focus-visible {
 
 .attr { margin-top: 26px; font-size: 13px; line-height: 1.6; color: var(--muted); }
 
-/* ---- phones: the top bar wraps ------------------------------------------ */
-/* At 360 px the buttons leave the place ~103 px, so the bar wraps and the
- * brand takes its own full-width row under the buttons. */
-@media (max-width: 600px) {
-  .topbar { flex-wrap: wrap; }
-  .brand { order: 2; flex: 1 1 100%; }
-}
 
 /* ---- wider layout from 720 px ------------------------------------------- */
 

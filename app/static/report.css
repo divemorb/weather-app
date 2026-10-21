@@ -155,7 +155,8 @@ html.locked .report-open-btn { display: none; }
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr));
+  /* at least the buttons' content: an icon and up to two label lines */
+  grid-template-rows: repeat(2, minmax(min-content, 1fr));
   gap: 6px;
 }
 .report-kind {

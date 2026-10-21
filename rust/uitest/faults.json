@@ -730,12 +730,12 @@
   },
   {
    "name": "chart-no-redraw",
-   "why": "a turned tablet keeps the chart drawn for the old size: no redraw after a resize",
+   "why": "the chart keeps the size it was first drawn at: its body is not observed, so a resize or a turn never redraws it",
    "edits": [
     {
-     "file": "app.js",
-     "find": "  resizeTimer = setTimeout(() => { if (redrawChart) renderPart(\"chart\", redrawChart); }, 150);",
-     "replace": "  resizeTimer = setTimeout(() => {}, 150);"
+     "file": "chart.js",
+     "find": "  observer.observe(body);",
+     "replace": "  // fault: the chart's body is not observed"
     }
    ],
    "scenario": [
@@ -745,10 +745,10 @@
     "en"
    ],
    "only": [
-    "rain/en/kiosk-turn"
+    "rain/en/responsive-big"
    ],
    "must_fail": [
-    "rain/en/kiosk-turn"
+    "rain/en/responsive-big"
    ]
   }
  ],

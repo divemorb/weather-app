@@ -18,18 +18,25 @@ export const MODEL_COLORS = ["#1f6feb", "#2da44e", "#bf8700", "#cf222e", "#8250d
 
 const NS = "http://www.w3.org/2000/svg";
 
-/* The chart's geometry for a container in px. The viewBox matches the
- * (clamped) width so text is never scaled; a narrow container gets a
- * taller plot and a label every 6th hour. In the kiosk view the chart
- * fills the card's free height (containerHeight, the measured plot
- * container, legend in place), clamped to a readable band; without a
- * measurement it falls back to a short, wide plot. */
-export function chartMetrics(containerWidth, kiosk = false, containerHeight = 0) {
-  const w = Math.round(Math.max(300, Math.min(1800, containerWidth || 720)));
-  let h;
-  if (kiosk) h = containerHeight > 0 ? Math.max(140, Math.min(480, Math.floor(containerHeight))) : 100;
-  else h = w < 520 ? 300 : 240;
-  return { w, h, labelEvery: w < 520 && !kiosk ? 6 : 3 };
+const EVERY = [1, 2, 3, 4, 6, 12]; /* the hour steps a label may take */
+const LABEL_EVERY_MAX = 6; /* at least 4 of the 24 hours named */
+const AXIS_MIN_PX = 12;
+
+/* The chart's geometry for a box of w x h px with n hours and axis text
+ * of fontPx: the margins follow the text and the widest labels (xLabelW,
+ * yLabelW px, measured), and the hour labels are spaced so neighbours keep
+ * a gap of half a text height, at least 4 px (a label every EVERY-th
+ * hour). The viewBox is the box itself, so the text is never scaled. */
+export function chartMetrics(w, h, n, fontPx = 12, xLabelW = 48, yLabelW = 20) {
+  w = Math.max(1, Math.floor(w));
+  h = Math.max(1, Math.floor(h));
+  const padL = Math.ceil(Math.max(yLabelW + 8, xLabelW / 2));
+  const padR = Math.ceil(xLabelW / 2);
+  const padT = Math.ceil(fontPx);
+  const padB = Math.ceil(fontPx * 2.4);
+  const step = (w - padL - padR) / Math.max(1, n - 1);
+  const labelEvery = EVERY.find((e) => e * step >= xLabelW + Math.max(4, fontPx / 2)) || 24;
+  return { w, h, padL, padR, padT, padB, labelEvery };
 }
 
 /* The data the chart can draw, or null when there is none at all
@@ -49,10 +56,14 @@ function svgEl(tag, attrs) {
   return el;
 }
 
+/* What the chart drew last, for a redraw at a new size. */
+let last = null;
+
 /* Draw the chart (or the dry/unavailable line) into the card's elements:
  * els = { body, legend, unavailable, dry, unit }. Fully replaces what it
- * drew before. The has-chart class on the body tells the kiosk CSS to
- * give the body the card's free height. */
+ * drew before. The has-chart class on the body gives the body the card's
+ * free height (kiosk.css); the SVG is drawn at the body's size and drawn
+ * again whenever the body changes size. */
 export function renderChart(els, data, lang, locale, tz) {
   const d = chartData(data);
   let maxV = 0;
@@ -68,6 +79,7 @@ export function renderChart(els, data, lang, locale, tz) {
   els.body.classList.remove("has-chart");
   els.legend.textContent = "";
   for (const el of [els.legend, els.unit, els.unavailable, els.dry]) el.hidden = true;
+  last = null;
 
   if (!d) {
     els.unavailable.hidden = false;
@@ -82,25 +94,62 @@ export function renderChart(els, data, lang, locale, tz) {
 
   els.unit.hidden = false;
   els.unit.textContent = t(lang, "chart.unit");
-  const kiosk = document.documentElement.classList.contains("kiosk");
-  if (kiosk) buildLegend(els.legend, d.models); // in place before the height is measured
+  buildLegend(els.legend, d.models); // in place before the body is measured
   els.body.classList.add("has-chart");
-  els.body.appendChild(buildSvg(els.body, d, maxV, lang, locale, tz));
-  if (!kiosk) buildLegend(els.legend, d.models);
+  last = { body: els.body, d, maxV, lang, locale, tz, size: "" };
+  draw();
+  observe(els.body);
+}
+
+// (re)draws the SVG at the body's size, if the size changed
+function draw() {
+  if (!last) return;
+  const { body } = last;
+  const size = body.clientWidth + "x" + body.clientHeight;
+  if (size === last.size) return;
+  last.size = size;
+  body.textContent = "";
+  body.appendChild(buildSvg(body, last.d, last.maxV, last.lang, last.locale, last.tz));
+}
+
+let observer = null;
+// redraw when the body changes size (a resize, a turn, the type refitted)
+function observe(body) {
+  if (observer) return;
+  observer = new ResizeObserver(draw);
+  observer.observe(body);
+}
+
+let ctx = null;
+// the widest of the texts in px at the body's axis font
+function widest(texts, font) {
+  ctx = ctx || document.createElement("canvas").getContext("2d");
+  ctx.font = font;
+  return Math.max(0, ...texts.map((s) => ctx.measureText(s).width));
 }
 
 // the chart's <svg>: the axes, the grid and one line per model
 function buildSvg(body, { hours, models }, maxV, lang, locale, tz) {
-  const kiosk = document.documentElement.classList.contains("kiosk");
-  /* Kiosk: the height is the container's own measured height (the legend
-   * in place), so the viewBox matches the box 1:1 and the browser scales
-   * nothing. */
-  const { w, h, labelEvery } = chartMetrics(body.clientWidth, kiosk, kiosk ? body.clientHeight : 0);
   const n = hours.length;
-  const padL = 34, padR = 12, padT = 12, padB = 30;
+  const scale = niceScale(maxV);
+  const digits = scale.step < 1 ? 1 : 0;
+  const xTexts = hours.map((hr) => fmtTime(hr, locale, tz));
+  const yTexts = scale.ticks.map((v) => fmtNumber(v, locale, digits));
+  /* The axis text has the body's font size (kiosk.css: --fs-axis), made
+   * smaller (not below AXIS_MIN_PX) while the hours would be labelled
+   * less often than every LABEL_EVERY_MAX-th. */
+  const style = getComputedStyle(body);
+  let fontPx = parseFloat(style.fontSize) || AXIS_MIN_PX;
+  let m;
+  for (;;) {
+    const font = `${fontPx}px ${style.fontFamily}`;
+    m = chartMetrics(body.clientWidth, body.clientHeight, n, fontPx, widest(xTexts, font), widest(yTexts, font));
+    if (m.labelEvery <= LABEL_EVERY_MAX || fontPx <= AXIS_MIN_PX) break;
+    fontPx = Math.max(AXIS_MIN_PX, fontPx - 1);
+  }
+  const { w, h, padL, padR, padT, padB, labelEvery } = m;
   const plotW = w - padL - padR;
   const plotH = h - padT - padB;
-  const scale = niceScale(maxV);
   const x = (i) => padL + (n <= 1 ? 0 : (i / (n - 1)) * plotW);
   const y = (v) => padT + plotH - (v / scale.max) * plotH;
 
@@ -111,26 +160,26 @@ function buildSvg(body, { hours, models }, maxV, lang, locale, tz) {
     "aria-label": t(lang, "chart.aria"),
     class: "chart-svg",
   });
+  svg.style.fontSize = fontPx + "px"; // the axis text (.axis is 1em)
 
   /* The grid lines and y axis, exactly the niceScale ticks. */
-  const digits = scale.step < 1 ? 1 : 0;
-  for (const v of scale.ticks) {
+  scale.ticks.forEach((v, i) => {
     const yy = y(v);
     svg.appendChild(svgEl("line", { class: "grid", x1: padL, y1: yy, x2: w - padR, y2: yy }));
     const label = svgEl("text", {
       class: "axis", "data-test": "chart-y-label",
-      x: padL - 7, y: yy + 4, "text-anchor": "end",
+      x: padL - 7, y: yy + fontPx / 3, "text-anchor": "end",
     });
-    label.textContent = fmtNumber(v, locale, digits);
+    label.textContent = yTexts[i];
     svg.appendChild(label);
-  }
+  });
 
   for (let i = 0; i < n; i += labelEvery) {
     const label = svgEl("text", {
       class: "axis", "data-test": "chart-x-label",
-      x: x(i), y: h - padB + 20, "text-anchor": "middle",
+      x: x(i), y: h - padB + fontPx * 1.6, "text-anchor": "middle",
     });
-    label.textContent = fmtTime(hours[i], locale, tz);
+    label.textContent = xTexts[i];
     svg.appendChild(label);
   }
 

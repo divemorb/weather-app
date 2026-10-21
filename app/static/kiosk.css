@@ -1,242 +1,236 @@
-/* The big view: the one-screen wall display, read from across the room.
- * view.js sets .kiosk on <html> for the big view (the default; ?kiosk adds
- * .locked and hides the view and location buttons); chart.js keys its
- * layout on the class. It fits one screen at 1280x800, 1920x1080 and on
- * an iPad Pro 13" (1032x1280 upright, 1376x940 lying, Safari without its
- * toolbar): the glance left, Now and the 24 h chart stacked right. On a
- * dry (or data-less) day the chart card is just its status line: Now
- * takes the freed height (the rules key on the status line via :has()).
- * The Details card leaves the big view; below 760 px the cards stack in
- * one column and may scroll. Scrolling is only a safety net.
+/* The big view (view.js sets .kiosk on <html>; ?kiosk adds .locked).
+ * Responsive by the space, not the device: .wrap is a size container whose
+ * shape picks one of three arrangements of the same three cards: wide
+ * (wider than 1.15:1: the glance left, Now and the chart right), tall (the
+ * glance on top, Now and the chart below, stacked under 40em wide), compact
+ * (.compact from fit.js: one column that scrolls when one screen can't fit
+ * readable type). Every size is a token: a share of the container's shorter
+ * side times --k, clamped to a floor and a cap; fit.js sets --k to the
+ * largest that fits. Nothing here names a device or a pixel width.
  */
 
-html.kiosk { overflow-x: hidden; overflow-y: auto; } /* the content must fit; scrolling is only the safety net */
+html.kiosk { overflow-x: hidden; overflow-y: auto; }
 
-html.kiosk .wrap {
-  max-width: none;
-  /* the visible height in Safari; browsers without dvh keep 100vh */
-  height: 100vh;
-  height: 100dvh;
-  padding: 14px 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+/* The unit: 1 % of the .wrap container's shorter side, times --k. It is
+ * computed on .wrap's children (a container's own cq units would refer to
+ * its parent) and inherited as a length, so a card that is a container
+ * itself (Now) still gets the page's unit. The tokens are declared there
+ * too: a var() is resolved where it is declared. */
+@property --u { syntax: "<length>"; inherits: true; initial-value: 8px; }
+html.kiosk .wrap > * {
+  --u: calc(1cqmin * var(--k));
+  /* the type: every text at least 12 px (the fine print 11 px), the
+   * headline the largest line */
+  --fs-answer: clamp(24px, 6.2 * var(--u), 96px);
+  --fs-line: clamp(15px, 2.5 * var(--u), 36px);
+  --fs-prob: clamp(40px, 12.2 * var(--u), 180px);
+  --fs-temp: clamp(36px, 8 * var(--u), 132px);
+  --fs-cond: clamp(16px, 2.4 * var(--u), 36px);
+  --fs-value: clamp(14px, 2.1 * var(--u), 32px);
+  --fs-small: clamp(12px, 1.9 * var(--u), 26px);
+  --fs-fine: clamp(11px, 1.3 * var(--u), 16px);
+  --fs-axis: clamp(12px, 1.5 * var(--u), 20px);
+  /* the spacing and the drawn parts */
+  --sp: clamp(4px, 1 * var(--u), 16px);
+  --pad: clamp(12px, 2.4 * var(--u), 34px);
+  --strip: clamp(36px, 8.2 * var(--u), 120px);
+  --chart-min: clamp(120px, 18 * var(--u), 360px);
+  --fs-place: clamp(18px, 2.4 * var(--u), 40px);
+  --btn: clamp(40px, 4.4 * var(--u), 72px); /* the buttons: at least 40 px */
 }
 
-html.kiosk .topbar { margin-bottom: 0; }
+html.kiosk .wrap {
+  --k: 1;
+  container: big / size;
+  max-width: none;
+  height: 100vh;
+  height: 100dvh;
+  /* .wrap is the window: its own spacing follows the window (vmin) */
+  padding: clamp(6px, 1.2vmin, 16px) clamp(8px, 2vmin, 28px);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(6px, 1.2vmin, 16px);
+}
+
+/* compact: the page scrolls; the container only knows its width (its
+ * height comes from the content), so the tokens follow the window's width
+ * and the small viewport height. */
+html.kiosk.compact .wrap { container-type: inline-size; height: auto; padding-bottom: 28px; }
+
+/* The top bar and the footer grow with the page too. */
+html.kiosk .topbar { margin-bottom: 0; padding: calc(var(--sp) * 0.8) calc(var(--sp) * 1.4); }
+html.kiosk .attr { padding: calc(var(--sp) * 0.6) calc(var(--sp) * 1.2); }
+html.kiosk .place { font-size: var(--fs-place); }
+html.kiosk .place-detail { font-size: var(--fs-small); }
+html.kiosk .brand-mark { width: calc(var(--fs-place) * 1.2); height: calc(var(--fs-place) * 1.2); }
 /* The locked kiosk (?kiosk) hides both buttons; the big view elsewhere
  * keeps the location button (people set their place there). */
 html.kiosk.locked [data-test="location-button"],
 html.kiosk.locked [data-test="view-toggle"] { display: none; }
-html.kiosk .place { font-size: 20px; }
-html.kiosk .place-detail { font-size: 13px; }
-html.kiosk .actions .btn { width: 40px; height: 40px; }
+html.kiosk .actions .btn { width: var(--btn); height: var(--btn); }
+html.kiosk .actions .btn .icon { width: calc(var(--btn) * 0.55); height: calc(var(--btn) * 0.55); }
 /* The view button's text says where a click goes: it keeps one line. */
-html.kiosk #view-toggle { width: auto; min-width: 40px; }
+html.kiosk #view-toggle { width: auto; min-width: var(--btn); font-size: var(--fs-small); }
 
-/* ---- the two columns --------------------------------------------------- */
+/* ---- the arrangements ----------------------------------------------------- */
 
 html.kiosk #dashboard {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
-  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 14px;
+  gap: var(--sp);
+  /* tall: the glance across the top, Now and the chart side by side */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "glance glance" "now chart";
 }
 
-/* Dry day (or no model data): the chart row is just its status line, so
- * it takes only the height it needs; Now fills the column. chart.js
- * shows the dry and unavailable lines one at a time (the other keeps the
- * hidden attribute). */
-html.kiosk #dashboard:has([data-test="chart-dry"]:not([hidden])),
-html.kiosk #dashboard:has([data-test="chart-unavailable"]:not([hidden])) {
+@container big (aspect-ratio >= 1.15) {
+  /* wide: the glance left, Now over the chart right */
+  html.kiosk #dashboard {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas: "glance now" "glance chart";
+  }
+}
+
+/* tall but narrow: Now over the chart (side by side they would be too
+ * narrow for the chart's hours); a phone usually ends up compact. */
+@container big (aspect-ratio < 1.15) and (width < 40em) {
+  html.kiosk #dashboard {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-areas: "glance" "now" "chart";
+  }
+}
+
+html.kiosk .glance { grid-area: glance; }
+html.kiosk .now { grid-area: now; }
+html.kiosk #chart-card { grid-area: chart; }
+
+/* Dry day (or no model data): the chart card is just its status line, so
+ * Now takes the room (wide: the right column; tall: the row, the chart's
+ * line under it). chart.js shows the dry and unavailable lines one at a
+ * time. */
+html.kiosk #dashboard:has(.chart-status:not([hidden])) {
   grid-template-rows: minmax(0, 1fr) auto;
+}
+@container big (aspect-ratio < 1.15) {
+  html.kiosk #dashboard:has(.chart-status:not([hidden])) {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: "glance" "now" "chart";
+  }
+}
+
+html.kiosk.compact #dashboard,
+html.kiosk.compact #dashboard:has(.chart-status:not([hidden])) {
+  flex: none;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: none;
+  grid-template-areas: "glance" "now" "chart";
 }
 
 html.kiosk .card + .card { margin-top: 0; }
 
-/* The cards fill their grid cell and start their content at the top (no
- * empty band above the data); the type and spacing are sized
- * to take the room that is left. */
+/* The cards fill their grid cell and start their content at the top. */
 html.kiosk #dashboard .card {
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
+  padding: var(--pad);
 }
-
-html.kiosk .glance { grid-column: 1; grid-row: 1 / 3; padding: 2vmin 26px; }
-html.kiosk .now { grid-column: 2; grid-row: 1; padding: 2.5vmin 26px; }
-html.kiosk #chart-card { grid-column: 2; grid-row: 2; padding: 14px 22px; }
-/* The wider pencil + word button (~98x44) would lie over the host's
- * headline at 360 px; the host's top padding clears it. Found by the
- * attribute, never by an id (same specificity as the .glance padding, so
- * this must stay after it). */
-html.kiosk .card[data-report-host] { padding-top: 62px; }
-/* The details card also carries .card; the id + attribute selector beats
- * the flex rule for the cards above (higher specificity). */
+/* The details card is the detailed view's: it leaves the big view. */
 html.kiosk #dashboard [data-test="details"] { display: none; }
 
-/* ---- the glance (left column) ------------------------------------------
- * The sizes are shares of the screen's shorter side (vmin), so 1280x800
- * (the tablet) and 1920x1080 (the TV) fill the same card with the same
- * proportions. */
+/* ---- the glance ------------------------------------------------------------ */
 
-html.kiosk .glance-answer { font-size: 6.2vmin; line-height: 1.15; overflow-wrap: break-word; }
-/* The radar line comes first, so it stays at least as large as the
- * "why" line under it (both read from across the room at the same size). */
-html.kiosk .glance-when { margin-top: 1vmin; font-size: 2.5vmin; }
-/* The "why" line says which source decided the sky; it is read from across
- * the room too (at least 2.5 % of the screen's shorter side). */
-html.kiosk .glance-reason { font-size: 2.5vmin; }
-html.kiosk .glance-prob { margin-top: 1.8vmin; }
-html.kiosk .glance-prob-value { font-size: 12.2vmin; }
-html.kiosk .glance-prob-label { font-size: 2vmin; }
-/* margin-top: auto puts the radar block at the bottom of the glance card:
- * the card looks full for a short English text and keeps room for a long
- * German one. */
-html.kiosk .radar { margin-top: auto; padding-top: 2vmin; }
-html.kiosk .radar-top { height: 2.6vmin; margin-bottom: 0.8vmin; }
-html.kiosk .radar-max { font-size: 2vmin; line-height: 2.6vmin; }
-html.kiosk .radar-dry { font-size: 2.2vmin; line-height: 2.6vmin; }
-html.kiosk .radar-strip { height: 8.2vmin; gap: 5px; }
-html.kiosk .radar-labels { height: 2.2vmin; margin-top: 0.8vmin; font-size: 2vmin; }
-html.kiosk .radar-caption { margin-top: 0.8vmin; font-size: 2vmin; }
-html.kiosk .radar-unavailable { font-size: 2.2vmin; }
+html.kiosk .glance-answer { font-size: var(--fs-answer); line-height: 1.15; overflow-wrap: break-word; }
+/* The radar line and the "why" line, read from across the room; the
+ * headline stays at least 1.25 times them (the floors: 24 / 15 px). */
+html.kiosk .glance-when { margin-top: var(--sp); font-size: var(--fs-line); }
+html.kiosk .glance-reason { margin-top: calc(var(--sp) / 2); font-size: var(--fs-line); }
+html.kiosk .glance-prob { margin-top: calc(var(--sp) * 1.5); }
+html.kiosk .glance-prob-value { font-size: var(--fs-prob); }
+html.kiosk .glance-prob-label { font-size: var(--fs-small); }
+/* margin-top: auto puts the radar block at the bottom of the glance card. */
+html.kiosk .radar { margin-top: auto; padding-top: calc(var(--sp) * 1.5); }
+html.kiosk .radar-top { height: calc(var(--fs-small) * 1.35); margin-bottom: calc(var(--sp) * 0.6); }
+html.kiosk .radar-max, html.kiosk .radar-dry { font-size: var(--fs-small); line-height: calc(var(--fs-small) * 1.35); }
+html.kiosk .radar-strip { height: var(--strip); gap: clamp(2px, 0.5 * var(--u), 6px); }
+html.kiosk .radar-labels { height: calc(var(--fs-small) * 1.35); margin-top: calc(var(--sp) * 0.6); font-size: var(--fs-small); }
+html.kiosk .radar-caption { margin-top: calc(var(--sp) * 0.6); font-size: var(--fs-small); }
+html.kiosk .radar-unavailable { font-size: var(--fs-small); }
 
 /* In the big view the radar caption (and the other muted lines) sit on
  * the glass; on a rainy sky that glass is #505e6e, where the theme's muted
  * #c3cad2 is 4.0:1 (needs 4.5:1). A lighter muted colour restores it. */
 html.kiosk[data-theme="dark"] { --muted: #dfe4ea; }
 
-/* ---- Now (right, top) ---------------------------------------------------- */
+/* ---- Now ------------------------------------------------------------------- */
 
-html.kiosk .now-title { margin-bottom: 14px; font-size: max(13px, 1.6vmin); }
-html.kiosk .now-temp { font-size: 8vmin; }
-html.kiosk .now-condition { font-size: clamp(18px, 2.2vmin, 30px); }
+/* Now's cells: four columns when the card has the width, else two. */
+html.kiosk .now { container: now / inline-size; }
+/* The report button (absolute, top right, at least 44 px high) sits
+ * beside the host's title row (Now); a host without one keeps the
+ * button's height free above its content. */
+html.kiosk #dashboard .card[data-report-host] { padding-top: calc(max(44px, var(--btn)) + 14px); }
+html.kiosk #dashboard .card[data-report-host]:has(> .now-title) { padding-top: 10px; }
+html.kiosk .report-open-btn { min-height: max(44px, var(--btn)); font-size: var(--fs-small); }
+html.kiosk .report-open-btn svg { width: calc(var(--fs-small) * 1.2); height: calc(var(--fs-small) * 1.2); }
+html.kiosk .now-title {
+  min-height: max(44px, var(--btn)); display: flex; align-items: center;
+  margin-bottom: calc(var(--sp) * 0.5); font-size: var(--fs-small);
+}
+html.kiosk .now-temp { font-size: var(--fs-temp); }
+html.kiosk .now-condition { font-size: var(--fs-cond); }
 html.kiosk .now-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px 18px;
-  margin-top: 12px;
-}
-html.kiosk .now-label { font-size: 13px; }
-html.kiosk .now-value { font-size: 15px; }
-html.kiosk .now-time { margin-top: 12px; font-size: max(13px, 1.6vmin); }
-html.kiosk .now-station { margin-top: 6px; font-size: max(13px, 1.6vmin); }
-html.kiosk .now-fallback { margin-left: 6px; font-size: max(11px, 1.3vmin); }
-html.kiosk .now-unavailable { font-size: 16px; }
-
-/* On a dry day Now takes the chart's height: two wider columns of
- * larger values read better from across the room than four narrow ones. */
-html.kiosk #dashboard:has([data-test="chart-dry"]:not([hidden])) .now-grid,
-html.kiosk #dashboard:has([data-test="chart-unavailable"]:not([hidden])) .now-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  /* vmin, not px: on a dry day Now takes the chart's height, so the spacing
-   * must grow with the screen to fill the taller card. */
-  gap: 2.2vmin 2.6vmin;
-  margin-top: 2.6vmin;
+  gap: var(--sp) calc(var(--sp) * 1.6);
+  margin-top: var(--sp);
 }
-html.kiosk #dashboard:has([data-test="chart-dry"]:not([hidden])) .now-value,
-html.kiosk #dashboard:has([data-test="chart-unavailable"]:not([hidden])) .now-value {
-  font-size: 3.2vmin;
+@container now (width >= 34em) {
+  html.kiosk .now-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
-
-/* ---- the 24 h chart (right, bottom) -------------------------------------- */
-
-html.kiosk .chart-head { margin-bottom: 10px; }
-html.kiosk .chart-status { font-size: 15px; }
-html.kiosk .chart-legend { margin-top: 10px; gap: 6px 16px; font-size: 13px; }
-
-/* The drawn chart takes the card's free height; chart.js draws the SVG
- * at this box's measured size, 1:1 — no scaling, the axis text stays
- * 12 px. The class is only set when a chart is drawn, so the dry and
- * unavailable lines keep the card's centred content. */
-html.kiosk #chart-card .chart-body.has-chart { flex: 1; min-height: 0; }
-
-/* ---- footer --------------------------------------------------------------- */
-
-html.kiosk .attr { margin-top: 0; font-size: 12px; }
-
-/* ---- upright tablet ------------------------------------------------------
- * An upright tablet: the glance across the top, Now and the chart side by
- * side below; on a dry day Now takes the full width and the chart's line
- * goes under it. */
-
-@media (min-width: 761px) and (orientation: portrait) {
-  html.kiosk #dashboard { grid-template-rows: auto minmax(0, 1fr); }
-
-  html.kiosk .glance { grid-column: 1 / 3; grid-row: 1; }
-  html.kiosk .now { grid-column: 1; grid-row: 2; }
-  html.kiosk #chart-card { grid-column: 2; grid-row: 2; }
-
-  html.kiosk #dashboard:has([data-test="chart-dry"]:not([hidden])),
-  html.kiosk #dashboard:has([data-test="chart-unavailable"]:not([hidden])) {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr) auto;
-  }
-  html.kiosk #dashboard:has([data-test="chart-dry"]:not([hidden])) > *,
-  html.kiosk #dashboard:has([data-test="chart-unavailable"]:not([hidden])) > * {
-    grid-column: 1; grid-row: auto;
-  }
-
-  html.kiosk .now-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  html.kiosk #dashboard:has([data-test="chart-dry"]:not([hidden])) .now-grid,
-  html.kiosk #dashboard:has([data-test="chart-unavailable"]:not([hidden])) .now-grid {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 1.6vmin 2.6vmin;
-    margin-top: 1.6vmin;
-  }
-  /* the report button sits beside the Now title there, not over it */
-  html.kiosk .card[data-report-host] { padding-top: 2.5vmin; }
-  html.kiosk #dashboard:has([data-test="chart-dry"]:not([hidden])) .now-value,
-  html.kiosk #dashboard:has([data-test="chart-unavailable"]:not([hidden])) .now-value {
-    font-size: 2.8vmin;
-  }
-}
-
-/* ---- phone (below 760 px): one scrollable column ---------------------------
- * The cards stack in DOM order (glance, Now, chart) and the page scrolls.
- * The desktop selectors are repeated, so the dry-day :has() rules (higher
- * specificity) lose to the later declarations here. */
-
-@media (max-width: 760px) {
-  html.kiosk { overflow-y: auto; overflow-x: hidden; }
-
-  html.kiosk .wrap { height: auto; padding: 12px 14px 28px; gap: 12px; }
-
-  html.kiosk #dashboard { flex: none; grid-template-columns: 1fr; grid-template-rows: none; }
-  html.kiosk #dashboard:has([data-test="chart-dry"]:not([hidden])),
-  html.kiosk #dashboard:has([data-test="chart-unavailable"]:not([hidden])) {
-    grid-template-rows: none;
-  }
-  /* grid-column: 2 would park a card in a second, implicit column. */
-  html.kiosk .glance, html.kiosk .now, html.kiosk #chart-card { grid-column: auto; grid-row: auto; }
-
-  html.kiosk .now-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 18px; }
-  html.kiosk #dashboard:has([data-test="chart-dry"]:not([hidden])) .now-grid,
-  html.kiosk #dashboard:has([data-test="chart-unavailable"]:not([hidden])) .now-grid {
+/* A dry day, wide: Now has the whole right column; two columns of larger
+ * values fill it. */
+@container big (aspect-ratio >= 1.15) {
+  html.kiosk #dashboard:has(.chart-status:not([hidden])) .now-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px 18px;
+    gap: calc(var(--sp) * 1.6);
   }
-  /* The chart is drawn at the body's measured height; without a floor the
-   * phone would get the short wide fallback. */
-  html.kiosk #chart-card .chart-body.has-chart { min-height: 300px; }
-
-  /* At 390x844 the 6.2 vmin headline is 24 px, the largest size that keeps
-   * it to 3 lines at the card's ~308 px text width (German "rain likely"
-   * measured: 3 lines at 24 px, 4 at 28 px); narrower phones take less
-   * from their width, and the checks require at least 24 px. */
-  html.kiosk .glance-answer { font-size: 24px; }
-
-  /* The fitted headline drops to 20 px for the longest German text at
-   * 360 px, so the radar line and the "why" line get a fixed size that
-   * leaves it the lead (1.25x at 16 px). */
-  html.kiosk .glance-when, html.kiosk .glance-reason { font-size: 16px; }
-
-  /* ...and the 2 vmin radar time labels are 8 px at 390 px, too small to
-   * read. 12 px is the detailed view's label size; it leaves at least
-   * 4 px between two neighbours at the card's width. */
-  html.kiosk .radar-labels { font-size: 12px; }
+  html.kiosk #dashboard:has(.chart-status:not([hidden])) .now-value { font-size: var(--fs-cond); }
 }
+html.kiosk .now-label { font-size: var(--fs-small); }
+html.kiosk .now-value { font-size: var(--fs-value); }
+html.kiosk .now-time { margin-top: var(--sp); font-size: var(--fs-small); }
+html.kiosk .now-station { margin-top: calc(var(--sp) * 0.5); font-size: var(--fs-small); }
+html.kiosk .now-fallback { margin-left: 6px; font-size: var(--fs-fine); }
+html.kiosk .now-unavailable { font-size: var(--fs-small); }
+
+/* ---- the 24 h chart -------------------------------------------------------- */
+
+html.kiosk .chart-head { margin-bottom: var(--sp); }
+html.kiosk .chart-title, html.kiosk .chart-unit { font-size: var(--fs-small); }
+html.kiosk .chart-status { font-size: var(--fs-small); }
+html.kiosk .chart-legend { margin-top: var(--sp); gap: calc(var(--sp) * 0.6) calc(var(--sp) * 1.6); }
+html.kiosk .chart-legend-item { font-size: var(--fs-small); }
+/* chart.js reads the axis size from the body */
+html.kiosk .chart-body { font-size: var(--fs-axis); }
+html.kiosk .chart-svg .axis { font-size: 1em; }
+
+/* The drawn chart takes the card's free height, at least --chart-min (a
+ * one-screen card that can't give that much overflows, and fit.js shrinks
+ * the type). The SVG lies over the body (absolute), so its size never
+ * feeds back into the layout; chart.js draws it at the body's measured
+ * size, 1:1, and redraws when the body changes size. */
+html.kiosk #chart-card .chart-body.has-chart { position: relative; flex: 1 1 0; min-height: var(--chart-min); }
+/* compact: as tall as fits the window beside the card's head and legend */
+html.kiosk.compact #chart-card .chart-body.has-chart { flex: none; height: clamp(200px, min(55cqi, 60svh), 380px); }
+html.kiosk #chart-card .chart-body.has-chart .chart-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* ---- footer ------------------------------------------------------------------- */
+
+html.kiosk .attr { margin-top: 0; font-size: var(--fs-fine); }

@@ -28,15 +28,15 @@ test("W6: six distinct series colours, readable in both themes", () => {
   }
 });
 
-test("W6: chartMetrics clamps the width, narrows narrow screens", () => {
-  assert.deepEqual(chartMetrics(628), { w: 628, h: 240, labelEvery: 3 });
-  assert.deepEqual(chartMetrics(0), { w: 720, h: 240, labelEvery: 3 }); // missing -> the default
-  assert.deepEqual(chartMetrics(284), { w: 300, h: 300, labelEvery: 6 }); // clamped, taller, sparser
-  assert.deepEqual(chartMetrics(5199), { w: 1800, h: 240, labelEvery: 3 }); // clamped from above
-  assert.deepEqual(chartMetrics(1190, true), { w: 1190, h: 100, labelEvery: 3 }); // kiosk, no measured height
-  assert.deepEqual(chartMetrics(1190, true, 250), { w: 1190, h: 250, labelEvery: 3 }); // kiosk: the card's free height
-  assert.deepEqual(chartMetrics(1190, true, 10), { w: 1190, h: 140, labelEvery: 3 }); // clamped from below
-  assert.deepEqual(chartMetrics(1190, true, 9999), { w: 1190, h: 480, labelEvery: 3 }); // clamped from above
+test("chartMetrics: the box's size 1:1, margins from the text, hours spaced by the label width", () => {
+  const pads = { padL: 26, padR: 26, padT: 12, padB: 29 };
+  assert.deepEqual(chartMetrics(628, 240, 24, 12, 52, 8), { w: 628, h: 240, ...pads, labelEvery: 3 });
+  assert.deepEqual(chartMetrics(628.7, 240.9, 24, 12, 52, 8), { w: 628, h: 240, ...pads, labelEvery: 3 }); // whole px
+  assert.deepEqual(chartMetrics(300, 200, 24, 12, 52, 8), { w: 300, h: 200, ...pads, labelEvery: 6 }); // narrow: sparser
+  assert.deepEqual(chartMetrics(100, 50, 24, 12, 52, 8), { w: 100, h: 50, ...pads, labelEvery: 24 }); // no room: one label
+  assert.deepEqual(chartMetrics(1190, 250, 24, 20, 80, 14), // larger text: wider margins, a label every 2nd hour
+    { w: 1190, h: 250, padL: 40, padR: 40, padT: 20, padB: 48, labelEvery: 2 });
+  assert.deepEqual(chartMetrics(0, 0, 24), { w: 1, h: 1, padL: 28, padR: 24, padT: 12, padB: 29, labelEvery: 24 }); // defaults
 });
 
 test("W6: chartData is null without any usable data", () => {

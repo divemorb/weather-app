@@ -199,9 +199,11 @@
 .station-map .map-loc-hole { fill: var(--card); }
 .station-map .map-mark { fill: var(--accent); stroke: var(--card); stroke-width: 1; }
 .station-map .map-north path { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+/* The map is drawn in a 320-unit viewBox and shown 284 to 340 px wide
+ * (a phone's card to max-width), so 14 units are 12.4 to 14.9 px. */
 .station-map .map-north text,
-.station-map .map-scale text { fill: var(--muted); font-size: 12px; font-family: inherit; }
-.station-map .map-label { fill: var(--text); font-size: 11px; font-family: inherit; }
+.station-map .map-scale text { fill: var(--muted); font-size: 14px; font-family: inherit; }
+.station-map .map-label { fill: var(--text); font-size: 14px; font-family: inherit; }
 .station-map .map-scale line { stroke: var(--muted); stroke-width: 1.5; }
 
 @media (min-width: 600px) {
