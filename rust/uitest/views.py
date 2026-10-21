@@ -86,13 +86,13 @@ def run_views(run: Run):
 
 
 def details_only_problems(pg: UIPage, lang: str, w: int) -> list[str]:
-    """The detailed view is the details page: the Details card open; no place,
-    glance, Now (so no report turn) or 24 hours; the top bar keeps its
-    buttons, the view button leads back to the big view."""
-    shown = pg.js("""Object.fromEntries(['glance', 'now', 'chart-card', 'location', 'location-detail']
+    """The detailed view is the details page: the Details card open under the top bar
+    with the place and its buttons; no glance, Now (so no report turn) or 24 hours;
+    the view button leads back to the big view."""
+    shown = pg.js("""Object.fromEntries(['glance', 'now', 'chart-card']
       .map((id) => [id, !!document.getElementById(id)?.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })]))""")
     problems = [f"#{k} is visible on the details page" for k, v in shown.items() if v]
-    problems += [p for hook in ("details", "view-toggle", "location-button", "theme-toggle")
+    problems += [p for hook in ("details", "location", "location-detail", "view-toggle", "location-button", "theme-toggle")
                  for p in visible_one(pg, hook)[1]]
     problems += [p for p in details_open_problems(pg) if "source-row" not in p]
     el = (pg.ui("view-toggle") or [{}])[0]

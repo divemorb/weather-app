@@ -19,10 +19,8 @@ html:not(.kiosk) main#dashboard {
  * 22 px from 720 px, as the old margins). */
 html:not(.kiosk) main#dashboard .card + .card { margin-top: 0; }
 
-/* The detailed view is the details page: the place line and the
- * glance, Now and chart tiles show only in the big view. */
-html[data-view="detailed"] #location,
-html[data-view="detailed"] #location-detail,
+/* The detailed view is the details page: the glance, Now and chart
+ * tiles show only in the big view (the place line stays in the top bar). */
 html[data-view="detailed"] #glance,
 html[data-view="detailed"] #now,
 html[data-view="detailed"] #chart-card { display: none; }

@@ -964,8 +964,8 @@
    "edits": [
     {
      "file": "details.css",
-     "find": ".station-map .map-label { fill: var(--text); font-size: 14px; font-family: inherit; }",
-     "replace": ".station-map .map-label { fill: var(--text); font-size: 11px; font-family: inherit; }"
+     "find": ".station-map .map-here { fill: var(--text); font-size: 14px; font-family: inherit; }",
+     "replace": ".station-map .map-here { fill: var(--text); font-size: 11px; font-family: inherit; }"
     }
    ],
    "scenario": [

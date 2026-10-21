@@ -1,5 +1,6 @@
-/* stationmap.js — the Details "Stations/Stationen" section: the
- * observation stations (one row each) and the schematic map of them.
+/* stationmap.js — the Details "Stations/Stationen" section: what the
+ * stations are for, one row per station (distance and direction from the
+ * place), and the schematic map with its legend.
  *
  * The station names are untrusted API text: textContent, never
  * innerHTML. The section wrapper is details.js's own section() builder,
@@ -7,7 +8,7 @@
  * details sections. The section (and the map) is absent without a Now
  * station and without observation stations.
  */
-import { DASH, fmtNumber, stationMarks, stationOffsetKm } from "./format.js";
+import { DASH, compassPoint, fmtNumber, mergeStations, stationMarks, stationOffsetKm } from "./format.js";
 import { t } from "./i18n.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -29,30 +30,67 @@ function scaleBarKm(scale) {
   return SCALE_KM[SCALE_KM.length - 1];
 }
 
-/* The Details section: the observation stations (API order, nearest
- * first) and the schematic map. */
+/* The Details section: a line on what the stations are for, the
+ * observation stations (one per DWD station, nearest first) beside the
+ * schematic map and its legend. */
 export function stationsSection({ now, accuracy, location, radiusKm, lang, locale, section }) {
   const st = now && now.available && now.conditions ? now.conditions.station : null;
   const station = st && typeof st === "object" ? st : null;
-  const obs = accuracy && Array.isArray(accuracy.stations) ? accuracy.stations : [];
+  const obs = mergeStations(accuracy && Array.isArray(accuracy.stations) ? accuracy.stations : []);
   if (!station && obs.length === 0) return null;
   const sec = section(t(lang, "details.stations"));
-  if (obs.length > 0) sec.appendChild(obsList(obs, lang, locale));
-  const marks = stationMarks(station, obs).filter(
-    (m) => Number.isFinite(m.lat) && Number.isFinite(m.lon)
-  );
   const loc = location
     && Number.isFinite(Number(location.latitude))
     && Number.isFinite(Number(location.longitude))
     ? location
     : null;
-  if (loc && marks.length > 0) sec.appendChild(buildMap(loc, marks, radiusKm, lang, locale));
+  const body = document.createElement("div");
+  body.className = "stations-body";
+  const text = document.createElement("div");
+  const intro = document.createElement("p");
+  intro.className = "stations-intro";
+  intro.setAttribute("data-test", "stations-intro");
+  intro.textContent = t(lang, "stations.intro");
+  text.appendChild(intro);
+  if (obs.length > 0) text.appendChild(obsList(obs, loc, lang, locale));
+  body.appendChild(text);
+  const marks = stationMarks(station, obs).filter(
+    (m) => Number.isFinite(m.lat) && Number.isFinite(m.lon)
+  );
+  if (loc && marks.length > 0) {
+    const fig = document.createElement("figure");
+    fig.className = "stations-map";
+    fig.append(buildMap(loc, marks, radiusKm, lang, locale), mapLegend(radiusKm, lang, locale));
+    body.appendChild(fig);
+  }
+  sec.appendChild(body);
   return sec;
 }
 
-/* One row per observation station. The names are untrusted API text:
- * textContent, never innerHTML. */
-function obsList(obs, lang, locale) {
+/* The legend under the map: the three symbols in words. */
+function mapLegend(radiusKm, lang, locale) {
+  const list = document.createElement("ul");
+  list.className = "map-legend";
+  list.setAttribute("data-test", "map-legend");
+  const items = [["legend-here", t(lang, "map.here")], ["legend-station", t(lang, "map.legend-station")]];
+  if (typeof radiusKm === "number" && Number.isFinite(radiusKm) && radiusKm > 0) {
+    const km = fmtNumber(radiusKm, locale, radiusKm < 1 ? 1 : 0);
+    items.splice(1, 0, ["legend-radar", t(lang, "map.legend-radar", { km })]);
+  }
+  for (const [cls, label] of items) {
+    const li = document.createElement("li");
+    const sym = document.createElement("i");
+    sym.className = "legend-sym " + cls;
+    li.append(sym, label);
+    list.appendChild(li);
+  }
+  return list;
+}
+
+/* One row per observation station: its distance and direction from the
+ * place (when known) and its hourly readings. The names are untrusted API
+ * text: textContent, never innerHTML. */
+function obsList(obs, loc, lang, locale) {
   const list = document.createElement("div");
   list.className = "obs-list";
   for (const s of obs) {
@@ -65,7 +103,9 @@ function obsList(obs, lang, locale) {
     name.textContent = typeof s.name === "string" && s.name !== "" ? s.name : DASH;
     const parts = [];
     if (typeof s.distance_m === "number" && Number.isFinite(s.distance_m)) {
-      parts.push(`${fmtNumber(s.distance_m / 1000, locale, 1)} km`);
+      const km = fmtNumber(s.distance_m / 1000, locale, 1);
+      const o = loc ? stationOffsetKm(loc, s) : null;
+      parts.push(o ? t(lang, "station.where", { km, dir: t(lang, "compass." + compassPoint(o.bearing)) }) : `${km} km`);
     }
     if (s.hours != null && s.hours !== "") {
       parts.push(t(lang, "station.hours", { n: String(s.hours) }));
@@ -137,6 +177,11 @@ function buildMap(location, marks, radiusKm, lang, locale) {
   loc.appendChild(svgEl("circle", { class: "map-loc", cx: c, cy: c, r: 5 }));
   loc.appendChild(svgEl("circle", { class: "map-loc-hole", cx: c, cy: c, r: 1.8 }));
   svg.appendChild(loc);
+  // its name under the location, below the radar circle (outside the mark's group)
+  const below = c + Math.max(rKm * scale, 6) + 16;
+  const here = svgEl("text", { class: "map-here", "data-test": "map-here", x: c, y: below, "text-anchor": "middle" });
+  here.textContent = t(lang, "map.here");
+  svg.appendChild(here);
 
   const north = svgEl("g", {
     "data-test": "map-north", class: "map-north", transform: `translate(${size - 24} 16)`,

@@ -171,9 +171,12 @@
   gap: 6px;
 }
 
+/* the name first; its distance and readings beside it, or under it when
+ * the row is too narrow for both (a name never breaks mid-word for them) */
 .obs-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
   align-items: baseline;
   column-gap: 12px;
   font-size: 14px; line-height: 1.45;
@@ -186,13 +189,36 @@
   white-space: nowrap;
 }
 
+.stations-intro { margin: 0 0 10px; font-size: 14px; line-height: 1.5; color: var(--muted); }
+
+/* The list and the map side by side when the section has the room. */
+.stations-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+  gap: 14px 28px;
+  align-items: start;
+}
+.stations-map { margin: 0; }
+
 .station-map {
   display: block;
   width: 100%;
   max-width: 340px;
   height: auto;
-  margin: 14px auto 0;
+  margin: 0 auto;
 }
+
+/* The legend: the map's three symbols in words. */
+.map-legend {
+  list-style: none; margin: 8px auto 0; padding: 0; max-width: 340px;
+  display: flex; flex-wrap: wrap; gap: 4px 16px;
+  font-size: 13px; line-height: 1.45; color: var(--muted);
+}
+.map-legend li { display: flex; align-items: center; gap: 6px; }
+.legend-sym { flex: none; width: 12px; height: 12px; border-radius: 50%; }
+.legend-here { background: var(--text); box-shadow: inset 0 0 0 3px var(--text), inset 0 0 0 4.5px var(--card); }
+.legend-radar { border: 1.5px solid var(--accent); }
+.legend-station { width: 9px; height: 9px; background: var(--accent); }
 
 .station-map .map-radius { fill: none; stroke: var(--accent); stroke-width: 1.5; }
 .station-map .map-loc { fill: var(--text); }
@@ -203,12 +229,23 @@
  * (a phone's card to max-width), so 14 units are 12.4 to 14.9 px. */
 .station-map .map-north text,
 .station-map .map-scale text { fill: var(--muted); font-size: 14px; font-family: inherit; }
-.station-map .map-label { fill: var(--text); font-size: 14px; font-family: inherit; }
+.station-map .map-label,
+.station-map .map-here { fill: var(--text); font-size: 14px; font-family: inherit; }
+.station-map .map-here { font-weight: 600; }
 .station-map .map-scale line { stroke: var(--muted); stroke-width: 1.5; }
 
 @media (min-width: 600px) {
   .refresh-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* The details page uses a wide window, up to a reading width: the short
+ * sections side by side, the wide ones (a table, the stations) across. */
+html[data-view="detailed"] .wrap { max-width: 75rem; }
+.details-body { grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); }
+/* a wide table scrolls in its box: it never widens a section, the card or the page */
+.details, .details-body > * { min-width: 0; }
+.details-section:has(table),
+.details-section:has(.stations-body) { grid-column: 1 / -1; }
 
 @media (min-width: 720px) {
   .details { padding: 20px 30px 30px; }

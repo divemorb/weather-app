@@ -24,7 +24,7 @@ DETAILS = ["details-open", "details-weights", "details-signals", "details-weight
            "countdown-page", "source-rows", "source-errors", "accuracy-table", "details-fit", "details-contrast"]
 KIOSK = [f"kiosk-{w}x{h}" for w, h in KIOSK_SIZES]
 REFRESH = ["refresh-render-error", "refresh-config-retry", "refresh-keeps-old"]
-STATIONS = ["now-station", "now-fallback", "observation-stations", "station-map"]
+STATIONS = ["now-station", "now-fallback", "observation-stations", "station-map", "stations-explained"]
 LAYOUT = [f"layout-{w}" for w in LAYOUT_COLUMNS]
 SKY = (["sky-layer"] + [f"scene-{c}" for c in SCENE_CASES] + [f"motion-{s}" for s in SCENES if s != "none"]
        + [f"still-{s}" for s in SCENES] + [f"contrast-{s}-{t}" for s in SCENES for t in ("light", "dark")]

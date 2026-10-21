@@ -87,6 +87,8 @@ test("W1: stationMarks keeps the observation order and skips id-less entries", (
 test("W1: the new texts exist in both languages and fill their placeholders", () => {
   for (const key of [
     "now.station", "now.fallback", "details.stations", "station.hours", "map.aria", "map.north", "map.scale",
+    "stations.intro", "station.where", "map.here", "map.legend-radar", "map.legend-station",
+    "compass.0", "compass.1", "compass.2", "compass.3", "compass.4", "compass.5", "compass.6", "compass.7",
   ]) {
     for (const lang of ["en", "de"]) {
       const value = STRINGS[lang][key];
@@ -97,8 +99,10 @@ test("W1: the new texts exist in both languages and fill their placeholders", ()
   assert.equal(t("de", "now.station", { name: "Berlin-Tempelhof", km: "5,8" }), "Station Berlin-Tempelhof · 5,8 km");
   assert.equal(t("en", "now.fallback", { name: "Potsdam" }), "from Potsdam");
   assert.equal(t("de", "now.fallback", { name: "Potsdam" }), "von Potsdam");
-  assert.equal(t("en", "station.hours", { n: "37" }), "37 h");
-  assert.equal(t("de", "station.hours", { n: "37" }), "37 h");
+  assert.equal(t("en", "station.hours", { n: "37" }), "37 hourly readings");
+  assert.equal(t("de", "station.hours", { n: "37" }), "37 Stundenwerte");
+  assert.equal(t("en", "station.where", { km: "1.9", dir: t("en", "compass.3") }), "1.9 km south-east");
+  assert.equal(t("de", "station.where", { km: "1,9", dir: t("de", "compass.3") }), "1,9 km südöstlich");
   assert.equal(t("en", "map.scale", { km: "2" }), "2 km");
   assert.equal(t("de", "map.scale", { km: "2" }), "2 km");
 });

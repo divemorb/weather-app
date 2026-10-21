@@ -153,6 +153,35 @@ export function stationOffsetKm(from, to) {
   return { bearing: (bearing + 360) % 360, km };
 }
 
+/* The compass point of a bearing in degrees: 0 north, 1 north-east, ...
+ * 7 north-west (the nearest of the eight). */
+export function compassPoint(bearing) {
+  return ((Math.round(Number(bearing) / 45) % 8) + 8) % 8;
+}
+
+/* The observation stations, one per DWD station id: Bright Sky can list
+ * one station under several sources (other names, coordinates, hours).
+ * Keeps the first entry's name, distance and position (the API lists the
+ * nearest first) and the largest hour count; entries without an id stay
+ * as they are, in order. */
+export function mergeStations(stations) {
+  const out = [];
+  const byId = new Map();
+  for (const s of Array.isArray(stations) ? stations : []) {
+    if (!s || typeof s !== "object") continue;
+    const id = s.dwd_station_id == null ? null : String(s.dwd_station_id);
+    const seen = id === null ? null : byId.get(id);
+    if (!seen) {
+      const copy = { ...s };
+      out.push(copy);
+      if (id !== null) byId.set(id, copy);
+    } else if (Number(s.hours) > Number(seen.hours) || seen.hours == null) {
+      seen.hours = s.hours;
+    }
+  }
+  return out;
+}
+
 /* The map's marks: one per DWD station id — Now's station and an
  * observation station with the same id are one mark (Now's coordinates
  * win, it is the freshest). Returns { id, name, lat, lon, distance_m,

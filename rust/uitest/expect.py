@@ -145,6 +145,19 @@ OBS_STATIONS = [  # (name, distance en / de, hours)
     ("BERLIN-TEMPELHOF", "5.6 km", "5,6 km", "10"),
 ]
 MAP_MARKS = {"00433": (182, 5.837), "17473": (127, 1.86)}
+# The stations section explains itself: the intro, the place on the map, the legend (the test
+# config's radar radius is 1 km), and each row's distance with its direction (bearings above).
+STATIONS_TEXT = {
+    "en": {"intro": "The measured values for Now and for the accuracy table come from these DWD weather "
+                    "stations. The map shows where they are, seen from your place.",
+           "here": "your place",
+           "legend": ["your place", "radar area: 1 km around your place", "DWD weather station"]},
+    "de": {"intro": "Die Messwerte für „Jetzt“ und für die Genauigkeitstabelle kommen von diesen "
+                    "DWD-Wetterstationen. Die Karte zeigt, wo sie von deinem Ort aus liegen.",
+           "here": "dein Ort",
+           "legend": ["dein Ort", "Radarbereich: 1 km um deinen Ort", "DWD-Wetterstation"]},
+}
+OBS_DIRECTIONS = {"en": ["1.9 km south-east", "5.6 km south"], "de": ["1,9 km südöstlich", "5,6 km südlich"]}
 MAP_RADIUS_KM = 1.0  # the test config's radar radius
 MAP_BEARING_TOLERANCE = 20  # degrees
 

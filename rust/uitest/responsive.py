@@ -46,6 +46,7 @@ LABEL_ROWS = ['[data-test="chart-x-label"]', '#radar-labels > *']
 LABEL_GAP = 2   # px between two neighbouring axis labels
 MIN_HOURS = 4   # the 24 h chart names at least this many hours
 NARROW_PX, HEADLINE_LINES = 640, 2  # narrower than 40em: the headline in at most two lines
+DETAILS_MAX = 1200  # px (75rem): the details page uses the window up to this reading width
 
 # One probe: every invariant at the current size; [invariant, detail] pairs.
 PROBE_JS = r"""((cfg) => {
@@ -148,6 +149,11 @@ PROBE_JS = r"""((cfg) => {
   const chart = document.querySelector('svg[data-test="chart"]');
   if (chart && vis(chart) && hours < cfg.minHours)
     out.push(["chart-hours", "the chart shows " + hours + " hour labels, at least " + cfg.minHours]);
+  if (de.dataset.view === "detailed") {  // the details page uses the window, up to its reading width
+    const ww = document.querySelector(".wrap").getBoundingClientRect().width;
+    if (ww < Math.min(W, cfg.detailsMax) - 1)
+      out.push(["details-width", "the details page is " + Math.round(ww) + " px wide in a " + W + " px window, at least " + Math.min(W, cfg.detailsMax)]);
+  }
   for (const c of __ui.controls()) out.push(["buttons", c]);
   const ctrls = [...document.querySelectorAll("button, [role='button'], a[href], input, select")]
     .filter((el) => vis(el) && !el.closest("[inert]"))  // an inert control (under the open picker) can't be used
@@ -179,7 +185,7 @@ SIGNATURE_JS = r"""(() => {
 
 CFG = json.dumps({"fine": FINE_PRINT, "fineMin": FINE_MIN, "textMin": TEXT_MIN, "display": DISPLAY_NUMBERS,
                   "rows": LABEL_ROWS, "gap": LABEL_GAP, "minHours": MIN_HOURS,
-                  "narrow": NARROW_PX, "lines": HEADLINE_LINES})
+                  "narrow": NARROW_PX, "lines": HEADLINE_LINES, "detailsMax": DETAILS_MAX})
 
 
 def settle(pg) -> float | None:

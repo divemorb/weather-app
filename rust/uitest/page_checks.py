@@ -14,6 +14,7 @@ from expect import (ACCURACY_HEAD, ANSWER, ATTRIBUTION_LINKS, CONTRAST_MOMENTS, 
                     WEIGHTS, WHEN)
 from page import (Run, UIPage, expect_hidden, expect_text, expect_tokens, fmt_mm, has, norm,
                   observation_station_problems, station_map_problems, visible_one)
+from stations_ui import stations_explained_problems
 
 
 def page_unconfigured(run: Run):
@@ -328,6 +329,8 @@ def check_details(pg: UIPage, sc: str, exp: dict, names: list[str], add):
         add("observation-stations", observation_station_problems(pg))
     if "station-map" in names:
         add("station-map", station_map_problems(pg, exp))
+    if "stations-explained" in names:  # what the stations are for, where they are (stations_ui.py)
+        add("stations-explained", stations_explained_problems(pg))
     add("details-fit", pg.js('__ui.sticksOut("details")'))
     if "accuracy-table" in names:
         add("accuracy-table", accuracy_problems(pg, exp))
