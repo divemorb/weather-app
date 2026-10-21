@@ -27,6 +27,7 @@ from big import kiosk_chart_problems, kiosk_fill_problems, kiosk_room_problems, 
 from chart import chart_single_point  # noqa: E402
 from clock import dst_chart_x_labels, dst_radar_labels  # noqa: E402
 from markup import markup_api  # noqa: E402
+from turn import kiosk_turn  # noqa: E402
 from edges import now_texts_problems, radar_unavailable_text_problems, setup_texts_problems  # noqa: E402
 from flows import refresh_config_retry, refresh_render_error, run_wizard, theme_toggle  # noqa: E402
 from outdated import refresh_keeps_old  # noqa: E402
@@ -311,6 +312,8 @@ def page_kiosk_and_common(run: Run):
             run.add(f"kiosk-room-{size[0]}x{size[1]}", kiosk_room_problems(pg, size))
             run.shot(pg, f"kiosk-{size[0]}x{size[1]}", full=False)
             run.done(pg)
+    if "kiosk-turn" in run.names:  # a tablet turned while the big view is open (turn.py)
+        run.add("kiosk-turn", kiosk_turn(run))
     if "theme-toggle" in run.names:
         run.add("theme-toggle", theme_toggle(run))
     if any(n.startswith("reason-") for n in run.names):

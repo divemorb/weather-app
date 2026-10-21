@@ -727,6 +727,29 @@
    "must_fail": [
     "wizard/en/markup-search"
    ]
+  },
+  {
+   "name": "chart-no-redraw",
+   "why": "a turned tablet keeps the chart drawn for the old size: no redraw after a resize",
+   "edits": [
+    {
+     "file": "app.js",
+     "find": "  resizeTimer = setTimeout(() => { if (redrawChart) renderPart(\"chart\", redrawChart); }, 150);",
+     "replace": "  resizeTimer = setTimeout(() => {}, 150);"
+    }
+   ],
+   "scenario": [
+    "rain"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "rain/en/kiosk-turn"
+   ],
+   "must_fail": [
+    "rain/en/kiosk-turn"
+   ]
   }
  ],
  "gaps": []

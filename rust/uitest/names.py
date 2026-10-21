@@ -48,6 +48,7 @@ def check_names(scenario: str, lang: str) -> list[str]:
             names += KIOSK_CHART + (["reduced-motion"] + REFRESH + ["rain-tracks", "reload-fires", "markup-api"]
                                     if lang == "en" else [])
             names += ["chart-single-point"]  # the one-value run as a dot (chart.py)
+            names += ["kiosk-turn"]  # a turned tablet: the chart redrawn to fit (turn.py)
             names += ["dst-radar-labels", "dst-chart-x-labels"]  # the CEST->CET switch (clock.py)
         names += ["now-texts"]
         return names

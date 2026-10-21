@@ -296,6 +296,11 @@ class Page:
             self._take_coverage(final=False)
         self.send("Page.reload")
 
+    def resize(self, width: int, height: int):
+        """A new viewport size on the open page (a turned tablet)."""
+        self.send("Emulation.setDeviceMetricsOverride",
+                  {"width": width, "height": height, "deviceScaleFactor": 1, "mobile": width < 600})
+
     def goto(self, url: str, timeout: float = 20.0, idle: float = 0.5):
         """Navigate and wait for the load event plus `idle` seconds without network activity."""
         self._loaded = False

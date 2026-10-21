@@ -328,8 +328,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "c041b540f1ded999ef8a3587dd19552bb42bd337aeda388a2320d130a6f05505",
-   "length": 13129
+   "sha256": "eb2757dd1a16246deb0c08930541c6045593489b7fd1fa201eb81edf6ab082c0",
+   "length": 13545
   },
   "static/chart.css": {
    "status": 200,

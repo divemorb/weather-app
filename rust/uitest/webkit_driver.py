@@ -65,6 +65,7 @@ WEBKIT_SKIP = {
     "refresh-*": "no request interception in WebDriver classic, which the faked API answers need",
     "reload-fires": "no request interception in WebDriver classic, which the faked API answers need",
     "chart-single-point": "no request interception in WebDriver classic, which the faked API answers need",
+    "markup-*": "no request interception in WebDriver classic, which the faked API answers need",
     "dst-*": "no request interception in WebDriver classic, which the faked API answers need",
     "search-failed": "no request interception in WebDriver classic, which the faked API answers need",
     "report-error": "no request interception in WebDriver classic, which the faked API answers need",
@@ -148,6 +149,10 @@ class WebKitPage:
             if w == width and h == height:
                 return
             self.wk.window(width, height + (height - h))
+
+    def resize(self, width: int, height: int):
+        """A new viewport size on the open page (a turned tablet)."""
+        self._calibrate(max(width, 447), height)
 
     def goto(self, url: str):
         """Navigate and wait until the page is idle (at most 20 s)."""
