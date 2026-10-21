@@ -980,6 +980,98 @@
    "must_fail": [
     "rain/en/responsive-details"
    ]
+  },
+  {
+   "name": "details-narrow",
+   "why": "the details page keeps a narrow column on a wide window",
+   "edits": [
+    {
+     "file": "details.css",
+     "find": "html[data-view=\"detailed\"] .wrap { max-width: 75rem; }",
+     "replace": "html[data-view=\"detailed\"] .wrap { max-width: 45rem; }"
+    }
+   ],
+   "scenario": [
+    "rain"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "rain/en/responsive-details"
+   ],
+   "must_fail": [
+    "rain/en/responsive-details"
+   ]
+  },
+  {
+   "name": "place-hidden-on-details",
+   "why": "the details page hides the place in the top bar",
+   "edits": [
+    {
+     "file": "layout.css",
+     "find": "html[data-view=\"detailed\"] #glance,",
+     "replace": "html[data-view=\"detailed\"] #location,\nhtml[data-view=\"detailed\"] #glance,"
+    }
+   ],
+   "scenario": [
+    "live"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "live/en/view-details-only"
+   ],
+   "must_fail": [
+    "live/en/view-details-only"
+   ]
+  },
+  {
+   "name": "stations-no-legend",
+   "why": "the station map has no legend: its symbols are not named",
+   "edits": [
+    {
+     "file": "stationmap.js",
+     "find": "    fig.append(buildMap(loc, marks, radiusKm, lang, locale), mapLegend(radiusKm, lang, locale));",
+     "replace": "    fig.append(buildMap(loc, marks, radiusKm, lang, locale));"
+    }
+   ],
+   "scenario": [
+    "live"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "live/en/stations-explained"
+   ],
+   "must_fail": [
+    "live/en/stations-explained"
+   ]
+  },
+  {
+   "name": "stations-no-direction",
+   "why": "a station row gives its distance without the direction from the place",
+   "edits": [
+    {
+     "file": "stationmap.js",
+     "find": "      parts.push(o ? t(lang, \"station.where\", { km, dir: t(lang, \"compass.\" + compassPoint(o.bearing)) }) : `${km} km`);",
+     "replace": "      parts.push(`${km} km`);"
+    }
+   ],
+   "scenario": [
+    "live"
+   ],
+   "lang": [
+    "de"
+   ],
+   "only": [
+    "live/de/stations-explained"
+   ],
+   "must_fail": [
+    "live/de/stations-explained"
+   ]
   }
  ],
  "gaps": []
