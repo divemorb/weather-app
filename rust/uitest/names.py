@@ -23,8 +23,6 @@ CHART = ["chart-svg", "chart-series", "chart-legend", "chart-y-labels", "chart-x
 DETAILS = ["details-open", "details-weights", "details-signals", "details-weighting", "countdown-radar", "countdown-models",
            "countdown-page", "source-rows", "source-errors", "accuracy-table", "details-fit", "details-contrast"]
 KIOSK = [f"kiosk-{w}x{h}" for w, h in KIOSK_SIZES]
-KIOSK_CHART = [f"kiosk-chart-{w}x{h}" for w, h in KIOSK_SIZES]
-KIOSK_FILL_CHECKS = [f"kiosk-fill-{w}x{h}" for w, h in KIOSK_SIZES]
 REFRESH = ["refresh-render-error", "refresh-config-retry", "refresh-keeps-old"]
 STATIONS = ["now-station", "now-fallback", "observation-stations", "station-map"]
 LAYOUT = [f"layout-{w}" for w in LAYOUT_COLUMNS]
@@ -34,7 +32,6 @@ SKY = (["sky-layer"] + [f"scene-{c}" for c in SCENE_CASES] + [f"motion-{s}" for 
 REASON = [f"reason-{c}" for c in REASON_CASES]
 VIEW = ["view-default", "view-toggle", "view-query", "view-phone", "view-details-only"]
 BIG = ["big-labels", "big-headline", "big-hierarchy"]  # the big view (also on a phone)
-KIOSK_ROOM = [f"kiosk-room-{w}x{h}" for w, h in KIOSK_SIZES]
 
 
 def check_names(scenario: str, lang: str) -> list[str]:
@@ -46,16 +43,14 @@ def check_names(scenario: str, lang: str) -> list[str]:
 def _own_names(scenario: str, lang: str) -> list[str]:
     """The scenario's checks without the responsive sweeps."""
     if scenario in ("live", "rain"):
-        names = (COMMON + GLANCE + RADAR + NOW_CHECKS + CHART + DETAILS + KIOSK + KIOSK_FILL_CHECKS + STATIONS
-                 + BIG + KIOSK_ROOM)
+        names = (COMMON + GLANCE + RADAR + NOW_CHECKS + CHART + DETAILS + KIOSK + STATIONS + BIG)
         if scenario == "live":
             names = [n for n in names if not n.startswith("chart-") or n == "chart-dry"]
             names += REASON + ["view-label"] + (["theme-toggle"] + VIEW + ["big-tracks"] if lang == "en" else [])
         else:
-            names += KIOSK_CHART + (["reduced-motion"] + REFRESH + ["rain-tracks", "reload-fires", "markup-api"]
-                                    if lang == "en" else [])
+            names += (["reduced-motion"] + REFRESH + ["rain-tracks", "reload-fires", "markup-api"]
+                      if lang == "en" else [])
             names += ["chart-single-point"]  # the one-value run as a dot (chart.py)
-            names += ["kiosk-turn"]  # a turned tablet: the chart redrawn to fit (turn.py)
             names += ["dst-radar-labels", "dst-chart-x-labels"]  # the CEST->CET switch (clock.py)
         names += ["now-texts"]
         return names

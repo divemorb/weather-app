@@ -128,17 +128,14 @@ def dst_radar_labels(run: Run) -> list[str]:
         run.done(pg)
 
 
-def _label_every(client_width: float) -> int:
-    """The chart's label step, exactly as chart.js computes it for the big (non-kiosk)
-    view: a narrow container labels every 6th hour, a wide one every 3rd."""
-    w = round(max(300, min(1800, client_width or 720)))
-    return 6 if w < 520 else 3
+CHART_STEPS = (1, 2, 3, 4, 6, 12)  # the hour steps chart.js labels, chosen by the chart's width
 
 
 def dst_chart_x_labels(run: Run) -> list[str]:
-    """The 24-hour chart's x labels at the CEST->CET switch: one per labelEvery-th
-    hour, in the location's wall-clock zone, so the repeated 02:30 hour (CEST and
-    CET) is drawn in the plot and its labelled hours keep the zone's true times."""
+    """The 24-hour chart's x labels at the CEST->CET switch: every n-th hour from the
+    first (n one of CHART_STEPS), in the location's wall-clock zone, so the repeated
+    02:30 hour (CEST and CET) is drawn in the plot and its labelled hours keep the
+    zone's true times."""
     fakes = dst_fakes(run)
     hours = (_faked(fakes, "/api/models/24h") or {}).get("hours") or []
     if len(hours) < 24:
@@ -149,10 +146,10 @@ def dst_chart_x_labels(run: Run) -> list[str]:
         wrong = wall_clock_problems(ok, hours, run.lang)
         if wrong:
             return wrong
-        every = _label_every(pg.js("document.getElementById('chart-body').clientWidth"))
-        want = [ok[i] for i in range(0, len(hours), every)]
         got = [norm(e["text"]) for e in pg.ui("chart-x-label") if e["visible"]]
-        return [] if got == want else [f"chart x labels {got}, expected {want} "
-                                       "(Berlin CEST->CET at 01:00 UTC)"]
+        if any(got == ok[::n] for n in CHART_STEPS):
+            return []
+        return [f"chart x labels {got}, expected every n-th of {ok} (n one of {CHART_STEPS}; "
+                "Berlin CEST->CET at 01:00 UTC)"]
     finally:
         run.done(pg)

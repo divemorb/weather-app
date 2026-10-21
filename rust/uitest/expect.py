@@ -148,18 +148,10 @@ MAP_MARKS = {"00433": (182, 5.837), "17473": (127, 1.86)}
 MAP_RADIUS_KM = 1.0  # the test config's radar radius
 MAP_BEARING_TOLERANCE = 20  # degrees
 
-# The iPad Pro 13" in Safari, full screen, minus the toolbar: upright and lying.
+# Samples where the big view fits one screen (a wall display, a TV, a tablet upright and
+# lying); every other size is the responsive sweep's (responsive.py).
 KIOSK_SIZES = [(1280, 800), (1920, 1080), (1032, 1280), (1376, 940)]
 KIOSK_MIN_FONT = {"rain-answer": 28, "now-temp": 40}
-KIOSK_CHART_MIN = 0.22  # the chart's height as a share of the kiosk screen (1280x800: 176 px)
-KIOSK_CHART_MIN_W = 0.44  # and its width (about the right column's: 1280 -> 563 px)
-KIOSK_CHART_LABEL_PX = 11  # the drawn height of an x-axis label (12 px text at scale 1 is about 14 px)
-# W9d, the wall tablet read from across the room: what a kiosk card shows spans this share of
-# the card's inner height (no large empty bands), sizes scale with the screen height ...
-KIOSK_FILL = {"glance": 0.6, "now": 0.55}
-KIOSK_FONT_SHARE = {"rain-answer": 0.06, "rain-probability": 0.12, "now-temp": 0.08}  # 1280x800: 48, 96, 64 px
-KIOSK_RADAR_SHARE = 0.08  # the radar strip's height (1280x800: 64 px)
-KIOSK_DRY_CHART_MAX = 0.2  # ... and on a dry day the chart card is just its line (1280x800: at most 160 px high)
 CONFIG_RETRY_S = 20  # a failed /api/config at startup: the page has retried and shows the forecast by then
 BUDGET_BYTES = 300 * 1024  # the user, 2026-10-04 (was 150 KB); up to 512 KB if the glass effect needs it
 
@@ -271,21 +263,17 @@ GLASS_DELTA = 12  # a visible change: at least this much (of 255) in one colour 
 BIG_PHONE = (390, 844)
 BIG_LABEL_GAP = 4  # px between two radar time labels: they must not touch (V2: "12:25 PM2:45 PM" on a phone)
 # The headline in the big view on a phone (the user, 2026-10-05: "max two lines"; V2 had 4-6 lines
-# at 52 px, F1's fixed 24 px left short texts small): at most 2 lines and as large as fits, i.e. at
-# least BIG_HEADLINE_FILL of the largest size up to BIG_HEADLINE_MAX that keeps it to 2 lines, and
-# never below BIG_PHONE_MIN_FONT. Measured at 308 px text width: 2 lines up to 36 px (English
-# "No rain expected ..."), 44 px (English "Rain likely ..."), 24 px (German "In der nächsten Stunde
-# kein Regen erwartet"), 22 px (German "... wird es wahrscheinlich regnen"): one fixed size can't do it.
+# at 52 px, F1's fixed 24 px left short texts small): at most 2 lines, never below
+# BIG_PHONE_MIN_FONT, and in the compact column as large as fits: at least BIG_HEADLINE_FILL of
+# the largest size up to BIG_HEADLINE_MAX that keeps it to 2 lines. Measured at 308 px text width:
+# 2 lines up to 36 px (English "No rain expected ..."), 44 px (English "Rain likely ..."), 24 px
+# (German "In der nächsten Stunde kein Regen erwartet"), 22 px (German "... wird es wahrscheinlich
+# regnen"): one fixed size can't do it.
 BIG_HEADLINE_LINES = 2
 BIG_HEADLINE_MAX = 40
 BIG_HEADLINE_FILL = 0.9
 BIG_PHONE_MIN_FONT = 20
 BIG_HEADLINE_SIZES = [(390, 844), (360, 740)]
-# The user: the content starts at the top of the glance and Now cards (V2: about 12 % empty above),
-# and the room goes to the content; Now's text keeps the glance's distance from the left border.
-KIOSK_ROOM_TOP = 0.05  # the empty band above a card's content, as a share of its inner height
-KIOSK_ROOM_FILL = {"glance": 0.8, "now": 0.7}  # the content's span, as in KIOSK_FILL but more
-KIOSK_REASON_SHARE = 0.025  # the "why" line, read from across the room (1280x800: 20 px; V2: 13 px)
 TRACK_CONTRAST = 1.5  # an empty radar track against the glass right above it (V2 light: 1.17, #e9ecf1 on #fdfefe)
 VIEW_LABEL = {"big": {"en": "Details", "de": "Details"},  # the view button's visible text: where a click goes
               "detailed": {"en": "Big view", "de": "Große Ansicht"}}

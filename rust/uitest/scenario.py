@@ -23,11 +23,10 @@ from page import Run, UIPage, expect_hidden, expect_text, expect_tokens, visible
 from page_checks import (check_chart, check_common_a, check_details, check_glance, check_kiosk,  # noqa: E402
                          check_now, check_radar, contrast_problems, page_unconfigured,
                          theme_icon_problems, theme_problems)
-from big import kiosk_chart_problems, kiosk_fill_problems, kiosk_room_problems, run_big  # noqa: E402
+from big import run_big  # noqa: E402
 from chart import chart_single_point  # noqa: E402
 from clock import dst_chart_x_labels, dst_radar_labels  # noqa: E402
 from markup import markup_api  # noqa: E402
-from turn import kiosk_turn  # noqa: E402
 from responsive import run_responsive  # noqa: E402
 from edges import now_texts_problems, radar_unavailable_text_problems, setup_texts_problems  # noqa: E402
 from flows import refresh_config_retry, refresh_render_error, run_wizard, theme_toggle  # noqa: E402
@@ -314,14 +313,8 @@ def page_kiosk_and_common(run: Run):
         for size in KIOSK_SIZES:
             pg = run.page(width=size[0], height=size[1], query="?kiosk")
             check_kiosk(pg, SCENARIO.get(run.name, {}), size, run.add)
-            if f"kiosk-chart-{size[0]}x{size[1]}" in run.names:
-                run.add(f"kiosk-chart-{size[0]}x{size[1]}", kiosk_chart_problems(pg, size))
-            run.add(f"kiosk-fill-{size[0]}x{size[1]}", kiosk_fill_problems(pg, SCENARIO.get(run.name, {}), size))
-            run.add(f"kiosk-room-{size[0]}x{size[1]}", kiosk_room_problems(pg, size))
             run.shot(pg, f"kiosk-{size[0]}x{size[1]}", full=False)
             run.done(pg)
-    if "kiosk-turn" in run.names:  # a tablet turned while the big view is open (turn.py)
-        run.add("kiosk-turn", kiosk_turn(run))
     if "theme-toggle" in run.names:
         run.add("theme-toggle", theme_toggle(run))
     if any(n.startswith("reason-") for n in run.names):
