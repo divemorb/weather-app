@@ -85,8 +85,8 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
   *Proof:* `ui:live/*/view-default`; `ui:live/*/view-phone`; `ui:live/*/kiosk-1032x1280`; `ui:*/*/responsive-big`
 - **REQ_PAGE_3** The view button is text that says where a click goes: "Details" in the big view, "Big view" in the detailed view (German "Details" / "Große Ansicht"); the choice is remembered per device. *Source: the user, 2026-10-05.*
   *Proof:* `ui:live/*/view-toggle`; `ui:live/*/view-label`; `ui:unit/view-f3.test.mjs`
-- **REQ_PAGE_4** The detailed view shows only the details (signals, countdowns, sources, accuracy, stations), not the glance, Now or the chart again. *Source: the user, 2026-10-12 (phone test P2).*
-  *Proof:* `ui:live/*/view-details-only`
+- **REQ_PAGE_4** The detailed view shows the place in the top bar and then only the details (signals, countdowns, sources, accuracy, stations), not the glance, Now or the chart again; on a wide window it uses the width up to a reading width (75rem), the short sections side by side. *Source: the user, 2026-10-12 (phone test P2) and 2026-10-21.*
+  *Proof:* `ui:live/*/view-details-only`; `ui:*/*/responsive-details`
 - **REQ_PAGE_5** `?detailed` forces the detailed view; `?kiosk` forces the big view and locks it for a wall display (no view button, no place button, no report button). *Source: the user, 2026-10-02 and 2026-10-04.*
   *Proof:* `ui:live/*/view-query`; `ui:report/*/report-locked`
 - **REQ_PAGE_6** English and German, following the browser's language; times in the place's time zone and the browser's time format, also on the days the clock changes; wind in km/h. *Source: the user, 2026-10-02; the clock change: 2026-10-13.*
@@ -152,8 +152,8 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
   *Refines:* REQ_GEN_4
 - **REQ_DETAILS_4** The model accuracy (REQ_ACC_1-4) and, in its own block, the accuracy against the user's reports (REQ_REPORT_8). *Source: scope; the user, 2026-10-07.*
   *Proof:* `ui:*/*/accuracy-table`; `ui:report/*/details-reports`
-- **REQ_DETAILS_5** A schematic map (no map tiles: privacy and CSP): the place in the middle, the stations by bearing and distance, the radar radius, a north arrow and a scale bar. *Source: the user, 2026-10-03.*
-  *Proof:* `ui:*/*/station-map`
+- **REQ_DETAILS_5** The stations section says what the stations are for and lists each station once, with its distance and direction from the place; a schematic map (no map tiles: privacy and CSP) shows the place in the middle, named, the stations by bearing and distance, the radar radius, a north arrow, a scale bar and a legend that names its symbols. *Source: the user, 2026-10-03 and 2026-10-21.*
+  *Proof:* `ui:*/*/station-map`; `ui:live/*/stations-explained`; `ui:unit/stations-explained.test.mjs`
 - **REQ_DETAILS_6** One failing part never empties the others. *Source: the user, 2026-10-02 (W9 review).*
   *Proof:* `ui:errors/*/source-errors`; `ui:errors/*/details-fit`; `ui:errors/*/now-unavailable`
   *Refines:* REQ_DATA_2
