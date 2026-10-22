@@ -959,12 +959,11 @@
   },
   {
    "name": "details-narrow",
-   "why": "the details page keeps a narrow column on a wide window",
+   "why": "the details card narrower than the top bar (a reading width again)",
    "edits": [
     {
      "file": "details.css",
-     "find": "{ width: 100%; max-width: 75rem; margin-inline: auto; }",
-     "replace": "{ width: 100%; max-width: 45rem; margin-inline: auto; }"
+     "append": "\nhtml[data-view=\"detailed\"] #dashboard { max-width: 45rem; margin-inline: auto; }\n"
     }
    ],
    "scenario": [

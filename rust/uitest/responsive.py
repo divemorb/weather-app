@@ -50,7 +50,6 @@ LABEL_ROWS = ['[data-test="chart-x-label"]', '#radar-labels > *']
 LABEL_GAP = 2   # px between two neighbouring axis labels
 MIN_HOURS = 4   # the 24 h chart names at least this many hours
 NARROW_PX, HEADLINE_LINES = 640, 2  # narrower than 40em: the headline in at most two lines
-DETAILS_MAX = 1200  # px (75rem): the details page uses the window up to this reading width
 # the top bar's parts that must not move or change size when the view changes (REQ_PAGE_3)
 TOPBAR = [".topbar", "#location", '[data-test="location-button"]',
           '[data-test="view-toggle"]', '[data-test="theme-toggle"]']
@@ -172,12 +171,12 @@ PROBE_JS = r"""((cfg) => {
   const chart = document.querySelector('svg[data-test="chart"]');
   if (chart && vis(chart) && hours < cfg.minHours)
     out.push(["chart-hours", "the chart shows " + hours + " hour labels, at least " + cfg.minHours]);
-  if (de.dataset.view === "detailed") {  // the details use the page's width, up to their reading width
-    const wrap = document.querySelector(".wrap"), ws = getComputedStyle(wrap);
-    const room = wrap.clientWidth - parseFloat(ws.paddingLeft) - parseFloat(ws.paddingRight);
-    const ww = document.getElementById("dashboard").getBoundingClientRect().width;
-    if (ww < Math.min(room, cfg.detailsMax) - 1)
-      out.push(["details-width", "the details are " + Math.round(ww) + " px wide in a page of " + Math.round(room) + " px, at least " + Math.round(Math.min(room, cfg.detailsMax))]);
+  if (de.dataset.view === "detailed") {  // the details card is as wide as the top bar, edge to edge
+    const card = document.querySelector('[data-test="details"]').getBoundingClientRect();
+    const bar = document.querySelector(".topbar").getBoundingClientRect();
+    if (Math.abs(card.left - bar.left) > 1 || Math.abs(card.right - bar.right) > 1)
+      out.push(["details-width", "the details card spans " + Math.round(card.left) + " to " + Math.round(card.right)
+                + " px, the top bar " + Math.round(bar.left) + " to " + Math.round(bar.right)]);
   }
   const styles = Object.fromEntries(cfg.styles.map((st) => [st, parseFloat(getComputedStyle(document.body).getPropertyValue("--t-" + st))]));
   const sizes = Object.values(styles).filter((v) => v > 0);
@@ -234,7 +233,7 @@ SIGNATURE_JS = r"""(() => {
 
 CFG = json.dumps({"fine": FINE_PRINT, "fineMin": FINE_MIN, "textMin": TEXT_MIN, "display": DISPLAY_NUMBERS,
                   "rows": LABEL_ROWS, "gap": LABEL_GAP, "minHours": MIN_HOURS,
-                  "narrow": NARROW_PX, "lines": HEADLINE_LINES, "detailsMax": DETAILS_MAX,
+                  "narrow": NARROW_PX, "lines": HEADLINE_LINES,
                   "styles": TYPE_STYLES, "roles": TYPE_ROLES})
 
 

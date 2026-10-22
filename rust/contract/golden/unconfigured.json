@@ -370,8 +370,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "6a5dccc31cd4e5254646c858654b8118e36fbb116f77fee6cf36f37d7b9506b0",
-   "length": 7368
+   "sha256": "ec170b359408cb3f29da512fdcca5405f0e3c8a15749b581c67e387f99b7684b",
+   "length": 7147
   },
   "static/details.js": {
    "status": 200,
@@ -496,8 +496,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "e0603c5d7446e5606cf9f24ca4ab4af7b69d415f95312a3fe6195eab94c57cbc",
-   "length": 13251
+   "sha256": "cbd90fe448ee6c529b2c5b0c9561cf6ddd81a72580e24483d27c9633208d934c",
+   "length": 13282
   },
   "static/app.js-revalidate": {
    "status": 304,

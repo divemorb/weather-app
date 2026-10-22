@@ -39,7 +39,7 @@
   --border: #2e333b;
   --accent: #9ccaff;
   --accent-soft: #1d2c42;
-  --track: #08090b; /* 1.5:1 on the dark glass; no grey reaches more */
+  --track: #5f6676; /* lighter than the dark glass, 1.7:1 on it: a quiet outline, not a black block */
   --track-rain: #566b90; /* F5: 1.8:1 on the glass; the fill stays the lighter blue */
   --bad: #ffcfca;
   --hover: rgb(232 234 237 / 0.08);

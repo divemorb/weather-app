@@ -244,11 +244,8 @@
   .refresh-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-/* The details page uses a wide window, up to a reading width: the short
- * sections side by side, the wide ones (a table, the stations) across.
- * The width is the content's, centred: the top bar and the footer keep
- * the window's width, as in the big view. */
-html[data-view="detailed"] .wrap > :is(#dashboard, .setup) { width: 100%; max-width: 75rem; margin-inline: auto; }
+/* The details card is as wide as the top bar and the big view's cards: the
+ * short sections side by side, the wide ones (a table, the stations) across. */
 .details-body { grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); }
 /* a wide table scrolls in its box: it never widens a section, the card or the page */
 .details, .details-body > * { min-width: 0; }
