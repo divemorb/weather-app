@@ -10,6 +10,7 @@
  */
 import { DASH, compassPoint, fmtNumber, mergeStations, stationMarks, stationOffsetKm } from "./format.js";
 import { t } from "./i18n.js";
+import { placeLabels } from "./maplabels.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -119,11 +120,28 @@ function obsList(obs, loc, lang, locale) {
   return list;
 }
 
+/* A text's drawn size at the map's 14-unit type, in the page's font (a
+ * canvas measures it; the map isn't in the page yet): width, ascent, descent. */
+let measurer = null;
+function textSize(text, weight) {
+  measurer = measurer || document.createElement("canvas").getContext("2d");
+  if (!measurer) return { w: text.length * 8.4, asc: 13.3, desc: 3.5 };
+  measurer.font = `${weight} 14px ${getComputedStyle(document.body).fontFamily}`;
+  const m = measurer.measureText(text);
+  return { w: m.width, asc: m.fontBoundingBoxAscent || 13.3, desc: m.fontBoundingBoxDescent || 3.5 };
+}
+
+// the box of a symbol centred at x, y (r: half its size, with its outline)
+function circleBox(x, y, r) {
+  return { l: x - r, t: y - r, r: x + r, b: y + r };
+}
+
 /* The schematic map: inline SVG, north is up. The location in the centre,
  * one mark per DWD station at its bearing and at a distance proportional
  * to the real distance (one linear scale for the marks and the radar
  * radius circle, the farthest mark kept inside the frame), the radar
- * radius as a circle around the location, a north arrow and a scale bar. */
+ * radius as a circle around the location, a north arrow and a scale bar.
+ * The names never cover each other or a symbol (maplabels.js). */
 function buildMap(location, marks, radiusKm, lang, locale) {
   const size = 320;
   const c = size / 2;
@@ -149,40 +167,47 @@ function buildMap(location, marks, radiusKm, lang, locale) {
       "data-test": "map-radius", class: "map-radius", cx: c, cy: c, r: rKm * scale,
     }));
   }
+  const symbols = [circleBox(c, c, 6), northArrow(svg, size, lang), scaleBar(svg, size, scale, locale, lang)];
+  const names = [];
   for (const { m, o } of placed) {
     const rad = (o.bearing * Math.PI) / 180;
-    const mark = svgEl("circle", {
-      "data-test": "map-station", "data-station": m.id, class: "map-mark",
-      cx: c + o.km * scale * Math.sin(rad),
-      cy: c - o.km * scale * Math.cos(rad),
-      r: 4,
-    });
+    const x = c + o.km * scale * Math.sin(rad);
+    const y = c - o.km * scale * Math.cos(rad);
+    const mark = svgEl("circle", { "data-test": "map-station", "data-station": m.id, class: "map-mark", cx: x, cy: y, r: 4 });
     const title = document.createElementNS(SVG_NS, "title");
     title.textContent = m.name; // untrusted API text: textContent
     mark.appendChild(title);
     svg.appendChild(mark);
-    // The name under the mark (above it near the bottom), shifted to stay inside
-    // the map (width estimated at 7.5 units per character of the 14-unit text).
-    const x = Number(mark.getAttribute("cx"));
-    const y = Number(mark.getAttribute("cy"));
-    const half = Math.min((String(m.name).length * 7.5) / 2, c - 4);
-    const label = svgEl("text", {
-      class: "map-label", "text-anchor": "middle",
-      x: Math.min(Math.max(x, half + 4), size - half - 4), y: y > size - 50 ? y - 8 : y + 16,
-    });
-    label.textContent = m.name;
-    svg.appendChild(label);
+    symbols.push(circleBox(x, y, 5));
+    names.push({ km: o.km, text: String(m.name), anchors: [{ x, y, r: 5 }], attrs: { class: "map-label" } });
   }
+  names.sort((a, b) => a.km - b.km); // the nearest first, then the place: below its radar circle, else beside its mark
+  names.push({ text: t(lang, "map.here"), weight: 600, anchors: [{ x: c, y: c, r: Math.max(rKm * scale + 1, 6) }, { x: c, y: c, r: 6 }],
+    attrs: { class: "map-here", "data-test": "map-here" } });
   const loc = svgEl("g", { "data-test": "map-location", class: "map-location" });
   loc.appendChild(svgEl("circle", { class: "map-loc", cx: c, cy: c, r: 5 }));
   loc.appendChild(svgEl("circle", { class: "map-loc-hole", cx: c, cy: c, r: 1.8 }));
   svg.appendChild(loc);
-  // its name under the location, below the radar circle (outside the mark's group)
-  const below = c + Math.max(rKm * scale, 6) + 16;
-  const here = svgEl("text", { class: "map-here", "data-test": "map-here", x: c, y: below, "text-anchor": "middle" });
-  here.textContent = t(lang, "map.here");
-  svg.appendChild(here);
+  drawLabels(svg, names, symbols, size);
+  return svg;
+}
 
+/* The names at their places (maplabels.js), each a text centred in its box
+ * (untrusted station names: textContent). */
+function drawLabels(svg, names, symbols, size) {
+  const sized = names.map((n) => ({ ...n, ...textSize(n.text, n.weight || 400) }));
+  const boxes = placeLabels(sized.map((n) => ({ anchors: n.anchors, w: n.w, h: n.asc + n.desc })),
+    symbols, { l: 2, t: 2, r: size - 2, b: size - 2 });
+  sized.forEach((n, i) => {
+    const label = svgEl("text", { ...n.attrs, "text-anchor": "middle",
+      x: (boxes[i].l + boxes[i].r) / 2, y: boxes[i].t + n.asc });
+    label.textContent = n.text;
+    svg.appendChild(label);
+  });
+}
+
+// the north arrow in the top right corner; its box
+function northArrow(svg, size, lang) {
   const north = svgEl("g", {
     "data-test": "map-north", class: "map-north", transform: `translate(${size - 24} 16)`,
   });
@@ -191,7 +216,12 @@ function buildMap(location, marks, radiusKm, lang, locale) {
   nText.textContent = t(lang, "map.north");
   north.appendChild(nText);
   svg.appendChild(north);
+  const n = textSize(nText.textContent, 400);
+  return { l: size - 24 - Math.max(5, n.w / 2), t: 16, r: size - 24 + Math.max(5, n.w / 2), b: 16 + 32 + n.desc };
+}
 
+// the scale bar in the bottom left corner; its box
+function scaleBar(svg, size, scale, locale, lang) {
   const barKm = scaleBarKm(scale);
   const bar = barKm * scale;
   const y = size - 16;
@@ -203,5 +233,6 @@ function buildMap(location, marks, radiusKm, lang, locale) {
   sText.textContent = t(lang, "map.scale", { km: fmtNumber(barKm, locale, barKm < 1 ? 1 : 0) });
   scaleG.appendChild(sText);
   svg.appendChild(scaleG);
-  return svg;
+  const s = textSize(sText.textContent, 400);
+  return { l: 11, t: y - 8 - s.asc, r: 13 + Math.max(bar, s.w), b: y + 5 };
 }

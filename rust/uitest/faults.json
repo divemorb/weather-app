@@ -980,6 +980,29 @@
    ]
   },
   {
+   "name": "map-labels-stacked",
+   "why": "the station map writes every name under its symbol, wherever it lands: a near station's name over the place's",
+   "edits": [
+    {
+     "file": "maplabels.js",
+     "find": "        const c = cost(box, taken, bounds);",
+     "replace": "        const c = 0;"
+    }
+   ],
+   "scenario": [
+    "live"
+   ],
+   "lang": [
+    "de"
+   ],
+   "only": [
+    "live/de/responsive-details"
+   ],
+   "must_fail": [
+    "live/de/responsive-details"
+   ]
+  },
+  {
    "name": "place-hidden-on-details",
    "why": "the details page hides the place in the top bar",
    "edits": [

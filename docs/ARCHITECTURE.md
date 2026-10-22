@@ -174,6 +174,7 @@ app/
     chart.js              #   the 24 h multi-model chart (inline SVG)
     details.js            #   the Details card and the page reload
     stationmap.js         #   the station rows and the schematic map
+    maplabels.js          #   where the map writes its names: on no other name or symbol (pure)
     accuracyrows.js       #   the shared rows of the two accuracy tables
     fit.js                #   the big view fits its window: one screen or the compact column
     sky.js                #   the sky's particle generation

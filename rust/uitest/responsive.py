@@ -3,9 +3,9 @@ and rotation. Each check loads its page once and resizes it through the sweep, t
 rotations (the rainy big view also a slow drag) and back; after every resize, once
 the layout holds still (polled), one probe (PROBE_JS) checks the invariants: no
 horizontal scrolling, nothing outside its card, cut off or overlapping, readable text,
-the headline the largest (two lines when narrow), axis labels apart, the chart drawn
-1:1 with four hours named, the sky behind everything, a scrolled page keeping its
-place. Checks: responsive-big (the big view), responsive-details (the details page),
+the headline the largest (two lines when narrow), axis labels apart, the station
+map's names on no other name or symbol, the chart drawn 1:1 with four hours named,
+the sky behind everything, a scrolled page keeping its place. Checks: responsive-big (the big view), responsive-details (the details page),
 responsive-picker (the report picker open), responsive-wizard (the setup opened from
 the place button), responsive-topbar (the top bar stays put when the view changes)."""
 
@@ -177,6 +177,25 @@ PROBE_JS = r"""((cfg) => {
     if (Math.abs(card.left - bar.left) > 1 || Math.abs(card.right - bar.right) > 1)
       out.push(["details-width", "the details card spans " + Math.round(card.left) + " to " + Math.round(card.right)
                 + " px, the top bar " + Math.round(bar.left) + " to " + Math.round(bar.right)]);
+  }
+  for (const map of document.querySelectorAll('svg[data-test="station-map"]')) {  // every name readable: no text on another, on a symbol or past the edge
+    if (!vis(map)) continue;
+    const mb = map.getBoundingClientRect(), hit = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5
+      && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5;
+    const said = (el) => '"' + el.textContent.trim().slice(0, 30) + '"';
+    const texts = [...map.querySelectorAll("text")].map((el) => [el, el.getBoundingClientRect()]);
+    const marks = [...map.querySelectorAll(".map-mark, .map-loc, .map-north path, .map-scale line")]
+      .map((el) => [el, el.getBoundingClientRect()]);
+    const bad = [];
+    texts.forEach(([a, r], i) => {
+      for (const [b, q] of texts.slice(i + 1)) if (hit(r, q)) bad.push(said(a) + " on " + said(b));
+      for (const [m, q] of marks)  // a symbol's own text (N under the arrow, the scale's km) belongs to it
+        if (hit(r, q) && !(m.parentNode === a.parentNode && a.parentNode !== map))
+          bad.push(said(a) + " on " + (m.classList.contains("map-mark") ? "the mark of " + said(m) : name(m)));
+      if (r.left < mb.left - 0.5 || r.top < mb.top - 0.5 || r.right > mb.right + 0.5 || r.bottom > mb.bottom + 0.5)
+        bad.push(said(a) + " past the map's edge");
+    });
+    if (bad.length) out.push(["map-labels", bad.slice(0, 3).join("; ")]);
   }
   const styles = Object.fromEntries(cfg.styles.map((st) => [st, parseFloat(getComputedStyle(document.body).getPropertyValue("--t-" + st))]));
   const sizes = Object.values(styles).filter((v) => v > 0);

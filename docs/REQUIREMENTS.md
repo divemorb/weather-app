@@ -155,7 +155,7 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 - **REQ_DETAILS_4** The model accuracy (REQ_ACC_1-4) and, in its own block, the accuracy against the user's reports (REQ_REPORT_8). *Source: scope; the user, 2026-10-07.*
   *Proof:* `ui:*/*/accuracy-table`; `ui:report/*/details-reports`
 - **REQ_DETAILS_5** The stations section says what the stations are for and lists each station once, with its distance and direction from the place; a schematic map (no map tiles: privacy and CSP) shows the place in the middle, named, the stations by bearing and distance, the radar radius, a north arrow, a scale bar and a legend that names its symbols. *Source: the user, 2026-10-03 and 2026-10-21.*
-  *Proof:* `ui:*/*/station-map`; `ui:live/*/stations-explained`; `ui:unit/stations-explained.test.mjs`
+  *Proof:* `ui:*/*/station-map`; `ui:live/*/stations-explained`; `ui:unit/stations-explained.test.mjs`; `ui:unit/maplabels.test.mjs`; `ui:live/*/responsive-details`
 - **REQ_DETAILS_6** One failing part never empties the others. *Source: the user, 2026-10-02 (W9 review).*
   *Proof:* `ui:errors/*/source-errors`; `ui:errors/*/details-fit`; `ui:errors/*/now-unavailable`
   *Refines:* REQ_DATA_2
