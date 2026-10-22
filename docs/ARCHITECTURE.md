@@ -123,7 +123,7 @@ The backend is `reports.rs` (closed-set validation: eight kinds, three intensiti
 
 ## The page's layout
 
-The page adapts to the space, not to devices (REQ_PAGE_14). In the big view `.wrap` is a CSS size container whose shape picks one of three arrangements of the glance, Now and the chart: *wide* (wider than 1.15:1: the glance left, Now over the chart right), *tall* (the glance on top, Now and the chart below; stacked under 40em wide) and *compact* (one column that scrolls). Every size in `kiosk.css` is a token, a share of the container's shorter side times `--k`, clamped to a readable floor (text at least 12 px) and a cap. `fit.js` measures: it sets `--k` to the largest value at which the cards' content fits one screen (0.2 to 1.6, a binary search), and switches to compact when even the floors don't fit; it runs again after a resize, a size change of `.wrap` or a content change, and starts over each time, so the result depends only on the window and the content. Everything that measures observes its own box: the chart redraws when its body changes size (a `ResizeObserver`), spacing its hour labels by their measured width; the open report picker keeps the height its buttons need. The details page uses the window up to a reading width (75rem): its short sections stand side by side, the accuracy table and the stations span the width (the station list beside the map). The UI suite's responsive checks (`rust/uitest/responsive.py`) resize each page through 29 sizes from 360x640 to 2560x1440, three rotations and a dragged window, and check the invariants after every resize.
+The page adapts to the space, not to devices (REQ_PAGE_14), and has one design for every view and page (REQ_PAGE_15). `type.css` holds the type scale: a window unit `--win` (1 % of the window's shorter side without a classic scrollbar: `html` is the width container and always shows its scrollbar track, because `vw` and `vmin` count the scrollbar in one view and not in the other), eight text styles from `large` to `caption`, each one size at a given window (the base sizes on a phone, up to 1.4 times on large windows), the spacing (`--sp`, `--pad`) and the list of which part uses which style; no other stylesheet sets a font size. The top bar and the footer are the same in both views (`style.css`): one row, the city and the buttons in one text size, the view button as wide as its longer word. In the big view `.wrap` is a CSS size container whose shape picks one of three arrangements of the glance, Now and the chart: *wide* (wider than 1.15:1: the glance left, Now over the chart right), *tall* (the glance on top, Now and the chart below; stacked under 40em wide) and *compact* (one column that scrolls). Every card starts with its title in small capitals and one `title2` line; the chance of rain is the only `large` text. `fit.js` measures: one screen when the cards fit, else compact; it runs again after a resize, a size change of `.wrap` or a content change. The room left over goes to the drawn parts: the radar strip takes the glance card's free height, and the chart redraws when its body changes size (a `ResizeObserver`), spacing its hour labels by their measured width. The details page uses the window up to a reading width (75rem) for its content (the top bar keeps the window's width): its short sections stand side by side, the accuracy table and the stations span the width (the station list beside the map); its first section is the place in full. The UI suite's responsive checks (`rust/uitest/responsive.py`) resize each page through 29 sizes from 360x640 to 2560x1440, three rotations and a dragged window, and check the invariants after every resize, the type scale among them; `responsive-topbar` switches the view at every size, with classic scrollbars, and compares the top bar's boxes.
 
 ## Project layout
 
@@ -175,7 +175,7 @@ app/
     details.js            #   the Details card and the page reload
     stationmap.js         #   the station rows and the schematic map
     accuracyrows.js       #   the shared rows of the two accuracy tables
-    fit.js                #   the big view fits its window: the type scale (--k) or the compact column
+    fit.js                #   the big view fits its window: one screen or the compact column
     sky.js                #   the sky's particle generation
     report.js             #   the report flip tile: the picker, saving, the undo
     reportkind.js         #   the eight kinds and the kind-to-scene mapping (pure)
@@ -188,7 +188,7 @@ app/
     style.css             #   tokens, themes, cards, tiles
     type.css              #   one type and spacing scale for every view (the window unit, the styles, who uses which)
     layout.css            #   the tile grid, the glass tiles
-    kiosk.css             #   the big view: three arrangements by the space, the type tokens
+    kiosk.css             #   the big view: three arrangements by the space
     chart.css             #   the chart card
     details.css           #   the Details card
     sky.css               #   the sky: the per-scene skies and the particle motion

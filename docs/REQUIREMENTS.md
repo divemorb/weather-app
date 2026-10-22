@@ -72,8 +72,8 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
   *Proof:* `cargo:location::tests::validate::into_location_rounds_to_three_decimals`; `contract:wizard:location/set-berlin`
 - **REQ_LOC_4** A move of more than about 1 km (0.01° in latitude or longitude) deletes the cached data, the accuracy history and the user's reports of the old place: they would describe another place. *Source: scope; reports: the user, 2026-10-07.*
   *Proof:* `cargo:location::tests::moved_beyond_epsilon_is_a_move`; `cargo:aggregator::tests::set_location_moved_clears_location_data`; `cargo:store::reports::tests::clear_location_data_removes_every_report`
-- **REQ_LOC_5** The place is shown as two short lines in German order, without quarter, state or country: `Street number` / `Postcode City` (from Nominatim's address details; fallbacks: the result's name, then its full name). Same order for every country. *Source: the user, 2026-10-12 (phone test P1).*
-  *Proof:* `cargo:geocode::tests::short_label_matches_the_shared_table`; `ui:wizard/*/search-lines`; `ui:wizard/*/location-long`
+- **REQ_LOC_5** The place is named twice. The top bar shows only the city: the label's last line without the postcode (a place typed in as coordinates shows them). The details page's Place section shows the label as two short lines in German order, without quarter, state or country: `Street number` / `Postcode City` (from Nominatim's address details; fallbacks: the result's name, then its full name), with the coordinates and the time zone under it. Same order for every country. *Source: the user, 2026-10-12 (phone test P1) and 2026-10-22.*
+  *Proof:* `cargo:geocode::tests::short_label_matches_the_shared_table`; `ui:wizard/*/search-lines`; `ui:wizard/*/save`; `ui:wizard/*/location-long`; `ui:wizard/*/location-lines`; `ui:*/*/location-detail`; `ui:unit/location-w3b.test.mjs`
 - **REQ_LOC_6** A label stored before REQ_LOC_5 stays as it is until the user picks the place again; no automatic shortening (it would need the address details again). *Source: the user, 2026-10-12.*
   *Proof:* `cargo:location::tests::location_json_round_trip`; `ui:unit/location-w3b.test.mjs`
 
@@ -81,11 +81,11 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 
 - **REQ_PAGE_1** The big view shows the glance (the answer, the chance, the radar strip), Now and the next 24 hours, in this order: top to bottom, or the glance beside the other two on a wide window (REQ_PAGE_14). The technical parts are only in the detailed view (REQ_PAGE_4). *Source: the user, 2026-10-02 and 2026-10-21.*
   *Proof:* `ui:sky/*/layout-*`; `ui:*/*/big-hierarchy`
-- **REQ_PAGE_2** **The big view is the default on every screen** (large type, one screen on desktop and tablet when it fits with readable type, at least 12 px; otherwise the page scrolls vertically). The detailed view is one button away. *Source: the user, 2026-10-04 and 2026-10-21.*
+- **REQ_PAGE_2** **The big view is the default on every screen** (one screen on desktop and tablet when its cards fit at the type scale's sizes, REQ_PAGE_15; otherwise one column that scrolls vertically). The detailed view is one button away. *Source: the user, 2026-10-04, 2026-10-21 and 2026-10-22.*
   *Proof:* `ui:live/*/view-default`; `ui:live/*/view-phone`; `ui:live/*/kiosk-1032x1280`; `ui:*/*/responsive-big`
-- **REQ_PAGE_3** The view button is text that says where a click goes: "Details" in the big view, "Big view" in the detailed view (German "Details" / "Große Ansicht"); the choice is remembered per device. *Source: the user, 2026-10-05.*
-  *Proof:* `ui:live/*/view-toggle`; `ui:live/*/view-label`; `ui:unit/view-f3.test.mjs`
-- **REQ_PAGE_4** The detailed view shows the place in the top bar and then only the details (signals, countdowns, sources, accuracy, stations), not the glance, Now or the chart again; on a wide window it uses the width up to a reading width (75rem), the short sections side by side. *Source: the user, 2026-10-12 (phone test P2) and 2026-10-21.*
+- **REQ_PAGE_3** The view button is text that says where a click goes: "Details" in the big view, "Big view" in the detailed view (German "Details" / "Große Ansicht"); the choice is remembered per device. The top bar is the same in both views: switching the view moves or resizes neither the place line nor any of its buttons, at any window size. *Source: the user, 2026-10-05 and 2026-10-22.*
+  *Proof:* `ui:live/*/view-toggle`; `ui:live/*/view-label`; `ui:unit/view-f3.test.mjs`; `ui:live/*/responsive-topbar`
+- **REQ_PAGE_4** The detailed view shows the place in the top bar and then only the details (the place in full, signals, countdowns, sources, accuracy, stations), not the glance, Now or the chart again; on a wide window it uses the width up to a reading width (75rem), the short sections side by side. *Source: the user, 2026-10-12 (phone test P2) and 2026-10-21.*
   *Proof:* `ui:live/*/view-details-only`; `ui:*/*/responsive-details`
 - **REQ_PAGE_5** `?detailed` forces the detailed view; `?kiosk` forces the big view and locks it for a wall display (no view button, no place button, no report button). *Source: the user, 2026-10-02 and 2026-10-04.*
   *Proof:* `ui:live/*/view-query`; `ui:report/*/report-locked`
@@ -109,6 +109,8 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
   *Refines:* REQ_GEN_4, REQ_DATA_2
 - **REQ_PAGE_14** The page adapts automatically to any window from 360 px wide and any aspect ratio, to resizing and to rotation, without a reload; no content is cut off or overlaps. *Source: the user, 2026-10-21.*
   *Proof:* `ui:*/*/responsive-big`; `ui:*/*/responsive-details`; `ui:report/*/responsive-picker`; `ui:live/*/responsive-wizard`; `gate:faults`
+- **REQ_PAGE_15** One design for every view and page, like iOS's text styles: a few text styles, each one size at a given window, the same in the big view, the details page, the setup and the report picker; the sizes follow the window only (body text 17 px on a phone, up to 1.4 times that on large windows), never the view, the language or the data. The chance of rain is the only number in the largest style; every card starts with its title in small capitals, then one prominent line. The top bar is one row in every view and at every width: the city left, the buttons right, in one text size. *Source: the user, 2026-10-22.*
+  *Proof:* `ui:*/*/responsive-big`; `ui:*/*/responsive-details`; `ui:report/*/responsive-picker`; `ui:live/*/responsive-wizard`; `ui:live/*/responsive-topbar`; `gate:faults`
 
 ## The glance (GLANCE)
 
@@ -118,7 +120,7 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
 - **REQ_GLANCE_2** The radar strip: 12 steps of 5 minutes, the strongest rain within the radius per step, time labels that don't overlap; its caption names the radius; a dry hour says so in a sentence. *Source: the user, 2026-10-02.*
   *Proof:* `ui:*/*/radar-*`; `ui:*/*/big-labels`
   *Refines:* REQ_GEN_1, REQ_GEN_4
-- **REQ_GLANCE_3** On a phone in the big view the headline takes at most two lines; where the page scrolls as one column, as large as fits. *Source: the user, 2026-10-05 and 2026-10-21.*
+- **REQ_GLANCE_3** In the big view the headline takes at most two lines on a phone; its size is the type scale's (REQ_PAGE_15), the same on every page. *Source: the user, 2026-10-05, 2026-10-21 and 2026-10-22.*
   *Proof:* `ui:*/*/big-headline`; `ui:*/*/responsive-big`
 - **REQ_GLANCE_4** The "why" line under the answer says what the sky shows and who decided it (REQ_SKY_6). *Source: the user, 2026-10-04.*
   *Proof:* refined; `ui:live/*/reason-*`
