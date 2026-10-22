@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 
-from expect import (BIG_HEADLINE_FILL, BIG_HEADLINE_LEAD, BIG_HEADLINE_LINES, BIG_HEADLINE_MAX,
+from expect import (BIG_HEADLINE_LEAD, BIG_HEADLINE_LINES,
                     BIG_HEADLINE_SIZES, BIG_HIERARCHY_SIZES, BIG_LABEL_GAP, BIG_PHONE,
                     BIG_PHONE_MIN_FONT, TRACK_CONTRAST, VIEW_DESKTOP, VIEW_LABEL)
 from page import Run, UIPage, norm, visible_one
@@ -40,40 +40,19 @@ def headline_lines(pg: UIPage) -> int:
 
 
 def headline_problems(pg: UIPage, size) -> list[str]:
-    """At most BIG_HEADLINE_LINES lines, at least BIG_PHONE_MIN_FONT, and in the compact column
-    (the page scrolls; fit.js fits the headline there) as large as fits: at least
-    BIG_HEADLINE_FILL of the largest whole-px size up to BIG_HEADLINE_MAX that keeps it to that
-    many lines (tried on the page itself, the inline style restored afterwards). A page that fits
-    one screen sizes all its type together (the fit's --k)."""
+    """At most BIG_HEADLINE_LINES lines, at least BIG_PHONE_MIN_FONT (its size is the type
+    scale's title2 on every page: the responsive sweep's type-roles)."""
     where = f"{size[0]}x{size[1]}"
     els = [e for e in pg.ui("rain-answer") if e["visible"]]
     if not els:
         return [f"{where}: [data-test=rain-answer] not visible"]
     font, lines = els[0]["fontSize"], headline_lines(pg)
-    compact = pg.js('document.documentElement.classList.contains("compact")')
-    best = compact and pg.js(f"""(() => {{
-        const el = document.querySelector('[data-test="rain-answer"]');
-        const saved = el.style.fontSize, range = document.createRange();
-        const count = () => {{ range.selectNodeContents(el);
-            return new Set([...range.getClientRects()].filter((r) => r.width > 0).map((r) => Math.round(r.bottom))).size; }};
-        let best = 0;
-        for (let px = {BIG_HEADLINE_MAX}; px >= 8; px--) {{
-            el.style.fontSize = px + "px";
-            if (count() <= {BIG_HEADLINE_LINES}) {{ best = px; break; }}
-        }}
-        el.style.fontSize = saved;
-        return best;
-    }})()""")
     problems = []
     text = repr(els[0]["text"])
     if lines > BIG_HEADLINE_LINES:
         problems.append(f"{where}: the headline {text} takes {lines} lines at {font:.0f} px, at most {BIG_HEADLINE_LINES}")
     if font < BIG_PHONE_MIN_FONT - 0.5:
         problems.append(f"{where}: the headline {text} is {font:.0f} px, at least {BIG_PHONE_MIN_FONT} px")
-    if best and font < BIG_HEADLINE_FILL * best - 0.5:
-        problems.append(f"{where}: the headline {text} is {font:.0f} px, but {best} px would still fit in "
-                        f"{BIG_HEADLINE_LINES} lines (at most {BIG_HEADLINE_MAX} px tried): at least "
-                        f"{BIG_HEADLINE_FILL * best:.0f} px, as large as the text allows")
     return problems
 
 

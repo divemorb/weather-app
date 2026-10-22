@@ -19,8 +19,6 @@ export const MODEL_COLORS = ["#1f6feb", "#2da44e", "#bf8700", "#cf222e", "#8250d
 const NS = "http://www.w3.org/2000/svg";
 
 const EVERY = [1, 2, 3, 4, 6, 12]; /* the hour steps a label may take */
-const LABEL_EVERY_MAX = 6; /* at least 4 of the 24 hours named */
-const AXIS_MIN_PX = 12;
 
 /* The chart's geometry for a box of w x h px with n hours and axis text
  * of fontPx: the margins follow the text and the widest labels (xLabelW,
@@ -135,18 +133,12 @@ function buildSvg(body, { hours, models }, maxV, lang, locale, tz) {
   const digits = scale.step < 1 ? 1 : 0;
   const xTexts = hours.map((hr) => fmtTime(hr, locale, tz));
   const yTexts = scale.ticks.map((v) => fmtNumber(v, locale, digits));
-  /* The axis text has the body's font size (kiosk.css: --fs-axis), made
-   * smaller (not below AXIS_MIN_PX) while the hours would be labelled
-   * less often than every LABEL_EVERY_MAX-th. */
+  /* The axis text has the body's font size (type.css: the caption style);
+   * a narrow chart labels fewer hours, never smaller ones. */
   const style = getComputedStyle(body);
-  let fontPx = parseFloat(style.fontSize) || AXIS_MIN_PX;
-  let m;
-  for (;;) {
-    const font = `${fontPx}px ${style.fontFamily}`;
-    m = chartMetrics(body.clientWidth, body.clientHeight, n, fontPx, widest(xTexts, font), widest(yTexts, font));
-    if (m.labelEvery <= LABEL_EVERY_MAX || fontPx <= AXIS_MIN_PX) break;
-    fontPx = Math.max(AXIS_MIN_PX, fontPx - 1);
-  }
+  const fontPx = parseFloat(style.fontSize) || 12;
+  const font = `${fontPx}px ${style.fontFamily}`;
+  const m = chartMetrics(body.clientWidth, body.clientHeight, n, fontPx, widest(xTexts, font), widest(yTexts, font));
   const { w, h, padL, padR, padT, padB, labelEvery } = m;
   const plotW = w - padL - padR;
   const plotH = h - padT - padB;

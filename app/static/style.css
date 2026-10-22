@@ -63,7 +63,6 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  font-size: 16px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -77,66 +76,80 @@ a:hover { text-decoration: underline; }
    muted line, the same voice as the other quiet lines on the card. */
 .outdated {
   margin: 14px 0 0;
-  font-size: 13px; line-height: 1.45;
+  line-height: 1.45;
   color: var(--muted);
 }
 
-.wrap { max-width: 720px; margin: 0 auto; padding: 20px 16px 48px; }
+/* ---- page chrome: the same in both views ---------------------------------
+ * The top bar and the footer are the page's frame: the view button
+ * switches what is between them, never them. Their sizes follow the
+ * window only, never the big view's fit, the language or the data;
+ * .wrap is the window in both views (the details page keeps its reading
+ * width on its content, details.css).
+ * The window unit --win and the type scale: type.css. */
+body {
+  --page-pad-y: clamp(6px, 1.2 * var(--win), 16px);
+  --page-pad-x: clamp(8px, 2 * var(--win), 28px);
+  --page-gap: clamp(6px, 1.2 * var(--win), 16px);
+  --bar-pad-y: clamp(6px, 0.9 * var(--win), 12px);
+  --bar-pad-x: clamp(10px, 1.5 * var(--win), 22px);
+  --bar-btn: clamp(44px, 1.5rem + 2.2 * var(--win), 72px); /* a touch target: at least 44 px */
+}
+
+.wrap {
+  padding: var(--page-pad-y) var(--page-pad-x) 28px;
+  display: flex; flex-direction: column; gap: var(--page-gap);
+}
 
 /* ---- header: the place and the two icon buttons ----------------------- */
 
+/* One row, like a navigation bar: the place (the city) left, the buttons
+ * right, in every view and at every width. A long name wraps inside its
+ * room, never under the buttons and never cut off; the address, the
+ * coordinates and the time zone are on the details page (Place). */
 .topbar {
-  display: flex; align-items: flex-start; justify-content: space-between;
-  gap: 12px; margin-bottom: 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
 }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 0; }
 
-/* The place comes first; the buttons stay beside it while it keeps at
- * least 10em, else they wrap to a row of their own under it (right). */
-.topbar { flex-wrap: wrap; }
-.brand { display: flex; align-items: flex-start; gap: 10px; min-width: 0; flex: 1 1 10em; }
-.actions { margin-left: auto; }
+.brand-mark { width: calc(var(--t-headline) * 1.4); height: calc(var(--t-headline) * 1.4); color: var(--accent); flex: none; }
 
-.brand-mark { width: 24px; height: 24px; color: var(--accent); flex: none; margin-top: 2px; }
-
-/* The place is the header's main text: it wraps, never cuts off (long
- * Nominatim labels are the normal case), the coordinates and the time
- * zone live in the muted line under it. */
 .brand-text { min-width: 0; }
 
 .place {
   display: block;
-  font-size: 20px; font-weight: 700; letter-spacing: -0.015em; line-height: 1.25;
-  /* The label is two lines ("road number" / "postcode city"); pre-line
-   * renders them as written and never splits a word mid-label. */
-  white-space: pre-line;
-  overflow-wrap: break-word;
-}
-
-.place-detail {
-  margin: 3px 0 0;
-  font-size: 13px; line-height: 1.4;
-  overflow-wrap: break-word;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere; hyphens: auto;
 }
 
 .actions { display: flex; align-items: center; gap: 4px; }
 
-/* Header icon buttons: 44 x 44, quiet until hovered. */
+/* Header icon buttons: square, quiet until hovered. */
 .actions .btn {
-  width: 44px; height: 44px; padding: 0;
+  width: var(--bar-btn); height: var(--bar-btn); padding: 0;
   display: grid; place-items: center;
   background: transparent; border: 0; border-radius: 12px;
   color: var(--text); cursor: pointer;
 }
 .actions .btn:hover { background: var(--hover); }
-.actions .btn .icon { width: 22px; height: 22px; display: block; }
+.actions .btn .icon { width: calc(var(--bar-btn) * 0.5); height: calc(var(--bar-btn) * 0.5); display: block; }
 
-/* The view button's text says where a click goes. It sizes to the
- * text on one line, so the top bar never overflows on a phone. */
+/* The view button's text says where a click goes, on one line. It is
+ * as wide as the longer of its two words in both views (the other word,
+ * data-alt from view.js, in a row of no height, hidden; its alternative
+ * text "" keeps it out of the accessible name), so it never moves the
+ * buttons beside it. */
 #view-toggle {
-  width: auto; min-width: 44px;
-  padding: 0 10px;
+  width: auto; min-width: var(--bar-btn);
+  padding: 0 calc(var(--bar-btn) * 0.22);
   white-space: nowrap;
-  font-size: 13px; font-weight: 600;
+  font-weight: 600;
+  align-content: center;
+}
+#view-toggle::after {
+  content: attr(data-alt) / "";
+  height: 0; overflow: hidden; visibility: hidden;
 }
 
 /* The selectors must reach into .actions .btn to out-weight ".btn .icon
@@ -148,7 +161,7 @@ a:hover { text-decoration: underline; }
 /* ---- buttons (the wizard's) ------------------------------------------- */
 
 .btn {
-  font: inherit; font-size: 15px; font-weight: 500;
+  font: inherit; font-weight: 500;
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   color: var(--text); background: transparent;
   border: 1px solid transparent; border-radius: 10px;
@@ -184,7 +197,7 @@ button:focus-visible, a:focus-visible {
 
 .card-head { margin-bottom: 16px; }
 .card-head h2 {
-  margin: 0; font-size: 19px; font-weight: 700;
+  margin: 0; font-weight: 700;
   letter-spacing: -0.01em; color: var(--text);
 }
 
@@ -194,15 +207,14 @@ button:focus-visible, a:focus-visible {
 
 .glance-answer {
   margin: 0;
-  font-size: clamp(26px, 20px + 2.1vw, 34px);
   line-height: 1.2; font-weight: 700; letter-spacing: -0.015em;
   text-wrap: balance;
 }
 
-.glance-when { margin: 10px 0 0; font-size: 15px; color: var(--muted); }
+.glance-when { margin: 10px 0 0; color: var(--muted); }
 
 /* The sky's "why" line: what the sky shows and who decided it. */
-.glance-reason { margin: 6px 0 0; font-size: 13px; line-height: 1.45; overflow-wrap: break-word; }
+.glance-reason { margin: 6px 0 0; line-height: 1.45; overflow-wrap: break-word; }
 
 .glance-prob {
   display: flex; align-items: baseline; flex-wrap: wrap;
@@ -210,7 +222,6 @@ button:focus-visible, a:focus-visible {
 }
 
 .glance-prob-value {
-  font-size: clamp(44px, 28px + 6vw, 64px);
   line-height: 1; font-weight: 800; letter-spacing: -0.02em;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
@@ -219,7 +230,7 @@ button:focus-visible, a:focus-visible {
 /* The no-data placeholder is neutral: the accent colour means rain. */
 .glance-prob-value.muted { color: var(--muted); }
 
-.glance-prob-label { font-size: 14px; color: var(--muted); line-height: 1.45; }
+.glance-prob-label { color: var(--muted); line-height: 1.45; }
 
 .radar { margin-top: 26px; }
 
@@ -230,14 +241,14 @@ button:focus-visible, a:focus-visible {
 .radar-max {
   position: absolute; top: 0;
   transform: translateX(-50%);
-  font-size: 13px; font-weight: 600; line-height: 20px;
+  font-weight: 600; line-height: 20px;
   color: var(--accent); font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .radar-dry {
   margin: 0; padding: 0 4px; text-align: center;
-  font-size: 14px; line-height: 20px; color: var(--muted);
+  line-height: 20px; color: var(--muted);
 }
 
 /* A column is its track — always visible, even dry — with the rain fill
@@ -262,7 +273,7 @@ button:focus-visible, a:focus-visible {
 
 .radar-labels {
   position: relative; height: 16px; margin-top: 6px;
-  font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums;
+  color: var(--muted); font-variant-numeric: tabular-nums;
 }
 .radar-labels .radar-label {
   position: absolute; top: 0; white-space: nowrap;
@@ -272,26 +283,26 @@ button:focus-visible, a:focus-visible {
 .radar-labels .rl-c { left: 66.667%; transform: translateX(-50%); }
 .radar-labels .rl-d { left: 100%; transform: translateX(-100%); }
 
-.radar-caption { margin: 10px 0 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+.radar-caption { margin: 10px 0 0; line-height: 1.45; color: var(--muted); }
 
-.radar-unavailable { margin: 0; font-size: 14px; color: var(--muted); }
+.radar-unavailable { margin: 0; color: var(--muted); }
 
 /* ---- the Now section: temperature and condition big, the rest quiet ----- */
 
-.now-title {
+.now-title, .glance-title {
   margin: 0 0 14px;
-  font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--muted);
 }
 
 .now-main { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
 
 .now-temp {
-  font-size: 46px; line-height: 1; font-weight: 700; letter-spacing: -0.02em;
+  line-height: 1; font-weight: 700; letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
 
-.now-condition { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+.now-condition { font-weight: 600; letter-spacing: -0.01em; }
 
 .now-grid {
   display: grid;
@@ -304,38 +315,38 @@ button:focus-visible, a:focus-visible {
 
 .now-label {
   margin: 0;
-  font-size: 13px; line-height: 1.4;
+  line-height: 1.4;
   color: var(--muted);
 }
 
 .now-value {
   margin: 1px 0 0;
-  font-size: 15px; font-weight: 600; line-height: 1.4;
+  font-weight: 600; line-height: 1.4;
   font-variant-numeric: tabular-nums;
 }
 
-.now-time { margin: 16px 0 0; font-size: 13px; }
+.now-time { margin: 16px 0 0; }
 
 /* Who measured "Now" (a quiet line), and the small note at a value
  * Bright Sky took from another station. */
-.now-station { margin: 4px 0 0; font-size: 13px; overflow-wrap: break-word; }
-.now-fallback { margin-left: 6px; font-size: 11px; font-weight: 400; color: var(--muted); }
+.now-station { margin: 4px 0 0; overflow-wrap: break-word; }
+.now-fallback { margin-left: 6px; font-weight: 400; color: var(--muted); }
 
-.now-unavailable { margin: 2px 0 0; font-size: 15px; color: var(--muted); }
+.now-unavailable { margin: 2px 0 0; color: var(--muted); }
 
 /* ---- setup wizard ------------------------------------------------------- */
 
 .setup { padding: 26px 24px; }
 
-.setup-intro { margin: 0 0 22px; font-size: 14px; line-height: 1.55; max-width: 58ch; }
+.setup-intro { margin: 0 0 22px; line-height: 1.55; max-width: 58ch; }
 
 .setup-block { margin-bottom: 18px; }
 
-.setup-label { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-bottom: 6px; }
+.setup-label { display: block; font-weight: 500; color: var(--muted); margin-bottom: 6px; }
 
 .setup input[type="text"] {
   width: 100%; height: 44px; padding: 0 14px;
-  font: inherit; font-size: 15px; color: var(--text);
+  font: inherit; color: var(--text);
   background: var(--field); border: 1px solid var(--border); border-radius: 10px;
 }
 .setup input[type="text"]::placeholder { color: var(--muted); opacity: 0.8; }
@@ -354,7 +365,7 @@ button:focus-visible, a:focus-visible {
 
 .setup-result {
   width: 100%; text-align: left;
-  padding: 11px 14px; font: inherit; font-size: 15px; color: var(--text);
+  padding: 11px 14px; font: inherit; color: var(--text);
   background: var(--card); border: 1px solid var(--border); border-radius: 10px;
   cursor: pointer;
   white-space: pre-line; /* the label shows its two lines as written */
@@ -364,7 +375,7 @@ button:focus-visible, a:focus-visible {
 
 .setup-divider {
   display: flex; align-items: center; gap: 12px;
-  margin: 20px 0; font-size: 13px; color: var(--muted);
+  margin: 20px 0; color: var(--muted);
 }
 .setup-divider::before,
 .setup-divider::after { content: ""; flex: 1; height: 1px; background: var(--border); }
@@ -373,26 +384,22 @@ button:focus-visible, a:focus-visible {
 
 .setup-actions { display: flex; gap: 10px; margin-top: 22px; max-width: 360px; }
 
-.setup-status { margin: 14px 0 0; min-height: 20px; font-size: 14px; line-height: 1.45; }
+.setup-status { margin: 14px 0 0; min-height: 20px; line-height: 1.45; }
 .setup-status.error { color: var(--bad); }
 
-.setup-note { margin: 18px 0 0; font-size: 13px; line-height: 1.55; max-width: 62ch; }
+.setup-note { margin: 18px 0 0; line-height: 1.55; max-width: 62ch; }
 
 /* ---- footer ------------------------------------------------------------ */
 
-.attr { margin-top: 26px; font-size: 13px; line-height: 1.6; color: var(--muted); }
+.attr { line-height: 1.6; color: var(--muted); }
 
 
 /* ---- wider layout from 720 px ------------------------------------------- */
 
 @media (min-width: 720px) {
-  .wrap { padding: 32px 24px 80px; }
-  .topbar { margin-bottom: 28px; }
   .card + .card { margin-top: 22px; }
   .glance { padding: 36px 34px; }
   .setup { padding: 32px 30px; }
-  .place { font-size: 22px; }
-  .place-detail { font-size: 14px; }
 }
 
 /* ---- motion ------------------------------------------------------------- */

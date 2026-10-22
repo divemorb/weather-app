@@ -186,6 +186,7 @@ app/
     i18n.js               #   the page's texts, English and German
     i18n-report.js        #   the report's texts, English and German
     style.css             #   tokens, themes, cards, tiles
+    type.css              #   one type and spacing scale for every view (the window unit, the styles, who uses which)
     layout.css            #   the tile grid, the glass tiles
     kiosk.css             #   the big view: three arrangements by the space, the type tokens
     chart.css             #   the chart card

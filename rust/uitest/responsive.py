@@ -7,16 +7,20 @@ the headline the largest (two lines when narrow), axis labels apart, the chart d
 1:1 with four hours named, the sky behind everything, a scrolled page keeping its
 place. Checks: responsive-big (the big view), responsive-details (the details page),
 responsive-picker (the report picker open), responsive-wizard (the setup opened from
-the place button)."""
+the place button), responsive-topbar (the top bar stays put when the view changes)."""
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import time
 
+from cdp import Browser
+from expect import LOCALES
+
 # the checks per scenario, and the page each one sweeps: (query, the button clicked first)
 CHECKS = {"rain": ["responsive-big", "responsive-details"],
-          "live": ["responsive-big", "responsive-details", "responsive-wizard"],
+          "live": ["responsive-big", "responsive-details", "responsive-wizard", "responsive-topbar"],
           "errors": ["responsive-big", "responsive-details"],
           "accuracy": ["responsive-details"],
           "unconfigured": ["responsive-big"],
@@ -47,6 +51,25 @@ LABEL_GAP = 2   # px between two neighbouring axis labels
 MIN_HOURS = 4   # the 24 h chart names at least this many hours
 NARROW_PX, HEADLINE_LINES = 640, 2  # narrower than 40em: the headline in at most two lines
 DETAILS_MAX = 1200  # px (75rem): the details page uses the window up to this reading width
+# the top bar's parts that must not move or change size when the view changes (REQ_PAGE_3)
+TOPBAR = [".topbar", "#location", '[data-test="location-button"]',
+          '[data-test="view-toggle"]', '[data-test="theme-toggle"]']
+TOPBAR_SLACK = 1  # px
+# The type scale (REQ_PAGE_15): every text in one of these styles, each style one size at a
+# given window in every view (the page's registered --t-<style> lengths on body), and the
+# roles: which part uses which style.
+TYPE_STYLES = ["large", "title2", "title3", "headline", "body", "subhead", "footnote", "caption"]
+TYPE_ROLES = {
+    "large": ['[data-test="rain-probability"]'],
+    "title2": ['[data-test="rain-answer"]', '[data-test="now-temp"]', ".now-condition"],
+    "title3": [".refresh-value"],
+    "headline": [".place", "#view-toggle", ".now-value"],
+    "body": [".glance-when", ".glance-reason", ".detail-line", ".source-row", ".obs-row", ".chart-status"],
+    "subhead": [".glance-prob-label", ".now-label", ".chart-legend-item"],
+    "footnote": [".glance-title", ".now-title", ".chart-title", ".details-title", ".details-section h3", ".radar-caption",
+                 ".now-time", ".now-station"],
+    "caption": [".radar-labels > *", '[data-test="chart-x-label"]', ".attr"],
+}
 
 # One probe: every invariant at the current size; [invariant, detail] pairs.
 PROBE_JS = r"""((cfg) => {
@@ -149,11 +172,37 @@ PROBE_JS = r"""((cfg) => {
   const chart = document.querySelector('svg[data-test="chart"]');
   if (chart && vis(chart) && hours < cfg.minHours)
     out.push(["chart-hours", "the chart shows " + hours + " hour labels, at least " + cfg.minHours]);
-  if (de.dataset.view === "detailed") {  // the details page uses the window, up to its reading width
-    const ww = document.querySelector(".wrap").getBoundingClientRect().width;
-    if (ww < Math.min(W, cfg.detailsMax) - 1)
-      out.push(["details-width", "the details page is " + Math.round(ww) + " px wide in a " + W + " px window, at least " + Math.min(W, cfg.detailsMax)]);
+  if (de.dataset.view === "detailed") {  // the details use the page's width, up to their reading width
+    const wrap = document.querySelector(".wrap"), ws = getComputedStyle(wrap);
+    const room = wrap.clientWidth - parseFloat(ws.paddingLeft) - parseFloat(ws.paddingRight);
+    const ww = document.getElementById("dashboard").getBoundingClientRect().width;
+    if (ww < Math.min(room, cfg.detailsMax) - 1)
+      out.push(["details-width", "the details are " + Math.round(ww) + " px wide in a page of " + Math.round(room) + " px, at least " + Math.round(Math.min(room, cfg.detailsMax))]);
   }
+  const styles = Object.fromEntries(cfg.styles.map((st) => [st, parseFloat(getComputedStyle(document.body).getPropertyValue("--t-" + st))]));
+  const sizes = Object.values(styles).filter((v) => v > 0);
+  if (sizes.length < cfg.styles.length) out.push(["type-scale", "the page has no type scale (--t-<style> on body): " + JSON.stringify(styles)]);
+  else {
+    const off = [], tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+      const el = n.parentElement;
+      if (!n.textContent.trim() || !el || !vis(el) || el.closest("script, style")) continue;
+      const svg = el.closest("svg");  // a drawing's text counts when it is drawn 1:1 (the chart), not scaled (the map)
+      if (svg && (!svg.viewBox.baseVal || Math.abs(svg.viewBox.baseVal.width - svg.getBoundingClientRect().width) > 1)) continue;
+      const px = parseFloat(getComputedStyle(el).fontSize);
+      if (!sizes.some((v) => Math.abs(v - px) < 0.3)) off.push(name(el) + " " + px.toFixed(1) + " px");
+    }
+    if (off.length) out.push(["type-scale", off.length + " texts off the scale (" + sizes.map((v) => v.toFixed(1)).join("/") + " px): " + [...new Set(off)].slice(0, 4).join("; ")]);
+    const wrong = [];
+    for (const [st, sels] of Object.entries(cfg.roles))
+      for (const el of document.querySelectorAll(sels.join(",")))
+        if (vis(el) && el.textContent.trim() && Math.abs(parseFloat(getComputedStyle(el).fontSize) - styles[st]) >= 0.3)
+          wrong.push(name(el) + " " + parseFloat(getComputedStyle(el).fontSize).toFixed(1) + " px, not " + st + " " + styles[st].toFixed(1));
+    if (wrong.length) out.push(["type-roles", [...new Set(wrong)].slice(0, 4).join("; ")]);
+  }
+  const brand = document.querySelector(".topbar .brand"), acts = document.querySelector(".topbar .actions");
+  if (brand && acts && vis(acts) && acts.getBoundingClientRect().top >= brand.getBoundingClientRect().bottom - 1)
+    out.push(["bar-one-row", "the bar's buttons wrapped under the place (" + box(acts.getBoundingClientRect()) + ")"]);
   for (const c of __ui.controls()) out.push(["buttons", c]);
   const ctrls = [...document.querySelectorAll("button, [role='button'], a[href], input, select")]
     .filter((el) => vis(el) && !el.closest("[inert]"))  // an inert control (under the open picker) can't be used
@@ -185,7 +234,8 @@ SIGNATURE_JS = r"""(() => {
 
 CFG = json.dumps({"fine": FINE_PRINT, "fineMin": FINE_MIN, "textMin": TEXT_MIN, "display": DISPLAY_NUMBERS,
                   "rows": LABEL_ROWS, "gap": LABEL_GAP, "minHours": MIN_HOURS,
-                  "narrow": NARROW_PX, "lines": HEADLINE_LINES, "detailsMax": DETAILS_MAX})
+                  "narrow": NARROW_PX, "lines": HEADLINE_LINES, "detailsMax": DETAILS_MAX,
+                  "styles": TYPE_STYLES, "roles": TYPE_ROLES})
 
 
 def settle(pg) -> float | None:
@@ -265,11 +315,76 @@ def sweep_page(run, query: str = "", drag: bool = True, min_width: int = 360,
     return out
 
 
+# The view and the top bar's boxes (page coordinates: left, top, width, height) per TOPBAR selector.
+TOPBAR_JS = r"""((sels) => [document.documentElement.dataset.view, sels.map((s) => {
+  const el = document.querySelector(s), b = el && el.getBoundingClientRect();
+  return b ? [b.left + scrollX, b.top + scrollY, b.width, b.height] : null;
+})])(%s)"""
+
+
+def topbar_moves(size: str, states: list) -> list[str]:
+    """The top bar's parts that differ between the first state and the others."""
+    (view0, boxes0), out = states[0], []
+    for view, boxes in states[1:]:
+        moved = [f"{sel} {_box(a)} in the {view0} view, {_box(b)} in the {view} view"
+                 for sel, a, b in zip(TOPBAR, boxes0, boxes)
+                 if (a is None) != (b is None) or a and any(abs(x - y) > TOPBAR_SLACK for x, y in zip(a, b))]
+        if moved:
+            out.append(f"size {size}: the top bar moves: " + "; ".join(moved))
+    return out
+
+
+def _box(b) -> str:
+    return "missing" if b is None else "{:.0f},{:.0f} {:.0f}x{:.0f}".format(*b)
+
+
+def toggle_view(pg) -> list[str]:
+    """A real click on the view button, then the layout settled (the bar's own data is
+    there already: no wait for the network, unlike UIPage.click)."""
+    at = pg.js("""(() => { const b = document.querySelector('[data-test="view-toggle"]').getBoundingClientRect(),
+      x = b.left + b.width / 2, y = b.top + b.height / 2, top = document.elementFromPoint(x, y);
+      return top && top.closest('[data-test="view-toggle"]') ? [x, y] : null; })()""")
+    if not at:
+        return ["the view button is covered or outside the window"]
+    pg.p.mouse_click(*at)
+    return [] if settle(pg) is not None else [f"still moving {SETTLE_S} s after the click"]
+
+
+def topbar_page(run, min_width: int) -> list[str]:
+    """At every sweep size the top bar before and after a click on the view button (no
+    reload; the views alternate, so both directions are seen): every part in the same
+    place and size, within TOPBAR_SLACK. Chromium shows classic scrollbars here, as a
+    desktop does: a view that scrolls must not narrow the bar."""
+    own = None if getattr(run.args, "browser", "chromium") == "webkit" else Browser(LOCALES[run.lang], scrollbars=True)
+    run = dataclasses.replace(run, browser=own) if own else run
+    sizes = [s for s in SWEEP if s[0] >= min_width]
+    pg = run.page(width=sizes[0][0], height=sizes[0][1])
+    js, problems = TOPBAR_JS % json.dumps(TOPBAR), []
+    try:
+        for w, h in sizes:
+            pg.p.resize(w, h)
+            settle(pg)
+            states = [pg.js(js)]
+            problems += [f"size {w}x{h}: {p}" for p in toggle_view(pg)]
+            states.append(pg.js(js))
+            if {v for v, _ in states} != {"big", "detailed"}:
+                problems.append(f"size {w}x{h}: the view button switched {' -> '.join(v for v, _ in states)}")
+            problems += topbar_moves(f"{w}x{h}", states)
+    finally:
+        run.done(pg)
+        if own:
+            own.close()
+    return problems
+
+
 def run_responsive(run) -> None:
     """The scenario's responsive checks that this run wants (CHECKS), each on its own page."""
     min_width = WEBKIT_MIN_WIDTH if getattr(run.args, "browser", "chromium") == "webkit" else 360
     for check in CHECKS.get(run.name, []):
         if check not in run.names:
+            continue
+        if check == "responsive-topbar":
+            run.add(check, topbar_page(run, min_width))
             continue
         query, click = PAGES[check]
         drag = check == "responsive-big" and run.name in DRAG_SCENARIOS

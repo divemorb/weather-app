@@ -1,0 +1,101 @@
+/* type.css — one type scale and one spacing scale for every view and page.
+ *
+ * Like iOS's text styles: a few styles (large, title2, title3, headline,
+ * body, subhead, footnote, caption), each one size at a given window, the
+ * same in the big view, the details page, the setup and the report picker.
+ * The sizes follow the window only (a phone gets the base sizes, body
+ * 17 px; a larger window up to 1.4 times them), never the view, the
+ * language or the data. Which part uses which style is listed here: no
+ * other stylesheet sets a font size (but the station map's drawing).
+ */
+
+/* The window unit --win: 1 % of the window's shorter side, without a
+ * classic scrollbar. html is the width container: vw/vmin count the
+ * scrollbar in one view and not in the other (and go stale after a
+ * resize in Chromium). The scrollbar is always there, so it takes the
+ * same room in every view (overlay scrollbars, on phones and tablets,
+ * take none). */
+html { overflow-y: scroll; container-type: inline-size; }
+
+/* Registered lengths: computed once on body and inherited as px, so the
+ * whole page shares them (and the page checks can read them). */
+@property --win { syntax: "<length>"; inherits: true; initial-value: 4px; }
+@property --grow { syntax: "<length>"; inherits: true; initial-value: 0px; }
+@property --t-large { syntax: "<length>"; inherits: true; initial-value: 34px; }
+@property --t-title2 { syntax: "<length>"; inherits: true; initial-value: 22px; }
+@property --t-title3 { syntax: "<length>"; inherits: true; initial-value: 20px; }
+@property --t-headline { syntax: "<length>"; inherits: true; initial-value: 17px; }
+@property --t-body { syntax: "<length>"; inherits: true; initial-value: 17px; }
+@property --t-subhead { syntax: "<length>"; inherits: true; initial-value: 15px; }
+@property --t-footnote { syntax: "<length>"; inherits: true; initial-value: 13px; }
+@property --t-caption { syntax: "<length>"; inherits: true; initial-value: 12px; }
+@property --sp { syntax: "<length>"; inherits: true; initial-value: 8px; }
+@property --pad { syntax: "<length>"; inherits: true; initial-value: 14px; }
+
+body {
+  --win: min(1cqw, 1vh);
+  /* how far the window is past a large phone's (430 px): each size grows
+   * by 5.43 % of itself per px of it, up to 1.4 times (a 1920x1080 screen
+   * gets about 1.35) */
+  --grow: max(0px, var(--win) - 4.3px);
+  --t-large: min(47.6px, 34px + 1.846 * var(--grow));
+  --t-title2: min(30.8px, 22px + 1.195 * var(--grow));
+  --t-title3: min(28px, 20px + 1.086 * var(--grow));
+  --t-headline: min(23.8px, 17px + 0.923 * var(--grow));
+  --t-body: min(23.8px, 17px + 0.923 * var(--grow));
+  --t-subhead: min(21px, 15px + 0.815 * var(--grow));
+  --t-footnote: min(18.2px, 13px + 0.706 * var(--grow));
+  --t-caption: min(16.8px, 12px + 0.652 * var(--grow));
+  /* the spacing: --sp between the lines of a card, --pad inside a card */
+  --sp: min(14px, 8px + 0.6 * var(--grow));
+  --pad: min(28px, 14px + 1.4 * var(--grow));
+  font-size: var(--t-body);
+}
+
+/* ---- the styles and who uses them ------------------------------------------ */
+
+/* large: the one number read at a glance (the page answers "will it
+ * rain?": the chance is its only hero) */
+.glance-prob-value { font-size: var(--t-large); line-height: 1.05; font-weight: 700; }
+
+/* title2: each card's one prominent line: the answer (two lines on a
+ * phone), Now's temperature and condition */
+.now-temp, .now-condition { font-size: var(--t-title2); line-height: 1.15; font-weight: 700; }
+.glance-answer { font-size: var(--t-title2); line-height: 1.15; font-weight: 700; }
+
+/* title3: the countdowns */
+.refresh-value { font-size: var(--t-title3); line-height: 1.25; font-weight: 600; }
+
+/* headline: the top bar (the place and the view button: one size), Now's
+ * values, the setup's title */
+.place, #view-toggle, .now-value, .card-head h2 { font-size: var(--t-headline); line-height: 1.3; font-weight: 600; }
+
+/* body: the text */
+.glance-when, .glance-reason, .detail-line, .source-row, .obs-row, .chart-status,
+.now-unavailable, .radar-unavailable, .radar-dry, .accuracy-status, .stations-intro,
+.btn, .setup-intro, .setup input[type="text"], .setup-result, .setup-status,
+.report-title, .report-open-btn, .report-intensity {
+  font-size: var(--t-body); line-height: 1.45;
+}
+
+/* subhead: labels beside values, secondary text */
+.glance-prob-label, .now-label, .chart-legend-item, .radar-max, .setup-label, .obs-meta,
+.accuracy-no-rain, .reports-summary, .map-legend, .outdated, .report-shows, .report-confirm,
+.report-intensity-skip, .report-error {
+  font-size: var(--t-subhead); line-height: 1.4;
+}
+
+/* footnote: the titles of the cards and sections (capitals), the notes */
+.glance-title, .now-title, .chart-title, .details-title, .details-section h3 {
+  font-size: var(--t-footnote); line-height: 1.4; font-weight: 600;
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+.radar-caption, .now-time, .now-station, .chart-unit, .refresh-label, .source-error,
+.accuracy-table, .accuracy-note, .setup-divider, .setup-note, .report-kind-label,
+.report-line-text, .report-undo-btn, .report-when {
+  font-size: var(--t-footnote); line-height: 1.45;
+}
+
+/* caption: the axes and the fine print */
+.radar-labels, .chart-body, .attr, .now-fallback { font-size: var(--t-caption); line-height: 1.4; }
+.chart-svg .axis { font-size: 1em; }

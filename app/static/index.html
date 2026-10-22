@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Local Rain Forecast</title>
   <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="/type.css" />
   <link rel="stylesheet" href="/chart.css" />
   <link rel="stylesheet" href="/details.css" />
   <link rel="stylesheet" href="/kiosk.css" />
@@ -49,7 +50,6 @@
         </svg>
         <div class="brand-text">
           <span class="place" id="location" data-test="location"></span>
-          <p class="place-detail muted" id="location-detail" data-test="location-detail"></p>
         </div>
       </div>
       <div class="actions">
@@ -119,6 +119,9 @@
     <!-- Data: the glance first; Now, chart and details follow -->
     <main id="dashboard">
       <section class="card glance" id="glance">
+        <!-- Every card starts the same way: its title in small capitals,
+             one line in the title2 style, then its content (type.css) -->
+        <p class="glance-title" id="glance-title"></p>
         <h1 class="glance-answer" id="rain-answer" data-test="rain-answer"></h1>
         <p class="glance-when" id="rain-when" data-test="rain-when" hidden></p>
         <!-- What the sky behind the tiles shows, and which source
@@ -210,6 +213,14 @@
            /api/schedule and /api/model-accuracy -->
       <section class="card details" id="details" data-test="details">
         <h2 class="details-title" id="details-title"></h2>
+        <!-- The place in full (the top bar shows only the city): the
+             label's two lines, the coordinates and the time zone; app.js
+             fills it with the bar -->
+        <div class="details-section details-place" data-test="place">
+          <h3 id="place-title"></h3>
+          <p class="detail-line place-label" id="place-label" data-test="place-label"></p>
+          <p class="detail-line muted" id="location-detail" data-test="location-detail"></p>
+        </div>
         <div class="details-body" id="details-body"></div>
       </section>
     </main>

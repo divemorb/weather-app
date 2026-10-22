@@ -204,7 +204,6 @@ def page_content(run: Run):
     pg = run.page()
     if run.name == "accuracy":
         run.add("location", expect_tokens(pg, "location", exp["location"]))
-        run.add("location-detail", expect_tokens(pg, "location-detail", exp["location_detail"]))
         run.add("rain-probability", expect_tokens(pg, "rain-probability", [exp["probability"][run.lang]]))
     else:
         check_common_a(pg, run.name, exp, run.add)
@@ -234,6 +233,9 @@ def page_content(run: Run):
     run.done(pg)
     # the details page (?detailed), light
     pg = run.page(query="?detailed")
+    # the place in full is on the details page (the bar shows the city): the label, the coordinates, the zone
+    run.add("location-detail", expect_tokens(pg, "location-detail", exp["location_detail"])
+            + (expect_tokens(pg, "place-label", exp["place_label"]) if exp.get("place_label") else []))
     check_details(pg, run.name, exp, run.names, run.add)
     if "details-reports-none" in run.names:
         run.add("details-reports-none", report_run.none_problems(pg, run.lang))

@@ -41,7 +41,8 @@ class CDPError(RuntimeError):
 class Browser:
     """A headless Chromium driven over CDP; each page lives in its own context (fresh storage)."""
 
-    def __init__(self, lang: str = "en-US", binary: str = "chromium"):
+    def __init__(self, lang: str = "en-US", binary: str = "chromium", scrollbars: bool = False):
+        """scrollbars: classic scrollbars that take room, as on a desktop (else hidden)."""
         self.profile = tempfile.mkdtemp(prefix="uitest-chromium-")
         to_child_r, self._to_child = os.pipe()
         self._from_child, from_child_w = os.pipe()
@@ -58,7 +59,8 @@ class Browser:
         env = {**os.environ, "TZ": "UTC", "LANG": lang.replace("-", "_") + ".UTF-8",
                "LANGUAGE": lang.replace("-", "_")}
         self.proc = subprocess.Popen(
-            [shutil.which(binary) or binary, *CHROMIUM_FLAGS, f"--lang={lang}",
+            [shutil.which(binary) or binary, *[f for f in CHROMIUM_FLAGS if not scrollbars or f != "--hide-scrollbars"],
+             f"--lang={lang}",
              f"--accept-lang={lang},{lang.split('-')[0]}", f"--user-data-dir={self.profile}", "about:blank"],
             # fds 3 and 4 are kept: CPython closes the others after preexec_fn
             preexec_fn=move_fds, pass_fds=(3, 4), env=env,

@@ -85,20 +85,20 @@ RADAR_DRY = [0.0] * 12
 # "hours_start": first hour of /api/models/24h (UTC).
 SCENARIO = {
     "live": {
-        "location": ["52.520", "13.405"], "location_detail": [TZ], "answer": "dry", "when": "none", "probability": {"en": "0%", "de": "0 %"},
+        "location": ["52.520", "13.405"], "location_detail": ["52.520", "13.405", TZ], "answer": "dry", "when": "none", "probability": {"en": "0%", "de": "0 %"},
         "radar": RADAR_DRY, "radar_start": "2026-09-30T10:25:00Z", "now": True,
         "chart": "dry", "models": LIVE_MODELS, "hours_start": "2026-09-30T10:00:00Z",
         "signals": {"en": ["0 of 6", "0%"], "de": ["0 von 6", "0 %"]}, "source_errors": 0, "accuracy": None,
     },
     "rain": {
-        "location": ["52.520", "13.405"], "location_detail": [TZ], "answer": "likely", "when": "rain", "probability": {"en": "75%", "de": "75 %"},
+        "location": ["52.520", "13.405"], "location_detail": ["52.520", "13.405", TZ], "answer": "likely", "when": "rain", "probability": {"en": "75%", "de": "75 %"},
         "radar": RADAR_RAIN, "radar_start": "2026-09-30T10:50:00Z", "now": True,
         "chart": "lines", "models": RAIN_MODELS, "hours_start": "2026-09-30T10:00:00Z",
         "y_labels": ["0", "1", "2", "3"],  # niceScale(2.5): AROME's 2.5 mm is the maximum
         "signals": {"en": ["3 of 5", "35%"], "de": ["3 von 5", "35 %"]}, "source_errors": 0, "accuracy": None,
     },
     "errors": {
-        "location": ["52.520", "13.405"], "location_detail": [TZ], "answer": "nodata", "when": None, "probability": None,
+        "location": ["52.520", "13.405"], "location_detail": ["52.520", "13.405", TZ], "answer": "nodata", "when": None, "probability": None,
         "radar": None, "now": False, "chart": "unavailable", "signals": None, "source_errors": 4, "accuracy": None,
     },
     "accuracy": {
@@ -127,6 +127,7 @@ ATTRIBUTION_LINKS = ["dwd.de", "brightsky.dev", "open-meteo.com", "openstreetmap
 # lines, "road number" / "postcode city", built from Nominatim's address (not display_name).
 WIZARD_RESULTS = ["Alexanderplatz\nBerlin", "Dircksenstraße 2\n10179 Berlin", "Alexanderplatz\n10178 Berlin"]
 WIZARD_LABEL = ["Alexanderplatz", "Berlin"]
+WIZARD_CITY = "Berlin"  # the top bar shows the label's last line without a postcode
 WIZARD_SELECTED = "Alexanderplatz, Berlin"  # in a sentence the lines are joined by ", "
 WIZARD_DETAIL = ["52.522", "13.414", TZ]
 # The wizard's edge-path status lines (i18n.js: setup.status.*), each in its error state
@@ -164,7 +165,6 @@ MAP_BEARING_TOLERANCE = 20  # degrees
 # Samples where the big view fits one screen (a wall display, a TV, a tablet upright and
 # lying); every other size is the responsive sweep's (responsive.py).
 KIOSK_SIZES = [(1280, 800), (1920, 1080), (1032, 1280), (1376, 940)]
-KIOSK_MIN_FONT = {"rain-answer": 28, "now-temp": 40}
 CONFIG_RETRY_S = 20  # a failed /api/config at startup: the page has retried and shows the forecast by then
 BUDGET_BYTES = 300 * 1024  # the user, 2026-10-04 (was 150 KB); up to 512 KB if the glass effect needs it
 
@@ -277,14 +277,10 @@ BIG_PHONE = (390, 844)
 BIG_LABEL_GAP = 4  # px between two radar time labels: they must not touch (V2: "12:25 PM2:45 PM" on a phone)
 # The headline in the big view on a phone (the user, 2026-10-05: "max two lines"; V2 had 4-6 lines
 # at 52 px, F1's fixed 24 px left short texts small): at most 2 lines, never below
-# BIG_PHONE_MIN_FONT, and in the compact column as large as fits: at least BIG_HEADLINE_FILL of
-# the largest size up to BIG_HEADLINE_MAX that keeps it to 2 lines. Measured at 308 px text width:
-# 2 lines up to 36 px (English "No rain expected ..."), 44 px (English "Rain likely ..."), 24 px
-# (German "In der nächsten Stunde kein Regen erwartet"), 22 px (German "... wird es wahrscheinlich
-# regnen"): one fixed size can't do it.
+# BIG_PHONE_MIN_FONT; its size is the type scale's title2 (22 px on a phone; the text no longer
+# grows to fill the screen). Measured at 308 px text width: 2 lines up to 22 px for the longest
+# (German "... wird es wahrscheinlich regnen").
 BIG_HEADLINE_LINES = 2
-BIG_HEADLINE_MAX = 40
-BIG_HEADLINE_FILL = 0.9
 BIG_PHONE_MIN_FONT = 20
 BIG_HEADLINE_SIZES = [(390, 844), (360, 740)]
 TRACK_CONTRAST = 1.5  # an empty radar track against the glass right above it (V2 light: 1.17, #e9ecf1 on #fdfefe)

@@ -25,13 +25,16 @@ try {
 
 const button = document.getElementById("view-toggle");
 
-// the view on <html data-view>, the kiosk class and the button's word
+// the view on <html data-view>, the kiosk class and the button's words
 function setView(view) {
   root.dataset.view = view;
   root.classList.toggle("kiosk", view === "big");
   // The visible text is the accessible name (WCAG 2.5.3): it says where
   // a click goes, "Details" / "Big view" (de "Details" / "Große Ansicht").
-  button.textContent = t(lang, view === "big" ? "view.to-detailed" : "view.to-big");
+  // The other word only sizes the button (style.css), so its width stays.
+  const [go, other] = view === "big" ? ["view.to-detailed", "view.to-big"] : ["view.to-big", "view.to-detailed"];
+  button.textContent = t(lang, go);
+  button.dataset.alt = t(lang, other);
   /* The big view fits its window (fit.js); the detailed one drops the fit. */
   scheduleFit();
 }

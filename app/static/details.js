@@ -117,6 +117,7 @@ export function initDetails(l, loc, opts) {
   locale = loc || "en-US";
   onReload = (opts && opts.onReload) || (() => {});
   els.title.textContent = t(lang, "details.title");
+  document.getElementById("place-title").textContent = t(lang, "details.place");
   setInterval(tick, 1000);
 }
 

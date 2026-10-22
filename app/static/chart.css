@@ -10,23 +10,23 @@
 
 .chart-title {
   margin: 0;
-  font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
+  font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--muted);
 }
 
 .chart-unit {
-  font-size: 13px; color: var(--muted);
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
 
-.chart-status { margin: 4px 0 0; font-size: 15px; color: var(--muted); }
+.chart-status { margin: 4px 0 0; color: var(--muted); }
 
 /* Scales to the card; the viewBox matches the pixel width, so the text
  * inside is not scaled. */
 .chart-svg { display: block; width: 100%; height: auto; }
 
 .chart-svg .grid { stroke: var(--border); }
-.chart-svg .axis { fill: var(--muted); font-size: 12px; }
+.chart-svg .axis { fill: var(--muted); }
 .chart-svg .line {
   fill: none; stroke-width: 2;
   stroke-linecap: round; stroke-linejoin: round;
@@ -37,6 +37,6 @@
   display: flex; flex-wrap: wrap; gap: 8px 18px;
 }
 
-.chart-legend-item { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+.chart-legend-item { display: flex; align-items: center; gap: 7px; }
 
 .chart-swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }

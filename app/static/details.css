@@ -14,9 +14,16 @@
 .details-title {
   margin: 0;
   padding-bottom: 12px;
-  font-size: 15px; font-weight: 600; letter-spacing: -0.01em;
+  font-weight: 600; letter-spacing: -0.01em;
   color: var(--text);
 }
+
+/* The place in full (the top bar shows only the city): the label's two
+ * lines ("road number" / "postcode city", REQ_LOC_5) as written, then the
+ * coordinates and the time zone. */
+.details-place { padding-bottom: 14px; }
+.place-label { margin: 0; white-space: pre-line; overflow-wrap: break-word; }
+.place-label:empty { display: none; }
 
 /* One constrained column: an implicit auto column would grow to the
  * accuracy table's min-content width and push the card's content out. */
@@ -30,14 +37,14 @@
 
 .details-section h3 {
   margin: 0 0 10px;
-  font-size: 12px; font-weight: 600;
+  font-weight: 600;
   letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--muted);
 }
 
 .detail-line {
   margin: 0 0 8px;
-  font-size: 14px; line-height: 1.5;
+  line-height: 1.5;
   font-variant-numeric: tabular-nums;
   overflow-wrap: break-word;
 }
@@ -58,14 +65,14 @@
 
 .refresh-value {
   display: block;
-  font-size: 20px; line-height: 1.2; font-weight: 700;
+  line-height: 1.2; font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .refresh-label {
   display: block;
   margin-top: 2px;
-  font-size: 12px; line-height: 1.4;
+  line-height: 1.4;
   color: var(--muted);
 }
 
@@ -84,7 +91,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
   column-gap: 12px;
-  font-size: 14px; line-height: 1.45;
+  line-height: 1.45;
 }
 
 .source-what { min-width: 0; overflow-wrap: break-word; }
@@ -102,7 +109,7 @@
 .source-error {
   grid-column: 1 / -1;
   margin: 3px 0 0;
-  font-size: 12px; line-height: 1.45;
+  line-height: 1.45;
   color: var(--bad);
   overflow-wrap: break-word;
 }
@@ -118,7 +125,6 @@
   width: 100%;
   min-width: 520px;
   border-collapse: collapse;
-  font-size: 12px;
 }
 
 .accuracy-table th,
@@ -131,7 +137,7 @@
 }
 
 .accuracy-table thead th {
-  font-size: 12px; font-weight: 600;
+  font-weight: 600;
   color: var(--muted);
 }
 
@@ -142,23 +148,23 @@
 
 .accuracy-table tr.low td { color: var(--muted); }
 
-.accuracy-status { margin: 0; font-size: 14px; color: var(--muted); }
+.accuracy-status { margin: 0; color: var(--muted); }
 
 .accuracy-no-rain {
   margin: 0 0 10px;
-  font-size: 13px; line-height: 1.5;
+  line-height: 1.5;
   color: var(--muted);
 }
 
 .accuracy-note {
   margin: 12px 0 0;
-  font-size: 12px; line-height: 1.55;
+  line-height: 1.55;
   color: var(--muted);
 }
 
 .reports-summary {
   margin: 0 0 10px;
-  font-size: 13px; line-height: 1.5;
+  line-height: 1.5;
   font-variant-numeric: tabular-nums;
 }
 
@@ -179,7 +185,7 @@
   justify-content: space-between;
   align-items: baseline;
   column-gap: 12px;
-  font-size: 14px; line-height: 1.45;
+  line-height: 1.45;
   overflow-wrap: break-word;
 }
 
@@ -189,7 +195,7 @@
   white-space: nowrap;
 }
 
-.stations-intro { margin: 0 0 10px; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.stations-intro { margin: 0 0 10px; line-height: 1.5; color: var(--muted); }
 
 /* The list and the map side by side when the section has the room. */
 .stations-body {
@@ -212,7 +218,7 @@
 .map-legend {
   list-style: none; margin: 8px auto 0; padding: 0; max-width: 340px;
   display: flex; flex-wrap: wrap; gap: 4px 16px;
-  font-size: 13px; line-height: 1.45; color: var(--muted);
+  line-height: 1.45; color: var(--muted);
 }
 .map-legend li { display: flex; align-items: center; gap: 6px; }
 .legend-sym { flex: none; width: 12px; height: 12px; border-radius: 50%; }
@@ -239,8 +245,10 @@
 }
 
 /* The details page uses a wide window, up to a reading width: the short
- * sections side by side, the wide ones (a table, the stations) across. */
-html[data-view="detailed"] .wrap { max-width: 75rem; }
+ * sections side by side, the wide ones (a table, the stations) across.
+ * The width is the content's, centred: the top bar and the footer keep
+ * the window's width, as in the big view. */
+html[data-view="detailed"] .wrap > :is(#dashboard, .setup) { width: 100%; max-width: 75rem; margin-inline: auto; }
 .details-body { grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); }
 /* a wide table scrolls in its box: it never widens a section, the card or the page */
 .details, .details-body > * { min-width: 0; }

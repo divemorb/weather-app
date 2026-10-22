@@ -803,7 +803,7 @@
    "edits": [
     {
      "file": "kiosk.css",
-     "find": "html.kiosk { overflow-x: hidden; overflow-y: auto; }",
+     "find": "html.kiosk { overflow-x: hidden; }",
      "replace": "html.kiosk { overflow: hidden; }"
     }
    ],
@@ -822,12 +822,12 @@
   },
   {
    "name": "token-unbounded",
-   "why": "a type token without its floor and cap: small text shrinks below 12 px",
+   "why": "a type token without its floor and cap: the caption shrinks below 12 px on a phone",
    "edits": [
     {
-     "file": "kiosk.css",
-     "find": "--fs-small: clamp(12px, 1.9 * var(--u), 26px);",
-     "replace": "--fs-small: calc(1.9 * var(--u));"
+     "file": "type.css",
+     "find": "  --t-caption: min(16.8px, 12px + 0.652 * var(--grow));",
+     "replace": "  --t-caption: calc(2.6 * var(--win));"
     }
    ],
    "scenario": [
@@ -867,13 +867,13 @@
    ]
   },
   {
-   "name": "headline-three-lines",
-   "why": "the compact headline is fitted to three lines instead of two (the user's rule: at most two on a phone)",
+   "name": "answer-too-large",
+   "why": "the answer in the largest style: three lines on a phone (the user's rule: at most two)",
    "edits": [
     {
-     "file": "fit.js",
-     "find": "const HEAD_MAX = 40, HEAD_MIN = 20, HEAD_LINES = 2;",
-     "replace": "const HEAD_MAX = 40, HEAD_MIN = 20, HEAD_LINES = 3;"
+     "file": "type.css",
+     "find": ".glance-answer { font-size: var(--t-title2);",
+     "replace": ".glance-answer { font-size: var(--t-large);"
     }
    ],
    "scenario": [
@@ -890,13 +890,12 @@
    ]
   },
   {
-   "name": "headline-not-fitted",
-   "why": "the compact headline stops at 24 px although a larger size still fits in two lines",
+   "name": "type-off-scale",
+   "why": "a part sized in px again, off the type scale",
    "edits": [
     {
-     "file": "fit.js",
-     "find": "const HEAD_MAX = 40, HEAD_MIN = 20, HEAD_LINES = 2;",
-     "replace": "const HEAD_MAX = 24, HEAD_MIN = 20, HEAD_LINES = 2;"
+     "file": "details.css",
+     "append": "\n.source-row { font-size: 14px; }\n"
     }
    ],
    "scenario": [
@@ -906,10 +905,10 @@
     "en"
    ],
    "only": [
-    "rain/en/big-headline"
+    "rain/en/responsive-details"
    ],
    "must_fail": [
-    "rain/en/big-headline"
+    "rain/en/responsive-details"
    ]
   },
   {
@@ -933,29 +932,6 @@
    ],
    "must_fail": [
     "rain/en/responsive-big"
-   ]
-  },
-  {
-   "name": "picker-no-room",
-   "why": "the open report picker keeps no room: a short card cuts its buttons' labels",
-   "edits": [
-    {
-     "file": "report.js",
-     "find": "  if (host.style.minHeight !== need + \"px\") host.style.minHeight = need + \"px\";",
-     "replace": "  // fault: the picker's room is not kept"
-    }
-   ],
-   "scenario": [
-    "report"
-   ],
-   "lang": [
-    "en"
-   ],
-   "only": [
-    "report/en/responsive-picker"
-   ],
-   "must_fail": [
-    "report/en/responsive-picker"
    ]
   },
   {
@@ -987,8 +963,8 @@
    "edits": [
     {
      "file": "details.css",
-     "find": "html[data-view=\"detailed\"] .wrap { max-width: 75rem; }",
-     "replace": "html[data-view=\"detailed\"] .wrap { max-width: 45rem; }"
+     "find": "{ width: 100%; max-width: 75rem; margin-inline: auto; }",
+     "replace": "{ width: 100%; max-width: 45rem; margin-inline: auto; }"
     }
    ],
    "scenario": [

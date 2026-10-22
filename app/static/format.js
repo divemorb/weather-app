@@ -114,25 +114,30 @@ export function windDir(deg, lang) {
   return pts[((Math.round(deg / 45) % 8) + 8) % 8];
 }
 
-/* The header's place line: the label, else the coordinates to three
- * decimals; "" without a location (the page shows its own text). */
-export function locationText(location) {
-  if (!location) return "";
-  if (location.label) return location.label;
+// the coordinates to three decimals, "" when they aren't numbers
+function coords(location) {
   if (!validNumber(location.latitude) || !validNumber(location.longitude)) return "";
   return `${location.latitude.toFixed(3)}, ${location.longitude.toFixed(3)}`;
 }
 
-/* The muted line under the place: the time zone, and — when the place
- * shows a label — the coordinates before it; "" without a location. */
+/* The top bar's place: the city — the label's last line ("Postcode
+ * City", REQ_LOC_5) without the postcode (its leading parts with a
+ * digit) — else the coordinates; "" without a location (the page shows
+ * its own text). */
+export function locationText(location) {
+  if (!location) return "";
+  if (location.label) {
+    const last = location.label.split("\n").map((s) => s.trim()).filter(Boolean).pop() || "";
+    return last.replace(/^(\S*\d\S*\s+)+/, "") || last;
+  }
+  return coords(location);
+}
+
+/* The details page's line under the full label: the coordinates and the
+ * time zone; "" without a location. */
 export function locationDetail(location) {
   if (!location) return "";
-  const parts = [];
-  if (location.label && validNumber(location.latitude) && validNumber(location.longitude)) {
-    parts.push(`${location.latitude.toFixed(3)}, ${location.longitude.toFixed(3)}`);
-  }
-  if (location.timezone) parts.push(location.timezone);
-  return parts.join(" · ");
+  return [coords(location), location.timezone || ""].filter(Boolean).join(" · ");
 }
 
 /* The station's offset from the location, flat approximation (exact enough

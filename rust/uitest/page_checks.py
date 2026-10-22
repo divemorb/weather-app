@@ -10,7 +10,7 @@ import re
 import time
 
 from expect import (ACCURACY_HEAD, ANSWER, ATTRIBUTION_LINKS, CONTRAST_MOMENTS, CONTRAST_PCT,
-                    FIXED, KIOSK_MIN_FONT, MODEL_LABELS, NOW, RADAR_CAPTION, SOURCE_KIND, SOURCES,
+                    FIXED, MODEL_LABELS, NOW, RADAR_CAPTION, SOURCE_KIND, SOURCES,
                     WEIGHTS, WHEN)
 from page import (Run, UIPage, expect_hidden, expect_text, expect_tokens, fmt_mm, has, norm,
                   observation_station_problems, station_map_problems, visible_one)
@@ -43,7 +43,6 @@ def check_common_a(pg: UIPage, sc: str, exp: dict, add):
     add("lang", [] if info["lang"] == lang else [f'<html lang="{info["lang"]}">, expected "{lang}"'])
     if "location" in exp:
         add("location", expect_tokens(pg, "location", exp["location"]))
-        add("location-detail", expect_tokens(pg, "location-detail", exp["location_detail"]))
     add("theme-light", theme_problems(info, "light"))
     add("contrast-light", contrast_problems(pg))
     add("buttons", pg.js("__ui.controls()"))
@@ -421,10 +420,6 @@ def check_kiosk(pg: UIPage, exp: dict, size, add_kiosk):
                 break
     for spill in pg.js(CONTAINED_JS):
         problems.append(f"{spill} reaches outside its card at {w}x{h}")
-    for hook, px in KIOSK_MIN_FONT.items():
-        els = [e for e in pg.ui(hook) if e["visible"]]
-        if els and els[0]["fontSize"] < px:
-            problems.append(f"[data-test={hook}] font size {els[0]['fontSize']:.0f} px, at least {px} px in the kiosk view")
     if any(e["visible"] for e in pg.ui("details")):
         problems.append("[data-test=details] is visible: the kiosk view leaves out the technical details")
     add_kiosk(f"kiosk-{w}x{h}", problems)

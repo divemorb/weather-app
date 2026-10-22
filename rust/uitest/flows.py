@@ -6,12 +6,12 @@ from __future__ import annotations
 import re
 import time
 
-from expect import (CONFIG_RETRY_S, WIZARD_DETAIL, WIZARD_LABEL, WIZARD_RESULTS,
+from expect import (CONFIG_RETRY_S, WIZARD_CITY, WIZARD_DETAIL, WIZARD_LABEL, WIZARD_RESULTS,
                     WIZARD_SELECTED)
 from edges import (setup_texts_problems, wizard_cancel_problems, wizard_min_length_problems,
                    wizard_search_failed_problems)
 from markup import markup_search
-from page import Run, UIPage, expect_hidden, expect_tokens, visible_one
+from page import Run, UIPage, expect_hidden, expect_text, expect_tokens, visible_one
 from page_checks import theme_problems
 
 def _page_errors(pg: UIPage) -> list[str]:
@@ -148,19 +148,21 @@ def run_wizard(run: Run):
         time.sleep(0.2)
         pg.p.pump()
     problems += visible_one(pg, "rain-answer")[1] + expect_hidden(pg, "setup")
-    problems += expect_tokens(pg, "location", ["Alexanderplatz"])
+    problems += expect_text(pg, "location", WIZARD_CITY)  # the city only, not the street
     run.add("save", problems)
     run.shot(pg, "after-save")
-    # the saved label is long: at 360 px it shows in full (wrapped, not cut off), coordinates below
-    phone = run.page(width=360, height=740)
-    problems = expect_tokens(phone, "location", WIZARD_LABEL) + phone.js('__ui.clipped("location")')
-    problems += expect_tokens(phone, "location-detail", WIZARD_DETAIL)
+    # the bar shows the city; the details page the saved label in full (wrapped, not cut off), coordinates below
+    phone = run.page(width=360, height=740, query="?detailed")
+    problems = expect_tokens(phone, "location", [WIZARD_CITY]) + expect_tokens(phone, "place-label", WIZARD_LABEL)
+    problems += phone.js('__ui.clipped("place-label")') + expect_tokens(phone, "location-detail", WIZARD_DETAIL)
     info = phone.js("__ui.page()")
     if info["sw"] > 361:
         problems.append(f"page is {info['sw']} px wide at 360 px: {phone.js('__ui.overflowing()')}")
     run.add("location-long", problems)
-    problems = [f"at 360 px: {p}" for p in lines_problems(phone, "location", ["\n".join(WIZARD_LABEL)])]
-    problems += [f"at 1280 px: {p}" for p in lines_problems(pg, "location", ["\n".join(WIZARD_LABEL)])]
+    wide = run.page(query="?detailed")
+    problems = [f"at 360 px: {p}" for p in lines_problems(phone, "place-label", ["\n".join(WIZARD_LABEL)])]
+    problems += [f"at 1280 px: {p}" for p in lines_problems(wide, "place-label", ["\n".join(WIZARD_LABEL)])]
+    run.done(wide)
     run.add("location-lines", problems)
     run.shot(phone, "after-save-phone-360")
     run.done(phone)

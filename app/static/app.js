@@ -34,6 +34,7 @@ const $ = (id) => document.getElementById(id);
  * index.html stays language-neutral. */
 $("location-btn").setAttribute("aria-label", t(lang, "location.aria"));
 $("theme-toggle").setAttribute("aria-label", t(lang, "theme.aria"));
+$("glance-title").textContent = t(lang, "glance.title");
 $("glance-prob-label").textContent = t(lang, "glance.prob-label");
 $("rain-answer").textContent = t(lang, "answer.loading");
 $("chart-title").textContent = t(lang, "chart.title");
@@ -102,11 +103,12 @@ let tz = "UTC";
 /* The last good answer per data endpoint, with the Date.now() ms it
  * arrived (a failed refresh re-shows it, the note names the time). */
 let lastGood = {};
-/* The header's place line and the muted detail under it (the time zone,
- * plus the coordinates when the place shows a label); set everywhere a
+/* The header's place (the city) and the details page's Place section
+ * (the full label, the coordinates and the time zone); set everywhere a
  * location is known — startup, after a save, and the error path. */
 function setPlace(location) {
   $("location").textContent = locationText(location) || t(lang, "location.unset");
+  $("place-label").textContent = (location && location.label) || "";
   $("location-detail").textContent = locationDetail(location);
 }
 
@@ -114,6 +116,7 @@ function setPlace(location) {
  * the app just didn't answer; the page keeps trying (10 s). */
 function setUnreachable() {
   $("location").textContent = t(lang, "location.unreachable");
+  $("place-label").textContent = "";
   $("location-detail").textContent = "";
 }
 
