@@ -1048,6 +1048,206 @@
    "must_fail": [
     "live/de/stations-explained"
    ]
+  },
+  {
+   "name": "topbar-details-padding",
+   "why": "the details page's .wrap keeps its own padding: the top bar moves down",
+   "edits": [
+    {
+     "file": "details.css",
+     "append": "\nhtml[data-view=\"detailed\"] .wrap { padding: 32px 24px 80px; }\n"
+    }
+   ],
+   "scenario": [
+    "live"
+   ],
+   "lang": [
+    "de"
+   ],
+   "only": [
+    "live/de/responsive-topbar"
+   ],
+   "must_fail": [
+    "live/de/responsive-topbar"
+   ]
+  },
+  {
+   "name": "topbar-details-width",
+   "why": "the details page caps .wrap, not its content: the top bar narrows",
+   "edits": [
+    {
+     "file": "details.css",
+     "append": "\nhtml[data-view=\"detailed\"] .wrap { max-width: 75rem; margin-inline: auto; }\n"
+    }
+   ],
+   "scenario": [
+    "live"
+   ],
+   "lang": [
+    "de"
+   ],
+   "only": [
+    "live/de/responsive-topbar"
+   ],
+   "must_fail": [
+    "live/de/responsive-topbar"
+   ]
+  },
+  {
+   "name": "topbar-place-fitted",
+   "why": "the big view sizes the place by the fit (--u): it changes with the view",
+   "edits": [
+    {
+     "file": "kiosk.css",
+     "append": "\nhtml.kiosk .place { font-size: clamp(18px, 2.4 * var(--u), 40px); }\n"
+    }
+   ],
+   "scenario": [
+    "live"
+   ],
+   "lang": [
+    "de"
+   ],
+   "only": [
+    "live/de/responsive-topbar"
+   ],
+   "must_fail": [
+    "live/de/responsive-topbar"
+   ]
+  },
+  {
+   "name": "topbar-buttons-fitted",
+   "why": "the big view sizes the bar's buttons by the fit (--btn)",
+   "edits": [
+    {
+     "file": "kiosk.css",
+     "append": "\nhtml.kiosk .actions .btn { width: var(--btn); height: var(--btn); }\n"
+    }
+   ],
+   "scenario": [
+    "live"
+   ],
+   "lang": [
+    "de"
+   ],
+   "only": [
+    "live/de/responsive-topbar"
+   ],
+   "must_fail": [
+    "live/de/responsive-topbar"
+   ]
+  },
+  {
+   "name": "topbar-one-label",
+   "why": "the view button sized by its shown word only: the buttons beside it move",
+   "edits": [
+    {
+     "file": "style.css",
+     "append": "\n#view-toggle::after { display: none; }\n"
+    }
+   ],
+   "scenario": [
+    "live"
+   ],
+   "lang": [
+    "de"
+   ],
+   "only": [
+    "live/de/responsive-topbar"
+   ],
+   "must_fail": [
+    "live/de/responsive-topbar"
+   ]
+  },
+  {
+   "name": "topbar-scrollbar",
+   "why": "a classic scrollbar only in the view that scrolls: the bar narrows",
+   "edits": [
+    {
+     "file": "type.css",
+     "find": "html { overflow-y: scroll; container-type: inline-size; }",
+     "replace": "html { container-type: inline-size; }"
+    }
+   ],
+   "scenario": [
+    "live"
+   ],
+   "lang": [
+    "de"
+   ],
+   "only": [
+    "live/de/responsive-topbar"
+   ],
+   "must_fail": [
+    "live/de/responsive-topbar"
+   ]
+  },
+  {
+   "name": "type-big-view-scaled",
+   "why": "the big view gives its text its own size: body text differs between the views",
+   "edits": [
+    {
+     "file": "kiosk.css",
+     "append": "\nhtml.kiosk .wrap > * { --t-body: 21px; }\n"
+    }
+   ],
+   "scenario": [
+    "rain"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "rain/en/responsive-big"
+   ],
+   "must_fail": [
+    "rain/en/responsive-big"
+   ]
+  },
+  {
+   "name": "bar-wraps",
+   "why": "the bar's buttons wrap under the place on a narrow window",
+   "edits": [
+    {
+     "file": "style.css",
+     "append": "\n.topbar { flex-wrap: wrap; }\n.brand { flex: 1 1 10em; }\n"
+    }
+   ],
+   "scenario": [
+    "live"
+   ],
+   "lang": [
+    "de"
+   ],
+   "only": [
+    "live/de/responsive-details"
+   ],
+   "must_fail": [
+    "live/de/responsive-details"
+   ]
+  },
+  {
+   "name": "bar-full-label",
+   "why": "the bar shows the whole label (street and postcode), not the city",
+   "edits": [
+    {
+     "file": "format.js",
+     "find": "    return last.replace(/^(\\S*\\d\\S*\\s+)+/, \"\") || last;",
+     "replace": "    return location.label;"
+    }
+   ],
+   "scenario": [
+    "wizard"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "wizard/en/save"
+   ],
+   "must_fail": [
+    "wizard/en/save"
+   ]
   }
  ],
  "gaps": []

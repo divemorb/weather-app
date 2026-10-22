@@ -114,7 +114,10 @@ def main() -> int:
 
     caught = missed = required_missed = 0
     pool = concurrent.futures.ThreadPoolExecutor(max(1, args.jobs))
-    futures = [pool.submit(in_slot, f) for f in faults]
+    # the sweeps (responsive-*, the longest runs) start first, so no long run is left for the end
+    first = sorted(faults, key=lambda f: not any("/responsive-" in c for c in f["only"]))
+    started = {f["name"]: pool.submit(in_slot, f) for f in first}
+    futures = [started[f["name"]] for f in faults]
     for fault, future in zip(faults, futures):  # reported in faults.json order
         try:
             failed, out, secs = future.result()

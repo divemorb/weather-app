@@ -269,6 +269,14 @@ def rain_flow_names() -> list[str]:
     return RAIN_FLOW + ["console", "requests"]
 
 
+def live_flow_names(names: list[str]) -> list[str]:
+    """A live job's second part: the checks recorded after the content pages (the big
+    view at its sizes, the views, the reasons), which load no content page; plus console
+    and requests, as in rain_flow_names."""
+    return [c for c in names if c.startswith(("kiosk-", "reason-", "view-", "big-")) or c == "theme-toggle"] + [
+        "console", "requests"]
+
+
 def _sky_scene_of(check: str) -> str | None:
     """The scene of a sky check (``motion-<scene>``, ``still-<scene>``,
     ``glass-<scene>``, ``contrast-<scene>-<theme>``), or None for the common ones."""
@@ -321,8 +329,8 @@ def build_jobs(args, scenarios: list[str], langs: list[str]) -> tuple[list[dict]
                     jobs.append((JOB_RANK["responsive"], {"scenarios": [name], "langs": [lang], "only": only,
                                                           "tag": check}, [f"{name}/{lang}/{c}" for c in only]))
                 names = [c for c in names if not c.startswith("responsive-")]
-                if name == "rain" and lang == "en":  # the content pages and the flow pages split
-                    flow = rain_flow_names()
+                if name == "rain" and lang == "en" or name == "live":  # the content pages and the flow pages split
+                    flow = rain_flow_names() if name == "rain" else live_flow_names(names)
                     for only, tag in (([c for c in names if c not in flow], "content"), (flow, "flows")):
                         jobs.append((JOB_RANK[name],
                                      {"scenarios": [name], "langs": [lang], "only": only, "tag": tag},
