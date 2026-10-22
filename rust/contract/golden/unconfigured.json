@@ -370,8 +370,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "82062355919b4e488ea29c07292e5c15ad9b5437d00dd58c602ed5b65bd9d60b",
-   "length": 7679
+   "sha256": "0555d33ad75231ef9fc28dacb4ecbc8cd0fad9e09a0ee4803fb3639be869e82e",
+   "length": 7844
   },
   "static/details.js": {
    "status": 200,

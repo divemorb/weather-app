@@ -86,28 +86,32 @@
 /* The feed is the page part the source drives (Radar, Now, Models,
  * Ensemble); two rows can share an upstream, so the upstream's name
  * stays, muted. */
+/* A flex row, not a grid: after a resize WebKit kept the grid's auto
+ * column at the age's old width while the type grew, and the details
+ * body cut the age off. */
 .source-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   column-gap: 12px;
   line-height: 1.45;
 }
 
-.source-what { min-width: 0; overflow-wrap: break-word; }
+.source-what { flex: 1 1 0; min-width: 0; overflow-wrap: break-word; }
 
 .source-name { font-weight: 600; }
 
 .source-upstream { color: var(--muted); }
 
 .source-age {
+  flex: none;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .source-error {
-  grid-column: 1 / -1;
+  flex-basis: 100%;
   margin: 3px 0 0;
   line-height: 1.45;
   color: var(--bad);
