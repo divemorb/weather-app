@@ -154,14 +154,15 @@ html.kiosk .report-open-btn { min-height: 44px; }
 html.kiosk .report-open-btn svg { width: 1.2em; height: 1.2em; }
 /* The cards' title rows are one height (Now's holds the report button),
  * so the cards side by side start their first lines level. */
+/* (the 44 px row centres the title: half its free height is already room under it) */
 html.kiosk :is(.now-title, .glance-title) {
   min-height: 44px; display: flex; align-items: center;
-  margin-bottom: calc(var(--sp) * 0.5);
+  margin-bottom: max(0px, var(--title-gap) - (44px - 1.4 * var(--t-footnote)) / 2);
 }
 html.kiosk .now-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--sp) calc(var(--sp) * 1.6);
-  margin-top: var(--sp);
+  margin-top: var(--title-gap); /* the prominent line (21° Overcast) stands apart from the values */
 }
 @container now (width >= 30em) {
   html.kiosk .now-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -180,7 +181,7 @@ html.kiosk .now-fallback { margin-left: 6px; }
 
 /* ---- the 24 h chart -------------------------------------------------------- */
 
-html.kiosk .chart-head { margin-bottom: var(--sp); }
+html.kiosk .chart-head { margin-bottom: var(--title-gap); }
 html.kiosk .chart-legend { margin-top: var(--sp); gap: calc(var(--sp) * 0.6) calc(var(--sp) * 1.6); }
 /* chart.js reads the axis size from the body */
 

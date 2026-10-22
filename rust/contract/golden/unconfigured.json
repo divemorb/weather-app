@@ -342,8 +342,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "c61cc3e42351c47909fb3dfb01698e6250a567040b9baefcbb1de8479b1e280c",
-   "length": 1221
+   "sha256": "121ac21f159d145cceb8991f80c042857bbcd6e4e4d756d001a8be34b375048a",
+   "length": 1233
   },
   "static/chart.js": {
    "status": 200,
@@ -370,8 +370,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "ec170b359408cb3f29da512fdcca5405f0e3c8a15749b581c67e387f99b7684b",
-   "length": 7147
+   "sha256": "82062355919b4e488ea29c07292e5c15ad9b5437d00dd58c602ed5b65bd9d60b",
+   "length": 7679
   },
   "static/details.js": {
    "status": 200,
@@ -440,8 +440,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "3d358352d9bbffd530d8f0a587bb153864ec6a5b9da51c3f2f0ef9a71d686672",
-   "length": 9079
+   "sha256": "b8adcb5f2e824144961223161296d6a859ae4bdc05bd435d5fbbfc989e252d93",
+   "length": 9294
   },
   "static/now.js": {
    "status": 200,
@@ -496,8 +496,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "cbd90fe448ee6c529b2c5b0c9561cf6ddd81a72580e24483d27c9633208d934c",
-   "length": 13282
+   "sha256": "f2ce9f0594112cf3aad0aabd39735425852d39a1b4ccc56a5084e1de914543b6",
+   "length": 13419
   },
   "static/app.js-revalidate": {
    "status": 304,

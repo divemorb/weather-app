@@ -17,6 +17,7 @@
   --text: #1f2328;
   --muted: #383f48;
   --border: #e0e3e8;
+  --divider: rgb(0 0 0 / 0.14); /* a line between parts of a glass tile */
   --accent: #1e3a8a;      /* the one accent: rain */
   --accent-soft: #e8effc; /* accent tint (selected search result) */
   --track: #b4bdc7;       /* the empty radar track (F3: 1.6:1 on the plain glass) */
@@ -37,6 +38,7 @@
   --text: #e8eaed;
   --muted: #c3cad2;
   --border: #2e333b;
+  --divider: rgb(255 255 255 / 0.18);
   --accent: #9ccaff;
   --accent-soft: #1d2c42;
   --track: #5f6676; /* lighter than the dark glass, 1.7:1 on it: a quiet outline, not a black block */
@@ -290,7 +292,7 @@ button:focus-visible, a:focus-visible {
 /* ---- the Now section: temperature and condition big, the rest quiet ----- */
 
 .now-title, .glance-title {
-  margin: 0 0 14px;
+  margin: 0 0 var(--title-gap);
   font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--muted);
 }
@@ -308,7 +310,7 @@ button:focus-visible, a:focus-visible {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px 20px;
-  margin: 18px 0 0;
+  margin: var(--title-gap) 0 0;
 }
 
 .now-cell { min-width: 0; }

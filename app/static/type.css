@@ -49,6 +49,10 @@ body {
   /* the spacing: --sp between the lines of a card, --pad inside a card */
   --sp: min(14px, 8px + 0.6 * var(--grow));
   --pad: min(28px, 14px + 1.4 * var(--grow));
+  /* the room under every title (a card's, a section's) to its first line */
+  --title-gap: min(26px, 18px + 1.4 * var(--grow));
+  /* the room above a section's title: clearly more than under it */
+  --section-gap: min(44px, 32px + 2.1 * var(--grow));
   font-size: var(--t-body);
 }
 

@@ -13,7 +13,7 @@
 
 .details-title {
   margin: 0;
-  padding-bottom: 12px;
+  padding-bottom: var(--title-gap);
   font-weight: 600; letter-spacing: -0.01em;
   color: var(--text);
 }
@@ -21,7 +21,7 @@
 /* The place in full (the top bar shows only the city): the label's two
  * lines ("road number" / "postcode city", REQ_LOC_5) as written, then the
  * coordinates and the time zone. */
-.details-place { padding-bottom: 14px; }
+.details-place { padding-bottom: var(--section-gap); }
 .place-label { margin: 0; white-space: pre-line; overflow-wrap: break-word; }
 .place-label:empty { display: none; }
 
@@ -30,13 +30,13 @@
 .details-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: 24px;
-  padding-top: 4px;
-  border-top: 1px solid var(--border);
+  gap: var(--section-gap) 24px; /* the columns' gap holds the lines between sections */
+  padding-top: var(--section-gap);
+  border-top: 1px solid var(--divider);
 }
 
 .details-section h3 {
-  margin: 0 0 10px;
+  margin: 0 0 var(--title-gap);
   font-weight: 600;
   letter-spacing: 0.06em; text-transform: uppercase;
   color: var(--muted);
@@ -251,8 +251,16 @@
 .details, .details-body > * { min-width: 0; }
 .details-section:has(table),
 .details-section:has(.stations-body) { grid-column: 1 / -1; }
+/* Sections side by side are sub-tiles: a thin line in the middle of the gap
+ * left of each one. The first section of a row has its line outside the
+ * body, where the body clips it away (so a phone's single column has none). */
+.details-body { overflow-x: clip; }
+.details-body > * { position: relative; }
+.details-body > *::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: -12px;
+  border-left: 1px solid var(--divider);
+}
 
 @media (min-width: 720px) {
   .details { padding: 20px 30px 30px; }
-  .details-title { padding-bottom: 14px; }
 }
