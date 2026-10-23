@@ -1270,6 +1270,28 @@
    "must_fail": [
     "wizard/en/save"
    ]
+  },
+  {
+   "name": "picker-taller",
+   "why": "the open report picker needs more room than its tile: nothing may quietly make the tile taller, the sweep must see the cut-off picker",
+   "edits": [
+    {
+     "file": "report.css",
+     "append": "\n.report-kind { min-height: 90px; }\n"
+    }
+   ],
+   "scenario": [
+    "report"
+   ],
+   "lang": [
+    "en"
+   ],
+   "only": [
+    "report/en/responsive-picker"
+   ],
+   "must_fail": [
+    "report/en/responsive-picker"
+   ]
   }
  ],
  "gaps": []

@@ -22,7 +22,7 @@ function overflows() {
   for (const card of dash.children) {
     if (!card.checkVisibility()) continue;
     if (card.scrollHeight > card.clientHeight + 1 || card.scrollWidth > card.clientWidth + 1) return true;
-    // a card held taller than its row (the open report picker) reaches past the grid
+    // a card taller than its row reaches past the grid
     if (card.getBoundingClientRect().bottom > bottom + 1) return true;
   }
   return false;
