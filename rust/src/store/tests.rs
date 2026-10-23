@@ -6,13 +6,12 @@
 
 use super::*;
 use rusqlite::OptionalExtension;
-use serde_json::json;
 
 /// Current schema version (tracked in `app_meta`).
 const SCHEMA_VERSION: &str = "3";
 
 /// One `forecast_history` row.
-fn row(model: &str, issued_at: &str, valid_from: &str, precip_mm: f64) -> HistoryRow {
+pub(super) fn row(model: &str, issued_at: &str, valid_from: &str, precip_mm: f64) -> HistoryRow {
     HistoryRow {
         model: model.to_string(),
         issued_at: issued_at.to_string(),
@@ -24,7 +23,7 @@ fn row(model: &str, issued_at: &str, valid_from: &str, precip_mm: f64) -> Histor
 
 /// All forecast_history rows in stable order
 /// `(model, issued_at, valid_from, valid_to, precip_mm, observed_mm)`.
-fn rows(store: &Store) -> Vec<(String, String, String, String, f64, Option<f64>)> {
+pub(super) fn rows(store: &Store) -> Vec<(String, String, String, String, f64, Option<f64>)> {
     let conn = store.lock_for_tests();
     let mut stmt = conn
         .prepare(
@@ -48,14 +47,15 @@ fn rows(store: &Store) -> Vec<(String, String, String, String, f64, Option<f64>)
 }
 
 /// The test fixture: a fresh on-disk database in a temp dir.
-fn fresh_store() -> (tempfile::TempDir, Store) {
+pub(super) fn fresh_store() -> (tempfile::TempDir, Store) {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("weather.db");
     let store = Store::open(&db.to_string_lossy()).unwrap();
     (dir, store)
 }
 
-fn db_path(dir: &tempfile::TempDir) -> String {
+/// The database file in `dir` (the one `fresh_store` opens).
+pub(super) fn db_path(dir: &tempfile::TempDir) -> String {
     dir.path().join("weather.db").to_string_lossy().into_owned()
 }
 
@@ -251,87 +251,6 @@ fn migrates_old_db_once() {
 
     let store = Store::open(&db).unwrap();
     assert_eq!(rows(&store).len(), 1);
-}
-
-// app meta + location data clearing
-
-#[test]
-fn meta_round_trip_and_missing_key() {
-    let (_dir, store) = fresh_store();
-    assert_eq!(store.get_meta("location").unwrap(), None);
-    store.set_meta("location", "{\"latitude\": 52.0}").unwrap();
-    assert_eq!(
-        store.get_meta("location").unwrap().as_deref(),
-        Some("{\"latitude\": 52.0}")
-    );
-    store.set_meta("location", "{\"latitude\": 52.52}").unwrap();
-    assert_eq!(
-        store.get_meta("location").unwrap().as_deref(),
-        Some("{\"latitude\": 52.52}")
-    );
-}
-
-#[test]
-fn meta_persists_across_connections() {
-    let dir = tempfile::tempdir().unwrap();
-    let db = db_path(&dir);
-    {
-        let store = Store::open(&db).unwrap();
-        store
-            .set_meta("location", "{\"latitude\": 52.0, \"longitude\": 13.0}")
-            .unwrap();
-    }
-    let store = Store::open(&db).unwrap();
-    assert_eq!(
-        store.get_meta("location").unwrap().as_deref(),
-        Some("{\"latitude\": 52.0, \"longitude\": 13.0}")
-    );
-}
-
-#[test]
-fn clear_location_data_wipes_cache_and_history_only() {
-    let (_dir, store) = fresh_store();
-    let now = times::parse_iso("2025-01-01T12:00:00Z").unwrap();
-    store
-        .put_cache(Source::Radar, &json!({"radar": []}), now)
-        .unwrap();
-    store
-        .put_cache(Source::Current, &json!({"weather": {}}), now)
-        .unwrap();
-    store
-        .add_forecasts(&[
-            row(
-                "icon_d2",
-                "2025-01-01T11:00:00Z",
-                "2025-01-01T12:00:00Z",
-                0.5,
-            ),
-            row(
-                "icon_eu",
-                "2025-01-01T11:00:00Z",
-                "2025-01-01T12:00:00Z",
-                0.2,
-            ),
-        ])
-        .unwrap();
-    store.set_observation("2025-01-01T12:00:00Z", 0.3).unwrap();
-    store
-        .set_meta("location", "{\"latitude\": 52.0, \"longitude\": 13.0}")
-        .unwrap();
-
-    store.clear_location_data().unwrap();
-
-    assert!(store.get_cache(Source::Radar, now).unwrap().is_none());
-    assert!(store.get_cache(Source::Current, now).unwrap().is_none());
-    assert_eq!(
-        rows(&store),
-        &[] as &[(String, String, String, String, f64, Option<f64>)]
-    );
-    // the stored location itself must survive a location change
-    assert_eq!(
-        store.get_meta("location").unwrap().as_deref(),
-        Some("{\"latitude\": 52.0, \"longitude\": 13.0}")
-    );
 }
 
 #[test]

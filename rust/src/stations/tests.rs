@@ -216,7 +216,8 @@ fn alex_mosmix() -> Value {
     })
 }
 
-fn later() -> DateTime<Utc> {
+/// The time after the mixed payload's records (one Müggelsee record lies after it).
+pub(super) fn later() -> DateTime<Utc> {
     DateTime::parse_from_rfc3339("2025-01-01T15:00:00Z")
         .unwrap()
         .with_timezone(&Utc)
@@ -225,7 +226,7 @@ fn later() -> DateTime<Utc> {
 /// The mixed-source records: Friedrichshain (2 h, one without precipitation),
 /// Tempelhof (3 h), MOSMIX (never an observation), Müggelsee (2 h, one after
 /// `later()`), one unknown source.
-fn mixed_payload() -> Value {
+pub(super) fn mixed_payload() -> Value {
     let records = [
         record("09:00", 312_070, Some(0.0)),
         record("10:00", 312_070, Some(0.5)),
@@ -351,71 +352,4 @@ fn observation_stations_duplicate_id_later_entry_wins() {
     assert_eq!(stations[0].name.as_deref(), Some("Second"));
     assert_eq!(stations[0].distance_m, Some(json!(200.0)));
     assert_eq!(stations[0].hours, 1);
-}
-
-// the canonical JSON
-
-#[test]
-fn stations_to_json_is_python_canonical() {
-    let stations = observation_stations(&mixed_payload(), later());
-    assert_eq!(
-        stations_to_json(&stations),
-        r#"[{"distance_m":1860.0,"dwd_station_id":"17473","hours":2,"lat":52.51,"lon":13.427,"name":"Berlin-Friedrichshain/Spree"},{"distance_m":5576.0,"dwd_station_id":"00433","hours":3,"lat":52.47,"lon":13.4,"name":"BERLIN-TEMPELHOF"},{"distance_m":17000.0,"dwd_station_id":"00410","hours":1,"lat":52.44,"lon":13.65,"name":"Berlin-Müggelsee"}]"#
-    );
-}
-
-#[test]
-fn stations_roundtrip_through_the_stored_value() {
-    let stations = observation_stations(&mixed_payload(), later());
-    let stored = stations_to_json(&stations);
-    assert_eq!(stations_from_json(Some(&stored)), stations);
-    assert_eq!(stations_from_json(Some("[]")), []);
-    assert_eq!(stations_from_json(None), []);
-}
-
-#[test]
-fn stations_from_json_broken_value_reads_empty() {
-    for bad in [
-        "{not json",
-        "null",
-        "\"[]\"",
-        "{}",
-        "[1, 2]",
-        "[[]]",
-        "[{}]", // no hours
-        r#"[{"name": "S", "distance_m": 1.0, "lat": 52.0, "lon": 13.0, "dwd_station_id": "1", "hours": -1}]"#,
-        r#"[{"name": "S", "distance_m": 1.0, "lat": 52.0, "lon": 13.0, "dwd_station_id": "1", "hours": 1.5}]"#,
-        r#"[{"name": "S", "distance_m": 1.0, "lat": 52.0, "lon": 13.0, "dwd_station_id": "1", "hours": true}]"#,
-        r#"[{"name": 7, "distance_m": 1.0, "lat": 52.0, "lon": 13.0, "dwd_station_id": "1", "hours": 1}]"#,
-        r#"[{"name": "S", "distance_m": "far", "lat": 52.0, "lon": 13.0, "dwd_station_id": "1", "hours": 1}]"#,
-        r#"[{"name": "S", "distance_m": 1.0, "lat": 52.0, "lon": 13.0, "dwd_station_id": 1, "hours": 1}]"#,
-    ] {
-        assert!(
-            stations_from_json(Some(bad)).is_empty(),
-            "must read as []: {bad}"
-        );
-    }
-}
-
-#[test]
-fn stations_from_json_missing_optional_keys_are_null() {
-    let stored = r#"[{"name": "S", "hours": 3}]"#;
-    let stations = stations_from_json(Some(stored));
-    assert_eq!(
-        stations,
-        vec![ObsStation {
-            name: Some("S".to_string()),
-            distance_m: None,
-            lat: None,
-            lon: None,
-            dwd_station_id: None,
-            hours: 3,
-        }]
-    );
-    // an int distance stays an int in the entry we serve
-    let stored = r#"[{"name": "S", "distance_m": 100, "hours": 1}]"#;
-    assert_eq!(
-        stations_from_json(Some(stored))[0].distance_m,
-        Some(json!(100))
-    );
 }

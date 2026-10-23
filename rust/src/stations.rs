@@ -385,4 +385,7 @@ pub fn fallback_entry_json(e: &FallbackEntry) -> Value {
 }
 
 #[cfg(test)]
+mod json_tests;
+
+#[cfg(test)]
 mod tests;

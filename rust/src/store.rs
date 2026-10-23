@@ -393,5 +393,8 @@ fn schema_version(stored: StoredVersion) -> i64 {
 pub use reports::{ReportRow, ScoredRow};
 
 mod reports;
+
+#[cfg(test)]
+mod meta_tests;
 #[cfg(test)]
 mod tests;
