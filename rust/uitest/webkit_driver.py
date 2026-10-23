@@ -45,6 +45,7 @@ WEBKIT_SKIP = {
     "*-390": "window is at least 447 px wide, no phone view",
     "overflow-360": "window is at least 447 px wide, no phone view",
     "details-fit": "window is at least 447 px wide, no phone view",
+    "details-reports-fit": "window is at least 447 px wide, no phone view",
     "view-phone": "window is at least 447 px wide, no phone view",
     "view-details-only": "window is at least 447 px wide, no phone view",
     # its 390 px (phone) part asserts the page is no wider than 390 px; at the

@@ -216,5 +216,7 @@ def run_save(run: Run):
     save_intensity(run, "report-intensity", ("report-intensity", {"intensity": "heavy"}), "heavy")
     save_intensity(run, "report-skip", ("report-intensity-skip", {}), None)
     save_confirm(run)
-    save_error(run)
-    save_fresh(run)
+    if "report-error" in run.names:
+        save_error(run)
+    if "report-line-fresh" in run.names:
+        save_fresh(run)
