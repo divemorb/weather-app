@@ -1,6 +1,6 @@
 /* sky.css — the animated sky: one fixed layer ([data-test=sky], the
  * first child of <body>) paints the current weather behind the tiles —
- * app.js names the scene on <html data-scene> (format.js scene()) and
+ * app.js names the scene on <html data-scene> (scene.js scene()) and
  * sky.js fills the particle containers. body is transparent, so the
  * layer (z-index -1) shows between html's opaque page colour (theme
  * checks read the background from body up to html) and the tiles; the

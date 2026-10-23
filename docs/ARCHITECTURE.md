@@ -100,7 +100,7 @@ The upstreams timestamp precipitation differently; the backend normalizes everyt
 
 The background behind the tiles shows the current weather as an animated scene (REQ_SKY_1). `index.html` holds the fixed `.sky` layer (the first child of `<body>`, behind everything, `pointer-events: none`); the header, the footer and the setup card keep an opaque card background, the data tiles are glass so the sky shows through them (REQ_SKY_4). `app.js` names the scene on `<html data-scene>` on every refresh; `sky.css` paints one gradient per scene per theme and animates the particles; `sky.js` fills the particle containers once at startup (stars, wind streaks, rain drops, snow flakes, hail stones, the clouds and the sun, moon and lightning bolt in the markup) with random positions and timings. All motion sits under `prefers-reduced-motion: no-preference`; with reduced motion the sky is a still picture (REQ_SKY_5).
 
-The scene is decided by `sceneReason()` in `format.js` (pure; the UI tests run it in Node). It looks at two inputs from the API: the station's icon (`/api/now` conditions icon — one of Bright Sky's twelve) and the radar at the place right now (the first five-minute step of `/api/radar/next-hour`). The rules:
+The scene is decided by `sceneReason()` in `scene.js` (pure; the UI tests run it in Node). It looks at two inputs from the API: the station's icon (`/api/now` conditions icon — one of Bright Sky's twelve) and the radar at the place right now (the first five-minute step of `/api/radar/next-hour`). The rules:
 
 - Rain on the radar overrides a dry icon: a wet first step shows "heavy-rain" at 0.2 mm or more per step, "rain" below (REQ_SKY_2). It does not override sleet, snow, hail or a thunderstorm: the radar can't tell snow from rain, so those icons stay while it rains.
 - A dry radar beats a wet station: the station's rain, sleet, snow or hail icon becomes "cloudy", because the station can be kilometres away and the radar measures at the place itself (rule B, REQ_SKY_3). A thunderstorm stays a thunderstorm even with a dry radar — it can arrive fast (REQ_SKY_3).
@@ -183,7 +183,9 @@ app/
     reportdetails.js      #   the Details' "Against your reports" section
     setup.js              #   the location wizard
     api.js                #   the page's fetch helpers
-    format.js             #   pure formatting: numbers, times, the scene
+    format.js             #   pure formatting: numbers, times, the place's lines
+    scene.js              #   which sky scene shows, and what decided it (pure)
+    stations.js           #   the observation stations: offsets, one mark per station (pure)
     i18n.js               #   the page's texts, English and German
     i18n-report.js        #   the report's texts, English and German
     style.css             #   tokens, themes, cards, tiles

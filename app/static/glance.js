@@ -7,7 +7,8 @@
  * start_utc) or no radar shows the "unavailable" line instead of the
  * strip.
  */
-import { DASH, fmtMm, fmtNumber, fmtPercent, fmtTime, rainAnswer, sceneReason } from "./format.js";
+import { DASH, fmtMm, fmtNumber, fmtPercent, fmtTime, rainAnswer } from "./format.js";
+import { sceneReason } from "./scene.js";
 import { t } from "./i18n.js";
 
 const els = {

@@ -328,8 +328,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "9b19866ccad6ad209ac5840e39977d884c6d257e24e6f746d19b144c62d4c491",
-   "length": 13289
+   "sha256": "a40962bb1cbefdb9a082f3aa1a8798220e5a19b08033a581b6c38758b45a0ddd",
+   "length": 13317
   },
   "static/chart.css": {
    "status": 200,
@@ -398,8 +398,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "daccdb887a1669ec7f57bf7d4637f33a811aef031d0131a7a6c55b80fa42c54a",
-   "length": 17636
+   "sha256": "6ec29335f629db15ca10c73464fb02e7b461227ddfc196ac5e041c8509287f7d",
+   "length": 11571
   },
   "static/glance.js": {
    "status": 200,
@@ -412,8 +412,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "77f72ab267e9baf9e3ba6fac73896d6f6e7d65411b8fda9f57be0ce5ba012335",
-   "length": 6958
+   "sha256": "ba474b2c331d8478c22df476a74c26bf51142d315dcff07a075033a1a4c1e825",
+   "length": 6987
   },
   "static/i18n.js": {
    "status": 200,
@@ -482,8 +482,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "91c7b07056843811d07ccc3781dc387829509752b6656a8148b257ee0664a9ed",
-   "length": 10807
+   "sha256": "221cda116095afca9d4fd8d14b223b3d7549359a088761282fcef7b51c747a83",
+   "length": 10839
   },
   "static/style.css": {
    "status": 200,

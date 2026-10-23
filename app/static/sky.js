@@ -1,7 +1,7 @@
 /* sky.js — the animated sky's particles.
  *
  * The sky layer ([data-test=sky], index.html) shows the scene named on
- * <html data-scene> (app.js, from format.js scene()). The static parts
+ * <html data-scene> (app.js, from scene.js scene()). The static parts
  * (sun, moon, clouds, fog, lightning) are in the markup; the many small
  * parts — stars, wind streaks, raindrops, snowflakes, hailstones — are
  * generated here once at startup, with a fixed count and random positions

@@ -8,7 +8,8 @@
  * details sections. The section (and the map) is absent without a Now
  * station and without observation stations.
  */
-import { DASH, compassPoint, fmtNumber, mergeStations, stationMarks, stationOffsetKm } from "./format.js";
+import { DASH, fmtNumber } from "./format.js";
+import { compassPoint, mergeStations, stationMarks, stationOffsetKm } from "./stations.js";
 import { t } from "./i18n.js";
 import { placeLabels } from "./maplabels.js";
 

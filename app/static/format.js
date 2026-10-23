@@ -6,6 +6,9 @@
  * some outputs ("75 %", "12:50 PM"); the tests compare ordinary spaces. */
 
 import { t } from "./i18n.js";
+// the station and scene helpers live in their own modules; the unit tests import them from here
+export { compassPoint, mergeStations, stationMarks, stationOffsetKm } from "./stations.js";
+export { HEAVY_RAIN_MM, SKY_ICONS, scene, sceneReason } from "./scene.js";
 
 // every missing value
 export const DASH = "—";
@@ -138,77 +141,6 @@ export function locationText(location) {
 export function locationDetail(location) {
   if (!location) return "";
   return [coords(location), location.timezone || ""].filter(Boolean).join(" · ");
-}
-
-/* The station's offset from the location, flat approximation (exact enough
- * at station distances): dx = Δlon·cos(lat)·111.32 km east,
- * dy = Δlat·110.57 km north. { bearing: degrees clockwise from north,
- * 0 ≤ b < 360, km: the distance }. null when a coordinate is missing. */
-export function stationOffsetKm(from, to) {
-  if (!from || typeof from !== "object" || !to || typeof to !== "object") return null;
-  const lat = Number(from.lat ?? from.latitude);
-  const lon = Number(from.lon ?? from.longitude);
-  const lat2 = Number(to.lat ?? to.latitude);
-  const lon2 = Number(to.lon ?? to.longitude);
-  if (![lat, lon, lat2, lon2].every(Number.isFinite)) return null;
-  const dy = (lat2 - lat) * 110.57; // km north
-  const dx = (lon2 - lon) * Math.cos((lat * Math.PI) / 180) * 111.32; // km east
-  const km = Math.hypot(dx, dy);
-  const bearing = (Math.atan2(dx, dy) * 180) / Math.PI;
-  return { bearing: (bearing + 360) % 360, km };
-}
-
-/* The compass point of a bearing in degrees: 0 north, 1 north-east, ...
- * 7 north-west (the nearest of the eight). */
-export function compassPoint(bearing) {
-  return ((Math.round(Number(bearing) / 45) % 8) + 8) % 8;
-}
-
-/* The observation stations, one per DWD station id: Bright Sky can list
- * one station under several sources (other names, coordinates, hours).
- * Keeps the first entry's name, distance and position (the API lists the
- * nearest first) and the largest hour count; entries without an id stay
- * as they are, in order. */
-export function mergeStations(stations) {
-  const out = [];
-  const byId = new Map();
-  for (const s of Array.isArray(stations) ? stations : []) {
-    if (!s || typeof s !== "object") continue;
-    const id = s.dwd_station_id == null ? null : String(s.dwd_station_id);
-    const seen = id === null ? null : byId.get(id);
-    if (!seen) {
-      const copy = { ...s };
-      out.push(copy);
-      if (id !== null) byId.set(id, copy);
-    } else if (Number(s.hours) > Number(seen.hours) || seen.hours == null) {
-      seen.hours = s.hours;
-    }
-  }
-  return out;
-}
-
-/* The map's marks: one per DWD station id — Now's station and an
- * observation station with the same id are one mark (Now's coordinates
- * win, it is the freshest). Returns { id, name, lat, lon, distance_m,
- * isNow } in first-seen order (Now's station first). */
-export function stationMarks(station, stations) {
-  const marks = new Map();
-  const add = (s, isNow) => {
-    if (!s || typeof s !== "object") return;
-    const id = s.dwd_station_id == null ? null : String(s.dwd_station_id);
-    if (id === null || marks.has(id)) return;
-    marks.set(id, {
-      id,
-      name: typeof s.name === "string" ? s.name : "",
-      lat: Number(s.lat),
-      lon: Number(s.lon),
-      distance_m: typeof s.distance_m === "number" ? s.distance_m : null,
-      isNow,
-    });
-  };
-  add(station, true);
-  if (Array.isArray(stations)) for (const s of stations) add(s, false);
-  return [...marks.values()];
 }
 
 const MODEL_LABELS = {
@@ -365,70 +297,4 @@ export function sortAccuracy(models) {
     const acc = (m) => (typeof m.event_accuracy === "number" ? m.event_accuracy : -1);
     return acc(mb) - acc(ma);
   });
-}
-
-/* The page's sky: which scene to show, as the name the page
- * sets on <html data-scene> — one of Bright Sky's twelve weather icons
- * (the /api/now icon), "heavy-rain" (the radar rains hard right now),
- * "rain" (the radar rains right now), or "none" (nothing to show). The
- * radar at the location decides about precipitation right now: rain in
- * its first five-minute step overrides a dry icon (heavy at >= 0.2 mm);
- * a dry radar (first step 0 mm) turns the station's rain, sleet, snow or
- * hail into cloudy (rule B). A thunderstorm stays as a warning (it can
- * arrive fast), and so does every icon while the radar is unavailable;
- * only the first step counts (rain later is not rain now). Malformed
- * answers never throw — they count as no data. */
-export const SKY_ICONS = ["clear-day", "clear-night", "partly-cloudy-day", "partly-cloudy-night",
-  "cloudy", "fog", "wind", "rain", "sleet", "snow", "hail", "thunderstorm"];
-/* Kept while the radar rains (it can't tell snow from rain); see rule B above. */
-const STAYS_ICONS = new Set(["sleet", "snow", "hail", "thunderstorm"]);
-// per five-minute step: about 2.4 mm/h
-export const HEAVY_RAIN_MM = 0.2;
-
-// the valid /api/now icon, or null (malformed answers count as no data)
-function nowIcon(now) {
-  if (!now || typeof now !== "object" || Array.isArray(now)) return null;
-  const c = now.conditions;
-  const icon = c && typeof c === "object" ? c.icon : null;
-  return typeof icon === "string" && SKY_ICONS.includes(icon) ? icon : null;
-}
-
-// the first step's mm (rain right now), or null when unavailable
-function firstStepMm(radar) {
-  if (!radar || typeof radar !== "object" || Array.isArray(radar)) return null;
-  if (radar.available !== true || !Array.isArray(radar.steps)) return null;
-  const step = radar.steps[0];
-  if (!step || typeof step !== "object" || Array.isArray(step)) return null;
-  const mm = step.precip_mm;
-  return typeof mm === "number" && Number.isFinite(mm) ? mm : null;
-}
-
-/* The scene plus what decided it (the "why" line under the glance):
- * source "station" (the /api/now icon decided), "radar" (the radar
- * overrode the icon, either way), or "none"; stationIcon: the valid
- * /api/now icon or null; radarDry: the radar is available, first step 0 mm. */
-export function sceneReason(now, radar) {
-  const mm = firstStepMm(radar);
-  const icon = nowIcon(now);
-  const radarDry = mm === 0;
-  if (icon && STAYS_ICONS.has(icon)) {
-    if (radarDry && icon !== "thunderstorm") {
-      return { scene: "cloudy", source: "radar", stationIcon: icon, radarDry };
-    }
-    return { scene: icon, source: "station", stationIcon: icon, radarDry };
-  }
-  if (icon === "rain") {
-    if (mm == null) return { scene: "rain", source: "station", stationIcon: icon, radarDry };
-    const scene = radarDry ? "cloudy" : mm >= HEAVY_RAIN_MM ? "heavy-rain" : "rain";
-    return { scene, source: "radar", stationIcon: icon, radarDry };
-  }
-  const wet = mm >= HEAVY_RAIN_MM ? "heavy-rain" : mm > 0 ? "rain" : null;
-  if (wet) return { scene: wet, source: "radar", stationIcon: icon, radarDry };
-  if (icon) return { scene: icon, source: "station", stationIcon: icon, radarDry };
-  return { scene: "none", source: "none", stationIcon: null, radarDry };
-}
-
-// the scene name only (sceneReason without the "why" parts)
-export function scene(now, radar) {
-  return sceneReason(now, radar).scene;
 }

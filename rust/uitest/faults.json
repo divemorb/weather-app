@@ -107,7 +107,7 @@
    "why": "snow under a raining radar turns into rain (rule B broken)",
    "edits": [
     {
-     "file": "format.js",
+     "file": "scene.js",
      "find": "const STAYS_ICONS = new Set([\"sleet\", \"snow\", \"hail\", \"thunderstorm\"]);",
      "replace": "const STAYS_ICONS = new Set([\"sleet\", \"hail\", \"thunderstorm\"]);"
     }

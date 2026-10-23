@@ -39,7 +39,7 @@ def area_files(area):
         return sorted((REPO / "app/static").glob("*.js")) + sorted((REPO / "app/static").glob("*.css"))
     if area == "harness":
         u = REPO / "rust/uitest"
-        return [p for p in sorted(u.glob("*.py")) + [u / "probe.js"] if p.name not in ("faults.py", "expect.py")]
+        return [p for p in sorted(u.glob("*.py")) + [u / "probe.js", u / "responsive_probe.js"] if p.name not in ("faults.py", "expect.py")]
     raise SystemExit(f"unknown area {area}")
 
 

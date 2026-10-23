@@ -13,7 +13,8 @@
 import "./view.js";
 import { pickLang, t } from "./i18n.js";
 import { getJSON } from "./api.js";
-import { CONFIG_RETRY_MS, fmtTime, locationText, locationDetail, scene } from "./format.js";
+import { CONFIG_RETRY_MS, fmtTime, locationText, locationDetail } from "./format.js";
+import { scene } from "./scene.js";
 import { renderGlance, renderSkyReason } from "./glance.js";
 import { initSky } from "./sky.js";
 import { initNow, renderNow } from "./now.js";
@@ -66,7 +67,7 @@ mq.addEventListener("change", applyTheme);
 
 /* ---- the sky: one fixed layer behind the tiles. The scene name goes on
  * <html data-scene>. A fresh user report decides it (reportSky);
- * without one, scene() (format.js) maps the Now observation and the
+ * without one, scene() (scene.js) maps the Now observation and the
  * radar's first step. It starts "none" (plain background) and follows
  * every refresh; the particles are built once by initSky(). ---- */
 initSky();
