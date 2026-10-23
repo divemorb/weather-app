@@ -120,9 +120,10 @@ function obsList(obs, loc, lang, locale) {
   return list;
 }
 
+let measurer = null; // the canvas's 2d context, made on the first measure
+
 /* A text's drawn size at the map's 14-unit type, in the page's font (a
  * canvas measures it; the map isn't in the page yet): width, ascent, descent. */
-let measurer = null;
 function textSize(text, weight) {
   measurer = measurer || document.createElement("canvas").getContext("2d");
   if (!measurer) return { w: text.length * 8.4, asc: 13.3, desc: 3.5 };

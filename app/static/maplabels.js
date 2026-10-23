@@ -9,7 +9,8 @@
  * the symbol's box, tried in order), e.g. the radar circle first and the
  * place's own mark second. */
 
-export const LABEL_GAP = 3; // between a label and its symbol or another label
+// between a label and its symbol or another label
+export const LABEL_GAP = 3;
 
 // the area two boxes share (0 when apart)
 function shared(a, b) {

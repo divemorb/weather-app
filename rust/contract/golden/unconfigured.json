@@ -482,8 +482,8 @@
     "cache-control": "no-cache",
     "etag": "present"
    },
-   "sha256": "219ef1b09b7f0603d2fc0937609588d18420e4a3535f31072c69398905c7e4be",
-   "length": 10752
+   "sha256": "91c7b07056843811d07ccc3781dc387829509752b6656a8148b257ee0664a9ed",
+   "length": 10807
   },
   "static/style.css": {
    "status": 200,
