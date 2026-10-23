@@ -109,6 +109,9 @@ pub(crate) mod httptest;
 mod api_tests;
 
 #[cfg(test)]
+mod geocode_tests;
+
+#[cfg(test)]
 mod location_tests;
 
 #[cfg(test)]

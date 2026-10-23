@@ -67,7 +67,7 @@ Each requirement's `*Proof:*` line names the tests that prove it: `cargo:`, `con
   *Proof:* `ui:unconfigured/*/setup-visible`; `ui:wizard/*/save`; `ui:wizard/*/change`
   *Refines:* REQ_GEN_2
 - **REQ_LOC_2** The place is runtime state in the app's database, not in the code or the repository; environment variables or `weather.yaml` may seed it on the first start. *Source: scope.*
-  *Proof:* `cargo:location::tests::startup_adopts_cfg_location_into_db`; `cargo:config::tests::env_location_without_yaml`; `cargo:config::tests::yaml_location_defaults_timezone`
+  *Proof:* `cargo:location::tests::startup_adopts_cfg_location_into_db`; `cargo:config::location_tests::env_location_without_yaml`; `cargo:config::location_tests::yaml_location_defaults_timezone`
 - **REQ_LOC_3** Coordinates are rounded to 3 decimals (about 100 m) before they are stored. *Source: scope.*
   *Proof:* `cargo:location::tests::validate::into_location_rounds_to_three_decimals`; `contract:wizard:location/set-berlin`
 - **REQ_LOC_4** A move of more than about 1 km (0.01° in latitude or longitude) deletes the cached data, the accuracy history and the user's reports of the old place: they would describe another place. *Source: scope; reports: the user, 2026-10-07.*

@@ -31,18 +31,24 @@ fn base_yaml() -> String {
         + "\n"
 }
 
-fn env_lookup(pairs: &[(&str, &str)]) -> HashMap<String, String> {
+/// The environment lookup over the given pairs.
+pub(super) fn env_lookup(pairs: &[(&str, &str)]) -> HashMap<String, String> {
     pairs
         .iter()
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect()
 }
 
-fn load(path: Option<&Path>, env: &HashMap<String, String>) -> Result<AppConfig, String> {
+/// The config from the file at `path` (None: no file) and the environment `env`.
+pub(super) fn load(
+    path: Option<&Path>,
+    env: &HashMap<String, String>,
+) -> Result<AppConfig, String> {
     load_config(path, &|k| env.get(k).cloned())
 }
 
-fn make_config(dir: &Path, yaml: &str) -> PathBuf {
+/// Writes `yaml` as `weather.yaml` into `dir`; its path.
+pub(super) fn make_config(dir: &Path, yaml: &str) -> PathBuf {
     let path = dir.join("weather.yaml");
     std::fs::write(&path, yaml).unwrap();
     path
@@ -154,87 +160,6 @@ fn weight_fallback_without_radar() {
     let ensemble = w.iter().find(|(k, _)| *k == "ensemble").unwrap().1;
     assert!((models - 0.6).abs() < 1e-9);
     assert!((ensemble - 0.4).abs() < 1e-9);
-}
-
-// location is optional: the app can run unconfigured
-#[test]
-fn no_location_in_yaml_and_no_env_is_unconfigured() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = make_config(dir.path(), "{}\n");
-    let cfg = load(Some(&path), &env_lookup(&[])).unwrap();
-    assert!(cfg.location.is_none());
-}
-
-#[test]
-fn yaml_location_needs_both_coordinates() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = make_config(dir.path(), "location:\n  latitude: 52.0\n");
-    let cfg = load(Some(&path), &env_lookup(&[])).unwrap();
-    assert!(cfg.location.is_none());
-}
-
-#[test]
-fn partial_env_falls_back_to_yaml() {
-    // env only counts when BOTH vars are set (they are one source); with
-    // only LATITUDE the YAML block is the source (no mixing of coordinates)
-    let dir = tempfile::tempdir().unwrap();
-    let path = make_config(
-        dir.path(),
-        "location:\n  latitude: 52.0\n  longitude: 13.0\n",
-    );
-    let env = env_lookup(&[("LATITUDE", "52.52")]);
-    let cfg = load(Some(&path), &env).unwrap();
-    let loc = cfg.location.as_ref().unwrap();
-    assert_eq!(loc.latitude, 52.0);
-}
-
-#[test]
-fn yaml_location_defaults_timezone() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = make_config(
-        dir.path(),
-        "location:\n  latitude: 52.0\n  longitude: 13.0\n",
-    );
-    let cfg = load(Some(&path), &env_lookup(&[])).unwrap();
-    let loc = cfg.location.as_ref().unwrap();
-    assert_eq!(loc.timezone, "Europe/Berlin");
-}
-
-#[test]
-fn env_location_without_yaml() {
-    // env vars are a source by themselves; the YAML block is not needed
-    let dir = tempfile::tempdir().unwrap();
-    let path = make_config(dir.path(), "{}\n");
-    let env = env_lookup(&[("LATITUDE", "52.52"), ("LONGITUDE", "13.40")]);
-    let cfg = load(Some(&path), &env).unwrap();
-    let loc = cfg.location.as_ref().unwrap();
-    assert_eq!((loc.latitude, loc.longitude), (52.52, 13.40));
-    assert_eq!(loc.timezone, "Europe/Berlin");
-}
-
-#[test]
-fn yaml_location_timezone_is_used() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = make_config(
-        dir.path(),
-        "location:\n  latitude: 52.0\n  longitude: 13.0\n  timezone: Europe/Paris\n",
-    );
-    let cfg = load(Some(&path), &env_lookup(&[])).unwrap();
-    let loc = cfg.location.as_ref().unwrap();
-    assert_eq!(loc.timezone, "Europe/Paris");
-}
-
-#[test]
-fn yaml_location_empty_timezone_defaults() {
-    // An empty timezone string counts as missing, so the default applies.
-    let dir = tempfile::tempdir().unwrap();
-    let path = make_config(
-        dir.path(),
-        "location:\n  latitude: 52.0\n  longitude: 13.0\n  timezone: ''\n",
-    );
-    let cfg = load(Some(&path), &env_lookup(&[])).unwrap();
-    let loc = cfg.location.as_ref().unwrap();
-    assert_eq!(loc.timezone, "Europe/Berlin");
 }
 
 #[test]

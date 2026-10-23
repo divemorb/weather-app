@@ -379,4 +379,7 @@ pub fn load_config(path: Option<&Path>, env: Env) -> Result<AppConfig, String> {
 }
 
 #[cfg(test)]
+mod location_tests;
+
+#[cfg(test)]
 mod tests;
